@@ -156,8 +156,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     Assert.AreSame(first.buffer, cache.GetBufferHandle(view, 64).buffer, $"frame {frame}");
                 }
                 Assert.AreEqual(1, cache.allocatedViewCount);
+                BufferHandle batch = cache.EnsureFrustumBatch(64, 4, out int stride);
+                Assert.AreEqual(64, stride);
+                view.lodProjection.origin = new float3(9, 0, 0);
+                Assert.AreSame(batch.buffer, cache.EnsureFrustumBatch(64, 4, out _).buffer, "Camera motion does not allocate another frustum buffer.");
+                Assert.AreEqual(1, cache.allocatedViewCount, "Frustum slices are not per-view allocations.");
                 MeshView other = MeshTestUtility.CameraView(52);
-                Assert.AreNotSame(first.buffer, cache.GetBufferHandle(other, 64).buffer, "Another view keeps its own buffer.");
+                Assert.AreNotSame(first.buffer, cache.GetBufferHandle(other, 64).buffer, "Occlusion keys keep distinct buffers.");
                 Assert.AreEqual(2, cache.allocatedViewCount);
             }
             finally
@@ -188,44 +193,34 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshWorldGPU gpu = world.gpu;
                 ComputeShader shader = Object.Instantiate(fixture.shader);
-                var output = new ComputeBuffer(world.entityHighWater, sizeof(uint));
+                MeshView camera = MeshTestUtility.CameraView(21);
+                MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 22, MeshTestUtility.BoxPlanes(), float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
+                MeshView local = MeshView.FromShadow(EMeshViewKind.LocalShadow, 23, MeshTestUtility.BoxPlanes(), new float3(1, 2, 3), 1, 2u, 1, 1ul << 4, MeshTestUtility.Lod);
+                local.lodProjection = new MeshLODProjection { origin = new float3(4, 0, 0), scale = 0.5f, bias = 2f, orthographic = true };
+                var views = new System.Collections.Generic.List<MeshView>();
+                var expected = new System.Collections.Generic.List<uint[]>();
+                foreach (ulong sceneMask in new[] { ulong.MaxValue, 1ul, 1ul << 63, 0ul })
+                {
+                    foreach (MeshView source in new[] { camera, shadow, local })
+                    {
+                        MeshView view = source;
+                        view.sceneCullingMask = sceneMask;
+                        views.Add(view);
+                        expected.Add(MeshTestUtility.PackedCullOnCpu(world, view));
+                    }
+                }
+                int stride = world.entityHighWater;
+                var output = new ComputeBuffer(stride * views.Count, sizeof(uint));
                 try
                 {
-                    int kernel = shader.FindKernel("CullFrustum");
-                    MeshView camera = MeshTestUtility.CameraView(21);
-                    MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 22, MeshTestUtility.BoxPlanes(), float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
-                    foreach (ulong sceneMask in new[] { ulong.MaxValue, 1ul, 1ul << 63, 0ul })
+                    MeshTestUtility.DispatchFrustum(shader, world, views.ToArray(), output, stride);
+                    var actual = new uint[stride * views.Count];
+                    output.GetData(actual);
+                    for (int slice = 0; slice < views.Count; ++slice)
                     {
-                        foreach (MeshView source in new[] { camera, shadow })
-                        {
-                            MeshView view = source;
-                            view.sceneCullingMask = sceneMask;
-                            uint[] cpu = MeshTestUtility.PackedCullOnCpu(world, view);
-                            var planes = new Vector4[MeshView.MaxPlanes];
-                            view.CopyFrustumPlanes(planes);
-                            shader.SetVectorArray("_FrustumPlanes", planes);
-                            shader.SetInt("_EntityCount", world.entityHighWater);
-                            shader.SetInt("_ViewLayerMask", view.layerMask);
-                            shader.SetInt("_ViewSceneCullingMaskLow", unchecked((int)view.sceneCullingMask));
-                            shader.SetInt("_ViewSceneCullingMaskHigh", unchecked((int)(view.sceneCullingMask >> 32)));
-                            shader.SetInt("_ViewRenderingLayerMask", (int)view.renderingLayerMask);
-                            shader.SetInt("_FilterRenderingLayers", view.FilterRenderingLayers ? 1 : 0);
-                            shader.SetBuffer(kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
-                            shader.SetBuffer(kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
-                            shader.SetBuffer(kernel, "_EntityFlags", gpu.flags.buffer);
-                            shader.SetBuffer(kernel, "_EntityLayerMask", gpu.layerMask.buffer);
-                            shader.SetBuffer(kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
-                            shader.SetBuffer(kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
-                            MeshTestUtility.BindLod(shader, kernel, gpu.lodChains.buffer, view.lodProjection);
-                            shader.SetBuffer(kernel, "_Visibility", output);
-                            shader.Dispatch(kernel, (world.entityHighWater + 63) / 64, 1, 1);
-                            var actual = new uint[world.entityHighWater];
-                            output.GetData(actual);
-                            for (int i = 0; i < actual.Length; ++i)
-                                Assert.AreEqual(cpu[i], actual[i], $"{view.kind} scene mask {sceneMask:X16}, entity {i}");
-                        }
+                        for (int i = 0; i < stride; ++i)
+                            Assert.AreEqual(expected[slice][i], actual[slice * stride + i], $"{views[slice].kind} slice {slice}, entity {i}");
                     }
                 }
                 finally

@@ -181,6 +181,33 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return bits;
         }
 
+        internal static void DispatchFrustum(ComputeShader shader, MeshWorld world, MeshView[] views, ComputeBuffer visibility, int stride)
+        {
+            int kernel = shader.FindKernel("CullFrustum");
+            var table = new MeshFrustumView[views.Length];
+            for (int i = 0; i < views.Length; ++i) table[i] = MeshFrustumView.FromView(views[i]);
+            var viewBuffer = new ComputeBuffer(Math.Max(1, views.Length), System.Runtime.InteropServices.Marshal.SizeOf<MeshFrustumView>());
+            try
+            {
+                viewBuffer.SetData(table);
+                MeshWorldGPU gpu = world.gpu;
+                shader.SetInt("_EntityCount", world.entityHighWater);
+                shader.SetInt("_ViewCount", views.Length);
+                shader.SetInt("_EntityStride", stride);
+                shader.SetBuffer(kernel, "_FrustumViews", viewBuffer);
+                shader.SetBuffer(kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
+                shader.SetBuffer(kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
+                shader.SetBuffer(kernel, "_EntityFlags", gpu.flags.buffer);
+                shader.SetBuffer(kernel, "_EntityLayerMask", gpu.layerMask.buffer);
+                shader.SetBuffer(kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
+                shader.SetBuffer(kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
+                shader.SetBuffer(kernel, "_EntityLodChains", gpu.lodChains.buffer);
+                shader.SetBuffer(kernel, "_Visibility", visibility);
+                shader.Dispatch(kernel, (world.entityHighWater + 63) / 64, Math.Max(1, views.Length), 1);
+            }
+            finally { viewBuffer.Release(); }
+        }
+
         /// <summary>Drops the recorded graph (which releases its draw lists) before disposing the builder.</summary>
         internal static void Release(RGBuilder graph)
         {

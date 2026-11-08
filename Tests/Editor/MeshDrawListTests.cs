@@ -291,11 +291,15 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     ComputeBuffer args = Upload(new uint[commandCount * 2 * 5], sizeof(uint), ComputeBufferType.IndirectArguments);
                     ComputeBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
                     ComputeBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
-                    ComputeBuffer visibility = Upload(visibleWords, sizeof(uint));
+                    const int visibilityBase = 16;
+                    var placed = new uint[visibilityBase + visibleWords.Length];
+                    for (int i = 0; i < visibleWords.Length; ++i) placed[visibilityBase + i] = visibleWords[i];
+                    ComputeBuffer visibility = Upload(placed, sizeof(uint));
                     int clear = shader.FindKernel("ClearCounts"), compact = shader.FindKernel("Compact"), indirect = shader.FindKernel("BuildIndirectArgs");
                     shader.SetInt("_CommandCount", commandCount);
                     shader.SetInt("_CandidateCount", candidateCount);
                     shader.SetInt("_DitherLod", 1);
+                    shader.SetInt("_VisibilityBase", visibilityBase);
                     shader.SetBuffer(clear, "_VisibleCounts", counts);
                     shader.SetBuffer(clear, "_IndirectArgs", args);
                     shader.SetBuffer(compact, "_CandidateTable", cache.candidateBuffer.buffer);

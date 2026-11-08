@@ -55,6 +55,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly int ID_ViewRenderingLayerMask = Shader.PropertyToID("_ViewRenderingLayerMask");
         static readonly int ID_FilterRenderingLayers = Shader.PropertyToID("_FilterRenderingLayers");
         static readonly int ID_Visibility = Shader.PropertyToID("_Visibility");
+        static readonly int ID_VisibilityBase = Shader.PropertyToID("_VisibilityBase");
+        static readonly int ID_ViewCount = Shader.PropertyToID("_ViewCount");
+        static readonly int ID_EntityStride = Shader.PropertyToID("_EntityStride");
+        static readonly int ID_FrustumViews = Shader.PropertyToID("_FrustumViews");
         static readonly int ID_CommandCount = Shader.PropertyToID("_CommandCount");
         static readonly int ID_CandidateCount = Shader.PropertyToID("_CandidateCount");
         static readonly int ID_CommandMeta = Shader.PropertyToID("_CommandMeta");
@@ -144,12 +148,23 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(m_Shader, ID_LodOrthographic, lod.orthographic ? 1 : 0);
         }
 
-        internal void DispatchCullFrustum<TCommands>(TCommands commands, in MeshView view, Vector4[] frustumPlanes, in MeshCullInputs inputs,
-            RGBufferHandle visibility, MeshWorldStats stats) where TCommands : struct, IComputeCommands
+        internal void DispatchCullFrustumBatch<TCommands>(TCommands commands, in MeshCullInputs inputs, int viewCount, int stride,
+            ComputeBuffer viewTable, RGBufferHandle visibility, MeshWorldStats stats) where TCommands : struct, IComputeCommands
         {
             RequireSupported();
-            BindCullInputs(commands, m_CullKernel, view, frustumPlanes, inputs, visibility);
-            commands.DispatchCompute(m_Shader, m_CullKernel, math.max(1, (inputs.entityCount + 63) / 64), 1, 1);
+            commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
+            commands.SetComputeIntParam(m_Shader, ID_ViewCount, viewCount);
+            commands.SetComputeIntParam(m_Shader, ID_EntityStride, stride);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_FrustumViews, viewTable);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsCenter, inputs.boundsCenter);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsExtent, inputs.boundsExtent);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLodChains, inputs.lodChains);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityFlags, inputs.flags);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLayerMask, inputs.layerMask);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityRenderingLayer, inputs.renderingLayers);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_Visibility, visibility);
+            commands.DispatchCompute(m_Shader, m_CullKernel, math.max(1, (inputs.entityCount + 63) / 64), math.max(1, viewCount), 1);
             stats.gpuCullDispatches++;
         }
         #endregion
@@ -190,9 +205,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            ComputeBuffer visibility, MeshWorldStats stats)
+            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
         {
             RequireSupported();
+            commands.SetComputeIntParam(m_Shader, ID_VisibilityBase, visibilityBase);
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);

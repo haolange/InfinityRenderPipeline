@@ -37,11 +37,11 @@ float MeshLODScreenSize(MeshLODChain chain, uint level)
 
 // Packed visibility of one entity: 0 when no level draws, else 1 | level << 8 | fade << 16, where fade is
 // MESH_LOD_STABLE outside the band and the band position quantized to [0, 65534) inside it.
-uint MeshPackLODVisibility(uint entity, float3 center, float3 extent)
+uint MeshPackLODVisibility(uint entity, float3 center, float3 extent, float3 origin, float scale, float bias, uint orthographic)
 {
     MeshLODChain chain = _EntityLodChains[entity];
-    float distance = _LodOrthographic != 0u ? 1.0 : max(length(center - _LodOrigin.xyz), 1e-6);
-    float screen = max(max(extent.x, extent.y), extent.z) * _LodScale * _LodBias / distance;
+    float distance = orthographic != 0u ? 1.0 : max(length(center - origin), 1e-6);
+    float screen = max(max(extent.x, extent.y), extent.z) * scale * bias / distance;
     uint packed = 0u;
     bool found = false;
     [loop]
@@ -62,6 +62,11 @@ uint MeshPackLODVisibility(uint entity, float3 center, float3 extent)
         }
     }
     return packed;
+}
+
+uint MeshPackLODVisibility(uint entity, float3 center, float3 extent)
+{
+    return MeshPackLODVisibility(entity, center, extent, _LodOrigin.xyz, _LodScale, _LodBias, _LodOrthographic);
 }
 
 #endif

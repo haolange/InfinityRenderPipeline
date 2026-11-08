@@ -26,11 +26,41 @@
 #define MESH_ARGS_STRIDE 5u
 #include "../../ShaderLibrary/MeshLOD.hlsl"
 
+struct MeshFrustumView
+{
+    float4 plane0;
+    float4 plane1;
+    float4 plane2;
+    float4 plane3;
+    float4 plane4;
+    float4 plane5;
+    uint planeCount;
+    uint layerMask;
+    uint sceneLow;
+    uint sceneHigh;
+    uint renderingLayerMask;
+    uint filterRenderingLayers;
+    uint lodOrthographic;
+    uint reserved0;
+    float lodScale;
+    float lodBias;
+    float lodOriginX;
+    float lodOriginY;
+    float lodOriginZ;
+    uint reserved1;
+    uint reserved2;
+    uint reserved3;
+};
+
 uint _EntityCount;
 uint _CommandCount;
 uint _CandidateCount;
 uint _DitherLod;
+uint _ViewCount;
+uint _EntityStride;
+uint _VisibilityBase;
 float4 _FrustumPlanes[6];
+StructuredBuffer<MeshFrustumView> _FrustumViews;
 
 StructuredBuffer<float4> _EntityBoundsCenter;
 StructuredBuffer<float4> _EntityBoundsExtent;
@@ -61,16 +91,11 @@ bool FrustumCullAABB(float3 center, float3 extent)
         float4 plane = _FrustumPlanes[i];
         float distance = dot(plane.xyz, center) + plane.w;
         float radius = dot(extent, abs(plane.xyz));
-        if (distance + radius < 0.0f)
-        {
-            culled = true;
-        }
+        if (distance + radius < 0.0f) culled = true;
     }
-
     return culled;
 }
 
-// Frustum, flags and masks; visible entities get their packed LOD visibility (0 when no level draws).
 bool MeshFrustumVisible(uint entity)
 {
     bool visible = false;
@@ -83,9 +108,7 @@ bool MeshFrustumVisible(uint entity)
         matches = any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh));
     }
     if (matches)
-    {
         visible = !FrustumCullAABB(_EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
-    }
     return visible;
 }
 
@@ -96,10 +119,60 @@ uint MeshCullVisibility(uint entity)
     return packed;
 }
 
+float4 MeshFrustumPlane(MeshFrustumView view, int index)
+{
+    float4 plane = view.plane0;
+    if (index == 1) plane = view.plane1;
+    else if (index == 2) plane = view.plane2;
+    else if (index == 3) plane = view.plane3;
+    else if (index == 4) plane = view.plane4;
+    else if (index == 5) plane = view.plane5;
+    return plane;
+}
+
+bool MeshViewFrustumCulled(MeshFrustumView view, float3 center, float3 extent)
+{
+    bool culled = false;
+    [loop]
+    for (int i = 0; i < 6; ++i)
+    {
+        if (i >= (int)view.planeCount) break;
+        float4 plane = MeshFrustumPlane(view, i);
+        float distance = dot(plane.xyz, center) + plane.w;
+        float radius = dot(extent, abs(plane.xyz));
+        if (distance + radius < 0.0f) culled = true;
+    }
+    return culled;
+}
+
+bool MeshFrustumVisibleInView(uint entity, MeshFrustumView view)
+{
+    bool visible = false;
+    bool matches = (_EntityFlags[entity] & MESH_ENTITY_VISIBLE) != 0u && (_EntityLayerMask[entity] & view.layerMask) != 0u;
+    if (matches && view.filterRenderingLayers != 0u)
+        matches = (_EntityRenderingLayer[entity] & view.renderingLayerMask) != 0u;
+    if (matches)
+    {
+        uint2 sceneMask = _EntitySceneCullingMask[entity];
+        matches = any(sceneMask & uint2(view.sceneLow, view.sceneHigh));
+    }
+    if (matches)
+        visible = !MeshViewFrustumCulled(view, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
+    return visible;
+}
+
 [numthreads(64, 1, 1)]
 void CullFrustum(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) _Visibility[id.x] = MeshCullVisibility(id.x);
+    if (id.x >= _EntityCount || id.y >= _ViewCount) return;
+    MeshFrustumView view = _FrustumViews[id.y];
+    uint packed = 0u;
+    if (MeshFrustumVisibleInView(id.x, view))
+    {
+        packed = MeshPackLODVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz,
+            float3(view.lodOriginX, view.lodOriginY, view.lodOriginZ), view.lodScale, view.lodBias, view.lodOrthographic);
+    }
+    _Visibility[id.y * _EntityStride + id.x] = packed;
 }
 #include "MeshOcclusion.hlsl"
 
@@ -133,7 +206,7 @@ void Compact(uint3 id : SV_DispatchThreadID)
     uint command = candidate.y & MESH_COMMAND_MASK;
     uint elementLod = candidate.y >> MESH_LOD_SHIFT;
     if (command >= _CommandCount) return;
-    uint packed = _Visibility[entity];
+    uint packed = _Visibility[_VisibilityBase + entity];
     if (packed == 0u) return;
 
     uint level = (packed >> 8) & 0xFFu;

@@ -322,14 +322,18 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     AddConsumer(graph, target, CustomSamplerId.RasterCascadeShadow, cascadeShadow, true);
                     AddConsumer(graph, target, CustomSamplerId.RasterLocalShadow, localShadow, true);
                     Compile(graph);
-                    Assert.AreEqual(3, CountPasses(graph, "ComputeMeshCulling", true));
-
                     MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
+                    Assert.AreEqual(1, CountPasses(graph, "ComputeMeshCulling", true), "One frustum batch covers every view.");
+                    int stride = fixture.world.gpuVisibility.frustumStride;
+                    Assert.AreEqual(0, lists.GetRecordCopy(depth.index).gpuVisibilityBase);
+                    Assert.AreEqual(0, lists.GetRecordCopy(gbuffer.index).gpuVisibilityBase);
+                    Assert.AreEqual(stride, lists.GetRecordCopy(cascadeShadow.index).gpuVisibilityBase);
+                    Assert.AreEqual(stride * 2, lists.GetRecordCopy(localShadow.index).gpuVisibilityBase);
                     RGBufferHandle mainVisibility = lists.GetRecordCopy(depth.index).gpuVisibility;
                     Assert.IsTrue(mainVisibility.IsValid());
-                    Assert.AreEqual(mainVisibility.handle, lists.GetRecordCopy(gbuffer.index).gpuVisibility.handle, "Lists of one view bind one culling producer.");
-                    Assert.AreNotEqual(mainVisibility.handle, lists.GetRecordCopy(cascadeShadow.index).gpuVisibility.handle);
-                    Assert.AreNotEqual(lists.GetRecordCopy(cascadeShadow.index).gpuVisibility.handle, lists.GetRecordCopy(localShadow.index).gpuVisibility.handle);
+                    Assert.AreEqual(mainVisibility.handle.index, lists.GetRecordCopy(gbuffer.index).gpuVisibility.handle.index, "Lists of one view share a slice.");
+                    Assert.AreEqual(mainVisibility.handle.index, lists.GetRecordCopy(cascadeShadow.index).gpuVisibility.handle.index, "Every frustum view reads the batch.");
+                    Assert.AreEqual(mainVisibility.handle.index, lists.GetRecordCopy(localShadow.index).gpuVisibility.handle.index);
                 }
                 finally { MeshTestUtility.Release(graph); }
             }

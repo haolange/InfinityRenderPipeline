@@ -55,6 +55,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         // GPU indirect
         public RGBufferHandle gpuVisibility;
         public BufferHandle gpuVisibilityBuffer;
+        public int gpuVisibilityBase;
         public MeshGPUDrawPayload payload;
         public int commandCount;
         public int candidateCount;
@@ -125,11 +126,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Records[drawListIndex] = record;
         }
 
-        public void BindGPUVisibility(int index, in RGBufferHandle visibility, in BufferHandle buffer)
+        public void BindGPUVisibility(int index, in RGBufferHandle visibility, in BufferHandle buffer, int visibilityBase = 0)
         {
             MeshDrawListRecord record = m_Records[index];
             record.gpuVisibility = visibility;
             record.gpuVisibilityBuffer = buffer;
+            record.gpuVisibilityBase = visibilityBase;
             m_Records[index] = record;
         }
 
@@ -200,7 +202,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_World.gpuBackend.Compact(commands, record.payload, record.cache, record.commandCount, record.candidateCount,
-                    record.gpuVisibilityBuffer.buffer, m_World.stats);
+                    record.gpuVisibilityBuffer.buffer, record.gpuVisibilityBase, m_World.stats);
             }
             finally { if (slice != null) commands.EndSample(slice); }
         }

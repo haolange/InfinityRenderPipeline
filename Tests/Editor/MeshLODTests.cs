@@ -249,49 +249,37 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshWorldGPU gpu = world.gpu;
                 ComputeShader shader = Object.Instantiate(fixture.shader);
-                var output = new ComputeBuffer(world.entityHighWater, sizeof(uint));
+                MeshView perspective = MeshTestUtility.CameraView(41);
+                perspective.lodProjection = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1, orthographic = false };
+                MeshView orthographic = perspective;
+                orthographic.lodProjection = new MeshLODProjection { origin = float3.zero, scale = 0.25f, bias = 1, orthographic = true };
+                MeshView[] views = { perspective, orthographic };
+                int stride = world.entityHighWater;
+                var output = new ComputeBuffer(stride * views.Length, sizeof(uint));
                 try
                 {
                     var levels = new HashSet<uint>();
                     bool sawBand = false, sawCulled = false;
-                    foreach (bool orthographic in new[] { false, true })
+                    var cpu = new uint[views.Length][];
+                    for (int slice = 0; slice < views.Length; ++slice) cpu[slice] = MeshTestUtility.PackedCullOnCpu(world, views[slice]);
+                    MeshTestUtility.DispatchFrustum(shader, world, views, output, stride);
+                    var actual = new uint[stride * views.Length];
+                    output.GetData(actual);
+                    for (int slice = 0; slice < views.Length; ++slice)
                     {
-                        MeshView view = MeshTestUtility.CameraView(41);
-                        view.lodProjection = new MeshLODProjection { origin = float3.zero, scale = orthographic ? 0.25f : 1, bias = 1, orthographic = orthographic };
-                        uint[] cpu = MeshTestUtility.PackedCullOnCpu(world, view);
-                        int kernel = shader.FindKernel("CullFrustum");
-                        var planes = new Vector4[MeshView.MaxPlanes];
-                        view.CopyFrustumPlanes(planes);
-                        shader.SetVectorArray("_FrustumPlanes", planes);
-                        shader.SetInt("_EntityCount", world.entityHighWater);
-                        shader.SetInt("_ViewLayerMask", view.layerMask);
-                        shader.SetInt("_ViewSceneCullingMaskLow", unchecked((int)view.sceneCullingMask));
-                        shader.SetInt("_ViewSceneCullingMaskHigh", unchecked((int)(view.sceneCullingMask >> 32)));
-                        shader.SetInt("_ViewRenderingLayerMask", (int)view.renderingLayerMask);
-                        shader.SetInt("_FilterRenderingLayers", view.FilterRenderingLayers ? 1 : 0);
-                        shader.SetBuffer(kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
-                        shader.SetBuffer(kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
-                        shader.SetBuffer(kernel, "_EntityFlags", gpu.flags.buffer);
-                        shader.SetBuffer(kernel, "_EntityLayerMask", gpu.layerMask.buffer);
-                        shader.SetBuffer(kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
-                        shader.SetBuffer(kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
-                        MeshTestUtility.BindLod(shader, kernel, gpu.lodChains.buffer, view.lodProjection);
-                        shader.SetBuffer(kernel, "_Visibility", output);
-                        shader.Dispatch(kernel, (world.entityHighWater + 63) / 64, 1, 1);
-                        var actual = new uint[world.entityHighWater];
-                        output.GetData(actual);
-                        for (int i = 0; i < actual.Length; ++i)
+                        string mode = views[slice].lodProjection.orthographic ? "orthographic" : "perspective";
+                        for (int i = 0; i < stride; ++i)
                         {
-                            string label = $"{(orthographic ? "orthographic" : "perspective")} entity {i}";
-                            Assert.AreEqual(cpu[i] & 0xFFFFu, actual[i] & 0xFFFFu, $"{label}: visibility and level");
-                            int cpuFade = (int)(cpu[i] >> 16), gpuFade = (int)(actual[i] >> 16);
+                            string label = $"{mode} entity {i}";
+                            uint got = actual[slice * stride + i];
+                            Assert.AreEqual(cpu[slice][i] & 0xFFFFu, got & 0xFFFFu, $"{label}: visibility and level");
+                            int cpuFade = (int)(cpu[slice][i] >> 16), gpuFade = (int)(got >> 16);
                             Assert.AreEqual(cpuFade == 65535, gpuFade == 65535, $"{label}: stable or in a band");
                             Assert.LessOrEqual(math.abs(cpuFade - gpuFade), cpuFade == 65535 ? 0 : 2, $"{label}: fade");
-                            if (cpu[i] == 0) sawCulled = true;
-                            else levels.Add((cpu[i] >> 8) & 0xFFu);
-                            sawBand |= cpu[i] != 0 && cpuFade != 65535;
+                            if (cpu[slice][i] == 0) sawCulled = true;
+                            else levels.Add((cpu[slice][i] >> 8) & 0xFFu);
+                            sawBand |= cpu[slice][i] != 0 && cpuFade != 65535;
                         }
                     }
                     Assert.AreEqual(3, levels.Count, "The sweep reaches every level.");

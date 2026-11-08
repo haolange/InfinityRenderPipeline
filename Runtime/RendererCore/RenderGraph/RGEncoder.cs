@@ -62,6 +62,8 @@ namespace InfinityTech.Rendering.RenderGraph
     public struct RGComputeEncoder : IComputeCommands
     {
         public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferHandle value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
+        internal void SetBufferData(ComputeBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
+            => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
         internal CommandBuffer m_CommandBuffer;
 
         internal RGComputeEncoder(CommandBuffer commandBuffer)
