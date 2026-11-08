@@ -36,6 +36,8 @@ Scene_Spazon was compared with time frozen, `Rotate` and `CameraMovement` disabl
 
 Moving an object between two loaded main-stage scenes stays closed. Both scenes share one `GetSceneCullingMask`. Pose, parent, undo, redo and layer were shown in round 2. Distinct masks are covered by `MeshViewTests`.
 
+Naming convergence at `ccfdfb8`, same Editor and Metal, does not change that behavior. EditMode is 817 passed, 12 failed, 1 skipped, and the 12 failures are the stripping logs, the residency case and `HierarchicalRay_HitIsOneActualSurfaceTexel(True)`. Project `AssetBaseline.py compare` is 0 differences on 137 inputs. The Editor rewrote `ProjectSettings`, `TimeManager` and `project.slnx` while it was open; those files were restored from the pre-rename backup, and `Scene_Spazon` was not saved. Frozen DisplayColor against that backup's capture is SSIM 1 and 0 changed pixels on CPU (`final-cpu-8`) and GPU (`final-gpu`). A quiet 10k all-moving probe gives a 60 s proxy p50 of 0.390 ms CPU and 0.371 ms GPU, inside 10% of the round-2 0.387 / 0.382 ms, with proxy `GC.Alloc` p50 at 0. An earlier probe on a busy Editor sat outside that band; its per-frame minimum was already under the round-2 median. The rename table is [History/MeshDrawing-2026-11-08/Naming.md](History/MeshDrawing-2026-11-08/Naming.md).
+
 D3D12, Vulkan and Windows stay `TODO(UNVERIFIED)`.
 
 ### RenderGraph compiler — 2026-10-27
