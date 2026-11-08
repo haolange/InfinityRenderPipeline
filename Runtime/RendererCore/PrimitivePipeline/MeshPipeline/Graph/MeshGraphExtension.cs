@@ -150,8 +150,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 IRGPass consumer = builder.GetPass(passIndex);
                 if (builder.IsCulled(passIndex) || consumer.extensionUses.Count == 0) continue;
-                ProfilingSampler group = consumer.customSampler;
-                if (group != null) builder.BeginProfileRange(group);
                 foreach (int drawIndex in consumer.extensionUses)
                 {
                     MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
@@ -174,7 +172,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                     }
                     foreach (RGBufferHandle output in outputs) consumer.AddResourceRead(output.handle);
                 }
-                if (group != null) builder.EndProfileRange(group);
             }
             prepared.Clear();
         }

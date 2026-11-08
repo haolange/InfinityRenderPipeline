@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -36,6 +37,19 @@ namespace InfinityTech.Rendering.Tests
             }
             finally { timings.Reset(); }
             foreach (var sampler in MeshDrawProfiling.passes) Assert.AreEqual("-", timings.Describe(sampler));
+        }
+
+        [Test]
+        public void Preparation_IsNotWrappedInTheConsumerSampler()
+        {
+            string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RendererCore/PrimitivePipeline/MeshPipeline/Graph/MeshGraphExtension.cs");
+            int start = source.IndexOf("void InsertDrawListPreparation", StringComparison.Ordinal);
+            int end = source.IndexOf("RGBufferHandle[] RecordPreparation", StringComparison.Ordinal);
+            Assert.GreaterOrEqual(start, 0);
+            Assert.Greater(end, start);
+            string method = source.Substring(start, end - start);
+            Assert.IsFalse(method.Contains("BeginProfileRange"));
+            Assert.IsFalse(method.Contains("EndProfileRange"));
         }
 
         [Test]

@@ -191,7 +191,7 @@ cmdEncoder.SubmitMeshDrawList(data.meshDrawList);
 
 Content code mutates `MeshComponent`. It does not call `CreateMeshDrawList`. Submitting a mesh draw list records its draw calls into the raster encoder. Native submit and a submission segment are command-buffer submission.
 
-Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. Preparation samplers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, shared across views and owned by `MeshDrawProfiling`. Shared sampler names do not merge graph nodes.
+Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. Preparation samplers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, shared across views and owned by `MeshDrawProfiling`. A preparation producer is not recorded inside its consumer's profiling range, so a raster pass group contains that pass's draws. Shared sampler names do not merge graph nodes.
 
 `TranslucentPass` draws MeshComponent content from the TranslucentDepth (front to back) and T0/T1/T2 (back to front, CPU) presets before the native renderer list of the same pass, with the pass's keywords and global inputs already bound. The two lists are sorted separately, so MeshComponent and native translucent renderers have no distance order between them. Out of scope for this pipeline: GPU sorting of draw keys, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects.
 
