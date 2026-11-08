@@ -44,7 +44,12 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         RGBufferHandle OcclusionList(RGBuilder builder, in MeshView view) => builder.ImportBuffer(world.GetGPUVisibilityBuffer(view));
 
-        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer) => m_GPUCullVisibility.Add(new MeshVisibilityKey(view, true), buffer);
+        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer)
+        {
+            m_GPUCullVisibility.Add(new MeshVisibilityKey(view, true), buffer);
+            if (view.visibilityPhase != EMeshVisibilityPhase.Final) return;
+            m_OcclusionFinal[CoverageKey(view)] = new GpuVisibilityBinding { handle = buffer, buffer = world.GetGPUVisibilityBuffer(view) };
+        }
 
         static readonly RGComputePassExecuteAction<MeshOcclusionData> s_ExecuteMeshOcclusion = ExecuteMeshOcclusion;
 

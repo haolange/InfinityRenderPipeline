@@ -28,7 +28,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal readonly MeshDrawListRegistry drawLists;
         readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
         readonly Dictionary<MeshVisibilityKey, RGBufferHandle> m_GPUCullVisibility = new Dictionary<MeshVisibilityKey, RGBufferHandle>(8);
+        readonly Dictionary<MeshVisibilityKey, GpuVisibilityBinding> m_OcclusionFinal = new Dictionary<MeshVisibilityKey, GpuVisibilityBinding>(4);
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
+
+        struct GpuVisibilityBinding
+        {
+            public RGBufferHandle handle;
+            public BufferHandle buffer;
+        }
 
         internal MeshGraphExtension(MeshWorld world)
         {
@@ -43,6 +50,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_ScheduledVersions.Clear();
             m_GPUCullVisibility.Clear();
+            m_OcclusionFinal.Clear();
             drawLists.ReleaseAll();
         }
 
@@ -85,18 +93,40 @@ namespace InfinityTech.Rendering.MeshPipeline
             return inputs;
         }
 
-        /// <summary>One frustum-culling producer per visibility key and camera render; later lists of the same view only bind it.</summary>
+        /// <summary>Registers a view for compile-time culling. Occlusion coverage and frustum producers are resolved in <see cref="BindGpuCulling"/>.</summary>
         internal void RequestMeshGPUCulling(RGBuilder builder, in MeshView view, in RGMeshDrawListHandle draws)
         {
-            var key = new MeshVisibilityKey(view, true);
-            BufferHandle buffer = world.GetGPUVisibilityBuffer(view);
-            if (m_GPUCullVisibility.TryGetValue(key, out RGBufferHandle existing))
-            {
-                if (drawLists.IsLive(draws)) drawLists.BindGPUVisibility(draws.index, existing, buffer);
-                return;
-            }
+            view.lodProjection.ThrowIfInvalid();
+        }
 
+        static MeshVisibilityKey CoverageKey(in MeshView view)
+        {
+            var plain = view;
+            plain.visibilityPhase = EMeshVisibilityPhase.Final;
+            plain.visibilityHistory = 0;
+            return new MeshVisibilityKey(plain, false);
+        }
+
+        internal bool TryOcclusionFinal(in MeshView view, out RGBufferHandle handle, out BufferHandle buffer)
+        {
+            if (m_OcclusionFinal.TryGetValue(CoverageKey(view), out GpuVisibilityBinding binding))
+            {
+                handle = binding.handle;
+                buffer = binding.buffer;
+                return true;
+            }
+            handle = default;
+            buffer = default;
+            return false;
+        }
+
+        GpuVisibilityBinding RecordFrustumCulling(RGBuilder builder, in MeshView view)
+        {
+            var key = new MeshVisibilityKey(view, true);
+            if (m_GPUCullVisibility.TryGetValue(key, out RGBufferHandle existing))
+                return new GpuVisibilityBinding { handle = existing, buffer = world.GetGPUVisibilityBuffer(view) };
             if (!world.gpuBackend.isSupported) throw new InvalidOperationException("GPU mesh culling requires Compute_MeshDrawPipeline.");
+            BufferHandle buffer = world.GetGPUVisibilityBuffer(view);
             RGBufferHandle visibility = builder.ImportBuffer(buffer);
             Vector4[] frustumPlanes = builder.GetRecordingArray<Vector4>(6);
             view.CopyFrustumPlanes(frustumPlanes);
@@ -114,9 +144,32 @@ namespace InfinityTech.Rendering.MeshPipeline
                     data.world.gpuBackend.DispatchCullFrustum(commands, data.view, data.frustumPlanes, data.inputs, data.visibility, data.world.stats);
                 });
             }
-
             m_GPUCullVisibility[key] = visibility;
-            if (drawLists.IsLive(draws)) drawLists.BindGPUVisibility(draws.index, visibility, buffer);
+            return new GpuVisibilityBinding { handle = visibility, buffer = buffer };
+        }
+
+        void BindVisibilityRead(RGBuilder builder, in MeshDrawListRecord record, RGBufferHandle visibility)
+        {
+            for (int c = 0; c < record.consumerPassIndices.Count; ++c)
+                builder.GetPass(record.consumerPassIndices[c]).AddResourceRead(visibility.handle);
+        }
+
+        void BindGpuCulling(RGBuilder builder)
+        {
+            for (int i = 0; i < drawLists.Count; ++i)
+            {
+                MeshDrawListRecord record = drawLists.GetRecordCopy(i);
+                if (record.state != EMeshDrawListState.Live || record.backend != EMeshDrawBackendPolicy.GPUIndirect) continue;
+                GpuVisibilityBinding binding;
+                if (record.view.visibilityPhase == EMeshVisibilityPhase.Final && TryOcclusionFinal(record.view, out RGBufferHandle finalHandle, out BufferHandle finalBuffer))
+                    binding = new GpuVisibilityBinding { handle = finalHandle, buffer = finalBuffer };
+                else if (record.view.visibilityPhase != EMeshVisibilityPhase.Final && m_GPUCullVisibility.TryGetValue(new MeshVisibilityKey(record.view, true), out RGBufferHandle phaseList))
+                    binding = new GpuVisibilityBinding { handle = phaseList, buffer = world.GetGPUVisibilityBuffer(record.view) };
+                else
+                    binding = RecordFrustumCulling(builder, record.view);
+                drawLists.BindGPUVisibility(i, binding.handle, binding.buffer);
+                BindVisibilityRead(builder, record, binding.handle);
+            }
         }
 
         // The pass records the draw-list index; compile reads it back to find live consumers.
@@ -136,6 +189,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 List<int> used = builder.GetPass(passIndex).extensionUses;
                 for (int i = 0; i < used.Count; ++i) drawLists.MarkLiveConsumer(used[i], passIndex);
             }
+            BindGpuCulling(builder);
             drawLists.PrepareLive();
         }
 

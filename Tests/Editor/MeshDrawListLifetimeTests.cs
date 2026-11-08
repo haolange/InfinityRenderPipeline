@@ -212,7 +212,6 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshView view = MeshTestUtility.CameraView(3);
                     RGMeshDrawListHandle draws = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterDepthPass));
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterDepth, draws, false);
-                    Assert.AreEqual(backend == EMeshDrawBackendPolicy.GPUIndirect ? 1 : 0, CountPasses(graph, "ComputeMeshCulling", false));
                     Compile(graph);
 
                     MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
@@ -262,6 +261,41 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
+        public void OcclusionFinal_IsReadByAPlainMainView_WithoutAFrustumProducer()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "OcclusionFinalBind", EMeshDrawBackendPolicy.GPUIndirect);
+                try
+                {
+                    MeshView plain = MeshTestUtility.CameraView(11);
+                    var motion = new MeshMotionBinding(fixture.world.transformVersions.current, null);
+                    MeshGraphExtension extension = MeshGraphExtension.Of(graph);
+                    MeshOcclusionLists occlusion = extension.RecordMeshOcclusionPrediction(graph, plain, motion, default, Matrix4x4.identity, new int2(8, 8), 9);
+                    RGTextureHandle target = Target(graph);
+                    RGMeshDrawListHandle main = graph.CreateMeshDrawList(new MeshDrawListDesc(plain, InfinityPassIDs.RasterTranslucentDepthPass));
+                    MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 0xBEEFul, plain.CopyPlanes(), plain.viewPosition, ~0,
+                        (uint)ERenderingLayer.Everything, 0, ulong.MaxValue, MeshTestUtility.Lod);
+                    RGMeshDrawListHandle cascade = graph.CreateMeshDrawList(new MeshDrawListDesc(shadow, InfinityPassIDs.RasterShadowPass));
+                    AddConsumer(graph, target, CustomSamplerId.RasterDepth, main, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterCascadeShadow, cascade, true);
+                    Compile(graph);
+
+                    Assert.IsTrue(extension.TryOcclusionFinal(plain, out RGBufferHandle final, out _));
+                    MeshDrawListRegistry lists = extension.drawLists;
+                    RGBufferHandle bound = lists.GetRecordCopy(main.index).gpuVisibility;
+                    Assert.AreEqual(final.handle.index, bound.handle.index);
+                    Assert.AreEqual(final.handle.generation, bound.handle.generation);
+                    Assert.AreNotEqual(bound.handle.index, lists.GetRecordCopy(cascade.index).gpuVisibility.handle.index);
+                    Assert.AreEqual(2, CountPasses(graph, "ComputeMeshCulling", true), "Occlusion prediction plus the shadow frustum. The plain main view adds no frustum producer.");
+                    Assert.AreEqual(occlusion.final.viewKey, plain.viewKey);
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        [Test]
         public void GpuCulling_IsRecordedOncePerVisibilityKey()
         {
             using (var fixture = new MeshWorldFixture())
@@ -278,11 +312,17 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     graph.RequestMeshGPUCulling(main);
                     graph.RequestMeshGPUCulling(cascade);
                     graph.RequestMeshGPUCulling(local);
+                    RGTextureHandle target = Target(graph);
                     RGMeshDrawListHandle depth = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
                     RGMeshDrawListHandle gbuffer = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterGBufferPass));
                     RGMeshDrawListHandle cascadeShadow = graph.CreateMeshDrawList(new MeshDrawListDesc(cascade, InfinityPassIDs.RasterShadowPass));
                     RGMeshDrawListHandle localShadow = graph.CreateMeshDrawList(new MeshDrawListDesc(local, InfinityPassIDs.RasterShadowPass));
-                    Assert.AreEqual(3, CountPasses(graph, "ComputeMeshCulling", false));
+                    AddConsumer(graph, target, CustomSamplerId.RasterDepth, depth, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterGBuffer, gbuffer, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterCascadeShadow, cascadeShadow, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterLocalShadow, localShadow, true);
+                    Compile(graph);
+                    Assert.AreEqual(3, CountPasses(graph, "ComputeMeshCulling", true));
 
                     MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
                     RGBufferHandle mainVisibility = lists.GetRecordCopy(depth.index).gpuVisibility;
