@@ -144,3 +144,43 @@ Rerun on another API, from a checkout of this branch, against an Example that ha
 2. `unity command infinity_tests_start <new absolute directory>`.
 3. Play `Assets/Scene/Spazon/Scene_Spazon.unity`. For `CpuDirect` and `GpuIndirect`, capture a differing window pair and `infinity_capture_start` of `MainCamera` / `Scene_Spazon` / `DisplayColor`.
 4. `infinity_runtime_probe_start` with `movingRatio` 1, `windowsSeconds` `[5, 20, 60]`, counts 0, 1000, 10000 and 50000, and `meshBackend` `CpuDirect` and `GpuIndirect`.
+
+## Round 3
+
+Same Editor, same GPU, mirror only. Measurement commits `26bb211`, `bac85f9` and `61f890c`. No draw-path defect.
+
+### Live set
+
+`monoHeapBytes` is the reserved Mono heap. `liveSetBytes` is `Profiler.GetMonoUsedSizeLong` after `GC.Collect`, `WaitForPendingFinalizers` and `GC.Collect`, taken on the Editor update outside the render scope. `frameAllocBytes` is `GC Allocated In Frame` for the previous completed frame. The `GC.Alloc` marker still supplies the render-scope count. Its value is time, not bytes. A 50k p50 above twice the 10k p50 would have been treated as scaling. None did.
+
+| Run | 20 s live | 60 s live | 180 s live | 600 s live | Bytes p50 | Count p50 |
+|---|---:|---:|---:|---:|---:|---:|
+| HEAD CPU 10k | 94,375,936 | | | | 56,358 | 680 |
+| HEAD GPU 10k | 95,784,960 | | | | 68,948 | 883 |
+| HEAD CPU 50k | 178,110,464 | 178,184,192 | 178,061,312 | 178,126,848 | 56,360 | 680 |
+| HEAD GPU 50k | 184,311,808 | 184,418,304 | 184,365,056 | 184,401,920 | 68,950 | 883 |
+| `a814a40` CPU 10k | 133,652,480 | | | | 53,227 | 614 |
+| `a814a40` GPU 10k | 136,736,768 | | | | 61,853 | 757 |
+| `a814a40` CPU 50k | 234,926,080 | 235,077,632 | 234,967,040 | 234,930,176 | 53,012 | 614 |
+| `a814a40` GPU 50k | 240,771,072 | 240,906,240 | 241,008,640 | 241,094,656 | 61,781 | 757 |
+
+60 s to 600 s stays under 1 MiB on every 50k run. The largest rise is 184 KiB on the baseline GPU run. Reserved heap still moves by whole pages and can fall. Closed: not a leak.
+
+### Deterministic Scene_Spazon
+
+`lockHistoryReset` forces a history reset and frame index 0 for that capture only. Jitter is 0. `Time.timeScale` is 0. `Animation`, `CameraMovement` and `Rotate` are disabled. `Rotate` applies a fixed angle every `Update` and does not use `deltaTime`, so freezing time does not stop it.
+
+| Pair | SSIM | Changed fraction |
+|---|---:|---:|
+| Two `a814a40` frames | 1 | 0 |
+| Two HEAD frames | 1 | 0 |
+| `a814a40` vs HEAD, raw | 0.97824 | 0.0163 |
+| Same pair outside the 8 MeshComponent bounds | 0.999956 | 0 |
+
+Buffer order: `Depth` differs first, only on those components. `GBufferA` differs on the same objects. `Motion` is identical. `Lighting`, `SceneColor`, `PostProcess` and `DisplayColor` follow the depth difference. Spazon has no translucent `MeshComponent` and no LOD fade in this view. The 8 components are drawn on HEAD and produce no pixels on the baseline. The rest of the frame matches. Closed: not a defect.
+
+### Scene moves
+
+Closed. Two loaded main-stage scenes share `GetSceneCullingMask` `16140901064495857664`, so a move between them cannot change the image. Pose, parent, undo, redo and layer were shown in round 2. `MeshViewTests` covers a high bit and an empty mask.
+
+D3D12, Vulkan and Windows stay `TODO(UNVERIFIED)`.
