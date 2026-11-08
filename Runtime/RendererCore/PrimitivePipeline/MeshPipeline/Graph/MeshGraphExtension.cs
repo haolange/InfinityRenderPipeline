@@ -64,8 +64,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Contribute(RGBuilder builder)
         {
+            int recorded = builder.passCount;
             CompileMeshDrawLists(builder);
-            InsertDrawListPreparation(builder);
+            InsertDrawListPreparation(builder, recorded);
         }
 
         internal RGMeshDrawListHandle CreateMeshDrawList(RGBuilder builder, in MeshView view, in MeshPassDesc desc)
@@ -136,9 +137,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 binding = new GpuVisibilityBinding { handle = finalHandle, buffer = finalBuffer };
                 return true;
             }
-            if (record.view.visibilityPhase != EMeshVisibilityPhase.Final && m_GPUCullVisibility.TryGetValue(new MeshVisibilityKey(record.view, true), out RGBufferHandle phaseList))
+            foreach (var pair in m_GPUCullVisibility)
             {
-                binding = new GpuVisibilityBinding { handle = phaseList, buffer = world.GetGPUVisibilityBuffer(record.view) };
+                if (pair.Key.viewKey != record.view.viewKey || pair.Key.phase != record.view.visibilityPhase) continue;
+                binding = new GpuVisibilityBinding { handle = pair.Value, buffer = world.GetGPUVisibilityBuffer(record.view) };
                 return true;
             }
             return false;
@@ -241,9 +243,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         // Upload and compaction are appended here and then moved to the earliest pass whose inputs exist,
         // so they do not sit between adjacent raster passes.
-        void InsertDrawListPreparation(RGBuilder builder)
+        void InsertDrawListPreparation(RGBuilder builder, int originalCount)
         {
-            int originalCount = builder.passCount;
             var prepared = m_PreparedDrawLists;
             prepared.Clear();
             for (int passIndex = 0; passIndex < originalCount; ++passIndex)

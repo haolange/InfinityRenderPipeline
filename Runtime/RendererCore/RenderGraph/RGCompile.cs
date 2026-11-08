@@ -105,6 +105,9 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_RecordingCompilerPasses = true;
                 extension?.Contribute(this);
                 m_RecordingCompilerPasses = false;
+                // The first liveness ran before these reads existed, so a producer whose only consumer is the
+                // preparation just inserted was still marked unused. Placement must see it or compaction runs first.
+                RunLiveness();
                 PlaceInsertedPasses();
                 m_ExtensionContributed = true;
                 RunLiveness();

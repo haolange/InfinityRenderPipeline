@@ -16,6 +16,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public readonly ulong viewKey;
         readonly EMeshVisibilityPhase m_Phase;
+        internal EMeshVisibilityPhase phase => m_Phase;
         readonly ulong m_History;
         public readonly EMeshViewKind kind;
         public readonly int subviewIndex;

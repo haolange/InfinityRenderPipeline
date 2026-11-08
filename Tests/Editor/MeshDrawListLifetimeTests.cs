@@ -290,6 +290,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreNotEqual(bound.handle.index, lists.GetRecordCopy(cascade.index).gpuVisibility.handle.index);
                     Assert.AreEqual(2, CountPasses(graph, "ComputeMeshCulling", true), "Occlusion prediction plus the shadow frustum. The plain main view adds no frustum producer.");
                     Assert.AreEqual(occlusion.final.viewKey, plain.viewKey);
+                    string compiled = graph.DescribeCompiledGraph();
+                    int culling = compiled.IndexOf("|ComputeMeshCulling|", System.StringComparison.Ordinal);
+                    int compaction = compiled.IndexOf("|ComputeMeshCompaction|", System.StringComparison.Ordinal);
+                    Assert.GreaterOrEqual(culling, 0);
+                    Assert.Less(culling, compaction, "Compaction reads this frame's culling output.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
