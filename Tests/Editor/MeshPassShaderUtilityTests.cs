@@ -23,8 +23,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
                 material.shader = fullscreen;
                 Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
-                Assert.AreEqual(material.FindPass("RasterDefaultFullScreen"),
-                    MeshPassShaderUtility.FindPassIndex(material, "RasterDefaultFullScreen"));
+                // Passes resolve by LightMode tag only: the full-screen pass is named RasterDefaultFullScreen but carries
+                // no such LightMode, so a name match (Material.FindPass) is not a mesh pass.
+                Assert.GreaterOrEqual(material.FindPass("RasterDefaultFullScreen"), 0);
+                Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "RasterDefaultFullScreen"));
                 material.shader = lit;
                 Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
                 Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "RasterDefaultFullScreen"));
