@@ -25,10 +25,10 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedIntParameter NumLightSteps = new ClampedIntParameter(6, 1, 12);
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.9f, 0.0f, 0.99f);
 
-        public FVolumetricCloudSettings Resolve()
+        public VolumetricCloudSettings Resolve()
         {
-            FVolumetricCloudSettings settings = quality.value == EQualityLevel.Custom
-                ? new FVolumetricCloudSettings { numPrimarySteps = NumPrimarySteps.value, numLightSteps = NumLightSteps.value, temporalWeight = TemporalWeight.value }
+            VolumetricCloudSettings settings = quality.value == EQualityLevel.Custom
+                ? new VolumetricCloudSettings { numPrimarySteps = NumPrimarySteps.value, numLightSteps = NumLightSteps.value, temporalWeight = TemporalWeight.value }
                 : QualityPresets.Select(QualityPresets.VolumetricCloud, quality.value);
             settings.cloudLayerBottom = CloudLayerBottom.value;
             settings.cloudLayerThickness = CloudLayerThickness.value;

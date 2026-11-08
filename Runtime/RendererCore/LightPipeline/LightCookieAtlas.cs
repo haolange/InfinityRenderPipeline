@@ -26,26 +26,26 @@ namespace InfinityTech.Rendering.LightPipeline
         Red = 2,
     }
 
-    internal readonly struct FCookieKey : IEquatable<FCookieKey>
+    internal readonly struct CookieKey : IEquatable<CookieKey>
     {
         public readonly ulong textureId;
         public readonly ECookieLayout layout;
 
-        public FCookieKey(ulong textureId, ECookieLayout layout)
+        public CookieKey(ulong textureId, ECookieLayout layout)
         {
             this.textureId = textureId;
             this.layout = layout;
         }
 
-        public bool Equals(FCookieKey other) => textureId == other.textureId && layout == other.layout;
-        public override bool Equals(object obj) => obj is FCookieKey other && Equals(other);
+        public bool Equals(CookieKey other) => textureId == other.textureId && layout == other.layout;
+        public override bool Equals(object obj) => obj is CookieKey other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(textureId, (int)layout);
     }
 
     // A texture copy the cookie pass records this frame.
-    internal struct FCookieUpload
+    internal struct CookieUpload
     {
-        public FCookieKey key;
+        public CookieKey key;
         public Texture source;
         public ECookieLayout layout;
         public ECookieChannels channels;
@@ -105,9 +105,9 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         readonly HistoryCache m_History = new HistoryCache();
-        readonly Dictionary<FCookieKey, Entry> m_Entries = new Dictionary<FCookieKey, Entry>();
-        readonly List<FCookieKey> m_Scratch = new List<FCookieKey>();
-        readonly List<FCookieUpload> m_Uploads = new List<FCookieUpload>();
+        readonly Dictionary<CookieKey, Entry> m_Entries = new Dictionary<CookieKey, Entry>();
+        readonly List<CookieKey> m_Scratch = new List<CookieKey>();
+        readonly List<CookieUpload> m_Uploads = new List<CookieUpload>();
         AtlasQuadAllocator m_Allocator;
 
         public int AtlasSize { get; private set; }
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public int EntryCount => m_Entries.Count;
         public bool Enabled => AtlasSize > 0;
         // Uploads recorded by Acquire this frame, consumed by the cookie pass.
-        public List<FCookieUpload> Uploads => m_Uploads;
+        public List<CookieUpload> Uploads => m_Uploads;
         // Textures that did not fit this frame (Rendering Debugger).
         public int RejectedThisFrame { get; private set; }
 
@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 return false;
             }
-            var key = new FCookieKey(textureId, layout);
+            var key = new CookieKey(textureId, layout);
             int size = RequestedSize(width, height, layout, MaxBlockSize);
             if (m_Entries.TryGetValue(key, out Entry entry) && entry.size != size)
             {
@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 entry.pendingSource = source;
                 if (texture != null)
                 {
-                    m_Uploads.Add(new FCookieUpload { key = key, source = texture, layout = layout, channels = channels, position = entry.position, size = size });
+                    m_Uploads.Add(new CookieUpload { key = key, source = texture, layout = layout, channels = channels, position = entry.position, size = size });
                 }
             }
             m_Entries[key] = entry;
@@ -231,9 +231,9 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 // Evict the least recently used block not used this frame.
                 bool found = false;
-                FCookieKey victim = default;
+                CookieKey victim = default;
                 int oldest = int.MaxValue;
-                foreach (KeyValuePair<FCookieKey, Entry> pair in m_Entries)
+                foreach (KeyValuePair<CookieKey, Entry> pair in m_Entries)
                 {
                     if (pair.Value.lastUsedFrame >= frame || pair.Value.pending) continue;
                     if (pair.Value.lastUsedFrame < oldest)
@@ -254,7 +254,7 @@ namespace InfinityTech.Rendering.LightPipeline
             return true;
         }
 
-        public void MarkProduced(FCookieKey[] keys, int count)
+        public void MarkProduced(CookieKey[] keys, int count)
         {
             for (int i = 0; i < count; ++i)
             {
@@ -276,7 +276,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FCookieKey key in m_Scratch)
+            foreach (CookieKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending || entry.produced) continue;
@@ -296,7 +296,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.CommitFrame();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FCookieKey key in m_Scratch)
+            foreach (CookieKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -317,7 +317,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.RollbackPending();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FCookieKey key in m_Scratch)
+            foreach (CookieKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -328,13 +328,13 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public bool IsValid(in FCookieKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
+        public bool IsValid(in CookieKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
 
         public void InvalidateAll()
         {
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FCookieKey key in m_Scratch)
+            foreach (CookieKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 entry.valid = false;

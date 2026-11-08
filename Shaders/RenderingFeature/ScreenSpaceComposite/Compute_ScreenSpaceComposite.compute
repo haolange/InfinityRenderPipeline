@@ -49,7 +49,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    FGBufferData gbufferData;
+    GBufferData gbufferData;
     DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
     MicrofaceContext microfaceCtx = InitMicrofaceContext(gbufferData.Specular, gbufferData.Roughness, gbufferData.Reflactance, gbufferData.Albedo);
 

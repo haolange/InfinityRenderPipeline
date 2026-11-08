@@ -44,12 +44,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         public bool reportedMissing;
     }
 
-    internal struct FShaderState : IEquatable<FShaderState>
+    internal struct ShaderState : IEquatable<ShaderState>
     {
         public ulong shader;
         public int pass;
-        public bool Equals(FShaderState other) => shader == other.shader && pass == other.pass;
-        public override bool Equals(object obj) => obj is FShaderState other && Equals(other);
+        public bool Equals(ShaderState other) => shader == other.shader && pass == other.pass;
+        public override bool Equals(object obj) => obj is ShaderState other && Equals(other);
         public override int GetHashCode() => unchecked(shader.GetHashCode() * 397 ^ pass);
     }
 
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         NativeArray<uint> m_CommandMeta;
         NativeList<int> m_CommandOrder;
         uint m_CommandMetaRevision = uint.MaxValue;
-        readonly Dictionary<FShaderState, int> m_StateRanks = new Dictionary<FShaderState, int>(16);
+        readonly Dictionary<ShaderState, int> m_StateRanks = new Dictionary<ShaderState, int>(16);
         readonly Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding> m_Prepared = new Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding>(16);
         int m_ShaderEpoch;
         BufferHandle m_CandidateBuffer;
@@ -299,7 +299,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         ulong StateKey(in MeshDrawCommandBinding binding, in MeshDrawCommandKey key)
         {
-            var state = new FShaderState { shader = UnityEntityId.ToUInt64(binding.material.shader), pass = binding.passIndex };
+            var state = new ShaderState { shader = UnityEntityId.ToUInt64(binding.material.shader), pass = binding.passIndex };
             if (!m_StateRanks.TryGetValue(state, out int rank))
             {
                 rank = m_StateRanks.Count;

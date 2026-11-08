@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             Light spot = fixture.Light("Spot Cookie", new Vector3(-8, 5, 0), new Vector3(90, 0, 0), EInfinityLightType.Spot, Color.white, 60, 10);
             spot.cookie = checker;
             Light pyramid = fixture.Light("Pyramid Cookie", new Vector3(-3, 5, 0), new Vector3(90, 0, 0), EInfinityLightType.Spot, Color.white, 60, 10,
-                (ref FLightShape s) => { s.spotShape = ESpotShape.Pyramid; s.pyramidAspect = 2; });
+                (ref LightSourceShape s) => { s.spotShape = ESpotShape.Pyramid; s.pyramidAspect = 2; });
             pyramid.cookie = checker;
 
             Light point = fixture.Light("Point Cube Cookie", new Vector3(3, 1.5f, 0), Vector3.zero, EInfinityLightType.Point, Color.white, 20, 8);

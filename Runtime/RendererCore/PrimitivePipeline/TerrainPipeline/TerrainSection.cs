@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int lodIndex;
         public float fractionLOD;
         public float3 pivotPos;
-        public FBound boundBox;
+        public BoundingBox boundBox;
         public SectionLODData lodSetting;
 
         public bool Equals(TerrainSection target)

@@ -10,7 +10,7 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    internal struct FShadowAllocatorSettings
+    internal struct ShadowAllocatorSettings
     {
         public int cascadeMapResolution;
         public int localMapResolution;
@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public int filterGuardTexels;
     }
 
-    internal struct FLocalShadowSlice
+    internal struct LocalShadowSlice
     {
         public int visibleLightIndex;
         public int recordIndex;
@@ -44,9 +44,9 @@ namespace InfinityTech.Rendering.LightPipeline
     }
 
     // Per local shadow slice data the shaders read (SRV_LocalShadowRects).
-    // GPU-RECORD: FLocalShadowSlice Shaders/ShaderLibrary/ShadowSampling.hlsl
+    // GPU-RECORD: LocalShadowSlice Shaders/ShaderLibrary/ShadowSampling.hlsl
     [StructLayout(LayoutKind.Sequential)]
-    internal struct FLocalShadowSliceGPU
+    internal struct LocalShadowSliceGPU
     {
         // xy = atlas UV origin, zw = atlas UV size.
         public Vector4 atlasRect;
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 shadowOriginSize;
     }
 
-    internal struct FCascadeShadowSlice
+    internal struct CascadeShadowSlice
     {
         public int cullingSplitIndex;
         public Matrix4x4 cullingMatrix;
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.LightPipeline
     /// Cascades: up to 4 tiles in a 2x2 atlas for the first shadowed directional light. Local atlas: point, sphere,
     /// line and tube lights take 6 cube faces; cone, pyramid and box spots, rects and disks one tile. Every local
     /// frustum is built here (not by Unity's light-type helpers) so every shape shadows the same way, and its culling
-    /// planes go to CullShadowCasters. Writes atlas / matrix indices back into FLightRecord before the GPU upload.
+    /// planes go to CullShadowCasters. Writes atlas / matrix indices back into LightRecord before the GPU upload.
     /// </summary>
     internal sealed partial class ShadowAllocator
     {
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // Cascades requested by the asset (1-4); slices past it stay invalid.
         public int ActiveCascadeCount { get; private set; } = CascadeCount;
         public Vector4 CascadeSplitDistances { get; private set; }
-        public readonly FCascadeShadowSlice[] CascadeSlices = new FCascadeShadowSlice[CascadeCount];
+        public readonly CascadeShadowSlice[] CascadeSlices = new CascadeShadowSlice[CascadeCount];
         public readonly Matrix4x4[] CascadeMatrices = new Matrix4x4[CascadeCount];
         public readonly Vector4[] CascadeSpheres = new Vector4[CascadeCount];
         // x = world texel size, y, z = m22, m23 of the GPU projection, w = blend width (fraction of the cascade).
@@ -115,9 +115,9 @@ namespace InfinityTech.Rendering.LightPipeline
         public static bool UsesMoments(int shadowFilter) => shadowFilter == (int)EShadowFilter.VSM || shadowFilter == (int)EShadowFilter.EVSM;
 
         public int LocalSliceCount { get; private set; }
-        public FLocalShadowSlice[] LocalSlices = Array.Empty<FLocalShadowSlice>();
+        public LocalShadowSlice[] LocalSlices = Array.Empty<LocalShadowSlice>();
         public Matrix4x4[] LocalMatrices = Array.Empty<Matrix4x4>();
-        public FLocalShadowSliceGPU[] LocalGPU = Array.Empty<FLocalShadowSliceGPU>();
+        public LocalShadowSliceGPU[] LocalGPU = Array.Empty<LocalShadowSliceGPU>();
 
         public void Reset()
         {
@@ -138,10 +138,10 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         public void Allocate(
-            NativeList<FLightRecord> records,
+            NativeList<LightRecord> records,
             in CullingResults cullingResults,
             Camera camera,
-            in FShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
+            in ShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
             if (camera == null) throw new ArgumentNullException(nameof(camera));
             if (meshWorld == null) throw new ArgumentNullException(nameof(meshWorld));
@@ -219,10 +219,10 @@ namespace InfinityTech.Rendering.LightPipeline
         static readonly Plane[] s_CullingPlanes = new Plane[6];
 
         void AllocateLocal(
-            NativeList<FLightRecord> records,
+            NativeList<LightRecord> records,
             in CullingResults cullingResults,
             Camera camera, Vector3 cameraPosition,
-            in FShadowAllocatorSettings settings,
+            in ShadowAllocatorSettings settings,
             int localRes,
             int tileResolution,
             int tilesPerRow,
@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.LightPipeline
             int write = 0;
             for (int i = 0; i < records.Length; ++i)
             {
-                FLightRecord record = records[i];
+                LightRecord record = records[i];
                 if (cached[i] == null && !IsLocalShadowCandidate(record, cullingResults, camera, tileResolution, settings.filterGuardTexels))
                 {
                     continue;
@@ -267,7 +267,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 float distance = math.max(0.01f, Vector3.Distance(cameraPosition, lightPosition));
                 // Strength over distance; single-tile shapes win ties against six-face shapes.
                 float score = visible.light.shadowStrength / distance;
-                if ((cached[i]?.Length ?? FLightRecordPack.LocalShadowSliceCount(record)) == 1)
+                if ((cached[i]?.Length ?? LightRecordPack.LocalShadowSliceCount(record)) == 1)
                 {
                     score += 1e-4f;
                 }
@@ -284,7 +284,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 candidateScores[c] = scores[c];
                 candidateRecords[c] = recordIndices[c];
-                faceCounts[c] = cached[recordIndices[c]]?.Length ?? FLightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
+                faceCounts[c] = cached[recordIndices[c]]?.Length ?? LightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
             }
 
             var acceptedRecords = BudgetStorage(ref m_AcceptedRecords, math.min(maxLocalLights, write));
@@ -297,8 +297,8 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int a = 0; a < accepted; ++a)
             {
                 int recordIndex = acceptedRecords[a];
-                FLightRecord record = records[recordIndex];
-                int faces = cached[recordIndex]?.Length ?? FLightRecordPack.LocalShadowSliceCount(record);
+                LightRecord record = records[recordIndex];
+                int faces = cached[recordIndex]?.Length ?? LightRecordPack.LocalShadowSliceCount(record);
                 int visibleIndex = record.visibleLightIndex;
                 Light light = cullingResults.visibleLights[visibleIndex].light;
                 int firstSlice = nextSlice;
@@ -312,7 +312,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     int row = slice / tilesPerRow;
                     float x = col * tileResolution;
                     float y = row * tileResolution;
-                    FLocalShadowSlice local = default;
+                    LocalShadowSlice local = default;
                     local.visibleLightIndex = visibleIndex;
                     local.recordIndex = recordIndex;
                     local.face = face;
@@ -322,11 +322,11 @@ namespace InfinityTech.Rendering.LightPipeline
                     local.atlasPixelRect = new Vector4(x, y, tileResolution, tileResolution);
                     local.atlasUVRect = new Vector4(x / localRes, y / localRes, (float)tileResolution / localRes, (float)tileResolution / localRes);
 
-                    FLocalShadowFrustum frustum = LocalShadowFrustum(record, light, face, tileResolution, guard);
+                    LocalShadowViewProjection frustum = LocalShadowFrustum(record, light, face, tileResolution, guard);
                     local.projectionType = frustum.orthographic ? BatchCullingProjectionType.Orthographic : BatchCullingProjectionType.Perspective;
                     local.valid = frustum.valid;
                     local.shadowMatrix = Matrix4x4.identity;
-                    var gpu = new FLocalShadowSliceGPU { atlasRect = local.atlasUVRect, depthParams = new Vector4(0, 1, 1, 0), momentParams = new Vector4(1, 0, 0, 0) };
+                    var gpu = new LocalShadowSliceGPU { atlasRect = local.atlasUVRect, depthParams = new Vector4(0, 1, 1, 0), momentParams = new Vector4(1, 0, 0, 0) };
                     if (frustum.valid)
                     {
                         Matrix4x4 gpuProjection = GL.GetGPUProjectionMatrix(frustum.projection, true);
@@ -340,7 +340,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     }
 
                     gpu.shadowOriginSize = new Vector4(record.positionRange.x, record.positionRange.y, record.positionRange.z,
-                        (record.flags & FLightRecordFlags.Planar) != 0 && record.area.x > 0 && record.area.y > 0
+                        (record.flags & LightRecordFlags.Planar) != 0 && record.area.x > 0 && record.area.y > 0
                             ? math.sqrt(record.area.x * record.area.y / math.PI) : record.shape.x + record.shape.y);
                     if (cached[recordIndex] != null)
                     {
@@ -367,7 +367,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 record.shadowAtlasRect = LocalSlices[firstSlice].atlasUVRect;
                 record.shadowMatrixIndex = firstSlice;
                 record.shadowSliceCount = faces;
-                record.flags |= FLightRecordFlags.EnableShadow;
+                record.flags |= LightRecordFlags.EnableShadow;
                 records[recordIndex] = record;
                 nextSlice += faces;
             }
@@ -377,9 +377,9 @@ namespace InfinityTech.Rendering.LightPipeline
             recordIndices.Dispose();
         }
 
-        bool IsLocalShadowCandidate(in FLightRecord record, in CullingResults cullingResults, Camera camera, int tileResolution, float guardTexels)
+        bool IsLocalShadowCandidate(in LightRecord record, in CullingResults cullingResults, Camera camera, int tileResolution, float guardTexels)
         {
-            if (record.IsDirectional || record.visibleLightIndex < 0 || FLightRecordPack.LocalShadowSliceCount(record) <= 0)
+            if (record.IsDirectional || record.visibleLightIndex < 0 || LightRecordPack.LocalShadowSliceCount(record) <= 0)
             {
                 return false;
             }
@@ -388,7 +388,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 || m_MeshCasters.HasLocalCaster(record, light, camera, tileResolution, guardTexels));
         }
 
-        internal struct FLocalShadowFrustum
+        internal struct LocalShadowViewProjection
         {
             public Matrix4x4 view;
             public Matrix4x4 projection;
@@ -403,9 +403,9 @@ namespace InfinityTech.Rendering.LightPipeline
         static readonly Vector3[] s_FaceUp = { Vector3.up, Vector3.up, Vector3.back, Vector3.forward, Vector3.up, Vector3.up };
 
         // The view and projection of one local shadow tile, built from the record's shape flags.
-        internal static FLocalShadowFrustum LocalShadowFrustum(in FLightRecord record, Light light, int face, int tileResolution, float guardTexels)
+        internal static LocalShadowViewProjection LocalShadowFrustum(in LightRecord record, Light light, int face, int tileResolution, float guardTexels)
         {
-            var frustum = new FLocalShadowFrustum();
+            var frustum = new LocalShadowViewProjection();
             Vector3 position = new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z);
             float range = math.max(record.positionRange.w, 0.02f);
             float near = math.clamp(light != null ? light.shadowNearPlane : 0.1f, 0.01f, range * 0.5f);
@@ -416,25 +416,25 @@ namespace InfinityTech.Rendering.LightPipeline
             float guardScale = (tileResolution + 2.0f * guardTexels) / math.max(1.0f, tileResolution);
             int flags = record.flags;
 
-            if ((flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox | FLightRecordFlags.Planar)) == 0)
+            if ((flags & (LightRecordFlags.SpotCone | LightRecordFlags.SpotPyramid | LightRecordFlags.SpotBox | LightRecordFlags.Planar)) == 0)
             {
                 float fov = 2.0f * Mathf.Atan(guardScale) * Mathf.Rad2Deg;
                 frustum.view = WorldToView(position, s_FaceForward[face], s_FaceUp[face]);
                 frustum.projection = Matrix4x4.Perspective(fov, 1, near, range);
             }
-            else if ((flags & FLightRecordFlags.SpotCone) != 0)
+            else if ((flags & LightRecordFlags.SpotCone) != 0)
             {
                 float halfTan = Mathf.Tan(Mathf.Clamp(light != null ? light.spotAngle : 60, 1, 179) * 0.5f * Mathf.Deg2Rad) * guardScale;
                 frustum.view = WorldToView(position, forward, up);
                 frustum.projection = Matrix4x4.Perspective(2.0f * Mathf.Atan(halfTan) * Mathf.Rad2Deg, 1, near, range);
             }
-            else if ((flags & FLightRecordFlags.SpotPyramid) != 0)
+            else if ((flags & LightRecordFlags.SpotPyramid) != 0)
             {
                 float tanX = record.area.x * guardScale, tanY = record.area.y * guardScale;
                 frustum.view = WorldToView(position, forward, up);
                 frustum.projection = Matrix4x4.Perspective(2.0f * Mathf.Atan(tanY) * Mathf.Rad2Deg, tanX / math.max(tanY, 1e-4f), near, range);
             }
-            else if ((flags & FLightRecordFlags.SpotBox) != 0)
+            else if ((flags & LightRecordFlags.SpotBox) != 0)
             {
                 float halfW = 0.5f * record.area.x * guardScale, halfH = 0.5f * record.area.y * guardScale;
                 frustum.view = WorldToView(position, forward, up);
@@ -491,9 +491,9 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             if (LocalSlices.Length < sliceCount)
             {
-                LocalSlices = new FLocalShadowSlice[sliceCount];
+                LocalSlices = new LocalShadowSlice[sliceCount];
                 LocalMatrices = new Matrix4x4[sliceCount];
-                LocalGPU = new FLocalShadowSliceGPU[sliceCount];
+                LocalGPU = new LocalShadowSliceGPU[sliceCount];
             }
         }
     }

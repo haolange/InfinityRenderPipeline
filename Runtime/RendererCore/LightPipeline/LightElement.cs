@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.LightPipeline
     }
 
     // Mirrors the LIGHT_FLAG_* defines in Shaders/ShaderLibrary/Lighting/LightRecord.hlsl.
-    public static class FLightRecordFlags
+    public static class LightRecordFlags
     {
         public const int EnableShadow = 1 << 0;
         public const int EnableContactShadow = 1 << 1;
@@ -37,11 +37,11 @@ namespace InfinityTech.Rendering.LightPipeline
     /// Packed visible-light record. The first <c>directionalCount</c> entries are directional, the remaining
     /// <c>localCount</c> entries are local lights in visibleLights order; light-list indices are absolute record
     /// indices. There is no shape enum: the shape is the combination of flags and shape parameters (see
-    /// <see cref="FLightShape"/>).
+    /// <see cref="LightSourceShape"/>).
     /// </summary>
-    // GPU-RECORD: FLightRecord Shaders/ShaderLibrary/Lighting/LightRecord.hlsl
+    // GPU-RECORD: LightRecord Shaders/ShaderLibrary/Lighting/LightRecord.hlsl
     [StructLayout(LayoutKind.Sequential)]
-    public struct FLightRecord
+    public struct LightRecord
     {
         // rgb = color x temperature x intensity x distance fade, applied once on the CPU; a = 1.
         public Vector4 radiance;
@@ -71,10 +71,10 @@ namespace InfinityTech.Rendering.LightPipeline
         // -1 until the cookie / IES atlas lands (0.5.0 S11).
         public int cookieIndex;
 
-        public bool IsDirectional => (flags & FLightRecordFlags.Directional) != 0;
+        public bool IsDirectional => (flags & LightRecordFlags.Directional) != 0;
     }
 
-    public static class FLightRecordPack
+    public static class LightRecordPack
     {
         public static Vector4 Radiance(Color color, float intensity)
         {
@@ -88,13 +88,13 @@ namespace InfinityTech.Rendering.LightPipeline
             return Mathf.Clamp01((maxDrawDistance - distanceToCamera) / Mathf.Max(fadeLength, 1e-3f));
         }
 
-        public static FLightShape ResolveShape(Light light, InfinityAdditionalLightData ext)
+        public static LightSourceShape ResolveShape(Light light, InfinityAdditionalLightData ext)
         {
             return ext != null ? ext.shape : LightShapeUtility.FromUnityLight(light);
         }
 
         // Returns false when the light contributes nothing this camera (invalid shape or faded out by distance).
-        public static bool TryPack(Light light, InfinityAdditionalLightData ext, in FLightShape shape, int visibleIndex, Vector3 cameraPosition, out FLightRecord record)
+        public static bool TryPack(Light light, InfinityAdditionalLightData ext, in LightSourceShape shape, int visibleIndex, Vector3 cameraPosition, out LightRecord record)
         {
             record = default;
             if (!LightShapeUtility.IsValid(shape))
@@ -133,12 +133,12 @@ namespace InfinityTech.Rendering.LightPipeline
             switch (shape.type)
             {
                 case EInfinityLightType.Directional:
-                    flags |= FLightRecordFlags.Directional;
+                    flags |= LightRecordFlags.Directional;
                     break;
                 case EInfinityLightType.Spot:
                     if (shape.spotShape == ESpotShape.Cone)
                     {
-                        flags |= FLightRecordFlags.SpotCone;
+                        flags |= LightRecordFlags.SpotCone;
                         float outerCos = Mathf.Cos(light.spotAngle * 0.5f * Mathf.Deg2Rad);
                         float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, light.spotAngle) * 0.5f * Mathf.Deg2Rad);
                         record.forward.w = outerCos;
@@ -146,23 +146,23 @@ namespace InfinityTech.Rendering.LightPipeline
                     }
                     else if (shape.spotShape == ESpotShape.Pyramid)
                     {
-                        flags |= FLightRecordFlags.SpotPyramid;
+                        flags |= LightRecordFlags.SpotPyramid;
                         Vector2 tangents = LightShapeUtility.PyramidTangents(light.spotAngle, shape.pyramidAspect);
                         record.area = new Vector4(tangents.x, tangents.y, 0, 0);
                     }
                     else
                     {
-                        flags |= FLightRecordFlags.SpotBox;
+                        flags |= LightRecordFlags.SpotBox;
                         record.area = new Vector4(shape.boxSize.x, shape.boxSize.y, 0, 0);
                     }
                     break;
                 case EInfinityLightType.Rect:
-                    flags |= FLightRecordFlags.Planar;
+                    flags |= LightRecordFlags.Planar;
                     record.area = new Vector4(shape.sourceWidth, shape.sourceHeight,
                         Mathf.Cos(Mathf.Clamp(shape.barnDoorAngle, 0, 90) * Mathf.Deg2Rad), Mathf.Max(0, shape.barnDoorLength));
                     break;
                 case EInfinityLightType.Disk:
-                    flags |= FLightRecordFlags.Planar;
+                    flags |= LightRecordFlags.Planar;
                     break;
             }
 
@@ -178,12 +178,12 @@ namespace InfinityTech.Rendering.LightPipeline
                 volIntensity = ext.volumetricIntensity;
                 volOcclusion = ext.volumetricOcclusion;
                 layer = ext.lightLayer;
-                if (ext.enableContactShadow) flags |= FLightRecordFlags.EnableContactShadow;
-                if (ext.enableVolumetric) flags |= FLightRecordFlags.EnableVolumetric;
+                if (ext.enableContactShadow) flags |= LightRecordFlags.EnableContactShadow;
+                if (ext.enableVolumetric) flags |= LightRecordFlags.EnableVolumetric;
             }
             else
             {
-                flags |= FLightRecordFlags.EnableVolumetric;
+                flags |= LightRecordFlags.EnableVolumetric;
             }
 
             record.weights = new Vector4(diffuse, specular, volIntensity, volOcclusion);
@@ -194,10 +194,10 @@ namespace InfinityTech.Rendering.LightPipeline
             record.bakedOcclusionChannel = -1;
             if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Mixed && baking.mixedLightingMode == MixedLightingMode.Shadowmask)
             {
-                flags |= FLightRecordFlags.MixedShadowmask;
+                flags |= LightRecordFlags.MixedShadowmask;
                 record.bakedOcclusionChannel = baking.occlusionMaskChannel;
             }
-            if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Baked) flags |= FLightRecordFlags.Baked;
+            if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Baked) flags |= LightRecordFlags.Baked;
             record.flags = flags;
 
             EShadowFilter filter = ext != null ? ext.shadowFilter : (light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF);
@@ -207,14 +207,14 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Shadow-map slices a local light needs: 6 cube faces for point / sphere / line / tube lights, one tile for
         // cone, pyramid and box spots, rects and disks; directional lights use the cascades.
-        public static int LocalShadowSliceCount(in FLightRecord record)
+        public static int LocalShadowSliceCount(in LightRecord record)
         {
             int flags = record.flags;
-            if ((flags & FLightRecordFlags.Directional) != 0)
+            if ((flags & LightRecordFlags.Directional) != 0)
                 return 0;
-            return (flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox | FLightRecordFlags.Planar)) != 0 ? 1 : 6;
+            return (flags & (LightRecordFlags.SpotCone | LightRecordFlags.SpotPyramid | LightRecordFlags.SpotBox | LightRecordFlags.Planar)) != 0 ? 1 : 6;
         }
 
-        public static bool IsConeSpot(in FLightRecord record) => (record.flags & FLightRecordFlags.SpotCone) != 0;
+        public static bool IsConeSpot(in LightRecord record) => (record.flags & LightRecordFlags.SpotCone) != 0;
     }
 }

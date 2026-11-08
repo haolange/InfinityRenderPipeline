@@ -2,7 +2,7 @@
 #ifndef INFINITY_LIGHT_COOKIE
 #define INFINITY_LIGHT_COOKIE
 // Light cookies and IES profiles from the cookie atlas (LightCookieAtlas.cs). record.cookieIndex selects an
-// FLightCookie (C# FLightCookieGPU); rects are atlas uv (offset xy, scale zw), z = 0 means none. Every block is a
+// LightCookie (C# LightCookieGPU); rects are atlas uv (offset xy, scale zw), z = 0 means none. Every block is a
 // power-of-two square at a multiple of its size, so its mips never leave it.
 //   Cone / pyramid / box spots: projected through the spot frustum (box: orthographic).
 //   Point lights: cubemap cookie stored octahedral, sampled by the light-space direction.
@@ -13,7 +13,7 @@
 #include "../Common.hlsl"
 #include "LightRecord.hlsl"
 
-struct FLightCookie
+struct LightCookie
 {
     float4 cookieRect;
     float4 iesRect;
@@ -23,10 +23,10 @@ struct FLightCookie
     float4 tiling;
 };
 
-StructuredBuffer<FLightCookie> SRV_LightCookies;
+StructuredBuffer<LightCookie> SRV_LightCookies;
 Texture2D<float4> SRV_LightCookieAtlas;
 
-bool LightHasCookie(FLightRecord light) { return light.cookieIndex >= 0; }
+bool LightHasCookie(LightRecord light) { return light.cookieIndex >= 0; }
 
 // Octahedral mapping of a unit direction to [0, 1]^2 (the cube re-projection of Compute_LightCookie uses the inverse).
 float2 CookieOctahedralEncode(float3 n)
@@ -48,14 +48,14 @@ float3 SampleCookieBlock(float4 rect, float2 uv, float lod, float maxMip)
 }
 
 // Position relative to the light in its own frame (right, up, forward).
-float3 LightLocalPosition(FLightRecord light, float3 worldPos)
+float3 LightLocalPosition(LightRecord light, float3 worldPos)
 {
     float3 d = worldPos - light.positionRange.xyz;
     return float3(dot(d, light.right.xyz), dot(d, LightUp(light)), dot(d, light.forward.xyz));
 }
 
 // Uv of a projected (spot) texture; false behind the light.
-bool SpotProjectionUV(FLightRecord light, float3 local, out float2 uv)
+bool SpotProjectionUV(LightRecord light, float3 local, out float2 uv)
 {
     uv = 0.5;
     bool valid = false;
@@ -84,12 +84,12 @@ bool SpotProjectionUV(FLightRecord light, float3 local, out float2 uv)
 
 // Cookie x IES color of a directional, spot or point light at worldPos (1 without either). Rect / disk cookies are
 // emitter textures: see LightPlanarCookie.
-float3 LightCookieColor(FLightRecord light, float3 worldPos)
+float3 LightCookieColor(LightRecord light, float3 worldPos)
 {
     float3 color = 1.0;
     if (light.cookieIndex >= 0)
     {
-        FLightCookie cookie = SRV_LightCookies[light.cookieIndex];
+        LightCookie cookie = SRV_LightCookies[light.cookieIndex];
         if (IsDirectionalLight(light))
         {
             if (cookie.cookieRect.z > 0)
@@ -135,12 +135,12 @@ float3 LightCookieColor(FLightRecord light, float3 worldPos)
 
 // Emitter texture of a rect / disk light: emitterUV is the representative point on the emitter ([0, 1]^2), blurred by
 // roughness for specular; diffuse sees the average (last mip).
-void LightPlanarCookie(FLightRecord light, float2 emitterUV, float roughness, out float3 diffuse, out float3 specular)
+void LightPlanarCookie(LightRecord light, float2 emitterUV, float roughness, out float3 diffuse, out float3 specular)
 {
     diffuse = 1.0;
     specular = 1.0;
     if (light.cookieIndex < 0 || !IsPlanarLight(light)) return;
-    FLightCookie cookie = SRV_LightCookies[light.cookieIndex];
+    LightCookie cookie = SRV_LightCookies[light.cookieIndex];
     if (cookie.cookieRect.z <= 0) return;
     float maxMip = cookie.layout.y;
     diffuse = SampleCookieBlock(cookie.cookieRect, 0.5, maxMip, maxMip);

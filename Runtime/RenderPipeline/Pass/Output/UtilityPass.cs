@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline
             var capture = RenderCaptureService.current;
             bool linearCapture = capture != null && !capture.Finished && capture.request.Matches(camera) &&
                 (System.Array.IndexOf(capture.request.buffers, "DisplayColor") >= 0 || System.Array.IndexOf(capture.request.buffers, "PostProcess") >= 0);
-            var plan = new FOutputPlan(camera.cameraType == CameraType.Game && camera.targetTexture == null,
+            var plan = new OutputPlan(camera.cameraType == CameraType.Game && camera.targetTexture == null,
                 decision.policy, frameState.debugView != EDebugView.None, linearCapture, wire, gizmos);
             RGTextureHandle target = ImportCameraOutput(camera, decision);
             RasterPostProcessing(renderContext, camera, frameState, decision, plan, target);
@@ -247,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 pass.EnablePassCulling(false);
                 if (finalTarget) pass.EnableNativeRenderPass(false);
-                pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<FinalOutputPassData>();
                 data = PrepareFinalOutput(camera, decision, source, finalTarget, "RasterFinalOutput");
                 data.srcTexture = pass.ReadTexture(source);

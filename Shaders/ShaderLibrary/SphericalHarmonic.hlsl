@@ -4,14 +4,14 @@
 //#include "Common.hlsl"
 //#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-struct FSphericalHarmonicOneTable
+struct SphericalHarmonicOneTable
 {
 	float coefficients[4];
 };
 
-FSphericalHarmonicOneTable InitSH1Table(float3 direction)
+SphericalHarmonicOneTable InitSH1Table(float3 direction)
 {
-	FSphericalHarmonicOneTable shTable;
+	SphericalHarmonicOneTable shTable;
     shTable.coefficients[0] = 0.2820947917f;
     shTable.coefficients[1] = 0.4886025119f * direction.y;
     shTable.coefficients[2] = 0.4886025119f * direction.z;
@@ -19,14 +19,14 @@ FSphericalHarmonicOneTable InitSH1Table(float3 direction)
     return shTable;
 }
 
-struct FSphericalHarmonicTwoTable
+struct SphericalHarmonicTwoTable
 {
 	float coefficients[9];
 };
 
-FSphericalHarmonicTwoTable InitSH2Table(float3 direction)
+SphericalHarmonicTwoTable InitSH2Table(float3 direction)
 {
-	FSphericalHarmonicTwoTable shTable;
+	SphericalHarmonicTwoTable shTable;
     shTable.coefficients[0] = 0.2820947917f;
     shTable.coefficients[1] = 0.4886025119f * direction.y;
     shTable.coefficients[2] = 0.4886025119f * direction.z;
@@ -39,14 +39,14 @@ FSphericalHarmonicTwoTable InitSH2Table(float3 direction)
     return shTable;
 }
 
-struct FSphericalHarmonicOneBasis
+struct SphericalHarmonicOneBasis
 {
 	float3 basis[4];
 };
 
-FSphericalHarmonicOneBasis InitSH1Basis(FSphericalHarmonicOneTable shTable, float3 radiance)
+SphericalHarmonicOneBasis InitSH1Basis(SphericalHarmonicOneTable shTable, float3 radiance)
 {
-	FSphericalHarmonicOneBasis shBasis;
+	SphericalHarmonicOneBasis shBasis;
     shBasis.basis[0] = shTable.coefficients[0] * radiance;
     shBasis.basis[1] = shTable.coefficients[1] * radiance;
     shBasis.basis[2] = shTable.coefficients[2] * radiance;
@@ -54,14 +54,14 @@ FSphericalHarmonicOneBasis InitSH1Basis(FSphericalHarmonicOneTable shTable, floa
     return shBasis;
 }
 
-struct FSphericalHarmonicTwoBasis
+struct SphericalHarmonicTwoBasis
 {
 	float3 basis[9];
 };
 
-FSphericalHarmonicTwoBasis InitSH2Basis(FSphericalHarmonicTwoTable shTable, float3 radiance)
+SphericalHarmonicTwoBasis InitSH2Basis(SphericalHarmonicTwoTable shTable, float3 radiance)
 {
-	FSphericalHarmonicTwoBasis shBasis;
+	SphericalHarmonicTwoBasis shBasis;
     shBasis.basis[0] = shTable.coefficients[0] * radiance;
     shBasis.basis[1] = shTable.coefficients[1] * radiance;
     shBasis.basis[2] = shTable.coefficients[2] * radiance;
@@ -76,7 +76,7 @@ FSphericalHarmonicTwoBasis InitSH2Basis(FSphericalHarmonicTwoTable shTable, floa
 
 float3 EvaluateSH2(float3 direction, StructuredBuffer<float4> coefficients)
 {
-    FSphericalHarmonicTwoTable shTable = InitSH2Table(direction);
+    SphericalHarmonicTwoTable shTable = InitSH2Table(direction);
     float3 result = 0;
     [unroll]
     for (int i = 0; i < 9; ++i)

@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int kernel;
             public int2 groupCount;
-            public FLightLoopInputs lightLoop;
+            public LightLoopInputs lightLoop;
             public int2 resolution;
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_InvViewProj;
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int hasAO;
             public int hasContactShadow;
             public RGBufferHandle lightRecordBuffer;
-            public FShadowInputs shadows;
+            public ShadowInputs shadows;
             public ComputeShader deferredShadingShader;
             public RGTextureHandle bakedDiffuse, bakedOcclusion, indirectDiffuse, indirectSpecular;
             public RGTextureHandle gBufferA;
@@ -125,11 +125,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
-                FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                FShadowInputs shadows = QueryShadowInputs(renderContext);
+                ShadowInputs shadows = QueryShadowInputs(renderContext);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.deferredShadingShader = shaders.deferredShadingShader;

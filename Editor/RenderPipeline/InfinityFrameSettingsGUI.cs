@@ -4,7 +4,7 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
-    // Inspector rows for FFrameSettings (RP Asset defaults) and FFrameSettingsOverride (camera overrides). Both edit
+    // Inspector rows for FrameSettings (RP Asset defaults) and FrameSettingsOverride (camera overrides). Both edit
     // the serialized masks directly so multi-object editing and Undo work.
     internal static class InfinityFrameSettingsGUI
     {
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Editor
         }
 
         // One row per setting: an override check box, then the value (editable only when overridden).
-        public static void DrawOverrides(SerializedProperty frameSettingsOverride, FFrameSettings baseline)
+        public static void DrawOverrides(SerializedProperty frameSettingsOverride, FrameSettings baseline)
         {
             SerializedProperty overridden = frameSettingsOverride.FindPropertyRelative("m_Overridden");
             SerializedProperty disabled = frameSettingsOverride.FindPropertyRelative("m_Values").FindPropertyRelative("m_Disabled");

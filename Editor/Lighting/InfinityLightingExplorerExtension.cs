@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Editor
                     var light = prop?.serializedObject.targetObject as Light;
                     // Scene close can repaint a table row after its native Light has been destroyed.
                     if (!light) return;
-                    FLightShape shape = light.TryGetComponent<InfinityAdditionalLightData>(out var data)
+                    LightSourceShape shape = light.TryGetComponent<InfinityAdditionalLightData>(out var data)
                         ? data.shape : LightShapeUtility.FromUnityLight(light);
                     EditorGUI.LabelField(r, DescribeShape(shape));
                 });
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Editor
             };
         }
 
-        static string DescribeShape(in FLightShape shape)
+        static string DescribeShape(in LightSourceShape shape)
         {
             switch (shape.type)
             {

@@ -1,7 +1,7 @@
 #ifndef _GeometryInclude
 #define _GeometryInclude
 
-struct FBound
+struct BoundingBox
 {
      float3 center;
      float3 extents;

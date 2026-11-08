@@ -132,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSRPassData
         {
-            public FSSRSettings settings;
+            public SSRSettings settings;
             public int2 resolution;
             public int2 traceResolution;
             public int2 tileCount;
@@ -161,7 +161,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle gBufferA;
             public RGTextureHandle gBufferB;
             public RGTextureHandle gBufferC;
-            public FTemporalColorView temporalColor;
+            public TemporalColorView temporalColor;
             public RGTextureHandle motionMetadata;
             public RGTextureHandle motionTexture;
             public RGTextureHandle historyRadiance;
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            FSSRSettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>().Resolve();
+            SSRSettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>().Resolve();
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
@@ -325,7 +325,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssrShader;
-                    FSSRSettings settings = passData.settings;
+                    SSRSettings settings = passData.settings;
                     int2 resolution = passData.resolution;
                     int2 traceResolution = passData.traceResolution;
                     int2 tileCount = passData.tileCount;

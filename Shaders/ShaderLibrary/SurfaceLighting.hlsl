@@ -3,7 +3,7 @@
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"
 #include "ShadowSampling.hlsl"
-#include "Lighting/LightShapes.hlsl"
+#include "Lighting/LightSourceShapes.hlsl"
 #include "Lighting/LightCookie.hlsl"
 #include "Lighting/ReflectionProbes.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;
@@ -25,7 +25,7 @@ float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
         * F_Schlick(microfaceCtx.SpecularColor, 1, ctx.LoH);
 }
 
-float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask, out float3 diffuseRadiance)
+float3 EvaluateDirectional(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask, out float3 diffuseRadiance)
 {
     diffuseRadiance = 0;
     float3 L = DirectionalLightL(light);
@@ -48,14 +48,14 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
     return radiance;
 }
 
-float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask, out float3 diffuseRadiance)
+float3 EvaluateLocal(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask, out float3 diffuseRadiance)
 {
     diffuseRadiance = 0;
     float window = LocalLightWindow(light, worldPos);
     float3 radiance = 0;
     if (window > 0)
     {
-        FLightShapeSample shape = EvaluateLocalLightShape(light, worldPos, normal, viewDir, microfaceCtx.RoughnessClamp);
+        LightSourceShapeSample shape = EvaluateLocalLightSourceShape(light, worldPos, normal, viewDir, microfaceCtx.RoughnessClamp);
         float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * shape.diffuseIrradiance * LightDiffuseWeight(light);
         float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
             * shape.specularEnergy * LightSpecularWeight(light);
@@ -89,7 +89,7 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
 #endif
     for (int i = 0; i < g_DirectionalLightCount; i++)
     {
-        FLightRecord light = g_LightRecordBuffer[i];
+        LightRecord light = g_LightRecordBuffer[i];
         if ((light.lightLayer & layer) != 0)
         {
             float3 diffuse;
@@ -97,13 +97,13 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
             diffuseRadiance += diffuse;
         }
     }
-    FLightLoop lightLoop;
+    LightLoopState lightLoop;
     BeginLightLoop(positionSS, viewDepth, lightLoop);
     uint recordIndex;
     [loop]
     while (NextLight(lightLoop, recordIndex))
     {
-        FLightRecord light = g_LightRecordBuffer[recordIndex];
+        LightRecord light = g_LightRecordBuffer[recordIndex];
         if ((light.lightLayer & layer) != 0)
         {
             float3 diffuse;

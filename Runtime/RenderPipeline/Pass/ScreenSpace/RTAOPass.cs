@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref RTAOPassData passData = ref passRef.GetPassData<RTAOPassData>();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
-                FRTAOSettings resolved = settings.Resolve();
+                RTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;
                 passData.radius = resolved.radius;
                 passData.buildAccel = env.NeedsBuild;

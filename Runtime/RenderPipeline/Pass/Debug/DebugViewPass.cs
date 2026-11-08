@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             // x = first probe-atlas slice, y = complexity heat-map range.
             public Vector4 parameters;
             public Matrix4x4 invProj;
-            public FLightLoopInputs lightLoop;
+            public LightLoopInputs lightLoop;
             public RGTextureHandle depthTexture;
             public ComputeShader debugViewShader;
             public RGTextureHandle gBufferA;
@@ -336,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (needLightLoop)
                 {
-                    FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                    LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                     passData.depthTexture = passRef.ReadTexture(depthTexture);

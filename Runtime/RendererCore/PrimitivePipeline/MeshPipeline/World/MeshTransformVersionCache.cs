@@ -12,8 +12,8 @@ using InfinityTech.Rendering.RenderGraph;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [StructLayout(LayoutKind.Sequential)]
-    // GPU-RECORD: FMeshTransformPatch Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute
-    internal struct FMeshTransformPatch
+    // GPU-RECORD: MeshTransformPatch Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute
+    internal struct MeshTransformPatch
     {
         public float4x4 objectToWorld;
         public uint generation, index;
@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal MeshTransformVersionCache owner;
         internal MeshTransformVersion source;
         internal BufferHandle matrices, generations, patches;
-        internal FMeshTransformPatch[] changes;
+        internal MeshTransformPatch[] changes;
         internal int changeCount;
         internal int worldId, count, references = 1;
         internal ulong revision;
@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             var source = m_Current;
             bool mergePending = source != null && !source.queued && source.references == 1;
             var indices = new NativeList<int>(math.max(1, mergePending ? source.changeCount : 0), Allocator.Temp);
-            FMeshTransformPatch[] patchArray = null;
+            MeshTransformPatch[] patchArray = null;
             int patchCount;
             try
             {
@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int i = 0; i < indices.Length; ++i)
                     if (i == 0 || indices[i] != indices[i - 1]) count++;
                 patchCount = count;
-                patchArray = count == 0 ? Array.Empty<FMeshTransformPatch>() : ArrayPool<FMeshTransformPatch>.Shared.Rent(count);
+                patchArray = count == 0 ? Array.Empty<MeshTransformPatch>() : ArrayPool<MeshTransformPatch>.Shared.Rent(count);
                 var matrices = world.entityTransforms;
                 var generations = world.entityGenerations;
                 int destination = 0;
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     if (i > 0 && indices[i] == indices[i - 1]) continue;
                     int index = indices[i];
-                    patchArray[destination++] = new FMeshTransformPatch
+                    patchArray[destination++] = new MeshTransformPatch
                     {
                         index = (uint)index, objectToWorld = matrices[index], generation = generations[index]
                     };
@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             catch
             {
-                if (patchArray != null && patchArray.Length > 0) ArrayPool<FMeshTransformPatch>.Shared.Return(patchArray);
+                if (patchArray != null && patchArray.Length > 0) ArrayPool<MeshTransformPatch>.Shared.Return(patchArray);
                 throw;
             }
             finally { indices.Dispose(); }
@@ -151,7 +151,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 next.matrices = m_Pool.GetBuffer(new BufferDescriptor(capacity, 64) { name = "MeshTransformVersion" });
                 next.generations = m_Pool.GetBuffer(new BufferDescriptor(capacity, 4) { name = "MeshTransformGenerations" });
                 if (patchCount > 0)
-                    next.patches = m_Pool.GetBuffer(new BufferDescriptor(patchCount, Marshal.SizeOf<FMeshTransformPatch>()) { name = "MeshTransformChanges" });
+                    next.patches = m_Pool.GetBuffer(new BufferDescriptor(patchCount, Marshal.SizeOf<MeshTransformPatch>()) { name = "MeshTransformChanges" });
             }
             catch
             {
@@ -269,7 +269,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (!version.queued || version.submitted) continue;
                 version.submitted = true;
                 if (version.count > 0) productionCount++;
-                uploadedBytes += (long)version.changeCount * Marshal.SizeOf<FMeshTransformPatch>();
+                uploadedBytes += (long)version.changeCount * Marshal.SizeOf<MeshTransformPatch>();
                 if (version.patches.buffer != null) m_Pool.ReleaseBuffer(version.patches, reuseFence);
                 version.patches = default;
                 ReturnChanges(version);
@@ -293,8 +293,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         static void ReturnChanges(MeshTransformVersion version)
         {
-            if (version.changeCount > 0) ArrayPool<FMeshTransformPatch>.Shared.Return(version.changes);
-            version.changes = Array.Empty<FMeshTransformPatch>(); version.changeCount = 0;
+            if (version.changeCount > 0) ArrayPool<MeshTransformPatch>.Shared.Return(version.changes);
+            version.changes = Array.Empty<MeshTransformPatch>(); version.changeCount = 0;
         }
 
         public void Dispose()

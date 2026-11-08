@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class DecalContextRegistrationTests
     {
         readonly List<RenderContext> m_Contexts = new List<RenderContext>();
-        FGraphicsTask[] m_PendingTasks;
+        RenderTask[] m_PendingTasks;
         ComputeShader m_MeshShader;
         ResourcePool m_Pool;
         RenderContext OwnContext()
@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [SetUp]
         public void PreservePendingWork()
         {
-            m_PendingTasks = FGraphics.GraphicsTasks.ToArray();
+            m_PendingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
             m_MeshShader = MeshTestUtility.LoadMeshDrawShader();
             m_Pool = new ResourcePool();
         }
@@ -43,8 +43,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Contexts.Clear();
                 m_Pool?.Dispose();
                 m_Pool = null;
-                FGraphics.GraphicsTasks.Clear();
-                FGraphics.GraphicsTasks.AddRange(m_PendingTasks);
+                RenderTaskQueue.GraphicsTasks.Clear();
+                RenderTaskQueue.GraphicsTasks.AddRange(m_PendingTasks);
                 dirty.Clear();
                 dirty.AddRange(pendingDirty);
             }
@@ -52,8 +52,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         // Consume only this test's appended delegates; preserve the Editor's pending scene work.
         static void Drain(int start, RenderContext context)
         {
-            var tasks = FGraphics.GraphicsTasks.GetRange(start, FGraphics.GraphicsTasks.Count - start);
-            FGraphics.GraphicsTasks.RemoveRange(start, tasks.Count);
+            var tasks = RenderTaskQueue.GraphicsTasks.GetRange(start, RenderTaskQueue.GraphicsTasks.Count - start);
+            RenderTaskQueue.GraphicsTasks.RemoveRange(start, tasks.Count);
             foreach (var task in tasks) task?.Invoke(context);
         }
 
@@ -61,8 +61,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true)]
         public void ReplacementContext_RecoversEnabledDecals_WithoutDoubleCountingPendingEnable(bool drainBeforeReplacement)
         {
-            int start = FGraphics.GraphicsTasks.Count;
-            var prefix = FGraphics.GraphicsTasks.ToArray();
+            int start = RenderTaskQueue.GraphicsTasks.Count;
+            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
             var previous = OwnContext();
             previous.InitializeWorldDecals();
             int baseline = previous.WorldDecalCount;
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 go = null;
                 Drain(start, replacement);
                 Assert.AreEqual(baseline, replacement.WorldDecalCount);
-                CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
+                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
             }
             finally
             {
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true)]
         public void FirstDrain_UsesFinalActiveState_AfterQueuedToggles(bool finalEnabled)
         {
-            int start = FGraphics.GraphicsTasks.Count;
+            int start = RenderTaskQueue.GraphicsTasks.Count;
             var context = OwnContext();
             var reference = OwnContext();
             reference.InitializeWorldDecals();
@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void LoadedSceneUnload_RemovesRecoveredDecals()
         {
-            int start = FGraphics.GraphicsTasks.Count;
+            int start = RenderTaskQueue.GraphicsTasks.Count;
             var context = OwnContext();
             context.InitializeWorldDecals();
             int baseline = context.WorldDecalCount;

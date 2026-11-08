@@ -8,19 +8,19 @@ using InfinityTech.Rendering.GPUResource;
 namespace InfinityTech.Rendering.LightPipeline
 {
     // A probe's cube in the atlas: the probe and the texture it currently shows.
-    internal readonly struct FProbeCubeKey : IEquatable<FProbeCubeKey>
+    internal readonly struct ProbeCubeKey : IEquatable<ProbeCubeKey>
     {
         public readonly ulong probeId;
         public readonly ulong textureId;
 
-        public FProbeCubeKey(ulong probeId, ulong textureId)
+        public ProbeCubeKey(ulong probeId, ulong textureId)
         {
             this.probeId = probeId;
             this.textureId = textureId;
         }
 
-        public bool Equals(FProbeCubeKey other) => probeId == other.probeId && textureId == other.textureId;
-        public override bool Equals(object obj) => obj is FProbeCubeKey other && Equals(other);
+        public bool Equals(ProbeCubeKey other) => probeId == other.probeId && textureId == other.textureId;
+        public override bool Equals(object obj) => obj is ProbeCubeKey other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(probeId, textureId);
     }
 
@@ -37,9 +37,9 @@ namespace InfinityTech.Rendering.LightPipeline
         }
     }
 
-    internal struct FProbeCubeUpload
+    internal struct ProbeCubeUpload
     {
-        public FProbeCubeKey key;
+        public ProbeCubeKey key;
         public Texture source;
         public int slot;
     }
@@ -94,17 +94,17 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         readonly HistoryCache m_History = new HistoryCache();
-        readonly Dictionary<FProbeCubeKey, Entry> m_Entries = new Dictionary<FProbeCubeKey, Entry>();
-        readonly List<FProbeCubeKey> m_Scratch = new List<FProbeCubeKey>();
+        readonly Dictionary<ProbeCubeKey, Entry> m_Entries = new Dictionary<ProbeCubeKey, Entry>();
+        readonly List<ProbeCubeKey> m_Scratch = new List<ProbeCubeKey>();
         readonly Stack<int> m_FreeSlots = new Stack<int>();
-        readonly List<FProbeCubeUpload> m_Uploads = new List<FProbeCubeUpload>();
+        readonly List<ProbeCubeUpload> m_Uploads = new List<ProbeCubeUpload>();
 
         public int Resolution { get; private set; }
         public int SlotCount { get; private set; }
         public int MipCount => Resolution > 0 ? (int)Math.Log(Resolution, 2) + 1 : 1;
         public bool Enabled => Resolution > 0 && SlotCount > 0;
         public int EntryCount => m_Entries.Count;
-        public List<FProbeCubeUpload> Uploads => m_Uploads;
+        public List<ProbeCubeUpload> Uploads => m_Uploads;
         public int RejectedThisFrame { get; private set; }
 
         public void BeginFrame()
@@ -151,7 +151,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Slot of the probe's cube, queuing a filter pass when it is new, changed or realtime. False when disabled or
         // every slot is in use this frame.
-        public bool Acquire(in FProbeCubeKey key, Texture source, uint updateCount, bool realtime, int frame, out int slot)
+        public bool Acquire(in ProbeCubeKey key, Texture source, uint updateCount, bool realtime, int frame, out int slot)
         {
             slot = -1;
             if (!Enabled) return false;
@@ -177,7 +177,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 entry.pendingUpdateCount = updateCount;
                 entry.pendingSource = sourceState;
                 entry.pendingFrame = frame;
-                if (source != null) m_Uploads.Add(new FProbeCubeUpload { key = key, source = source, slot = entry.slot });
+                if (source != null) m_Uploads.Add(new ProbeCubeUpload { key = key, source = source, slot = entry.slot });
             }
             m_Entries[key] = entry;
             slot = entry.slot;
@@ -193,9 +193,9 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             slot = -1;
             bool found = false;
-            FProbeCubeKey victim = default;
+            ProbeCubeKey victim = default;
             int oldest = int.MaxValue;
-            foreach (KeyValuePair<FProbeCubeKey, Entry> pair in m_Entries)
+            foreach (KeyValuePair<ProbeCubeKey, Entry> pair in m_Entries)
             {
                 if (pair.Value.lastUsedFrame >= frame || pair.Value.pending) continue;
                 if (pair.Value.lastUsedFrame < oldest)
@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.LightPipeline
             return true;
         }
 
-        public void MarkProduced(FProbeCubeKey[] keys, int count)
+        public void MarkProduced(ProbeCubeKey[] keys, int count)
         {
             for (int i = 0; i < count; ++i)
             {
@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FProbeCubeKey key in m_Scratch)
+            foreach (ProbeCubeKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending || entry.produced) continue;
@@ -251,7 +251,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.CommitFrame();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FProbeCubeKey key in m_Scratch)
+            foreach (ProbeCubeKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -272,7 +272,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.RollbackPending();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FProbeCubeKey key in m_Scratch)
+            foreach (ProbeCubeKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -283,13 +283,13 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public bool IsValid(in FProbeCubeKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
+        public bool IsValid(in ProbeCubeKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
 
         public void InvalidateAll()
         {
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FProbeCubeKey key in m_Scratch)
+            foreach (ProbeCubeKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 entry.valid = false;

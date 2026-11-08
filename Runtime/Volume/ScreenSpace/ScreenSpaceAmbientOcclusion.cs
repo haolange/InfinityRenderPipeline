@@ -24,10 +24,10 @@ namespace InfinityTech.Rendering.PostProcess
 
         public bool IsActive() => active && enable.value;
 
-        public FGTAOSettings Resolve()
+        public GTAOSettings Resolve()
         {
-            FGTAOSettings settings = quality.value == EQualityLevel.Custom
-                ? new FGTAOSettings
+            GTAOSettings settings = quality.value == EQualityLevel.Custom
+                ? new GTAOSettings
                 {
                     numRays = NumRays.value,
                     numSteps = NumSteps.value,

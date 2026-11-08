@@ -1,7 +1,7 @@
 namespace InfinityTech.Rendering.Pipeline
 {
     // Low-level SSGI settings consumed by SSGIPass. The work grid is always half resolution.
-    public struct FSSGISettings
+    public struct SSGISettings
     {
         // Quality (preset-driven unless Custom)
         // Hi-Z walk budget; the walk runs at most 4x this many cell steps.
@@ -20,12 +20,12 @@ namespace InfinityTech.Rendering.Pipeline
     public static partial class QualityPresets
     {
         // Medium matches the Volume defaults.
-        public static readonly FSSGISettings[] SSGI =
+        public static readonly SSGISettings[] SSGI =
         {
-            new FSSGISettings { hiZSteps = 8, samples = 1, temporalWeight = 0.95f, temporalClampScale = 1.0f },   // Low
-            new FSSGISettings { hiZSteps = 12, samples = 1, temporalWeight = 0.93f, temporalClampScale = 1.25f }, // Medium
-            new FSSGISettings { hiZSteps = 16, samples = 2, temporalWeight = 0.93f, temporalClampScale = 1.25f }, // High
-            new FSSGISettings { hiZSteps = 24, samples = 2, temporalWeight = 0.9f, temporalClampScale = 1.5f },  // Ultra
+            new SSGISettings { hiZSteps = 8, samples = 1, temporalWeight = 0.95f, temporalClampScale = 1.0f },   // Low
+            new SSGISettings { hiZSteps = 12, samples = 1, temporalWeight = 0.93f, temporalClampScale = 1.25f }, // Medium
+            new SSGISettings { hiZSteps = 16, samples = 2, temporalWeight = 0.93f, temporalClampScale = 1.25f }, // High
+            new SSGISettings { hiZSteps = 24, samples = 2, temporalWeight = 0.9f, temporalClampScale = 1.5f },  // Ultra
         };
     }
 }

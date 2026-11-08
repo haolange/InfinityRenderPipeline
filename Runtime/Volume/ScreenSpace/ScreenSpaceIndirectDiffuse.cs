@@ -33,10 +33,10 @@ namespace InfinityTech.Rendering.PostProcess
 
         public bool IsActive() => active && enable.value;
 
-        public FSSGISettings Resolve()
+        public SSGISettings Resolve()
         {
-            FSSGISettings settings = quality.value == EQualityLevel.Custom
-                ? new FSSGISettings
+            SSGISettings settings = quality.value == EQualityLevel.Custom
+                ? new SSGISettings
                 {
                     hiZSteps = NumSteps.value,
                     samples = Samples.value,

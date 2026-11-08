@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.Pipeline
     // Low-level shadow filtering settings shared by every shadowed light. Selected on the RP Asset (shadow filtering
     // is a project-wide cost decision, not a per-Volume one); each light chooses its filter (Hard, PCF, PCSS, VSM, EVSM).
     [Serializable]
-    public struct FShadowFilterSettings
+    public struct ShadowFilterSettings
     {
         [Tooltip("PCF tent radius in shadow-map texels (1 = 3x3, 2 = 5x5, 3 = 7x7).")]
         [Range(1, 3)] public int pcfRadius;
@@ -26,14 +26,14 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static partial class QualityPresets
     {
-        public static readonly FShadowFilterSettings[] ShadowFilter =
+        public static readonly ShadowFilterSettings[] ShadowFilter =
         {
             // Keep moment softness fixed across presets: widening the blur mixes clear depth into blockers.
             // Higher quality suppresses the resulting variance tail rather than increasing light bleeding.
-            new FShadowFilterSettings { pcfRadius = 1, pcssBlockerSamples = 8, pcssFilterSamples = 12, pcssMaxPenumbra = 12, evsmExponent = 5.0f, lightBleedingReduction = 0.3f, momentBlurRadius = 1 },  // Low
-            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 16, pcssFilterSamples = 24, pcssMaxPenumbra = 24, evsmExponent = 5.4f, lightBleedingReduction = 0.4f, momentBlurRadius = 1 }, // Medium
-            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 24, pcssFilterSamples = 32, pcssMaxPenumbra = 32, evsmExponent = 5.54f, lightBleedingReduction = 0.5f, momentBlurRadius = 1 }, // High
-            new FShadowFilterSettings { pcfRadius = 3, pcssBlockerSamples = 32, pcssFilterSamples = 48, pcssMaxPenumbra = 48, evsmExponent = 5.54f, lightBleedingReduction = 0.6f, momentBlurRadius = 1 }, // Ultra
+            new ShadowFilterSettings { pcfRadius = 1, pcssBlockerSamples = 8, pcssFilterSamples = 12, pcssMaxPenumbra = 12, evsmExponent = 5.0f, lightBleedingReduction = 0.3f, momentBlurRadius = 1 },  // Low
+            new ShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 16, pcssFilterSamples = 24, pcssMaxPenumbra = 24, evsmExponent = 5.4f, lightBleedingReduction = 0.4f, momentBlurRadius = 1 }, // Medium
+            new ShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 24, pcssFilterSamples = 32, pcssMaxPenumbra = 32, evsmExponent = 5.54f, lightBleedingReduction = 0.5f, momentBlurRadius = 1 }, // High
+            new ShadowFilterSettings { pcfRadius = 3, pcssBlockerSamples = 32, pcssFilterSamples = 48, pcssMaxPenumbra = 48, evsmExponent = 5.54f, lightBleedingReduction = 0.6f, momentBlurRadius = 1 }, // Ultra
         };
     }
 }

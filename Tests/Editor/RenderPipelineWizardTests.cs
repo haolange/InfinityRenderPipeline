@@ -35,13 +35,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EInfinityLightType.Rect)]
         [TestCase(EInfinityLightType.Disk)]
         [TestCase(EInfinityLightType.Directional)]
-        public void LightShape_InSyncAfterApply_OutOfSyncAfterNativeEdit(EInfinityLightType type)
+        public void LightSourceShape_InSyncAfterApply_OutOfSyncAfterNativeEdit(EInfinityLightType type)
         {
             var go = new GameObject("WizardLight");
             try
             {
                 Light light = go.AddComponent<Light>();
-                FLightShape shape = FLightShape.Default(type);
+                LightSourceShape shape = LightSourceShape.Default(type);
                 LightShapeUtility.ApplyToUnityLight(light, shape);
                 Assert.IsTrue(LightShapeUtility.IsInSync(light, shape));
                 Assert.IsFalse(LightShapeUtility.ApplyToUnityLight(light, shape), "Applying a synced shape changes nothing.");

@@ -12,20 +12,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class MeshComponentRegistrationTests
     {
         // Run only the delegates appended by this test. Existing Editor tasks remain untouched.
-        static FGraphicsTask[] TakeOwnTasks(int start)
+        static RenderTask[] TakeOwnTasks(int start)
         {
-            int count = FGraphics.GraphicsTasks.Count - start;
+            int count = RenderTaskQueue.GraphicsTasks.Count - start;
             Assert.GreaterOrEqual(count, 0);
-            var tasks = FGraphics.GraphicsTasks.GetRange(start, count).ToArray();
-            FGraphics.GraphicsTasks.RemoveRange(start, count);
+            var tasks = RenderTaskQueue.GraphicsTasks.GetRange(start, count).ToArray();
+            RenderTaskQueue.GraphicsTasks.RemoveRange(start, count);
             return tasks;
         }
 
         static void FlushOwnMeshTasks(int start, RenderContext context)
         {
-            var tasks = FGraphics.MeshTasks.GetRange(start, FGraphics.MeshTasks.Count - start).ToArray();
-            FGraphics.MeshTasks.RemoveRange(start, tasks.Length);
-            foreach (var task in tasks) FGraphics.ProcessMeshTask(task, context);
+            var tasks = RenderTaskQueue.MeshTasks.GetRange(start, RenderTaskQueue.MeshTasks.Count - start).ToArray();
+            RenderTaskQueue.MeshTasks.RemoveRange(start, tasks.Length);
+            foreach (var task in tasks) RenderTaskQueue.ProcessMeshTask(task, context);
         }
 
         static System.Collections.Generic.List<MeshComponent> DirtyList() => (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
@@ -65,10 +65,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var pool = new ResourcePool();
             var context = new RenderContext(pool, meshShader);
             MeshComponent component = null;
-            int start = FGraphics.GraphicsTasks.Count;
-            int meshStart = FGraphics.MeshTasks.Count;
-            var meshPrefix = FGraphics.MeshTasks.ToArray();
-            var prefix = FGraphics.GraphicsTasks.ToArray();
+            int start = RenderTaskQueue.GraphicsTasks.Count;
+            int meshStart = RenderTaskQueue.MeshTasks.Count;
+            var meshPrefix = RenderTaskQueue.MeshTasks.ToArray();
+            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
             int geometryStates = MeshComponent.geometryStateCount;
             try
             {
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic ? 1 : 0, world.dynamicEntityCount);
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic, world.IsDynamic(component.entityId));
                 if (reenable) Assert.Greater(world.GetPassCache(MeshPassTable.Shadow).memberCount, 0, "A shadow-casting component joins the Shadow pass.");
-                CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
+                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
                 Assert.IsFalse(go.GetComponent<Renderer>().forceRenderingOff, "Custom registration must not mutate native rendering state.");
                 UnityEngine.Object.DestroyImmediate(go);
                 go = null;
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     if (go != null) UnityEngine.Object.DestroyImmediate(go);
                     foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
                     FlushOwnMeshTasks(meshStart, context);
-                    CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
+                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
                 }
                 finally
                 {
@@ -124,19 +124,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     // RenderContext teardown clears process queues. Preserve external work, including its order,
                     // and remove only this destroyed component from the project-owned dirty list.
                     var dirty = DirtyList();
-                    var remainingTasks = FGraphics.GraphicsTasks.ToArray();
-                    var remainingMeshTasks = FGraphics.MeshTasks.ToArray();
+                    var remainingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
+                    var remainingMeshTasks = RenderTaskQueue.MeshTasks.ToArray();
                     var remainingDirty = dirty.Where(value => !ReferenceEquals(value, component)).ToArray();
                     try { context.Dispose(); }
                     finally
                     {
                         pool.Dispose();
-                        FGraphics.GraphicsTasks.InsertRange(0, remainingTasks);
-                        FGraphics.MeshTasks.InsertRange(0, remainingMeshTasks);
+                        RenderTaskQueue.GraphicsTasks.InsertRange(0, remainingTasks);
+                        RenderTaskQueue.MeshTasks.InsertRange(0, remainingMeshTasks);
                         dirty.InsertRange(0, remainingDirty);
                     }
-                    CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks.Take(start));
-                    CollectionAssert.AreEqual(meshPrefix, FGraphics.MeshTasks.Take(meshStart));
+                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks.Take(start));
+                    CollectionAssert.AreEqual(meshPrefix, RenderTaskQueue.MeshTasks.Take(meshStart));
                 }
             }
         }
@@ -149,10 +149,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var pool = new ResourcePool();
             var context = new RenderContext(pool, meshShader);
             MeshComponent component = null;
-            int start = FGraphics.GraphicsTasks.Count;
-            int meshStart = FGraphics.MeshTasks.Count;
-            var prefix = FGraphics.GraphicsTasks.ToArray();
-            var meshPrefix = FGraphics.MeshTasks.ToArray();
+            int start = RenderTaskQueue.GraphicsTasks.Count;
+            int meshStart = RenderTaskQueue.MeshTasks.Count;
+            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
+            var meshPrefix = RenderTaskQueue.MeshTasks.ToArray();
             int geometryStates = MeshComponent.geometryStateCount;
             try
             {
@@ -228,7 +228,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsFalse(world.IsAlive(component.entityId), "An invalid asset is not drawn.");
                 Assert.IsTrue(world.IsAlive(independent.entityId), "The valid component of the same transaction is drawn.");
                 Assert.AreEqual(1, world.entityCount);
-                CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
+                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
             }
             finally
             {
@@ -242,19 +242,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     foreach (UnityEngine.Object value in objects) if (value != null) UnityEngine.Object.DestroyImmediate(value);
                     var dirty = DirtyList();
-                    var remainingTasks = FGraphics.GraphicsTasks.ToArray();
-                    var remainingMeshTasks = FGraphics.MeshTasks.ToArray();
+                    var remainingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
+                    var remainingMeshTasks = RenderTaskQueue.MeshTasks.ToArray();
                     var remainingDirty = dirty.Where(value => value != null).ToArray();
                     try { context.Dispose(); }
                     finally
                     {
                         pool.Dispose();
-                        FGraphics.GraphicsTasks.InsertRange(0, remainingTasks);
-                        FGraphics.MeshTasks.InsertRange(0, remainingMeshTasks);
+                        RenderTaskQueue.GraphicsTasks.InsertRange(0, remainingTasks);
+                        RenderTaskQueue.MeshTasks.InsertRange(0, remainingMeshTasks);
                         dirty.InsertRange(0, remainingDirty);
                     }
-                    CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks.Take(start));
-                    CollectionAssert.AreEqual(meshPrefix, FGraphics.MeshTasks.Take(meshStart));
+                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks.Take(start));
+                    CollectionAssert.AreEqual(meshPrefix, RenderTaskQueue.MeshTasks.Take(meshStart));
                     Assert.AreEqual(geometryStates, MeshComponent.geometryStateCount, "Destroyed components release their geometry states.");
                 }
             }

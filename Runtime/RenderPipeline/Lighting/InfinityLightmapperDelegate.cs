@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 Light light = requests[i];
                 light.TryGetComponent(out InfinityAdditionalLightData ext);
-                FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
+                LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
                 if (!LightShapeUtility.IsBakeable(shape) || !LightShapeUtility.IsValid(shape))
                 {
                     data.InitNoBake(light.GetEntityId());

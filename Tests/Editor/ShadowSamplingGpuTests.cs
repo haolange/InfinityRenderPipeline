@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         values[y * 192 + x] = (x / 32 == blockedFace) == SystemInfo.usesReversedZBuffer ? 1 : 0;
                 depth.SetPixelData(values, 0); depth.Apply(false);
                 var matrixData = new Matrix4x4[6];
-                var sliceData = new InfinityTech.Rendering.LightPipeline.FLocalShadowSliceGPU[6];
+                var sliceData = new InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU[6];
                 for (int face = 0; face < 6; ++face)
                 {
                     // All faces project to their tile center, isolating face selection from projection coverage.
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     sliceData[face].shadowOriginSize = Vector4.zero;
                 }
                 matrices = new ComputeBuffer(6, 64); matrices.SetData(matrixData);
-                slices = new ComputeBuffer(6, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.FLocalShadowSliceGPU>());
+                slices = new ComputeBuffer(6, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
                 slices.SetData(sliceData);
                 output = new ComputeBuffer(2, 16);
                 var directions = new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };

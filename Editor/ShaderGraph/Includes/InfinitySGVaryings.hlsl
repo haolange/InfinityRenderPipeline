@@ -127,7 +127,7 @@ PackedVaryings vert(Attributes input)
 }
 
 // Surface outputs with InfinityLit's defaults for blocks a pass or sub-target does not have.
-struct FInfinitySurface
+struct InfinitySurface
 {
     float3 baseColor;
     float3 normalTS;
@@ -139,9 +139,9 @@ struct FInfinitySurface
     float alpha;
 };
 
-FInfinitySurface GetInfinitySurface(SurfaceDescription description)
+InfinitySurface GetInfinitySurface(SurfaceDescription description)
 {
-    FInfinitySurface surface;
+    InfinitySurface surface;
 #if defined(INFINITY_SG_BASECOLOR)
     surface.baseColor = description.BaseColor;
 #else
@@ -188,7 +188,7 @@ FInfinitySurface GetInfinitySurface(SurfaceDescription description)
     return surface;
 }
 
-FInfinitySurface EvaluateInfinitySurface(Varyings input)
+InfinitySurface EvaluateInfinitySurface(Varyings input)
 {
     return GetInfinitySurface(SurfaceDescriptionFunction(BuildSurfaceDescriptionInputs(input)));
 }

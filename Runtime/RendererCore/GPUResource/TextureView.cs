@@ -7,10 +7,10 @@ namespace InfinityTech.Rendering.GPUResource
     public enum ETextureSizingDomain : byte { Exact, Internal, Display }
 
     // Pixel coordinates remain logical. Only normalized sampling depends on capacity.
-    public readonly struct FTextureView
+    public readonly struct TextureView
     {
         public readonly int2 size, capacity;
-        public FTextureView(int2 size, int2 capacity)
+        public TextureView(int2 size, int2 capacity)
         {
             if (math.any(size <= 0) || math.any(capacity < size))
                 throw new ArgumentOutOfRangeException(nameof(capacity));
@@ -20,10 +20,10 @@ namespace InfinityTech.Rendering.GPUResource
         public Vector4 uvScale => new Vector4((float)size.x / capacity.x, (float)size.y / capacity.y, 0, 0);
     }
 
-    public readonly struct FTextureCapacityContext
+    public readonly struct TextureCapacityContext
     {
         public readonly int2 internalCapacity, displayCapacity;
-        public FTextureCapacityContext(int2 internalCapacity, int2 displayCapacity)
+        public TextureCapacityContext(int2 internalCapacity, int2 displayCapacity)
         { this.internalCapacity = internalCapacity; this.displayCapacity = displayCapacity; }
         public TextureDescriptor Resolve(TextureDescriptor descriptor)
         {

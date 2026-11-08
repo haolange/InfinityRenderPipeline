@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         readonly ResourcePool m_Pool;
         readonly bool m_OwnsPool;
-        internal FTextureCapacityContext textureCapacity;
+        internal TextureCapacityContext textureCapacity;
         readonly List<TextureHandle> m_RetiredTextures = new List<TextureHandle>();
         readonly List<BufferHandle> m_RetiredBuffers = new List<BufferHandle>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
@@ -284,7 +284,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return GetTextureResource(textureHandle.handle).resource;
         }
 
-        internal bool TryGetTextureView(RenderTargetIdentifier identifier, out FTextureView view)
+        internal bool TryGetTextureView(RenderTargetIdentifier identifier, out TextureView view)
         {
             for (int i = m_Resources[(int)ERGResourceType.Texture].size - 1; i >= 0; --i)
             {

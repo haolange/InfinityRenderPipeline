@@ -5,7 +5,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     // Result in the buffer's recorded encoding. DisplayColor is display-linear and can contain HDR values above 1.
     [Serializable]
-    internal struct FImageComparison
+    internal struct ImageComparisonResult
     {
         public bool comparable;
         public string reason;
@@ -68,9 +68,9 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
         }
 
-        public static FImageComparison Compare(byte[] baseline, byte[] candidate, string format, int width, int height, float pixelThreshold)
+        public static ImageComparisonResult Compare(byte[] baseline, byte[] candidate, string format, int width, int height, float pixelThreshold)
         {
-            var result = new FImageComparison();
+            var result = new ImageComparisonResult();
             long pixelCount = (long)width * height;
             if (width <= 0 || height <= 0 || pixelCount > int.MaxValue || !Finite(pixelThreshold) || pixelThreshold < 0)
             {

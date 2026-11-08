@@ -6,17 +6,17 @@
 
 // Mesh entity interface. A draw list binds InstanceToEntity (its sorted or compacted entity slots) and the world's
 // immutable transform version; a shader reads its entity once per vertex through MeshInstanceEntity.
-struct FTransformData
+struct TransformData
 {
      float4x4 matrix_LocalToWorld;
 };
 
 uint InstanceOffset;
 StructuredBuffer<uint> InstanceToEntity;
-StructuredBuffer<FTransformData> EntityTransforms;
+StructuredBuffer<TransformData> EntityTransforms;
 StructuredBuffer<uint> EntityGenerations;
 StructuredBuffer<uint> EntityRenderingLayers;
-StructuredBuffer<FTransformData> PreviousEntityTransforms;
+StructuredBuffer<TransformData> PreviousEntityTransforms;
 StructuredBuffer<uint> PreviousEntityGenerations;
 uint PreviousEntityCount, PreviousEntityValid;
 

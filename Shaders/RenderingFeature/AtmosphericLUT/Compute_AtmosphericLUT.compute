@@ -675,7 +675,7 @@ void AtmosphereSHProject(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_Grou
             continue;
         }
 
-        FSphericalHarmonicTwoBasis basis = InitSH2Basis(InitSH2Table(g_SHDir[i]), g_SHRadiance[i]);
+        SphericalHarmonicTwoBasis basis = InitSH2Basis(InitSH2Table(g_SHDir[i]), g_SHRadiance[i]);
         [unroll]
         for (int c = 0; c < 9; ++c)
         {

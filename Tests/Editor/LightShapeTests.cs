@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EInfinityLightType.Directional, 0.0f, 0.0f, LightType.Directional)]
         public void ShapeParameters_DeriveTheNativeType(EInfinityLightType type, float radius, float length, LightType expected)
         {
-            FLightShape shape = FLightShape.Default(type);
+            LightSourceShape shape = LightSourceShape.Default(type);
             shape.sourceRadius = radius;
             shape.sourceLength = length;
             Assert.AreEqual(expected, LightShapeUtility.NativeType(shape));
@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(ESpotShape.Box, LightType.Box)]
         public void SpotShapes_DeriveTheNativeType(ESpotShape spotShape, LightType expected)
         {
-            FLightShape shape = FLightShape.Default(EInfinityLightType.Spot);
+            LightSourceShape shape = LightSourceShape.Default(EInfinityLightType.Spot);
             shape.spotShape = spotShape;
             Assert.AreEqual(expected, LightShapeUtility.NativeType(shape));
         }
@@ -50,17 +50,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var shapes = new[]
                 {
-                    new FLightShape { type = EInfinityLightType.Point, sourceRadius = 0.15f, sourceLength = 2.0f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
-                    new FLightShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Pyramid, sourceRadius = 0.05f, pyramidAspect = 2.0f, sourceWidth = 1, sourceHeight = 1, boxSize = Vector2.one },
-                    new FLightShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Box, boxSize = new Vector2(3, 2), sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1 },
-                    new FLightShape { type = EInfinityLightType.Rect, sourceWidth = 2.0f, sourceHeight = 0.5f, pyramidAspect = 1, boxSize = Vector2.one },
-                    new FLightShape { type = EInfinityLightType.Disk, sourceRadius = 0.75f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
-                    new FLightShape { type = EInfinityLightType.Directional, sourceAngle = 0.5357f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { type = EInfinityLightType.Point, sourceRadius = 0.15f, sourceLength = 2.0f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Pyramid, sourceRadius = 0.05f, pyramidAspect = 2.0f, sourceWidth = 1, sourceHeight = 1, boxSize = Vector2.one },
+                    new LightSourceShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Box, boxSize = new Vector2(3, 2), sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1 },
+                    new LightSourceShape { type = EInfinityLightType.Rect, sourceWidth = 2.0f, sourceHeight = 0.5f, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { type = EInfinityLightType.Disk, sourceRadius = 0.75f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { type = EInfinityLightType.Directional, sourceAngle = 0.5357f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
                 };
-                foreach (FLightShape shape in shapes)
+                foreach (LightSourceShape shape in shapes)
                 {
                     LightShapeUtility.ApplyToUnityLight(light, shape);
-                    FLightShape read = LightShapeUtility.FromUnityLight(light);
+                    LightSourceShape read = LightShapeUtility.FromUnityLight(light);
                     if (shape.type == EInfinityLightType.Disk)
                     {
                         // The carrier does not store Disk identity; authored shape lives on Additional data.
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 light.areaSize = new Vector2(3, 1);
                 var data = go.AddComponent<InfinityAdditionalLightData>();
-                FLightShape shape = data.shape;
+                LightSourceShape shape = data.shape;
                 Assert.AreEqual(EInfinityLightType.Rect, shape.type);
                 Assert.AreEqual(3.0f, shape.sourceWidth, 1e-5f);
                 Assert.AreEqual(LightType.Rectangle, light.type, "Adding the component never changes the light.");
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 string beforeShape = EditorJsonUtility.ToJson(data);
                 Undo.IncrementCurrentGroup();
                 Undo.RecordObjects(new Object[] { light, data }, "Change light shape");
-                var disk = FLightShape.Default(EInfinityLightType.Disk);
+                var disk = LightSourceShape.Default(EInfinityLightType.Disk);
                 disk.sourceRadius = 0.85f;
                 data.SetShape(disk);
                 Undo.FlushUndoRecordObjects();
@@ -142,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(afterShape, EditorJsonUtility.ToJson(data));
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
-                data.SetShape(FLightShape.Default(EInfinityLightType.Rect));
+                data.SetShape(LightSourceShape.Default(EInfinityLightType.Rect));
                 Assert.AreEqual(mode, light.lightmapBakeType);
                 Undo.ClearUndo(data);
                 Undo.ClearUndo(light);
@@ -168,12 +168,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var data = go.AddComponent<InfinityAdditionalLightData>();
                 light.lightmapBakeType = mode;
-                var disk = FLightShape.Default(EInfinityLightType.Disk);
+                var disk = LightSourceShape.Default(EInfinityLightType.Disk);
                 disk.sourceRadius = 0.85f;
                 data.SetShape(disk);
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
-                Assert.AreEqual(EInfinityLightType.Disk, FLightRecordPack.ResolveShape(light, data).type);
+                Assert.AreEqual(EInfinityLightType.Disk, LightRecordPack.ResolveShape(light, data).type);
                 using (var output = new Unity.Collections.NativeArray<UnityEngine.Experimental.GlobalIllumination.LightDataGI>(1, Unity.Collections.Allocator.Temp))
                 {
                     InfinityLightmapperDelegate.Delegate(new[] { light }, output);
@@ -292,10 +292,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void InvalidRect_IsRejected()
         {
-            FLightShape shape = FLightShape.Default(EInfinityLightType.Rect);
+            LightSourceShape shape = LightSourceShape.Default(EInfinityLightType.Rect);
             shape.sourceWidth = 0;
             Assert.IsFalse(LightShapeUtility.IsValid(shape));
-            Assert.IsTrue(LightShapeUtility.IsValid(FLightShape.Default(EInfinityLightType.Point)));
+            Assert.IsTrue(LightShapeUtility.IsValid(LightSourceShape.Default(EInfinityLightType.Point)));
         }
 
         [Test]

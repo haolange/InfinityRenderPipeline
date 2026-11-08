@@ -10,17 +10,17 @@ namespace InfinityTech.Rendering.TerrainPipeline
     [Serializable]
     public class TerrainSector : IDisposable
     {
-        public FBound boundBox;
+        public BoundingBox boundBox;
         public TerrainSection[] sections;
         internal NativeArray<TerrainSection> m_Sections;
 
-        public TerrainSector(in int sectorSize, in int numSection, in int sectionSize, in float3 sectorPivotPos, in FAABB sectorBound)
+        public TerrainSector(in int sectorSize, in int numSection, in int sectionSize, in float3 sectorPivotPos, in MinMaxBox sectorBound)
         {
             int sectorSize_Half = sectorSize / 2;
             int sectionSize_Half = sectionSize / 2;
 
             sections = new TerrainSection[numSection * numSection];
-            boundBox = new FBound(new float3(sectorPivotPos.x + sectorSize_Half, sectorPivotPos.y + (sectorBound.size.y / 2), sectorPivotPos.z + sectorSize_Half), sectorBound.size * 0.5f);
+            boundBox = new BoundingBox(new float3(sectorPivotPos.x + sectorSize_Half, sectorPivotPos.y + (sectorBound.size.y / 2), sectorPivotPos.z + sectorSize_Half), sectorBound.size * 0.5f);
 
             for (int x = 0; x < numSection; ++x)
             {
@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                     sections[sectionId] = new TerrainSection();
                     sections[sectionId].pivotPos = pivotPosition;
-                    sections[sectionId].boundBox = new FAABB(centerPosition, new float3(sectionSize, 1, sectionSize));
+                    sections[sectionId].boundBox = new MinMaxBox(centerPosition, new float3(sectionSize, 1, sectionSize));
                 }
             }
         }
@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float posHeight = ((section.boundBox.center.y + minHeight * scaleHeight) + (section.boundBox.center.y + maxHeight * scaleHeight)) * 0.5f;
                 float sizeHeight = ((section.boundBox.center.y + minHeight * scaleHeight) - (section.boundBox.center.y + maxHeight * scaleHeight));
                 float3 newBoundCenter = new float3(section.boundBox.center.x, posHeight, section.boundBox.center.z);
-                section.boundBox = new FAABB(newBoundCenter, new float3(sectionSize, sizeHeight, sectionSize));
+                section.boundBox = new MinMaxBox(newBoundCenter, new float3(sectionSize, sizeHeight, sectionSize));
             }
         }
 #endif

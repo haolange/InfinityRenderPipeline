@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.LightPipeline
             if ((desc.layerMask & light.cullingMask) == 0
                 || (desc.renderingLayerMask & renderingMask) == 0
                 || (desc.sceneCullingMask & sceneMask) == 0) return false;
-            FBound bound = m_World.entityBounds[entity];
+            BoundingBox bound = m_World.entityBounds[entity];
             bounds = new Bounds((Vector3)bound.center, (Vector3)(bound.extents * 2));
             return true;
         }
@@ -60,11 +60,11 @@ namespace InfinityTech.Rendering.LightPipeline
 
         readonly Plane[] m_LocalPlanes = new Plane[6];
 
-        internal bool HasLocalCaster(in FLightRecord record, Light light, Camera camera, int tileResolution, float guardTexels)
+        internal bool HasLocalCaster(in LightRecord record, Light light, Camera camera, int tileResolution, float guardTexels)
         {
             ulong sceneMask = MeshView.SceneCullingMaskFor(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
-            int faces = FLightRecordPack.LocalShadowSliceCount(record);
+            int faces = LightRecordPack.LocalShadowSliceCount(record);
             for (int face = 0; face < faces; ++face)
             {
                 var frustum = ShadowAllocator.LocalShadowFrustum(record, light, face, tileResolution, guardTexels);

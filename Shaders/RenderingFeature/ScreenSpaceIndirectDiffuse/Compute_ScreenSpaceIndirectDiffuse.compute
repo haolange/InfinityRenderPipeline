@@ -85,7 +85,7 @@ groupshared uint gs_Prefix[64];
 
 void TracePixel(uint2 tracePixel)
 {
-    FSSGISurface surface;
+    SSGISurface surface;
     bool valid = LoadSurface(TraceToFullPixel(tracePixel), surface);
     if (!valid) return;
     uint spp = clamp(SSGI_Samples, 1u, 4u);
@@ -100,7 +100,7 @@ void TracePixel(uint2 tracePixel)
         float3 L = mul(sampleL.xyz, GetTangentBasis(surface.normalWS));
         float3 directionVS = normalize(mul((float3x3)Matrix_WorldToView, L));
         float jitter = GetBNDSequenceSample(tracePixel, SSGI_FrameIndex, (int)(rayIndex * 3 + 2));
-        FScreenSpaceHit hit = (FScreenSpaceHit)0;
+        ScreenSpaceHit hit = (ScreenSpaceHit)0;
 #if defined(SSGI_TRACE_LINEAR)
         bool found = TraceScreenSpaceLinear(surface.positionVS, directionVS, SSGI_HiZSteps * 4, 4, jitter, SSGI_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
 #else
@@ -166,7 +166,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
         return;
     }
     uint2 pixel = id.xy;
-    FSSGISurface surface;
+    SSGISurface surface;
     if (!LoadSurface(TraceToFullPixel(pixel), surface))
     {
         UAV_Temporal[pixel] = 0;
@@ -189,7 +189,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
             sumSquares += value * value;
         }
     }
-    FNeighborhoodMoments moments = ResolveNeighborhoodMoments(sum, sumSquares, 9, current, SSGI_TemporalClampScale);
+    NeighborhoodMoments moments = ResolveNeighborhoodMoments(sum, sumSquares, 9, current, SSGI_TemporalClampScale);
 
     uint2 surfacePixel = TraceToFullPixel(pixel);
     float2 uv = (surfacePixel + 0.5) * SSGI_Resolution.zw;
@@ -235,7 +235,7 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= (uint2)SSGI_TraceResolution.xy)) return;
     uint2 pixel = id.xy;
     float4 current = SRV_Temporal[pixel];
-    FSSGISurface surface;
+    SSGISurface surface;
     if (!LoadSurface(TraceToFullPixel(pixel), surface)) { UAV_Output[pixel] = 0; return; }
     float4 sum = 0;
     float4 sumSquares = 0;
@@ -278,7 +278,7 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
         float2 uv = projected.xy / projected.w * 0.5 + 0.5;
         if (any(uv < 0) || any(uv >= 1)) continue;
         uint2 samplePixel = FullToTracePixel((uint2)(uv * SSGI_Resolution.xy));
-        FSSGISurface neighbor;
+        SSGISurface neighbor;
         if (!LoadSurface(TraceToFullPixel(samplePixel), neighbor)) continue;
         float planeDistance = abs(dot(neighbor.positionWS - surface.positionWS, surface.normalWS));
         float planeLimit = max(radius * 0.02, 0.05);
@@ -300,7 +300,7 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
 void SSGIUpsample(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)SSGI_Resolution.xy)) return;
-    FSSGISurface surface;
+    SSGISurface surface;
     if (!LoadSurface(id.xy,surface)) { UAV_Output[id.xy] = 0; return; }
     uint2 phaseOffset = TraceToFullPixel(uint2(0,0));
     int2 origin = (int2)floor((float2(id.xy) - phaseOffset) / SSGI_TraceScale);

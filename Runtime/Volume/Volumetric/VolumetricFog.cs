@@ -22,10 +22,10 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedFloatParameter MaxDistance = new ClampedFloatParameter(128.0f, 32.0f, 512.0f);
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.9f, 0.0f, 0.99f);
 
-        public FVolumetricFogSettings Resolve()
+        public VolumetricFogSettings Resolve()
         {
-            FVolumetricFogSettings settings = quality.value == EQualityLevel.Custom
-                ? new FVolumetricFogSettings { depthSlices = DepthSlices.value, temporalWeight = TemporalWeight.value }
+            VolumetricFogSettings settings = quality.value == EQualityLevel.Custom
+                ? new VolumetricFogSettings { depthSlices = DepthSlices.value, temporalWeight = TemporalWeight.value }
                 : QualityPresets.Select(QualityPresets.VolumetricFog, quality.value);
             settings.density = Density.value;
             settings.height = Height.value;

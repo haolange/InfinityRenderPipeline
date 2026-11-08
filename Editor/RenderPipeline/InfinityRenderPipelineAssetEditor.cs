@@ -113,7 +113,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             }
             else
             {
-                FShadowFilterSettings preset = QualityPresets.Select(QualityPresets.ShadowFilter, level);
+                ShadowFilterSettings preset = QualityPresets.Select(QualityPresets.ShadowFilter, level);
                 using (new EditorGUI.DisabledScope(true))
                 {
                     EditorGUILayout.IntField("Pcf Radius", preset.pcfRadius);

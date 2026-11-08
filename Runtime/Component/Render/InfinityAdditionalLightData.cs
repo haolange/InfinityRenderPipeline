@@ -34,7 +34,7 @@ namespace InfinityTech.Component
         // Source shape in Unreal form. Authority over the native shape fields (type, shapeRadius, areaSize,
         // shadowAngle) once authored; until then the shape is read from the native Light.
         [SerializeField] bool m_ShapeAuthored;
-        [SerializeField] FLightShape m_Shape = FLightShape.Default(EInfinityLightType.Point);
+        [SerializeField] LightSourceShape m_Shape = LightSourceShape.Default(EInfinityLightType.Point);
         [SerializeField] EShadowFilter m_ShadowFilter = EShadowFilter.PCF;
         [SerializeField] EShadowUpdateMode m_ShadowUpdateMode = EShadowUpdateMode.EveryFrame;
         int m_ShadowRequestCount;
@@ -43,7 +43,7 @@ namespace InfinityTech.Component
         public bool shapeAuthored => m_ShapeAuthored;
 
         // The shape the renderer uses: the authored shape, or the shape derived from the native Light.
-        public FLightShape shape => m_ShapeAuthored ? m_Shape : LightShapeUtility.FromUnityLight(attachedLight);
+        public LightSourceShape shape => m_ShapeAuthored ? m_Shape : LightShapeUtility.FromUnityLight(attachedLight);
 
         public EShadowFilter shadowFilter
         {
@@ -68,7 +68,7 @@ namespace InfinityTech.Component
 
         // Sets the authored shape and writes the derived native Light fields. The Editor records Undo on both
         // objects before calling this.
-        public void SetShape(in FLightShape value)
+        public void SetShape(in LightSourceShape value)
         {
             m_Shape = value;
             m_ShapeAuthored = true;
@@ -128,7 +128,7 @@ namespace InfinityTech.Component
             m_UnityLight = GetComponent<Light>();
             m_RegisteredLightId = UnityEntityId.ToUInt64(m_UnityLight);
             ulong lightId = m_RegisteredLightId;
-            FGraphics.AddTask((RenderContext renderContext) =>
+            RenderTaskQueue.AddTask((RenderContext renderContext) =>
             {
                 if (this && m_UnityLight) renderContext.AddWorldLight(lightId, this);
             });
@@ -137,7 +137,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             ulong lightId = m_RegisteredLightId;
-            FGraphics.AddTask((RenderContext renderContext) =>
+            RenderTaskQueue.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldLight(lightId);
             });

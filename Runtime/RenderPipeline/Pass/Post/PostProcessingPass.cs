@@ -50,10 +50,10 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        readonly struct FPostComputeKernels
+        readonly struct PostComputeKernels
         {
             internal readonly int bloomDownsample, bloomUpsample, exposureClear, exposureHistogram, exposureReduce;
-            internal FPostComputeKernels(ComputeShader shader)
+            internal PostComputeKernels(ComputeShader shader)
             {
                 bloomDownsample = shader.FindKernel("BloomDownsample");
                 bloomUpsample = shader.FindKernel("BloomUpsample");
@@ -63,12 +63,12 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
         ComputeShader m_PostKernelShader;
-        FPostComputeKernels m_PostComputeKernels;
+        PostComputeKernels m_PostComputeKernels;
         static readonly GlobalKeyword s_PostBloomKeyword = GlobalKeyword.Create("INFINITY_POST_BLOOM");
 
         struct BloomPassData
         {
-            public FPostComputeKernels kernels;
+            public PostComputeKernels kernels;
             public int2 resolution;
             public float bloomThreshold;
             public float bloomScatter;
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct ExposurePassData
         {
-            public FPostComputeKernels kernels;
+            public PostComputeKernels kernels;
             public int2 resolution;
             public float lowPercentile;
             public float highPercentile;
@@ -137,7 +137,7 @@ namespace InfinityTech.Rendering.Pipeline
             "ExposureClear", "ExposureHistogram", "ExposureReduce"
         };
 
-        void RasterPostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision, in FOutputPlan plan, RGTextureHandle target)
+        void RasterPostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision, in OutputPlan plan, RGTextureHandle target)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (m_PostKernelShader != shaders.postProcessingShader)
             {
-                m_PostComputeKernels = new FPostComputeKernels(shaders.postProcessingShader);
+                m_PostComputeKernels = new PostComputeKernels(shaders.postProcessingShader);
                 m_PostKernelShader = shaders.postProcessingShader;
             }
 
@@ -451,7 +451,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 pass.EnablePassCulling(false);
                 if (finalTarget) pass.EnableNativeRenderPass(false);
-                pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<PostCombinePassData>();
                 data.output = PrepareFinalOutput(camera, decision, sceneColor, finalTarget, "RasterPostCombine");
                 data.resolution = m_ActiveFrameState.dimensions.displaySize;

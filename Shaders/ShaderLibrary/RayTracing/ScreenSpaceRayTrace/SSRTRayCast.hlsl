@@ -18,7 +18,7 @@ float GetScreenFadeBord(float2 uv, float width)
     return saturate(min(min(uv.x, uv.y), min(1 - uv.x, 1 - uv.y)) / max(width, 1e-5));
 }
 
-struct FScreenSpaceRay
+struct ScreenSpaceRay
 {
     float3 start;
     float3 delta;
@@ -32,7 +32,7 @@ struct FScreenSpaceRay
 #define SCREEN_TRACE_EXIT_BEHIND 2
 #define SCREEN_TRACE_EXIT_BUDGET 3
 
-struct FScreenSpaceHit
+struct ScreenSpaceHit
 {
     float2 uv;
     float rawDepth;
@@ -58,9 +58,9 @@ bool ClipRange(float start, float delta, float low, float high, inout float t0, 
 }
 
 // Leaves the origin surface by 1cm, clips to the near/far view planes, then to UV and raw depth.
-bool InitScreenSpaceRay(float3 originVS, float3 directionVS, float4x4 projection, out FScreenSpaceRay ray)
+bool InitScreenSpaceRay(float3 originVS, float3 directionVS, float4x4 projection, out ScreenSpaceRay ray)
 {
-    ray = (FScreenSpaceRay)0;
+    ray = (ScreenSpaceRay)0;
     float dirLength = length(directionVS);
     bool valid = dirLength > 1e-6;
     float3 direction = valid ? directionVS / dirLength : float3(0, 0, 1);
@@ -164,10 +164,10 @@ bool LoadTexelDepth(Texture2D<float> surface, uint2 fullSize, int2 texel, out fl
 
 // The segment is already behind this full-resolution texel. Accept it when the shared edge still lies on the
 // depth interval of a locally planar neighbor, or, in the relative-thickness variant, within 2% of eye depth.
-bool AcceptDepthRiser(FScreenSpaceRay ray, float3 samplePos, uint2 cell, uint2 fullSize,
-    Texture2D<float> surfaceDepth, float surface, out FScreenSpaceHit hit)
+bool AcceptDepthRiser(ScreenSpaceRay ray, float3 samplePos, uint2 cell, uint2 fullSize,
+    Texture2D<float> surfaceDepth, float surface, out ScreenSpaceHit hit)
 {
-    hit = (FScreenSpaceHit)0;
+    hit = (ScreenSpaceHit)0;
     bool accepted = false;
     bool surfaceReal = !ScreenSpaceIsFarDepth(surface);
 #if defined(SCREEN_TRACE_RELATIVE_THICKNESS)
@@ -229,9 +229,9 @@ bool AcceptDepthRiser(FScreenSpaceRay ray, float3 samplePos, uint2 cell, uint2 f
     return accepted;
 }
 
-bool WriteTraceHit(Texture2D<float> surfaceDepth, uint2 fullSize, float2 uv, out FScreenSpaceHit hit)
+bool WriteTraceHit(Texture2D<float> surfaceDepth, uint2 fullSize, float2 uv, out ScreenSpaceHit hit)
 {
-    hit = (FScreenSpaceHit)0;
+    hit = (ScreenSpaceHit)0;
     uint2 texel = min((uint2)(uv * float2(fullSize)), fullSize - 1);
     float surface = surfaceDepth.Load(int3(texel, 0)).r;
     bool found = !ScreenSpaceIsFarDepth(surface);
@@ -243,8 +243,8 @@ bool WriteTraceHit(Texture2D<float> surfaceDepth, uint2 fullSize, float2 uv, out
     return found;
 }
 
-bool RefineTraceCrossing(FScreenSpaceRay ray, float t0, float t1, uint binarySteps, bool toward,
-    Texture2D<float> surfaceDepth, uint2 fullSize, out FScreenSpaceHit hit)
+bool RefineTraceCrossing(ScreenSpaceRay ray, float t0, float t1, uint binarySteps, bool toward,
+    Texture2D<float> surfaceDepth, uint2 fullSize, out ScreenSpaceHit hit)
 {
     float lo = t0;
     float hi = t1;
@@ -268,7 +268,7 @@ bool RefineTraceCrossing(FScreenSpaceRay ray, float t0, float t1, uint binarySte
     float endSurface = surfaceDepth.Load(int3(endTexel, 0)).r;
     int endClass = ClassifyTraceCell(startPos.z, endPos.z, endSurface, endSurface, toward);
     bool crossed = endClass == 1;
-    hit = (FScreenSpaceHit)0;
+    hit = (ScreenSpaceHit)0;
     if (crossed) crossed = WriteTraceHit(surfaceDepth, fullSize, endPos.xy, hit);
     if (!crossed && endClass == 2)
         crossed = AcceptDepthRiser(ray, endPos, endTexel, fullSize, surfaceDepth, endSurface, hit);
@@ -277,13 +277,13 @@ bool RefineTraceCrossing(FScreenSpaceRay ray, float t0, float t1, uint binarySte
 
 bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float jitter, uint flags,
     float4x4 projection, Texture2D<float> surfaceDepth, float4 surfaceView, Texture2D<float> closestPyramid, float4 closestView,
-    Texture2D<float> furthestPyramid, out FScreenSpaceHit hit)
+    Texture2D<float> furthestPyramid, out ScreenSpaceHit hit)
 {
-    hit = (FScreenSpaceHit)0;
+    hit = (ScreenSpaceHit)0;
     bool found = false;
     int exitReason = SCREEN_TRACE_EXIT_CLIP;
     bool allow = (flags & SCREEN_TRACE_TOWARD) != 0 || directionVS.z <= 0;
-    FScreenSpaceRay ray;
+    ScreenSpaceRay ray;
     bool valid = allow && InitScreenSpaceRay(originVS, directionVS, projection, ray);
     if (valid)
     {
@@ -340,7 +340,7 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
                 }
                 else if (cls == 2 && level == 0)
                 {
-                    FScreenSpaceHit riser = (FScreenSpaceHit)0;
+                    ScreenSpaceHit riser = (ScreenSpaceHit)0;
                     bool accepted = AcceptDepthRiser(ray, samplePos, cell, fullSize, surfaceDepth, closest, riser);
                     if (accepted)
                     {
@@ -385,13 +385,13 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
 // A crossing is refined with binarySteps samples, then snapped to the surface texel.
 bool TraceScreenSpaceLinear(float3 originVS, float3 directionVS, uint steps, uint binarySteps, float jitter, uint flags,
     float4x4 projection, Texture2D<float> surfaceDepth, float4 surfaceView, Texture2D<float> closestPyramid, float4 closestView,
-    Texture2D<float> furthestPyramid, out FScreenSpaceHit hit)
+    Texture2D<float> furthestPyramid, out ScreenSpaceHit hit)
 {
-    hit = (FScreenSpaceHit)0;
+    hit = (ScreenSpaceHit)0;
     bool found = false;
     int exitReason = SCREEN_TRACE_EXIT_CLIP;
     bool allow = (flags & SCREEN_TRACE_TOWARD) != 0 || directionVS.z <= 0;
-    FScreenSpaceRay ray;
+    ScreenSpaceRay ray;
     bool valid = allow && InitScreenSpaceRay(originVS, directionVS, projection, ray);
     if (valid)
     {

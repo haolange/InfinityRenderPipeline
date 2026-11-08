@@ -3,7 +3,7 @@ using UnityEngine;
 namespace InfinityTech.Rendering.Pipeline
 {
     // Resolved once per camera. An encoded output target never aliases a display-linear resource.
-    internal readonly struct FOutputPlan
+    internal readonly struct OutputPlan
     {
         internal readonly bool linearIntermediate;
         internal readonly bool uiOverlay;
@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly bool gizmos;
         internal bool editorDepth => wireOverlay || gizmos;
 
-        internal FOutputPlan(bool uiOverlay, EOutputEncodePolicy policy, bool debugView,
+        internal OutputPlan(bool uiOverlay, EOutputEncodePolicy policy, bool debugView,
             bool linearCapture, bool wireOverlay, bool gizmos)
         {
             this.uiOverlay = uiOverlay;

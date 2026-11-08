@@ -8,22 +8,22 @@ using InfinityTech.Rendering.GPUResource;
 namespace InfinityTech.Rendering.LightPipeline
 {
     // One cached shadow tile: a light, cube face and exact camera scene eligibility.
-    internal readonly struct FShadowCacheKey : IEquatable<FShadowCacheKey>
+    internal readonly struct ShadowCacheKey : IEquatable<ShadowCacheKey>
     {
         public readonly ulong lightId;
         public readonly int face;
         public readonly ulong sceneCullingMask;
 
-        public FShadowCacheKey(ulong lightId, int face, ulong sceneCullingMask = ulong.MaxValue)
+        public ShadowCacheKey(ulong lightId, int face, ulong sceneCullingMask = ulong.MaxValue)
         {
             this.lightId = lightId;
             this.face = face;
             this.sceneCullingMask = sceneCullingMask;
         }
 
-        public bool Equals(FShadowCacheKey other) => lightId == other.lightId && face == other.face
+        public bool Equals(ShadowCacheKey other) => lightId == other.lightId && face == other.face
             && sceneCullingMask == other.sceneCullingMask;
-        public override bool Equals(object obj) => obj is FShadowCacheKey other && Equals(other);
+        public override bool Equals(object obj) => obj is ShadowCacheKey other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(lightId, face, sceneCullingMask);
     }
 
@@ -40,8 +40,8 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal struct SamplingState
         {
-            public FLocalShadowSlice slice;
-            public FLocalShadowSliceGPU gpu;
+            public LocalShadowSlice slice;
+            public LocalShadowSliceGPU gpu;
             public int faceCount;
             public long production;
         }
@@ -68,8 +68,8 @@ namespace InfinityTech.Rendering.LightPipeline
         public long NextProduction() => ++m_NextProduction;
 
         readonly HistoryCache m_History = new HistoryCache();
-        readonly Dictionary<FShadowCacheKey, Entry> m_Entries = new Dictionary<FShadowCacheKey, Entry>();
-        readonly List<FShadowCacheKey> m_Scratch = new List<FShadowCacheKey>();
+        readonly Dictionary<ShadowCacheKey, Entry> m_Entries = new Dictionary<ShadowCacheKey, Entry>();
+        readonly List<ShadowCacheKey> m_Scratch = new List<ShadowCacheKey>();
         readonly Stack<int> m_FreeSlots = new Stack<int>();
 
         public int AtlasWidth { get; private set; }
@@ -148,7 +148,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Finds or allocates the tile of key. Returns -1 when no slot is free (the caller renders it every frame);
         // render is true when the tile content is missing or stale for its update mode.
-        public int Acquire(in FShadowCacheKey key, EShadowUpdateMode mode, int contentHash, int version, int frame, out bool render)
+        public int Acquire(in ShadowCacheKey key, EShadowUpdateMode mode, int contentHash, int version, int frame, out bool render)
         {
             render = true;
             if (mode == EShadowUpdateMode.EveryFrame || SlotCount <= 0)
@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // Sampling metadata belongs to the queued depth production, not the current light pose.
-        public void SetPendingSampling(in FShadowCacheKey key, in SamplingState sampling)
+        public void SetPendingSampling(in ShadowCacheKey key, in SamplingState sampling)
         {
             if (!m_Entries.TryGetValue(key, out Entry entry) || !entry.pending)
                 throw new InvalidOperationException("InfinityRP: shadow sampling state requires a pending cache tile.");
@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // mixing an old face with a new projection is never a valid OnDemand snapshot.
         public SamplingState[] ResolveSampling(ulong lightId, ulong sceneMask, int version, int frame)
         {
-            var firstKey = new FShadowCacheKey(lightId, 0, sceneMask);
+            var firstKey = new ShadowCacheKey(lightId, 0, sceneMask);
             m_Entries.TryGetValue(firstKey, out Entry first);
             SamplingState firstState = first.pending && first.produced ? first.pendingSampling : first.sampling;
             int count = firstState.faceCount;
@@ -219,7 +219,7 @@ namespace InfinityTech.Rendering.LightPipeline
             var result = complete ? new SamplingState[count] : null;
             for (int face = 0; complete && face < count; ++face)
             {
-                var key = new FShadowCacheKey(lightId, face, sceneMask);
+                var key = new ShadowCacheKey(lightId, face, sceneMask);
                 complete = m_Entries.TryGetValue(key, out Entry entry);
                 if (!complete) break;
                 bool pending = entry.pending && entry.produced;
@@ -265,7 +265,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             for (int face = 0; face < faceCount; ++face)
             {
-                var key = new FShadowCacheKey(lightId, face, sceneMask);
+                var key = new ShadowCacheKey(lightId, face, sceneMask);
                 if (!m_Entries.TryGetValue(key, out Entry entry))
                     throw new InvalidOperationException("InfinityRP: resolved shadow group lost a tile before pinning.");
                 entry.lastUsedFrame = frame;
@@ -274,7 +274,7 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // The pass that renders these tiles was queued.
-        public void MarkProduced(FShadowCacheKey[] keys, int count)
+        public void MarkProduced(ShadowCacheKey[] keys, int count)
         {
             for (int i = 0; i < count; ++i)
             {
@@ -291,7 +291,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.CommitFrame();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FShadowCacheKey key in m_Scratch)
+            foreach (ShadowCacheKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -320,7 +320,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_History.RollbackPending();
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FShadowCacheKey key in m_Scratch)
+            foreach (ShadowCacheKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
@@ -331,13 +331,13 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public bool IsValid(in FShadowCacheKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
+        public bool IsValid(in ShadowCacheKey key) => m_Entries.TryGetValue(key, out Entry entry) && entry.valid;
 
         public void InvalidateAll()
         {
             m_Scratch.Clear();
             m_Scratch.AddRange(m_Entries.Keys);
-            foreach (FShadowCacheKey key in m_Scratch)
+            foreach (ShadowCacheKey key in m_Scratch)
             {
                 Entry entry = m_Entries[key];
                 entry.valid = false;
@@ -353,9 +353,9 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             // Evict the least recently used tile that this frame has not touched.
             bool found = false;
-            FShadowCacheKey victim = default;
+            ShadowCacheKey victim = default;
             int oldest = int.MaxValue;
-            foreach (KeyValuePair<FShadowCacheKey, Entry> pair in m_Entries)
+            foreach (KeyValuePair<ShadowCacheKey, Entry> pair in m_Entries)
             {
                 if (pair.Value.lastUsedFrame >= frame || pair.Value.pending) continue;
                 if (pair.Value.lastUsedFrame < oldest)

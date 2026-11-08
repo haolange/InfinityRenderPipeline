@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
         public readonly int2 displaySize;
         public readonly int2 internalSize;
         public readonly int2 internalCapacity, displayCapacity;
-        public FTextureCapacityContext textureCapacity => new FTextureCapacityContext(internalCapacity, displayCapacity);
+        public TextureCapacityContext textureCapacity => new TextureCapacityContext(internalCapacity, displayCapacity);
         public readonly float renderScale;
         public readonly bool superResolution;
         public readonly Rect outputViewport;

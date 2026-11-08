@@ -179,7 +179,7 @@ void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.
-struct FMeshTransformPatch
+struct MeshTransformPatch
 {
     float4x4 objectToWorld;
     uint generation;
@@ -188,7 +188,7 @@ struct FMeshTransformPatch
 };
 StructuredBuffer<float4x4> _TransformSourceMatrices;
 StructuredBuffer<uint> _TransformSourceGenerations;
-StructuredBuffer<FMeshTransformPatch> _TransformChanges;
+StructuredBuffer<MeshTransformPatch> _TransformChanges;
 RWStructuredBuffer<float4x4> _TransformVersionMatrices;
 RWStructuredBuffer<uint> _TransformVersionGenerations;
 uint _TransformVersionCount, _TransformSourceCount, _TransformPatchCount;
@@ -220,7 +220,7 @@ void CopyTransformVersion(uint3 id : SV_DispatchThreadID)
 void PatchTransformVersion(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _TransformPatchCount) return;
-    FMeshTransformPatch patch = _TransformChanges[id.x];
+    MeshTransformPatch patch = _TransformChanges[id.x];
     _TransformVersionMatrices[patch.index] = patch.objectToWorld;
     _TransformVersionGenerations[patch.index] = patch.generation;
 }

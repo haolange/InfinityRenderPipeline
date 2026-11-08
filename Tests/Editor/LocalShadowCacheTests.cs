@@ -19,16 +19,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TearDown]
         public void TearDown() => m_Cache.Dispose();
 
-        static readonly FShadowCacheKey A = new FShadowCacheKey(1, 0);
-        static readonly FShadowCacheKey B = new FShadowCacheKey(2, 0);
-        static readonly FShadowCacheKey C = new FShadowCacheKey(3, 0);
+        static readonly ShadowCacheKey A = new ShadowCacheKey(1, 0);
+        static readonly ShadowCacheKey B = new ShadowCacheKey(2, 0);
+        static readonly ShadowCacheKey C = new ShadowCacheKey(3, 0);
 
         [TestCase(EShadowUpdateMode.OnEnable)]
         [TestCase(EShadowUpdateMode.OnDemand)]
         public void DifferentSceneMasks_NeverReuseTheOtherCamerasTile(EShadowUpdateMode mode)
         {
-            var preview = new FShadowCacheKey(1, 0, 1);
-            var game = new FShadowCacheKey(1, 0, 1ul << 63);
+            var preview = new ShadowCacheKey(1, 0, 1);
+            var game = new ShadowCacheKey(1, 0, 1ul << 63);
             Assert.AreNotEqual(preview, game);
             int first = Frame(preview, mode, 10, 0, 1, true, out bool firstRender);
             Assert.IsTrue(firstRender);
@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(reusedRender);
         }
 
-        int Frame(FShadowCacheKey key, EShadowUpdateMode mode, int hash, int version, int frame, bool produce, out bool render)
+        int Frame(ShadowCacheKey key, EShadowUpdateMode mode, int hash, int version, int frame, bool produce, out bool render)
         {
             m_Cache.BeginFrame();
             int slot = m_Cache.Acquire(key, mode, hash, version, frame, out render);
@@ -53,8 +53,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             new LocalShadowCache.SamplingState
             {
                 faceCount = count, production = production,
-                slice = new FLocalShadowSlice { face = face, valid = true, shadowMatrix = UnityEngine.Matrix4x4.Translate(new UnityEngine.Vector3(x, 2, 3)) },
-                gpu = new FLocalShadowSliceGPU { depthParams = new UnityEngine.Vector4(x, 2, 3, 4),
+                slice = new LocalShadowSlice { face = face, valid = true, shadowMatrix = UnityEngine.Matrix4x4.Translate(new UnityEngine.Vector3(x, 2, 3)) },
+                gpu = new LocalShadowSliceGPU { depthParams = new UnityEngine.Vector4(x, 2, 3, 4),
                     momentParams = new UnityEngine.Vector4(1 / x, 0, 0, 0), shadowOriginSize = new UnityEngine.Vector4(x, 2, 3, .5f) }
             };
 
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             for (int face = 0; face < count; ++face)
             {
-                var key = new FShadowCacheKey(1, face);
+                var key = new ShadowCacheKey(1, face);
                 m_Cache.Acquire(key, EShadowUpdateMode.OnDemand, frame, version, frame, out bool render);
                 Assert.IsTrue(render);
                 m_Cache.SetPendingSampling(key, State(face, count, generation, frame));
@@ -148,14 +148,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             ProduceGroup(6, 0, 1, 10);
             Assert.AreEqual(6, m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1).Length);
             m_Cache.CommitFrame();
-            var face = new FShadowCacheKey(1, 3);
+            var face = new ShadowCacheKey(1, 3);
             m_Cache.Acquire(face, EShadowUpdateMode.OnEnable, 99, 0, 2, out bool render);
             Assert.IsTrue(render);
             m_Cache.SetPendingSampling(face, State(3, 6, 11, 2));
             m_Cache.MarkProduced(new[] { face }, 1);
             m_Cache.CommitFrame();
             Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 3), "five old plus one new is not one cube production");
-            for (int i = 0; i < 6; ++i) Assert.IsFalse(m_Cache.IsValid(new FShadowCacheKey(1, i)));
+            for (int i = 0; i < 6; ++i) Assert.IsFalse(m_Cache.IsValid(new ShadowCacheKey(1, i)));
         }
 
         [Test]
@@ -163,7 +163,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             Assert.IsFalse(m_Cache.CanAcquireGroup(1, ulong.MaxValue, 6, 1));
             Assert.AreEqual(0, m_Cache.EntryCount);
-            var orphan = new FShadowCacheKey(1, 1);
+            var orphan = new ShadowCacheKey(1, 1);
             m_Cache.Acquire(orphan, EShadowUpdateMode.OnDemand, 1, 0, 1, out _);
             m_Cache.SetPendingSampling(orphan, State(1, 6, 10, 1));
             m_Cache.MarkProduced(new[] { orphan }, 1);

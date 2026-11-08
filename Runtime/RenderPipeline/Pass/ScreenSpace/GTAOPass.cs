@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            FGTAOSettings ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
+            GTAOSettings ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
             if (!GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"))
             {
                 return;

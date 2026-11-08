@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         [ReadOnly] public NativeArray<MeshEntity> entities;
         [ReadOnly] public NativeArray<uint> generations;
-        [ReadOnly] public NativeArray<FBound> bounds;
+        [ReadOnly] public NativeArray<BoundingBox> bounds;
         public float4 plane0, plane1, plane2, plane3, plane4, plane5;
         public int planeCount;
         public float3 viewPosition;
@@ -120,7 +120,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     && (!filterRenderingLayers || (desc.renderingLayerMask & renderingLayerMask) != 0);
                 if (eligible)
                 {
-                    FBound bound = bounds[index];
+                    BoundingBox bound = bounds[index];
                     bool inside = Inside(plane0, 0, bound) && Inside(plane1, 1, bound) && Inside(plane2, 2, bound)
                         && Inside(plane3, 3, bound) && Inside(plane4, 4, bound) && Inside(plane5, 5, bound);
                     distance = math.length(bound.center - viewPosition);
@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             fade[index] = levelFade;
         }
 
-        bool Inside(float4 plane, int slot, in FBound bound)
+        bool Inside(float4 plane, int slot, in BoundingBox bound)
         {
             if (slot >= planeCount) return true;
             float radius = math.dot(math.abs(plane.xyz), bound.extents);
@@ -155,13 +155,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// The largest half-extent of the world bounds times scale and bias over distance: for a camera, the share of the
         /// view height the bounds' largest side covers, as <c>LODGroup.size</c> drives <c>screenRelativeTransitionHeight</c>.
         /// </summary>
-        public static float ScreenSize(in FBound bound, in MeshLODProjection projection)
+        public static float ScreenSize(in BoundingBox bound, in MeshLODProjection projection)
         {
             float distance = projection.orthographic ? 1.0f : math.max(math.length(bound.center - projection.origin), 1e-6f);
             return math.cmax(bound.extents) * projection.scale * projection.bias / distance;
         }
 
-        public static void Select(in MeshLODChain chain, in FBound bound, in MeshLODProjection projection, out byte level, out float fade)
+        public static void Select(in MeshLODChain chain, in BoundingBox bound, in MeshLODProjection projection, out byte level, out float fade)
         {
             float screen = ScreenSize(bound, projection);
             level = None;

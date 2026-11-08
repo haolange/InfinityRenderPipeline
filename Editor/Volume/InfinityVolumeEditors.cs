@@ -273,10 +273,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
             QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
         }
-        static FSSRSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSR, level);
+        static SSRSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSR, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FSSRSettings preset = Preset(level);
+            SSRSettings preset = Preset(level);
             Set(m_HalfResolution, preset.halfResolution);
             Set(m_MirrorRoughness, preset.mirrorRoughness); Set(m_LinearRoughness, preset.linearRoughness);
             Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps); Set(m_BinarySteps, preset.binarySteps);
@@ -315,10 +315,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
             QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
         }
-        static FSSGISettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSGI, level);
+        static SSGISettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSGI, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FSSGISettings preset = Preset(level);
+            SSGISettings preset = Preset(level);
             Set(m_HiZSteps, preset.hiZSteps);
             Set(m_Samples, preset.samples);
             Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
@@ -355,10 +355,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_TemporalScale, l => Preset(l).temporalScale);
             QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
         }
-        static FGTAOSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.GTAO, level);
+        static GTAOSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.GTAO, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FGTAOSettings preset = Preset(level);
+            GTAOSettings preset = Preset(level);
             Set(m_Rays, preset.numRays); Set(m_Steps, preset.numSteps); Set(m_Sharpness, preset.sharpness);
             Set(m_TemporalScale, preset.temporalScale); Set(m_TemporalWeight, preset.temporalWeight);
         }
@@ -393,10 +393,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_Slices, l => Preset(l).depthSlices);
             QualityField(m_Temporal, l => Preset(l).temporalWeight);
         }
-        static FVolumetricFogSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricFog, level);
+        static VolumetricFogSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricFog, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FVolumetricFogSettings preset = Preset(level);
+            VolumetricFogSettings preset = Preset(level);
             Set(m_Slices, preset.depthSlices); Set(m_Temporal, preset.temporalWeight);
         }
     }
@@ -434,10 +434,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_Light, l => Preset(l).numLightSteps);
             QualityField(m_Temporal, l => Preset(l).temporalWeight);
         }
-        static FVolumetricCloudSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricCloud, level);
+        static VolumetricCloudSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricCloud, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FVolumetricCloudSettings preset = Preset(level);
+            VolumetricCloudSettings preset = Preset(level);
             Set(m_Primary, preset.numPrimarySteps); Set(m_Light, preset.numLightSteps); Set(m_Temporal, preset.temporalWeight);
         }
     }
@@ -467,10 +467,10 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_Steps, l => Preset(l).numSteps);
             QualityField(m_SunSteps, l => Preset(l).sunNumSteps);
         }
-        static FContactShadowSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.ContactShadow, level);
+        static ContactShadowSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.ContactShadow, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
-            FContactShadowSettings preset = Preset(level);
+            ContactShadowSettings preset = Preset(level);
             Set(m_Steps, preset.numSteps); Set(m_SunSteps, preset.sunNumSteps);
         }
     }

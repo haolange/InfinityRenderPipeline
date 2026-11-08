@@ -324,7 +324,7 @@ void Bicubic2DCatmullRom(in float2 UV, in float2 Size, in float2 InvSize, out fl
 
 #define BICUBIC_CATMULL_ROM_SAMPLES 5
 
-struct FCatmullRomSamples
+struct CatmullRomSamples
 {
     // Constant number of samples (BICUBIC_CATMULL_ROM_SAMPLES)
     uint Count;
@@ -342,9 +342,9 @@ struct FCatmullRomSamples
     float FinalMultiplier;
 };
 
-FCatmullRomSamples GetBicubic2DCatmullRomSamples(float2 UV, float2 Size, in float2 InvSize)
+CatmullRomSamples GetBicubic2DCatmullRomSamples(float2 UV, float2 Size, in float2 InvSize)
 {
-    FCatmullRomSamples Samples;
+    CatmullRomSamples Samples;
     Samples.Count = BICUBIC_CATMULL_ROM_SAMPLES;
 
     float2 Weight[3];
@@ -384,7 +384,7 @@ FCatmullRomSamples GetBicubic2DCatmullRomSamples(float2 UV, float2 Size, in floa
 
 float4 Texture2DSampleBicubic(Texture2D Tex, SamplerState Sampler, float2 UV, float2 Size, in float2 InvSize)
 {
-	FCatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(UV, Size, InvSize);
+	CatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(UV, Size, InvSize);
 
 	float4 OutColor = 0;
 

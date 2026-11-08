@@ -17,10 +17,10 @@ namespace InfinityTech.Rendering.PostProcess
 
         public bool IsActive() => active && enable.value;
 
-        public FRTAOSettings Resolve()
+        public RTAOSettings Resolve()
         {
-            FRTAOSettings settings = quality.value == EQualityLevel.Custom
-                ? new FRTAOSettings { numRays = NumRays.value }
+            RTAOSettings settings = quality.value == EQualityLevel.Custom
+                ? new RTAOSettings { numRays = NumRays.value }
                 : QualityPresets.Select(QualityPresets.RTAO, quality.value);
             settings.radius = Radius.value;
             return settings;

@@ -5,7 +5,7 @@
 // overlaps it (16 bits each); each 16x16 tile holds a bitmask of the lights whose screen rectangle covers it. A pixel
 // visits the set bits of its tile mask inside its bin's index range. Local index i is record g_DirectionalLightCount + i.
 //
-//   FLightLoop loop;
+//   LightLoopState loop;
 //   BeginLightLoop(pixelCoord, viewDepth, loop);
 //   uint recordIndex;
 //   while (NextLight(loop, recordIndex)) { ... g_LightRecordBuffer[recordIndex] ... }
@@ -19,7 +19,7 @@ float4 g_LightZBinParams;
 StructuredBuffer<uint> SRV_LightZBins;
 StructuredBuffer<uint> SRV_LightTileMasks;
 
-struct FLightLoop
+struct LightLoopState
 {
     uint maskBase;
     uint word;
@@ -35,7 +35,7 @@ uint LightZBin(float viewDepth)
     return (uint)clamp(bin, 0.0, g_LightZBinParams.x - 1.0);
 }
 
-uint LoadLightLoopWord(FLightLoop loop)
+uint LoadLightLoopWord(LightLoopState loop)
 {
     uint mask = SRV_LightTileMasks[loop.maskBase + loop.word];
     uint lowBit = loop.word == (loop.minIndex >> 5) ? (loop.minIndex & 31u) : 0u;
@@ -45,9 +45,9 @@ uint LoadLightLoopWord(FLightLoop loop)
 
 // Initialize caller-owned integer state. Return-by-value produced incorrect state in the observed Unity 6000.6
 // Metal Deferred kernel: tile base 110 became 0x36dc0000 and mask 1 became 0x33800000.
-void BeginLightLoop(uint2 pixelCoord, float viewDepth, out FLightLoop loop)
+void BeginLightLoop(uint2 pixelCoord, float viewDepth, out LightLoopState loop)
 {
-    loop = (FLightLoop)0;
+    loop = (LightLoopState)0;
     loop.mask = 0;
     loop.word = 1;
     loop.lastWord = 0;
@@ -73,12 +73,12 @@ void BeginLightLoop(uint2 pixelCoord, float viewDepth, out FLightLoop loop)
     return;
 }
 
-void BeginLightLoopUV(float2 screenUV, float viewDepth, out FLightLoop loop)
+void BeginLightLoopUV(float2 screenUV, float viewDepth, out LightLoopState loop)
 {
     BeginLightLoop((uint2)(saturate(screenUV) * g_LightTileParams.xy), viewDepth, loop);
 }
 
-bool NextLight(inout FLightLoop loop, out uint recordIndex)
+bool NextLight(inout LightLoopState loop, out uint recordIndex)
 {
     recordIndex = 0;
     [loop]

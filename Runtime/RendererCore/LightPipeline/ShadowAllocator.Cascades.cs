@@ -12,8 +12,8 @@ namespace InfinityTech.Rendering.LightPipeline
         readonly Vector3[] m_FarCorners = new Vector3[4];
         readonly Vector3[] m_ReceiverCorners = new Vector3[8];
 
-        void AllocateCascade(NativeList<FLightRecord> records, in CullingResults cullingResults, Camera camera,
-            in FShadowAllocatorSettings settings, int resolution)
+        void AllocateCascade(NativeList<LightRecord> records, in CullingResults cullingResults, Camera camera,
+            in ShadowAllocatorSettings settings, int resolution)
         {
             Vector3 ratios = settings.cascadeRatios;
             if (!(ratios.x > 0 && ratios.x < ratios.y && ratios.y < ratios.z && ratios.z < 1))
@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.LightPipeline
             if (distance <= camera.nearClipPlane) return;
             for (int i = 0; i < records.Length; ++i)
             {
-                FLightRecord record = records[i];
+                LightRecord record = records[i];
                 if (!record.IsDirectional || record.visibleLightIndex < 0) continue;
                 Light light = cullingResults.visibleLights[record.visibleLightIndex].light;
                 if (light == null || light.shadows == LightShadows.None) continue;
@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     FitCascade(camera, light, casterBounds, near, far, resolution, settings.filterGuardTexels,
                         out Matrix4x4 view, out Matrix4x4 projection, out ShadowSplitData split);
                     float texelSize = 2f / (Mathf.Abs(projection.m00) * resolution);
-                    var slice = new FCascadeShadowSlice
+                    var slice = new CascadeShadowSlice
                     {
                         cullingSplitIndex = allocated,
                         valid = true,
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 record.shadowAtlasRect = CascadeSlices[0].atlasUVRect;
                 record.shadowMatrixIndex = 0;
                 record.shadowSliceCount = ActiveCascadeCount;
-                record.flags |= FLightRecordFlags.EnableShadow;
+                record.flags |= LightRecordFlags.EnableShadow;
                 records[i] = record;
                 return;
             }

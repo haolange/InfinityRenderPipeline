@@ -14,13 +14,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         const string k_Shader = "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/LightAngularContract.compute";
 
-        static Vector2[] Evaluate(FLightRecord record, Vector4[] positions)
+        static Vector2[] Evaluate(LightRecord record, Vector4[] positions)
         {
             if (!SystemInfo.supportsComputeShaders || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 Assert.Ignore("A compute graphics device is required for the angular contract.");
             ComputeShader shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Shader);
             Assert.IsNotNull(shader, k_Shader);
-            using (var records = new ComputeBuffer(1, Marshal.SizeOf<FLightRecord>()))
+            using (var records = new ComputeBuffer(1, Marshal.SizeOf<LightRecord>()))
             using (var points = new ComputeBuffer(positions.Length, 16))
             using (var results = new ComputeBuffer(positions.Length, 8))
             {
@@ -49,14 +49,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 SceneManager.MoveGameObjectToScene(go, preview);
                 Light light = go.GetComponent<Light>();
                 var data = go.GetComponent<InfinityAdditionalLightData>() ?? go.AddComponent<InfinityAdditionalLightData>();
-                data.SetShape(FLightShape.Default(EInfinityLightType.Spot));
+                data.SetShape(LightSourceShape.Default(EInfinityLightType.Spot));
                 light.spotAngle = 60;
                 light.innerSpotAngle = 20;
                 light.range = 30;
                 data.maxDrawDistance = 0;
                 if (transformed)
                     go.transform.SetPositionAndRotation(new Vector3(3, -2, 5), Quaternion.Euler(23, 61, -17));
-                Assert.IsTrue(FLightRecordPack.TryPack(light, data, data.shape, 0, Vector3.zero, out FLightRecord record));
+                Assert.IsTrue(LightRecordPack.TryPack(light, data, data.shape, 0, Vector3.zero, out LightRecord record));
 
                 // Include transition samples with known window values, not only the saturated cone interior.
                 float outer = Mathf.Cos(30 * Mathf.Deg2Rad), inner = Mathf.Cos(10 * Mathf.Deg2Rad);
@@ -94,13 +94,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             Vector4[] positions = { new Vector4(0.5f, 0.5f, 4, 0), new Vector4(3, 0, 4, 0),
                 new Vector4(0, 3, 4, 0), new Vector4(0, 0, -1, 0) };
-            var record = new FLightRecord { positionRange = new Vector4(0, 0, 0, 30),
+            var record = new LightRecord { positionRange = new Vector4(0, 0, 0, 30),
                 forward = new Vector4(0, 0, 1, 0), right = new Vector4(1, 0, 0, 0) };
             foreach (Vector2 result in Evaluate(record, positions)) Assert.AreEqual(1, result.x);
-            record.flags = FLightRecordFlags.SpotPyramid;
+            record.flags = LightRecordFlags.SpotPyramid;
             record.area = new Vector4(Mathf.Tan(30 * Mathf.Deg2Rad), Mathf.Tan(30 * Mathf.Deg2Rad), 0, 0);
             Vector2[] pyramid = Evaluate(record, positions);
-            record.flags = FLightRecordFlags.SpotBox;
+            record.flags = LightRecordFlags.SpotBox;
             record.area = new Vector4(2, 4, 0, 0);
             Vector2[] box = Evaluate(record, positions);
             for (int i = 0; i < positions.Length; ++i)

@@ -11,7 +11,7 @@
 
 // Slice rectangle in moment-atlas pixels (x, y, width, height).
 float4 _MomentSliceRect;
-// depthParams of the slice (FLocalShadowSlice.depthParams; cascades are orthographic).
+// depthParams of the slice (LocalShadowSlice.depthParams; cascades are orthographic).
 float4 _MomentDepthParams;
 // x = mode (0 VSM, 1 EVSM), y = EVSM exponent, z = 1 / far, w = blur radius in moment texels.
 float4 _MomentParams;

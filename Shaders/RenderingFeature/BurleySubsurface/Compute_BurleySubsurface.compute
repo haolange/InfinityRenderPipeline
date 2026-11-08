@@ -12,13 +12,13 @@ float4 SSS_Resolution;
 int SSS_NumSamples;
 int SSS_ProfileCount;
 
-struct FDiffusionProfileRecord
+struct DiffusionProfileRecord
 {
     float4 scatterAlbedoDistance;
     float4 parameters;
 };
 
-StructuredBuffer<FDiffusionProfileRecord> SRV_DiffusionProfiles;
+StructuredBuffer<DiffusionProfileRecord> SRV_DiffusionProfiles;
 
 Texture2D<float4> SRV_LightingTexture;
 Texture2D<float> SRV_DepthTexture;
@@ -52,10 +52,10 @@ float SampleBurleyRadius(float u, float scatterDist)
     return -log(max(1.0 - u, 1e-6)) * 3.0 / s;
 }
 
-bool LoadSubsurface(uint2 pixel, out FGBufferData surface, out float depth)
+bool LoadSubsurface(uint2 pixel, out GBufferData surface, out float depth)
 {
     depth = SRV_DepthTexture[pixel];
-    surface = (FGBufferData)0;
+    surface = (GBufferData)0;
     bool valid = false;
     if (!ScreenSpaceIsFarDepth(depth))
     {
@@ -88,7 +88,7 @@ uint2 SubsurfaceRepresentative(uint2 halfPixel)
     {
         uint2 pixel = halfPixel * 2 + uint2(x,y);
         if (any(pixel >= (uint2)SSS_Resolution.xy)) continue;
-        FGBufferData surface; float depth;
+        GBufferData surface; float depth;
         if (LoadSubsurface(pixel,surface,depth))
         {
             float distance = EyeDepth(depth);
@@ -99,7 +99,7 @@ uint2 SubsurfaceRepresentative(uint2 halfPixel)
 }
 
 // Integrate the half texel's covered quad while keeping incompatible materials apart.
-float3 GatherDiffuse(uint2 halfPixel, FGBufferData center, float centerDepth)
+float3 GatherDiffuse(uint2 halfPixel, GBufferData center, float centerDepth)
 {
     float3 sum = 0; float count = 0;
     [unroll] for (uint y=0;y<2;++y)
@@ -107,7 +107,7 @@ float3 GatherDiffuse(uint2 halfPixel, FGBufferData center, float centerDepth)
     {
         uint2 pixel = halfPixel*2+uint2(x,y);
         if (any(pixel >= (uint2)SSS_Resolution.xy)) continue;
-        FGBufferData surface; float depth;
+        GBufferData surface; float depth;
         if (!LoadSubsurface(pixel,surface,depth) || surface.SSSProfileIndex != center.SSSProfileIndex || surface.ShadingModel != center.ShadingModel) continue;
         if (dot(surface.Normal,center.Normal) < 0.9 || abs(EyeDepth(depth)-centerDepth) > max(centerDepth*.02,1e-5)) continue;
         sum += SRV_LightingTexture[pixel].rgb; count += 1;
@@ -115,9 +115,9 @@ float3 GatherDiffuse(uint2 halfPixel, FGBufferData center, float centerDepth)
     return count > 0 ? sum/count : 0;
 }
 
-void DiffusionParameters(FGBufferData surface, out float distance, out float3 albedo, out float radius)
+void DiffusionParameters(GBufferData surface, out float distance, out float3 albedo, out float radius)
 {
-    FDiffusionProfileRecord profile = SRV_DiffusionProfiles[min(surface.SSSProfileIndex,(uint)SSS_ProfileCount-1)];
+    DiffusionProfileRecord profile = SRV_DiffusionProfiles[min(surface.SSSProfileIndex,(uint)SSS_ProfileCount-1)];
     albedo = profile.scatterAlbedoDistance.rgb;
     distance = profile.scatterAlbedoDistance.w;
     radius = profile.parameters.x;
@@ -129,7 +129,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
     uint2 halfSize = ((uint2)SSS_Resolution.xy+1)/2;
     if (any(id.xy >= halfSize)) return;
     uint2 pixel = SubsurfaceRepresentative(id.xy);
-    FGBufferData surface; float depth;
+    GBufferData surface; float depth;
     if (!LoadSubsurface(pixel,surface,depth)) { UAV_SubsurfaceTexture[id.xy] = 0; return; }
     float3 center = GatherDiffuse(id.xy,surface,EyeDepth(depth));
     float distance, radius; float3 albedo;
@@ -153,7 +153,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         float2 tapUV = uv + float2(cos(angle),sin(angle)) * r * projectedScale;
         if (any(tapUV < 0) || any(tapUV >= 1)) continue;
         uint2 tap = min((uint2)(tapUV*SSS_Resolution.xy),(uint2)SSS_Resolution.xy-1);
-        FGBufferData neighbor; float neighborDepth;
+        GBufferData neighbor; float neighborDepth;
         if (!LoadSubsurface(tap,neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel) continue;
         float normalWeight = saturate(dot(surface.Normal,neighbor.Normal));
         if (normalWeight < 0.9 || abs(EyeDepth(neighborDepth)-eyeDepth) > max(worldRadius,1e-5)) continue;
@@ -170,7 +170,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
 void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)SSS_Resolution.xy)) return;
-    FGBufferData surface; float depth;
+    GBufferData surface; float depth;
     if (!LoadSubsurface(id.xy,surface,depth)) return;
     float distance, radius; float3 albedo;
     DiffusionParameters(surface,distance,albedo,radius);
@@ -185,7 +185,7 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
     [unroll] for (int x=0;x<=1;++x)
     {
         uint2 tap = (uint2)clamp(origin+int2(x,y),0,int2(halfSize)-1);
-        FGBufferData neighbor; float neighborDepth;
+        GBufferData neighbor; float neighborDepth;
         if (!LoadSubsurface(SubsurfaceRepresentative(tap),neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel) continue;
         float normalAgreement = dot(surface.Normal,neighbor.Normal);
         float relativeDepth = abs(EyeDepth(neighborDepth)-eye)/max(eye,1e-5);

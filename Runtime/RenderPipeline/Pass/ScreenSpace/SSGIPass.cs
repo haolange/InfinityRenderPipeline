@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSGIPassData
         {
-            public FSSGISettings settings;
+            public SSGISettings settings;
             public int2 resolution;
             public int2 traceResolution;
             public int2 tileCount;
@@ -102,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle hiZFurthestTexture;
             public RGTextureHandle gBufferB;
             public RGTextureHandle gBufferC;
-            public FTemporalColorView temporalColor;
+            public TemporalColorView temporalColor;
             public RGTextureHandle motionMetadata;
             public RGTextureHandle motionTexture;
             public RGTextureHandle historyRadiance;
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            FSSGISettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceIndirectDiffuse>().Resolve();
+            SSGISettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceIndirectDiffuse>().Resolve();
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
@@ -234,7 +234,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssgiShader;
-                    FSSGISettings settings = passData.settings;
+                    SSGISettings settings = passData.settings;
                     int2 resolution = passData.resolution;
                     int2 traceResolution = passData.traceResolution;
                     int2 tileCount = passData.tileCount;

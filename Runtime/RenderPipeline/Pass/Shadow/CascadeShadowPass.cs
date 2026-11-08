@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
 
         // _ShadowFilterParams of ShadowSampling.hlsl.
-        internal static Vector4 FilterParams(in FShadowFilterSettings settings) =>
+        internal static Vector4 FilterParams(in ShadowFilterSettings settings) =>
             new Vector4(settings.pcfRadius, settings.pcssBlockerSamples, settings.pcssFilterSamples, settings.pcssMaxPenumbra);
 
 
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
             {
-                FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
                 cascadeMeshDrawLists[cascade] = RGMeshDrawListHandle.Invalid;
@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
                 {
-                    FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                    CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                     if (!slice.valid)
                     {
                         continue;

@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         internal sealed class CaseResult
         {
             public string name, status, detail;
-            public FImageComparison comparison;
+            public ImageComparisonResult comparison;
         }
 
         [Serializable]
@@ -346,7 +346,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             if (evidence.status != "Completed" || evidence.capturedFrames != 1 || evidence.outstanding != 0 || buffer == null)
             { Record("Error", $"capture {evidence.status}: {evidence.error}", default); return; }
             byte[] captured = File.ReadAllBytes(Path.Combine(directory, buffer.file));
-            FImageComparison valid = ImageComparison.Compare(captured, captured, buffer.format, buffer.width, buffer.height, current.pixelThreshold);
+            ImageComparisonResult valid = ImageComparison.Compare(captured, captured, buffer.format, buffer.width, buffer.height, current.pixelThreshold);
             if (!valid.comparable) { Record("Error", "Invalid captured image: " + valid.reason, valid); return; }
             string baselineJson = Path.Combine(s_State.baselineDirectory, current.name + ".json");
             if (s_State.record)
@@ -375,13 +375,13 @@ namespace InfinityTech.Rendering.Editor.Validation
             byte[] stored = File.ReadAllBytes(baselineBin);
             if (string.IsNullOrEmpty(baseline.sha256) || baseline.sha256 != Hash(stored))
             { Record("Error", "Baseline data does not match its recorded SHA256.", default); return; }
-            FImageComparison comparison = ImageComparison.Compare(stored, captured, buffer.format, buffer.width, buffer.height, current.pixelThreshold);
+            ImageComparisonResult comparison = ImageComparison.Compare(stored, captured, buffer.format, buffer.width, buffer.height, current.pixelThreshold);
             bool pass = comparison.Passes(current.maxRmse, current.maxOutlierFraction);
             Record(pass ? "Pass" : "Fail", $"rmse {comparison.rmse:F6}, max {comparison.maxError:F6}, outliers {comparison.outlierFraction:P4}; {comparison.reason}", comparison);
         }
 
         static string Hash(byte[] data) { using var hash = SHA256.Create(); return BitConverter.ToString(hash.ComputeHash(data)).Replace("-", "").ToLowerInvariant(); }
-        static void Record(string status, string detail, FImageComparison comparison)
+        static void Record(string status, string detail, ImageComparisonResult comparison)
         {
             string name = s_State.index < s_State.cases.Count ? s_State.cases[s_State.index].name : null;
             s_State.results.Add(new CaseResult { name = name, status = status, detail = detail, comparison = comparison });

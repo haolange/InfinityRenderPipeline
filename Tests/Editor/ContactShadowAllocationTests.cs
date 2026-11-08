@@ -7,17 +7,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ContactShadowAllocationTests
     {
-        static FLightRecord Light(bool contact, bool directional = false)
+        static LightRecord Light(bool contact, bool directional = false)
         {
-            int flags = contact ? FLightRecordFlags.EnableContactShadow : 0;
-            if (directional) flags |= FLightRecordFlags.Directional;
-            return new FLightRecord { flags = flags, misc = new UnityEngine.Vector4(1, 0, 7, 0) };
+            int flags = contact ? LightRecordFlags.EnableContactShadow : 0;
+            if (directional) flags |= LightRecordFlags.Directional;
+            return new LightRecord { flags = flags, misc = new UnityEngine.Vector4(1, 0, 7, 0) };
         }
 
         [Test]
         public void Bits_GoToContactLights_LargestScreenCoverageFirst()
         {
-            var records = new NativeList<FLightRecord>(Allocator.Temp);
+            var records = new NativeList<LightRecord>(Allocator.Temp);
             var rects = new NativeList<int4>(Allocator.Temp);
             try
             {
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Bits_AreCappedAt24()
         {
-            var records = new NativeList<FLightRecord>(Allocator.Temp);
+            var records = new NativeList<LightRecord>(Allocator.Temp);
             var rects = new NativeList<int4>(Allocator.Temp);
             try
             {

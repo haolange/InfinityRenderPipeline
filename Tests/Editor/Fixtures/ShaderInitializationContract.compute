@@ -16,7 +16,7 @@ Texture2D SRV_GBufferB, SRV_GBufferC;
 float4 SSGI_Resolution;
 float4x4 Matrix_InvProj, Matrix_InvViewProj;
 #include "../../../Shaders/ShaderLibrary/ScreenSpaceIndirectSurface.hlsl"
-#include "../../../Shaders/ShaderLibrary/Lighting/LightShapes.hlsl"
+#include "../../../Shaders/ShaderLibrary/Lighting/LightSourceShapes.hlsl"
 
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;
@@ -54,7 +54,7 @@ void IlluminanceContract(uint3 id : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void SurfaceContract(uint3 id : SV_DispatchThreadID)
 {
-    FSSGISurface surface;
+    SSGISurface surface;
     bool valid = LoadSurface(uint2(id.x, 0), surface);
     ContractResults[id.x] = float4(surface.rawDepth, valid ? 1 : 0,
         dot(surface.normalWS, surface.normalWS), dot(surface.positionWS, surface.positionWS));
@@ -63,7 +63,7 @@ void SurfaceContract(uint3 id : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void TraceContract(uint3 id : SV_DispatchThreadID)
 {
-    FScreenSpaceHit hit = (FScreenSpaceHit)0;
+    ScreenSpaceHit hit = (ScreenSpaceHit)0;
     bool found = false;
     if (ContractInputs[id.x].x == 0)
         found = TraceScreenSpaceHiZ(ContractOrigin.xyz, ContractDirection.xyz, 64, 0, SCREEN_TRACE_TOWARD | SCREEN_TRACE_BEHIND,
@@ -78,7 +78,7 @@ void TraceContract(uint3 id : SV_DispatchThreadID)
 void ContactShadowContract(uint3 id : SV_DispatchThreadID)
 {
     float4 input = ContractInputs[id.x];
-    FLightRecord light = (FLightRecord)0;
+    LightRecord light = (LightRecord)0;
     light.misc.z = input.x;
     uint mask = (uint)input.y | ((uint)input.z << 24);
     ContractResults[id.x] = ContactShadowFromMask(light, mask);

@@ -47,7 +47,7 @@ float3 HemiOctahedronToUnitVector(float2 Oct)
 	return normalize(N);
 }
 
-struct FGBufferData
+struct GBufferData
 {
     float Specular;
     float Roughness;
@@ -61,7 +61,7 @@ struct FGBufferData
     uint RenderingLayer;
 };
 
-struct FReconstructInput
+struct ReconstructInput
 {
     uint2 PixelCoord;
     float2 CoCgR;
@@ -132,7 +132,7 @@ uint2 GBufferPixelCoord(float2 svPositionXY)
     return uint2(svPositionXY);
 }
 
-void EncodeGBuffer(FGBufferData GBufferData, float2 svPositionXY, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
+void EncodeGBuffer(GBufferData GBufferData, float2 svPositionXY, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
 {
     uint2 PixelCoord = GBufferPixelCoord(svPositionXY);
     float3 YCoCgColor = GBufferAlbedoToYCoCg(GBufferData.Albedo);
@@ -145,7 +145,7 @@ void EncodeGBuffer(FGBufferData GBufferData, float2 svPositionXY, out float4 GBu
         GBufferData.RenderingLayer / 255.0);
 }
 
-void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 GBufferB, float4 GBufferC, out FGBufferData GBufferData)
+void DecodeGBuffer(ReconstructInput ReconstructInput, float4 GBufferA, float4 GBufferB, float4 GBufferC, out GBufferData GBufferData)
 {
     float3 YCoCgColor = GBufferA.rgb;
     YCoCgColor.b = EdgeFilter(GBufferA.rg, ReconstructInput.CoCgR, ReconstructInput.CoCgL, ReconstructInput.CoCgT, ReconstructInput.CoCgB, ReconstructInput.NeighborValid);
@@ -162,13 +162,13 @@ void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 G
     GBufferData.RenderingLayer = (uint)(GBufferC.a * 255.0 + 0.5);
 }
 
-void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, float4 textureView, out FGBufferData GBufferData)
+void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, float4 textureView, out GBufferData GBufferData)
 {
     float4 gBufferA = texA[pixel];
     float4 gBufferB = texB[pixel];
     float4 gBufferC = texC[pixel];
 
-    FReconstructInput reconstructInput;
+    ReconstructInput reconstructInput;
     reconstructInput.PixelCoord = pixel;
     uint width, height;
     texA.GetDimensions(width, height);

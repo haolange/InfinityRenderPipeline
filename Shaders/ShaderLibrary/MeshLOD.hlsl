@@ -5,7 +5,7 @@
 // least its lower bound; the cross-fade band sits above each positive bound and is fadeWidth of the gap to the previous
 // bound (1 for level 0). Screen size is the largest half-extent * scale * bias / distance, with distance 1 for
 // orthographic views; the largest half-extent is LODGroup size / 2.
-struct FMeshLODChain
+struct MeshLODChain
 {
     float4 screenSize0;
     float4 screenSize1;
@@ -13,7 +13,7 @@ struct FMeshLODChain
     int count;
 };
 
-StructuredBuffer<FMeshLODChain> _EntityLodChains;
+StructuredBuffer<MeshLODChain> _EntityLodChains;
 float4 _LodOrigin;
 float _LodScale;
 float _LodBias;
@@ -21,7 +21,7 @@ uint _LodOrthographic;
 
 #define MESH_LOD_STABLE 65535u
 
-float MeshLODScreenSize(FMeshLODChain chain, uint level)
+float MeshLODScreenSize(MeshLODChain chain, uint level)
 {
     // float4[variable] is out of range on Metal even when the other side of a ternary is taken.
     float size = chain.screenSize0.x;
@@ -39,7 +39,7 @@ float MeshLODScreenSize(FMeshLODChain chain, uint level)
 // MESH_LOD_STABLE outside the band and the band position quantized to [0, 65534) inside it.
 uint MeshPackLODVisibility(uint entity, float3 center, float3 extent)
 {
-    FMeshLODChain chain = _EntityLodChains[entity];
+    MeshLODChain chain = _EntityLodChains[entity];
     float distance = _LodOrthographic != 0u ? 1.0 : max(length(center - _LodOrigin.xyz), 1e-6);
     float screen = max(max(extent.x, extent.y), extent.z) * _LodScale * _LodBias / distance;
     uint packed = 0u;

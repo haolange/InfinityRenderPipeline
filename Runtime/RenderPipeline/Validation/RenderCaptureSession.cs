@@ -217,7 +217,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal void RecordTemporalColorState(Camera camera, in FTemporalColorView source, bool superResolution)
+        internal void RecordTemporalColorState(Camera camera, in TemporalColorView source, bool superResolution)
         {
             if (!m_CaptureThisFrame || m_Camera != camera || m_Evidence.frames.Count == 0) return;
             var frame = m_Evidence.frames[m_Evidence.frames.Count - 1];

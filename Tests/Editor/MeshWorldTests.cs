@@ -309,7 +309,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 ulong transformRevision = world.transformRevision;
                 int structuralRevision = world.structuralRevision;
 
-                Assert.IsTrue(world.TryGetPose(ids[0], out float4x4 unchanged, out FBound unchangedBound));
+                Assert.IsTrue(world.TryGetPose(ids[0], out float4x4 unchanged, out BoundingBox unchangedBound));
                 world.WriteEntityPose(ids[0], unchanged, unchangedBound);
                 Assert.AreEqual(transformRevision, world.transformRevision, "Rewriting the current pose is not a change.");
 
@@ -320,7 +320,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 }
 
                 float4x4 moved = float4x4.Translate(new float3(0, 5, 0));
-                FBound movedBound = MeshTestUtility.Bound(new float3(0, 5, 0));
+                BoundingBox movedBound = MeshTestUtility.Bound(new float3(0, 5, 0));
                 world.WriteEntityPose(ids[0], moved, movedBound);
                 world.WriteEntityPose(ids[129], float4x4.Translate(new float3(129, 5, 0)), MeshTestUtility.Bound(new float3(129, 5, 0)));
                 Assert.Greater(world.transformRevision, transformRevision);
@@ -328,7 +328,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
                 using (MeshWorldUpdate update = world.BeginUpdate())
                     update.SetEntityDesc(ids[0], MeshTestUtility.Desc(EMeshEntityFlags.None));
-                Assert.IsTrue(world.TryGetPose(ids[0], out float4x4 kept, out FBound keptBound));
+                Assert.IsTrue(world.TryGetPose(ids[0], out float4x4 kept, out BoundingBox keptBound));
                 Assert.IsTrue(kept.Equals(moved), "Poses do not take part in undo.");
                 Assert.AreEqual(movedBound, keptBound);
 
@@ -388,7 +388,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshWorld world = fixture.world;
                 GameObject owner = fixture.Own(new GameObject("MeshWorldTests.Dynamic") { hideFlags = HideFlags.DontSave });
                 owner.transform.position = new Vector3(1, 2, 3);
-                var localBounds = new FBound(float3.zero, new float3(0.5f));
+                var localBounds = new BoundingBox(float3.zero, new float3(0.5f));
                 MeshEntityId entity;
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
@@ -403,7 +403,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 ulong revision = world.transformRevision;
                 world.UpdateDynamicPoses();
                 Assert.Greater(world.transformRevision, revision);
-                Assert.IsTrue(world.TryGetPose(entity, out float4x4 matrix, out FBound bounds));
+                Assert.IsTrue(world.TryGetPose(entity, out float4x4 matrix, out BoundingBox bounds));
                 Assert.AreEqual(new float3(1, 2, 3), matrix.c3.xyz);
                 Assert.AreEqual(new float3(1, 2, 3), bounds.center);
                 Assert.AreEqual(localBounds.extents, bounds.extents);

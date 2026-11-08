@@ -69,7 +69,7 @@ namespace InfinityTech.Component
         SyncState m_State;
         SyncState m_Next;
         bool m_Staged;
-        FAABB m_BoundBox;
+        MinMaxBox m_BoundBox;
         bool m_DirtyEnqueued;
         uint m_RegistrationEpoch;
 
@@ -92,7 +92,7 @@ namespace InfinityTech.Component
             uint epoch = ++m_RegistrationEpoch;
             s_Registered.Add(this);
             RefreshGeometryReference();
-            FGraphics.RegisterMesh(this, epoch);
+            RenderTaskQueue.RegisterMesh(this, epoch);
         }
 
         protected override void UnRegister()
@@ -105,7 +105,7 @@ namespace InfinityTech.Component
             ResetSyncState();
             m_DirtyEnqueued = false;
             transformPending = false;
-            FGraphics.UnregisterMesh(this, published.entity, published.worldId);
+            RenderTaskQueue.UnregisterMesh(this, published.entity, published.worldId);
         }
 
         public void MarkDirty()

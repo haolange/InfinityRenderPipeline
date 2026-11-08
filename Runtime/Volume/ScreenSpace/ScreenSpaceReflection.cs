@@ -53,10 +53,10 @@ namespace InfinityTech.Rendering.PostProcess
 
         public bool IsActive() => active && enable.value;
 
-        public FSSRSettings Resolve()
+        public SSRSettings Resolve()
         {
-            FSSRSettings settings = quality.value == EQualityLevel.Custom
-                ? new FSSRSettings
+            SSRSettings settings = quality.value == EQualityLevel.Custom
+                ? new SSRSettings
                 {
                     halfResolution = HalfResolution.value,
                     mirrorRoughness = MirrorRoughness.value,

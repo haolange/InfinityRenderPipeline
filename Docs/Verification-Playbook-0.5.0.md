@@ -228,7 +228,7 @@ still fails. Retain the original failed check; these missing historical images a
    and bin range. Its texture producer is the diagnostic conversion pass; its source is the actual shared light-list
    buffer. Check both with and without diagnostics because the extra reader extends the mask's graph lifetime.
    Exercise 0/1/31/32/33/63/64/65 lights, empty bins and nonzero directional offsets; each local record must be
-   visited exactly once when its tile bit and bin range both include it. Shared consumers initialize `FLightLoop`
+   visited exactly once when its tile bit and bin range both include it. Shared consumers initialize `LightLoopState`
    via the caller-owned `out` argument; do not restore a return-by-value wrapper for any consumer.
 
 ## S8 — area light shapes

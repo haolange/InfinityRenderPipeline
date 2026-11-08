@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class CachedShadowProduction : IRGPassQueueObserver
         {
             public LocalShadowCache cache;
-            public FShadowCacheKey[] keys;
+            public ShadowCacheKey[] keys;
             public int count;
             public void OnQueueFailed() { }
             public void OnQueued() => cache.MarkProduced(keys, count);
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Identity of a cached tile's content: the shadow matrix (position, orientation, projection), caster bias and
         // the caster filters. Scene visibility is part of the exact cache key.
-        static int CachedShadowHash(in FLocalShadowSlice slice, Light light, bool excludeStatic)
+        static int CachedShadowHash(in LocalShadowSlice slice, Light light, bool excludeStatic)
         {
             var hash = new System.HashCode();
             hash.Add(excludeStatic);
@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
             // Cache slot per slice (-1 = rendered into the frame atlas) and whether the slot re-renders this frame.
             int[] cacheSlots = m_RGBuilder.GetRecordingArray<int>(matrixCount);
             bool[] cacheRender = m_RGBuilder.GetRecordingArray<bool>(matrixCount);
-            FShadowCacheKey[] cacheKeys = m_RGBuilder.GetRecordingArray<FShadowCacheKey>(matrixCount);
+            ShadowCacheKey[] cacheKeys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(matrixCount);
             for (int i = 0; i < matrixCount; ++i)
             {
                 shadowMatrices[i] = Matrix4x4.identity;
@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline
             bool cacheGroupAvailable = false;
             for (int slice = 0; slice < sliceCount; ++slice)
             {
-                FLocalShadowSlice local = allocator.LocalSlices[slice];
+                LocalShadowSlice local = allocator.LocalSlices[slice];
                 shadowMatrices[slice] = local.shadowMatrix;
                 tileRects[slice] = local.atlasPixelRect;
                 casterBias[slice] = local.casterBias;
@@ -151,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
-                    cacheKeys[slice] = new FShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
+                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && cacheRender[slice])
@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.Pipeline
         // partial depth clear of the persistent atlas. Saving is the cache production: the slot commits when this
         // pass is queued and the frame is submitted.
         void RecordCachedLocalShadows(int sliceCount, RGTextureHandle shadowMapTexture, Vector4[] tileRects, int[] cacheSlots,
-            bool[] cacheRender, FShadowCacheKey[] cacheKeys)
+            bool[] cacheRender, ShadowCacheKey[] cacheKeys)
         {
             int saveCount = 0, loadCount = 0;
             for (int slice = 0; slice < sliceCount; ++slice)
@@ -279,7 +279,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
-            var keys = m_RGBuilder.GetRecordingArray<FShadowCacheKey>(saveCount);
+            var keys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(saveCount);
             int save = 0, load = saveCount;
             for (int slice = 0; slice < sliceCount; ++slice)
             {

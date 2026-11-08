@@ -65,10 +65,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.That(Mathf.Abs(clip.z / clip.w), Is.LessThanOrEqualTo(1.00001f));
         }
 
-        [TestCase(FLightRecordFlags.SpotCone)]
-        [TestCase(FLightRecordFlags.SpotPyramid)]
-        [TestCase(FLightRecordFlags.SpotBox)]
-        [TestCase(FLightRecordFlags.Planar)]
+        [TestCase(LightRecordFlags.SpotCone)]
+        [TestCase(LightRecordFlags.SpotPyramid)]
+        [TestCase(LightRecordFlags.SpotBox)]
+        [TestCase(LightRecordFlags.Planar)]
         public void LocalEligibility_RejectsBehindCasterBeforeBudget(int shapeFlags)
         {
             GameObject cameraObject = null, lightObject = null;
@@ -87,18 +87,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     MeshEntityId entity;
                     using (MeshWorldUpdate update = world.BeginUpdate())
                     {
-                        entity = update.CreateEntity(float4x4.identity, new FBound(new float3(0, 0, -5), new float3(.25f)),
+                        entity = update.CreateEntity(float4x4.identity, new BoundingBox(new float3(0, 0, -5), new float3(.25f)),
                             MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1), MeshLODChain.Single);
                         update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                         update.Commit();
                     }
                     var bounds = new ShadowCasterBounds(); bounds.Collect(world);
-                    var record = new FLightRecord { flags = shapeFlags | FLightRecordFlags.EnableShadow,
+                    var record = new LightRecord { flags = shapeFlags | LightRecordFlags.EnableShadow,
                         positionRange = new Vector4(0, 0, 0, 20), forward = new Vector4(0, 0, 1, .7f),
                         right = new Vector4(1, 0, 0, 0), area = new Vector4(2, 2, 0, 0) };
                     Assert.IsTrue(bounds.TryGetBounds(light, camera, out _), "Caster is eligible before local frustum filtering.");
                     Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3), "Behind emitter cannot occupy local shadow budget.");
-                    world.WriteEntityPose(entity, float4x4.identity, new FBound(new float3(0, 0, 5), new float3(.25f)));
+                    world.WriteEntityPose(entity, float4x4.identity, new BoundingBox(new float3(0, 0, 5), new float3(.25f)));
                     bounds.Collect(world);
                     Assert.IsTrue(bounds.HasLocalCaster(record, light, camera, 128, 3));
                     light.cullingMask = 2;

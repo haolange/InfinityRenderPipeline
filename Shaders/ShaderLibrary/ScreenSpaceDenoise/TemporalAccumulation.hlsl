@@ -5,7 +5,7 @@
 // max(1 - maxHistoryWeight, 1 / (age + 1)): a running mean right after a reset, then the configured exponential
 // weight. A rejected history restarts at age 0, so the current sample is taken as is.
 
-struct FNeighborhoodMoments
+struct NeighborhoodMoments
 {
     float4 mean;
     float4 minimum;
@@ -13,9 +13,9 @@ struct FNeighborhoodMoments
 };
 
 // Mean and stddev of the samples, widened to include the center so the clip box never excludes the current value.
-FNeighborhoodMoments ResolveNeighborhoodMoments(float4 sum, float4 sumSquares, float count, float4 center, float clampScale)
+NeighborhoodMoments ResolveNeighborhoodMoments(float4 sum, float4 sumSquares, float count, float4 center, float clampScale)
 {
-    FNeighborhoodMoments moments;
+    NeighborhoodMoments moments;
     moments.mean = sum / count;
     float4 stddev = sqrt(max(0, sumSquares / count - moments.mean * moments.mean));
     moments.minimum = min(moments.mean - clampScale * stddev, center);
@@ -25,7 +25,7 @@ FNeighborhoodMoments ResolveNeighborhoodMoments(float4 sum, float4 sumSquares, f
 
 // Variance clipping (Salvi 2016): moves the history toward the box center until it lies inside, instead of clamping
 // each channel independently, which shifts hue.
-float4 ClipHistoryToNeighborhood(float4 history, FNeighborhoodMoments moments)
+float4 ClipHistoryToNeighborhood(float4 history, NeighborhoodMoments moments)
 {
     float4 center = 0.5 * (moments.maximum + moments.minimum);
     float4 extents = max(0.5 * (moments.maximum - moments.minimum), 1e-5);
@@ -36,7 +36,7 @@ float4 ClipHistoryToNeighborhood(float4 history, FNeighborhoodMoments moments)
 }
 
 // Normalized distance of a history candidate from the neighborhood, used to choose between reprojection candidates.
-float NeighborhoodDistance(float4 value, FNeighborhoodMoments moments)
+float NeighborhoodDistance(float4 value, NeighborhoodMoments moments)
 {
     float4 extents = max(0.5 * (moments.maximum - moments.minimum), 1e-4);
     float4 unit = abs(value - moments.mean) / extents;

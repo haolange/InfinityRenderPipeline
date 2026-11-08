@@ -59,7 +59,7 @@ namespace InfinityTech.Component
         {
             terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-            FGraphics.AddTask((RenderContext renderContext) =>
+            RenderTaskQueue.AddTask((RenderContext renderContext) =>
             {
                 renderContext.AddWorldTerrain(this);
             });
@@ -70,7 +70,7 @@ namespace InfinityTech.Component
             terrainSector?.Dispose();
 
             TerrainComponent self = this;
-            FGraphics.AddTask((RenderContext renderContext) =>
+            RenderTaskQueue.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldTerrain(self);
             });

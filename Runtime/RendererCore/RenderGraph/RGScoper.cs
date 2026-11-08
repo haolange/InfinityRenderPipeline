@@ -5,11 +5,11 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
-    internal class FRGResourceMap<Type> where Type : unmanaged
+    internal class RGResourceMap<Type> where Type : unmanaged
     {
         internal NativeParallelHashMap<int, Type> m_ResourceMap;
 
-        internal FRGResourceMap()
+        internal RGResourceMap()
         {
             m_ResourceMap = new NativeParallelHashMap<int, Type>(64, Allocator.Persistent);
         }
@@ -46,14 +46,14 @@ namespace InfinityTech.Rendering.RenderGraph
     public class RGScoper
     {
         RGBuilder m_RGBuilder;
-        FRGResourceMap<RGBufferHandle> m_BufferMap;
-        FRGResourceMap<RGTextureHandle> m_TextureMap;
+        RGResourceMap<RGBufferHandle> m_BufferMap;
+        RGResourceMap<RGTextureHandle> m_TextureMap;
 
         public RGScoper(RGBuilder graphBuilder)
         {
             m_RGBuilder = graphBuilder;
-            m_BufferMap = new FRGResourceMap<RGBufferHandle>();
-            m_TextureMap = new FRGResourceMap<RGTextureHandle>();
+            m_BufferMap = new RGResourceMap<RGBufferHandle>();
+            m_TextureMap = new RGResourceMap<RGTextureHandle>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

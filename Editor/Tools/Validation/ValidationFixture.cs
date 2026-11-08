@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Editor.Validation
     /// </summary>
     internal sealed class ValidationFixture
     {
-        public delegate void ShapeEdit(ref FLightShape shape);
+        public delegate void ShapeEdit(ref LightSourceShape shape);
 
         const string SceneDirectory = "Assets/Scene/Validation";
 
@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             light.spotAngle = 60;
             light.shadows = LightShadows.None;
             InfinityAdditionalLightData data = InfinityAdditionalLightData.GetOrCreate(light, false);
-            FLightShape shape = FLightShape.Default(type);
+            LightSourceShape shape = LightSourceShape.Default(type);
             edit?.Invoke(ref shape);
             data.SetShape(shape);
             return light;

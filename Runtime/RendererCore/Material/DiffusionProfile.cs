@@ -11,9 +11,9 @@ namespace InfinityTech.Rendering
         High = 2
     }
 
-    // GPU-RECORD: FDiffusionProfileRecord Shaders/RenderingFeature/BurleySubsurface/Compute_BurleySubsurface.compute
+    // GPU-RECORD: DiffusionProfileRecord Shaders/RenderingFeature/BurleySubsurface/Compute_BurleySubsurface.compute
     [StructLayout(LayoutKind.Sequential)]
-    public struct FDiffusionProfileRecord
+    public struct DiffusionProfileRecord
     {
         public Vector4 scatterAlbedoDistance;
         public Vector4 parameters;
@@ -27,9 +27,9 @@ namespace InfinityTech.Rendering
         public Color surfaceAlbedo = new Color(0.8f, 0.4f, 0.3f, 1.0f);
         public float maxRadius = 5.0f;
 
-        public FDiffusionProfileRecord ToRecord()
+        public DiffusionProfileRecord ToRecord()
         {
-            FDiffusionProfileRecord record;
+            DiffusionProfileRecord record;
             Color albedo = scatterColor * surfaceAlbedo;
             record.scatterAlbedoDistance = new Vector4(albedo.r, albedo.g, albedo.b, scatterDistance);
             record.parameters = new Vector4(maxRadius, 0.0f, 0.0f, 0.0f);

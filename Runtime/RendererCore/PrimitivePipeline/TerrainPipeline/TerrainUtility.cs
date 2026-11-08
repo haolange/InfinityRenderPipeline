@@ -172,7 +172,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return math.log(value) / math.log(x);
         }
 
-        public static float GetBoundRadius(in FBound boundBox)
+        public static float GetBoundRadius(in BoundingBox boundBox)
         {
 	        return math.max(math.max(math.abs(boundBox.extents.x), math.abs(boundBox.extents.y)), math.abs(boundBox.extents.z) );
         }
@@ -204,7 +204,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return Squared(screenMultiple) / math.max(1, distSqr);
         }
 
-        public static bool IntersectAABBFrustum(FPlane[] plane, in Bounds bound)
+        public static bool IntersectAABBFrustum(PlaneEquation[] plane, in Bounds bound)
         {
             for (int i = 0; i < 6; ++i)
             {

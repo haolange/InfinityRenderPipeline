@@ -17,14 +17,14 @@ RWStructuredBuffer<float4> Results;
 [numthreads(1, 1, 1)]
 void TraceContract(uint3 id : SV_DispatchThreadID)
 {
-    FScreenSpaceHit hit = (FScreenSpaceHit)0;
+    ScreenSpaceHit hit = (ScreenSpaceHit)0;
     bool valid = TraceScreenSpaceHiZ(Origin.xyz, Direction.xyz, 64, 0, SCREEN_TRACE_TOWARD | SCREEN_TRACE_BEHIND, Projection, SurfaceDepth, float4(0,0,0,0), DepthPyramid, float4(0,0,0,0), DepthPyramid, hit);
     Results[0] = float4(hit.uv, hit.rawDepth, valid ? 1 : 0);
 }
 [numthreads(1, 1, 1)]
 void MixedShadowContract(uint3 id : SV_DispatchThreadID)
 {
-    FLightRecord light = (FLightRecord)0;
+    LightRecord light = (LightRecord)0;
     light.flags = LIGHT_FLAG_SHADOWMASK;
     light.misc.x = ShadowStrength;
     light.bakedOcclusionChannel = id.x % 4;

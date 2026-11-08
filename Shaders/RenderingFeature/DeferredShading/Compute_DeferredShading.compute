@@ -59,7 +59,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    FGBufferData gbufferData;
+    GBufferData gbufferData;
     DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
 
     if ((gbufferData.Flags & GBUFFER_FLAG_FORWARD) != 0)
@@ -106,13 +106,13 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         directDiffuse += contribution;
     }
 
-    FLightLoop lightLoop;
+    LightLoopState lightLoop;
     BeginLightLoop(pixelCoord, viewDepth, lightLoop);
     uint recordIndex;
     [loop]
     while (NextLight(lightLoop, recordIndex))
     {
-        FLightRecord light = g_LightRecordBuffer[recordIndex];
+        LightRecord light = g_LightRecordBuffer[recordIndex];
         if ((light.lightLayer & gbufferData.RenderingLayer) == 0) continue;
         float3 contribution;
         lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask, contribution);

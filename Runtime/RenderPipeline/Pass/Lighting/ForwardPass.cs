@@ -26,14 +26,14 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle atmosphereGGX;
             public RGTextureHandle occlusion;
             public bool hasOcclusion;
-            public FShadowInputs shadows;
+            public ShadowInputs shadows;
             public bool hasContactShadow;
             public RGTextureHandle contactShadowSun, contactShadowMask;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
             public RGBufferHandle atmosphereSH;
             public RGBufferHandle lightRecords;
-            public FLightLoopInputs lightLoop;
+            public LightLoopInputs lightLoop;
             public float iblMaxMip;
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
-                    FShadowInputs shadows = QueryShadowInputs(renderContext);
+                    ShadowInputs shadows = QueryShadowInputs(renderContext);
                     shadows.Read(passRef);
                     passData.shadows = shadows;
                     passData.hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowSun);
@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                    FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                    LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                 }

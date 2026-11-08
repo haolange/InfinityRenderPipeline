@@ -555,7 +555,7 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance);
     #endif
 
-    FGBufferData GBufferData;
+    GBufferData GBufferData;
     GBufferData.Albedo = surfaceAlbedo;
     GBufferData.Specular = mixedDiffuse.g;
     GBufferData.Roughness = surfaceRoughness;

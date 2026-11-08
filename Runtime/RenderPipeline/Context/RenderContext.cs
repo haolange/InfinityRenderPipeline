@@ -10,9 +10,9 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public delegate void FGraphicsTask(RenderContext renderContext);
+    public delegate void RenderTask(RenderContext renderContext);
 
-    public static class FGraphics
+    public static class RenderTaskQueue
     {
         internal struct MeshTask
         {
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static void RegisterMesh(MeshComponent component, uint epoch) => MeshTasks.Add(new MeshTask { component = component, epoch = epoch, register = true });
         internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity, int worldId) => MeshTasks.Add(new MeshTask { component = component, entity = entity, worldId = worldId });
 
-        internal static List<FGraphicsTask> GraphicsTasks = new List<FGraphicsTask>(256);
+        internal static List<RenderTask> GraphicsTasks = new List<RenderTask>(256);
 
         internal static void ProcessMeshTask(in MeshTask task, RenderContext context)
         {
@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
             else context.EnqueueEntityRemoval(task.entity, task.worldId);
         }
 
-        public static void AddTask(FGraphicsTask graphicsTask)
+        public static void AddTask(RenderTask graphicsTask)
         {
             GraphicsTasks.Add(graphicsTask);
         }
@@ -252,7 +252,7 @@ namespace InfinityTech.Rendering.Pipeline
             s_DirtyMeshList.Clear();
             m_PendingRemovals.Clear();
 
-            FGraphics.ClearTasks();
+            RenderTaskQueue.ClearTasks();
 
             lightContext.Dispose();
             m_MeshWorld.Dispose();

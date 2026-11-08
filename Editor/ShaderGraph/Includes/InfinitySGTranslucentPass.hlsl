@@ -18,7 +18,7 @@ InfinityTranslucentOutput frag(PackedVaryings packedInput)
 {
     Varyings input = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(input);
-    FInfinitySurface surface = EvaluateInfinitySurface(input);
+    InfinitySurface surface = EvaluateInfinitySurface(input);
 
     float3 positionWS = input.positionWS;
     float2 screenUV = input.positionCS.xy / _ScreenParams.xy;

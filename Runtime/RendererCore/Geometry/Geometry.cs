@@ -5,7 +5,7 @@ using Unity.Mathematics;
 namespace InfinityTech.Core.Geometry
 {
     [Serializable]
-    public struct FPlane : IEquatable<FPlane>
+    public struct PlaneEquation : IEquatable<PlaneEquation>
     {
         public float4 normalDist
         {
@@ -15,21 +15,21 @@ namespace InfinityTech.Core.Geometry
 
         private float4 m_NormalDist;
 
-        public FPlane(float3 inNormal, float3 inPoint)
+        public PlaneEquation(float3 inNormal, float3 inPoint)
         {
             m_NormalDist = new float4(1, 1, 1, 1);
             m_NormalDist.xyz = math.normalize(inNormal);
             m_NormalDist.w = -math.dot(m_NormalDist.xyz, inPoint);
         }
 
-        public FPlane(float3 inNormal, float d)
+        public PlaneEquation(float3 inNormal, float d)
         {
             m_NormalDist = new float4(1, 1, 1, 1);
             m_NormalDist.xyz = math.normalize(inNormal);
             m_NormalDist.w = d;
         }
 
-        public FPlane(float3 a, float3 b, float3 c)
+        public PlaneEquation(float3 a, float3 b, float3 c)
         {
             m_NormalDist = new float4(1, 1, 1, 1);
             m_NormalDist.xyz = math.normalize(math.cross(b - a, c - a));
@@ -38,12 +38,12 @@ namespace InfinityTech.Core.Geometry
 
         public override bool Equals(object other)
         {
-            if (!(other is FPlane)) return false;
+            if (!(other is PlaneEquation)) return false;
 
-            return Equals((FPlane)other);
+            return Equals((PlaneEquation)other);
         }
 
-        public bool Equals(FPlane other)
+        public bool Equals(PlaneEquation other)
         {
             return normalDist.Equals(other.normalDist);
         }
@@ -53,13 +53,13 @@ namespace InfinityTech.Core.Geometry
             return m_NormalDist.GetHashCode();
         }
 
-        public static implicit operator Plane(FPlane plane) { return new Plane(plane.normalDist.xyz, plane.normalDist.w); }
+        public static implicit operator Plane(PlaneEquation plane) { return new Plane(plane.normalDist.xyz, plane.normalDist.w); }
 
-        public static implicit operator FPlane(Plane plane) { return new FPlane(plane.normal, plane.distance); }
+        public static implicit operator PlaneEquation(Plane plane) { return new PlaneEquation(plane.normal, plane.distance); }
     }
 
     [Serializable]
-    public struct FAABB : IEquatable<FAABB>
+    public struct MinMaxBox : IEquatable<MinMaxBox>
     {
         private float3 m_Center;
         private float3 m_Extents;
@@ -71,7 +71,7 @@ namespace InfinityTech.Core.Geometry
         public float3 max { get { return center + extents; } set { SetMinMax(min, value); } }
 
 
-        public FAABB(float3 center, float3 size)
+        public MinMaxBox(float3 center, float3 size)
         {
             m_Center = center;
             m_Extents = size * 0.5F;
@@ -79,12 +79,12 @@ namespace InfinityTech.Core.Geometry
 
         public override bool Equals(object other)
         {
-            if (!(other is FAABB)) return false;
+            if (!(other is MinMaxBox)) return false;
 
-            return Equals((FAABB)other);
+            return Equals((MinMaxBox)other);
         }
 
-        public bool Equals(FAABB other)
+        public bool Equals(MinMaxBox other)
         {
             return center.Equals(other.center) && extents.Equals(other.extents);
         }
@@ -100,19 +100,19 @@ namespace InfinityTech.Core.Geometry
             center = min + extents;
         }
 
-        public static implicit operator Bounds(FAABB AABB) { return new Bounds(AABB.center, AABB.size); }
+        public static implicit operator Bounds(MinMaxBox AABB) { return new Bounds(AABB.center, AABB.size); }
 
-        public static implicit operator FAABB(Bounds Bound) { return new FAABB(Bound.center, Bound.size); }
+        public static implicit operator MinMaxBox(Bounds Bound) { return new MinMaxBox(Bound.center, Bound.size); }
     }
 
     [Serializable]
-    public struct FBound : IEquatable<FBound>
+    public struct BoundingBox : IEquatable<BoundingBox>
     {
         public float3 center;
         public float3 extents;
 
 
-        public FBound(float3 Center, float3 Extents)
+        public BoundingBox(float3 Center, float3 Extents)
         {
             center = Center;
             extents = Extents;
@@ -120,12 +120,12 @@ namespace InfinityTech.Core.Geometry
 
         public override bool Equals(object other)
         {
-            if (!(other is FBound)) return false;
+            if (!(other is BoundingBox)) return false;
 
-            return Equals((FBound)other);
+            return Equals((BoundingBox)other);
         }
 
-        public bool Equals(FBound other)
+        public bool Equals(BoundingBox other)
         {
             return center.Equals(other.center) && extents.Equals(other.extents);
         }
@@ -135,45 +135,12 @@ namespace InfinityTech.Core.Geometry
             return center.GetHashCode() ^ (extents.GetHashCode() << 2);
         }
 
-        public static implicit operator FBound(FAABB Bound) { return new FBound(Bound.center, Bound.extents); }
-        public static implicit operator FBound(Bounds Bound) { return new FBound(Bound.center, Bound.extents); }
-        public static implicit operator FAABB(FBound Bound) { return new FAABB(Bound.center, Bound.extents * 2); }
-        public static implicit operator Bounds(FBound Bound) { return new Bounds(Bound.center, Bound.extents * 2); }
+        public static implicit operator BoundingBox(MinMaxBox Bound) { return new BoundingBox(Bound.center, Bound.extents); }
+        public static implicit operator BoundingBox(Bounds Bound) { return new BoundingBox(Bound.center, Bound.extents); }
+        public static implicit operator MinMaxBox(BoundingBox Bound) { return new MinMaxBox(Bound.center, Bound.extents * 2); }
+        public static implicit operator Bounds(BoundingBox Bound) { return new Bounds(Bound.center, Bound.extents * 2); }
     }
 
-    [Serializable]
-    public struct FSphere : IEquatable<FSphere>
-    {
-        private float m_Radius;
-        private float3 m_Center;
-
-        public float radius { get { return m_Radius; } set { m_Radius = value; } }
-        public float3 center { get { return m_Center; } set { m_Center = value; } }
-
-
-        public FSphere(float radius, float3 center)
-        {
-            m_Radius = radius;
-            m_Center = center;
-        }
-
-        public override bool Equals(object other)
-        {
-            if (!(other is FSphere)) return false;
-
-            return Equals((FSphere)other);
-        }
-
-        public bool Equals(FSphere other)
-        {
-            return radius.Equals(other.radius) && center.Equals(other.center);
-        }
-
-        public override int GetHashCode()
-        {
-            return radius.GetHashCode() ^ (center.GetHashCode() << 2);
-        }
-    }
 
     public static class Geometry
     {
@@ -195,7 +162,7 @@ namespace InfinityTech.Core.Geometry
             return WorldBound;
         }
 
-        public static bool IntersectAABBFrustum(FAABB bound, FPlane[] plane)
+        public static bool IntersectAABBFrustum(MinMaxBox bound, PlaneEquation[] plane)
         {
             for (int i = 0; i < 6; ++i)
             {

@@ -92,7 +92,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_LOD_DITHER)
 				Out.LodFade = MeshInstanceFade(In.InstanceId);
 #endif
-				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
+				TransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -158,7 +158,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_LOD_DITHER)
 				Out.LodFade = MeshInstanceFade(In.InstanceId);
 #endif
-				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
+				TransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -258,7 +258,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_LOD_DITHER)
 				Out.LodFade = MeshInstanceFade(In.InstanceId);
 #endif
-				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
+				TransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -293,7 +293,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance);
 				#endif
 
-				FGBufferData GBufferData;
+				GBufferData GBufferData;
 				GBufferData.Normal = pnormalWS;
 				GBufferData.Albedo = surfaceAlbedo;
 				GBufferData.Specular = surfaceSpecular;
@@ -403,7 +403,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_LOD_DITHER)
 				Out.LodFade = MeshInstanceFade(In.InstanceId);
 #endif
-				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
+				TransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -515,7 +515,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_LOD_DITHER)
 				Out.LodFade = MeshInstanceFade(In.InstanceId);
 #endif
-				FTransformData currBatch = EntityTransforms[Out.EntityIndex];
+				TransformData currBatch = EntityTransforms[Out.EntityIndex];
 				float4x4 previousObjectToWorld = MeshPreviousObjectToWorld(Out.EntityIndex);
 
 				float4 worldPos = mul(currBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -574,7 +574,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				uint entityIndex = MeshInstanceEntity(In.InstanceId);
-				FTransformData meshBatch = EntityTransforms[entityIndex];
+				TransformData meshBatch = EntityTransforms[entityIndex];
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				return Out;
@@ -648,7 +648,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				uint entityIndex = MeshInstanceEntity(In.InstanceId);
-				FTransformData meshBatch = EntityTransforms[entityIndex];
+				TransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.worldPos = worldPos.xyz;
@@ -738,7 +738,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				uint entityIndex = MeshInstanceEntity(In.InstanceId);
-				FTransformData meshBatch = EntityTransforms[entityIndex];
+				TransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
@@ -826,7 +826,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				uint entityIndex = MeshInstanceEntity(In.InstanceId);
-				FTransformData meshBatch = EntityTransforms[entityIndex];
+				TransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);

@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// (a lower bound, strictly decreasing); below the last level nothing is drawn. The cross-fade band sits above each
     /// threshold and is <c>fadeWidth</c> of the gap to the previous threshold (1 for LOD 0).
     /// </summary>
-    // GPU-RECORD: FMeshLODChain Shaders/ShaderLibrary/MeshLOD.hlsl
+    // GPU-RECORD: MeshLODChain Shaders/ShaderLibrary/MeshLOD.hlsl
     public struct MeshLODChain : IEquatable<MeshLODChain>
     {
         public const int MaxLevels = 8;
@@ -146,14 +146,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int refCount;
     }
 
-    internal struct FSectionKey : IEquatable<FSectionKey>
+    internal struct SectionKey : IEquatable<SectionKey>
     {
         public ulong meshId;
         public int submesh;
 
-        public FSectionKey(ulong meshId, int submesh) { this.meshId = meshId; this.submesh = submesh; }
-        public bool Equals(FSectionKey other) => meshId == other.meshId && submesh == other.submesh;
-        public override bool Equals(object obj) => obj is FSectionKey other && Equals(other);
+        public SectionKey(ulong meshId, int submesh) { this.meshId = meshId; this.submesh = submesh; }
+        public bool Equals(SectionKey other) => meshId == other.meshId && submesh == other.submesh;
+        public override bool Equals(object obj) => obj is SectionKey other && Equals(other);
         public override int GetHashCode() => unchecked(meshId.GetHashCode() * 397 ^ submesh);
     }
 

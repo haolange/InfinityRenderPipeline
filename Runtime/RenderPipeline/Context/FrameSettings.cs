@@ -29,19 +29,19 @@ namespace InfinityTech.Rendering.Pipeline
 
     // Stored as a disabled mask so the zero value (and data saved before a setting existed) means enabled.
     [Serializable]
-    public struct FFrameSettings
+    public struct FrameSettings
     {
         [SerializeField]
         uint m_Disabled;
 
-        public static FFrameSettings AllEnabled => default;
+        public static FrameSettings AllEnabled => default;
 
         // Reflection probe captures skip the screen-space and per-light effects whose cost buys little in a probe face.
-        public static FFrameSettings ReflectionDefaults
+        public static FrameSettings ReflectionDefaults
         {
             get
             {
-                FFrameSettings settings = default;
+                FrameSettings settings = default;
                 settings.SetEnabled(EFrameSetting.AmbientOcclusion, false);
                 settings.SetEnabled(EFrameSetting.RayTracedAmbientOcclusion, false);
                 settings.SetEnabled(EFrameSetting.ContactShadows, false);
@@ -64,26 +64,26 @@ namespace InfinityTech.Rendering.Pipeline
 
     // Camera overrides: only the settings marked overridden replace the baseline.
     [Serializable]
-    public struct FFrameSettingsOverride
+    public struct FrameSettingsOverride
     {
         [SerializeField]
         uint m_Overridden;
 
         [SerializeField]
-        FFrameSettings m_Values;
+        FrameSettings m_Values;
 
-        public bool IsOverridden(EFrameSetting setting) => (m_Overridden & FFrameSettings.Bit(setting)) != 0;
+        public bool IsOverridden(EFrameSetting setting) => (m_Overridden & FrameSettings.Bit(setting)) != 0;
 
         public bool GetValue(EFrameSetting setting) => m_Values.IsEnabled(setting);
 
         public void SetOverride(EFrameSetting setting, bool overridden, bool enabled)
         {
-            if (overridden) m_Overridden |= FFrameSettings.Bit(setting);
-            else m_Overridden &= ~FFrameSettings.Bit(setting);
+            if (overridden) m_Overridden |= FrameSettings.Bit(setting);
+            else m_Overridden &= ~FrameSettings.Bit(setting);
             m_Values.SetEnabled(setting, enabled);
         }
 
-        public FFrameSettings Apply(FFrameSettings baseline)
+        public FrameSettings Apply(FrameSettings baseline)
         {
             foreach (EFrameSetting setting in FrameSettingsUtility.All)
             {
@@ -95,11 +95,11 @@ namespace InfinityTech.Rendering.Pipeline
     }
 
     // Effective settings of one camera and where each value came from.
-    public struct FResolvedFrameSettings
+    public struct ResolvedFrameSettings
     {
-        public FFrameSettings settings;
+        public FrameSettings settings;
         public EFrameSettingSource baseline;
-        public FFrameSettingsOverride cameraOverride;
+        public FrameSettingsOverride cameraOverride;
         public bool hasCameraOverride;
 
         public bool IsEnabled(EFrameSetting setting) => settings.IsEnabled(setting);
@@ -114,11 +114,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Baseline: the RP Asset's camera defaults, or its reflection-probe defaults for probe captures; then the
         // camera's overrides (InfinityAdditionalCameraData.frameSettings) when it has any.
-        public static FResolvedFrameSettings Resolve(in FFrameSettings cameraDefaults, in FFrameSettings reflectionDefaults, bool reflectionCapture,
-            bool hasCameraOverride, in FFrameSettingsOverride cameraOverride)
+        public static ResolvedFrameSettings Resolve(in FrameSettings cameraDefaults, in FrameSettings reflectionDefaults, bool reflectionCapture,
+            bool hasCameraOverride, in FrameSettingsOverride cameraOverride)
         {
-            FFrameSettings baseline = reflectionCapture ? reflectionDefaults : cameraDefaults;
-            return new FResolvedFrameSettings
+            FrameSettings baseline = reflectionCapture ? reflectionDefaults : cameraDefaults;
+            return new ResolvedFrameSettings
             {
                 settings = hasCameraOverride ? cameraOverride.Apply(baseline) : baseline,
                 baseline = reflectionCapture ? EFrameSettingSource.ReflectionDefault : EFrameSettingSource.AssetDefault,

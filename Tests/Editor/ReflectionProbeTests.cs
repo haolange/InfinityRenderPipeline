@@ -20,13 +20,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             string text = File.ReadAllText(Path.GetFullPath(ProbePath));
             text = Regex.Replace(text, @"//[^\r\n]*|/\*.*?\*/", string.Empty, RegexOptions.Singleline);
-            Match body = Regex.Match(text, @"struct\s+FReflectionProbeRecord\s*\{(?<body>[^}]*)\}");
-            Assert.IsTrue(body.Success, "FReflectionProbeRecord not found in " + ProbePath);
+            Match body = Regex.Match(text, @"struct\s+ReflectionProbeRecord\s*\{(?<body>[^}]*)\}");
+            Assert.IsTrue(body.Success, "ReflectionProbeRecord not found in " + ProbePath);
             var hlsl = new List<(string type, string name)>();
             foreach (Match field in Regex.Matches(body.Groups["body"].Value, @"(\w+)\s+(\w+)\s*;"))
                 hlsl.Add((field.Groups[1].Value, field.Groups[2].Value));
 
-            FieldInfo[] fields = typeof(FReflectionProbeRecord).GetFields(BindingFlags.Instance | BindingFlags.Public);
+            FieldInfo[] fields = typeof(ReflectionProbeRecord).GetFields(BindingFlags.Instance | BindingFlags.Public);
             Assert.AreEqual(hlsl.Count, fields.Length, "Field count");
             for (int i = 0; i < fields.Length; ++i)
             {
@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(typeof(Vector4), fields[i].FieldType, $"Field {fields[i].Name} type");
                 Assert.AreEqual("float4", hlsl[i].type, $"Field {hlsl[i].name} HLSL type");
             }
-            Assert.AreEqual(fields.Length * 16, Marshal.SizeOf<FReflectionProbeRecord>(), "No padding");
+            Assert.AreEqual(fields.Length * 16, Marshal.SizeOf<ReflectionProbeRecord>(), "No padding");
         }
 
         [Test]
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 atlas.Configure(128, 4);
                 Assert.AreEqual(8, atlas.MipCount);
-                var key = new FProbeCubeKey(1, 2);
+                var key = new ProbeCubeKey(1, 2);
 
                 atlas.BeginFrame();
                 Assert.IsTrue(atlas.Acquire(key, cube, 1, false, 1, out int slot));
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 atlas.Configure(64, 2);
-                var key = new FProbeCubeKey(5, 6);
+                var key = new ProbeCubeKey(5, 6);
                 for (int frame = 1; frame <= 2; ++frame)
                 {
                     atlas.BeginFrame();
@@ -129,9 +129,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 atlas.Configure(32, 2);
-                var a = new FProbeCubeKey(1, 1);
-                var b = new FProbeCubeKey(2, 2);
-                var c = new FProbeCubeKey(3, 3);
+                var a = new ProbeCubeKey(1, 1);
+                var b = new ProbeCubeKey(2, 2);
+                var c = new ProbeCubeKey(3, 3);
 
                 atlas.BeginFrame();
                 Assert.IsTrue(atlas.Acquire(a, cube, 1, false, 1, out int slotA));
@@ -166,12 +166,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 atlas.Configure(0, 8);
                 Assert.IsFalse(atlas.Enabled);
-                Assert.IsFalse(atlas.Acquire(new FProbeCubeKey(1, 1), null, 1, false, 1, out _));
+                Assert.IsFalse(atlas.Acquire(new ProbeCubeKey(1, 1), null, 1, false, 1, out _));
 
                 atlas.Configure(100, 8);
                 Assert.AreEqual(128, atlas.Resolution, "resolution rounds to a power of two");
                 atlas.BeginFrame();
-                Assert.IsTrue(atlas.Acquire(new FProbeCubeKey(1, 1), null, 1, false, 1, out _));
+                Assert.IsTrue(atlas.Acquire(new ProbeCubeKey(1, 1), null, 1, false, 1, out _));
                 atlas.CommitFrame();
                 Assert.AreEqual(1, atlas.EntryCount);
                 atlas.Configure(256, 8);

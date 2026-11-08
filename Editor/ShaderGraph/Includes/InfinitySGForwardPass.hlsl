@@ -10,7 +10,7 @@ void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, ou
 {
     Varyings input = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(input);
-    FInfinitySurface surface = EvaluateInfinitySurface(input);
+    InfinitySurface surface = EvaluateInfinitySurface(input);
 
     float3 positionWS = input.positionWS;
     float3 normalWS = InfinitySurfaceNormalWS(input, surface.normalTS);

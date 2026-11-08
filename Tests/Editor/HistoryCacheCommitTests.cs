@@ -66,9 +66,9 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var descriptor = MakeDescriptor(17, 13, "History");
             descriptor.sizingDomain = ETextureSizingDomain.Internal;
-            m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(64), new Unity.Mathematics.int2(64)));
+            m_Cache.SetTextureCapacity(new TextureCapacityContext(new Unity.Mathematics.int2(64), new Unity.Mathematics.int2(64)));
             TextureHandle accepted = m_Cache.GetTexture(12, descriptor);
-            m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(128), new Unity.Mathematics.int2(128)));
+            m_Cache.SetTextureCapacity(new TextureCapacityContext(new Unity.Mathematics.int2(128), new Unity.Mathematics.int2(128)));
             TextureHandle read = m_Cache.GetTexture(12, descriptor, out bool invalid);
             Assert.IsFalse(invalid);
             Assert.AreSame(accepted.texture, read.texture);

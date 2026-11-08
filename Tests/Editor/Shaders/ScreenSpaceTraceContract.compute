@@ -17,8 +17,8 @@ RWStructuredBuffer<float4> Results;
 [numthreads(1, 1, 1)]
 void TracePair(uint3 id : SV_DispatchThreadID)
 {
-    FScreenSpaceHit hiZ = (FScreenSpaceHit)0;
-    FScreenSpaceHit march = (FScreenSpaceHit)0;
+    ScreenSpaceHit hiZ = (ScreenSpaceHit)0;
+    ScreenSpaceHit march = (ScreenSpaceHit)0;
     bool hiZFound = TraceScreenSpaceHiZ(Origin.xyz, Direction.xyz, Budget, 0, Flags, Projection,
         SurfaceDepth, float4(0, 0, 0, 0), ClosestPyramid, float4(0, 0, 0, 0), FurthestPyramid, hiZ);
     bool marchFound = TraceScreenSpaceLinear(Origin.xyz, Direction.xyz, Steps, BinarySteps, 0, Flags, Projection,

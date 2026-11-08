@@ -2,7 +2,7 @@
 #define INFINITY_SCREEN_SPACE_INDIRECT_SURFACE
 
 // SRV_DepthTexture, SRV_GBufferB/C, SSGI_Resolution and inverse matrices are bound by the caller.
-struct FSSGISurface
+struct SSGISurface
 {
     float rawDepth;
     float3 normalWS;
@@ -24,9 +24,9 @@ bool IsIndirectSurface(uint2 pixel, out float rawDepth)
     return valid;
 }
 
-bool LoadSurface(uint2 pixel, out FSSGISurface surface)
+bool LoadSurface(uint2 pixel, out SSGISurface surface)
 {
-    surface = (FSSGISurface)0;
+    surface = (SSGISurface)0;
     float rawDepth = 0;
     bool valid = IsIndirectSurface(pixel, rawDepth);
     surface.rawDepth = rawDepth;

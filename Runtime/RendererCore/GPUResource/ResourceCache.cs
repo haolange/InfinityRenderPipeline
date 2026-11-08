@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.GPUResource
         public int viewDivisor;
         public int physicalWidth => allocationWidth > 0 ? allocationWidth : width;
         public int physicalHeight => allocationHeight > 0 ? allocationHeight : height;
-        public FTextureView view => new FTextureView(new Unity.Mathematics.int2(width, height), new Unity.Mathematics.int2(physicalWidth, physicalHeight));
+        public TextureView view => new TextureView(new Unity.Mathematics.int2(width, height), new Unity.Mathematics.int2(physicalWidth, physicalHeight));
         public TextureDescriptor PhysicalDescriptor()
         {
             var physical = this;
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public abstract class FGPUResourceCache<TResource, TDescriptor>
+    public abstract class GPUResourceCache<TResource, TDescriptor>
         where TResource : class
         where TDescriptor : struct, IEquatable<TDescriptor>
     {
@@ -395,12 +395,12 @@ namespace InfinityTech.Rendering.GPUResource
                 throw new InvalidOperationException("Resource cache destruction requires completed GPU uses and no recording references. Dispose its owning ResourcePool to defer destruction.");
         }
     }
-    public sealed class BufferCache : FGPUResourceCache<ComputeBuffer, BufferDescriptor>
+    public sealed class BufferCache : GPUResourceCache<ComputeBuffer, BufferDescriptor>
     {
         protected override void ReleaseInternalResource(ComputeBuffer resource) => resource.Release();
         protected override long EstimateBytes(in BufferDescriptor descriptor) => (long)descriptor.count * descriptor.stride;
     }
-    public sealed class TextureCache : FGPUResourceCache<RTHandle, TextureDescriptor>
+    public sealed class TextureCache : GPUResourceCache<RTHandle, TextureDescriptor>
     {
         protected override void ReleaseInternalResource(RTHandle resource) => resource.Release();
         protected override long EstimateBytes(in TextureDescriptor descriptor)

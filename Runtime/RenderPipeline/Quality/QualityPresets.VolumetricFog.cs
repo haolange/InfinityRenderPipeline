@@ -3,7 +3,7 @@ using UnityEngine;
 namespace InfinityTech.Rendering.Pipeline
 {
     // Low-level volumetric fog settings consumed by VolumetricFogPass.
-    public struct FVolumetricFogSettings
+    public struct VolumetricFogSettings
     {
         // Quality
         public int depthSlices;
@@ -20,12 +20,12 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static partial class QualityPresets
     {
-        public static readonly FVolumetricFogSettings[] VolumetricFog =
+        public static readonly VolumetricFogSettings[] VolumetricFog =
         {
-            new FVolumetricFogSettings { depthSlices = 32, temporalWeight = 0.95f },  // Low
-            new FVolumetricFogSettings { depthSlices = 64, temporalWeight = 0.9f },   // Medium (0.4.0 default)
-            new FVolumetricFogSettings { depthSlices = 96, temporalWeight = 0.9f },   // High
-            new FVolumetricFogSettings { depthSlices = 128, temporalWeight = 0.85f }, // Ultra
+            new VolumetricFogSettings { depthSlices = 32, temporalWeight = 0.95f },  // Low
+            new VolumetricFogSettings { depthSlices = 64, temporalWeight = 0.9f },   // Medium (0.4.0 default)
+            new VolumetricFogSettings { depthSlices = 96, temporalWeight = 0.9f },   // High
+            new VolumetricFogSettings { depthSlices = 128, temporalWeight = 0.85f }, // Ultra
         };
     }
 }

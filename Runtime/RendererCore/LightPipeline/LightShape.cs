@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.LightPipeline
     //   Disk:        one-sided disk of sourceRadius facing transform.forward.
     //   Directional: sourceAngle is the angular diameter of the sun disk (Unreal default 0.5357 degrees).
     [Serializable]
-    public struct FLightShape
+    public struct LightSourceShape
     {
         public EInfinityLightType type;
         public ESpotShape spotShape;
@@ -77,9 +77,9 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public const float DefaultSunAngle = 0.5357f;
 
-        public static FLightShape Default(EInfinityLightType type)
+        public static LightSourceShape Default(EInfinityLightType type)
         {
-            return new FLightShape
+            return new LightSourceShape
             {
                 type = type,
                 spotShape = ESpotShape.Cone,
@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public bool IsTube => type == EInfinityLightType.Point && sourceLength > 0;
     }
 
-    // Converts between Unity's native Light fields and FLightShape. Rendering resolves the shape once per light per
+    // Converts between Unity's native Light fields and LightSourceShape. Rendering resolves the shape once per light per
     // camera; Editor code writes the derived native fields after user edits (never on load).
     public static class LightShapeUtility
     {
@@ -119,49 +119,49 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Shape of a light that has no authored Infinity shape: derived from Unity's native fields, so lights created
         // by scripts, imported or authored before 0.5.0 render with the shape Unity shows for them.
-        public static FLightShape FromUnityLight(Light light)
+        public static LightSourceShape FromUnityLight(Light light)
         {
             if (light == null) throw new ArgumentNullException(nameof(light));
             Vector2 area = light.areaSize;
-            FLightShape shape;
+            LightSourceShape shape;
             switch (light.type)
             {
                 case LightType.Directional:
-                    shape = FLightShape.Default(EInfinityLightType.Directional);
+                    shape = LightSourceShape.Default(EInfinityLightType.Directional);
                     shape.sourceAngle = Mathf.Max(0, light.shadowAngle);
                     break;
                 case LightType.Tube:
-                    shape = FLightShape.Default(EInfinityLightType.Point);
+                    shape = LightSourceShape.Default(EInfinityLightType.Point);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
                     shape.sourceLength = Mathf.Max(0, area.x);
                     break;
                 case LightType.Spot:
                 case LightType.Pyramid:
                 case LightType.Box:
-                    shape = FLightShape.Default(EInfinityLightType.Spot);
+                    shape = LightSourceShape.Default(EInfinityLightType.Spot);
                     shape.spotShape = light.type == LightType.Spot ? ESpotShape.Cone : (light.type == LightType.Pyramid ? ESpotShape.Pyramid : ESpotShape.Box);
                     shape.sourceRadius = light.type == LightType.Box ? 0 : Mathf.Max(0, light.shapeRadius);
                     if (light.type == LightType.Pyramid) shape.pyramidAspect = area.x > 0 ? area.x : 1;
                     if (light.type == LightType.Box) shape.boxSize = new Vector2(Mathf.Max(area.x, 1e-3f), Mathf.Max(area.y, 1e-3f));
                     break;
                 case LightType.Rectangle:
-                    shape = FLightShape.Default(EInfinityLightType.Rect);
+                    shape = LightSourceShape.Default(EInfinityLightType.Rect);
                     shape.sourceWidth = Mathf.Max(0, area.x);
                     shape.sourceHeight = Mathf.Max(0, area.y);
                     break;
                 case LightType.Disc:
-                    shape = FLightShape.Default(EInfinityLightType.Disk);
+                    shape = LightSourceShape.Default(EInfinityLightType.Disk);
                     shape.sourceRadius = Mathf.Max(0, area.x);
                     break;
                 default:
-                    shape = FLightShape.Default(EInfinityLightType.Point);
+                    shape = LightSourceShape.Default(EInfinityLightType.Point);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
                     break;
             }
             return shape;
         }
 
-        public static LightType NativeType(in FLightShape shape)
+        public static LightType NativeType(in LightSourceShape shape)
         {
             switch (shape.type)
             {
@@ -179,7 +179,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // The native fields Unity derives from the shape (type, shapeRadius, areaSize, shadowAngle), starting from the
         // light's current values so fields a shape does not own keep them.
-        static void DeriveNative(Light light, in FLightShape shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle)
+        static void DeriveNative(Light light, in LightSourceShape shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle)
         {
             type = NativeType(shape);
             shapeRadius = light.shapeRadius;
@@ -210,7 +210,7 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // True when the light's native fields already match the shape (nothing for ApplyToUnityLight to write).
-        public static bool IsInSync(Light light, in FLightShape shape)
+        public static bool IsInSync(Light light, in LightSourceShape shape)
         {
             if (light == null) throw new ArgumentNullException(nameof(light));
             DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
@@ -220,7 +220,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Writes the native fields Unity derives from the shape. Returns true when anything changed. Callers record Undo
         // on the Light first.
-        public static bool ApplyToUnityLight(Light light, in FLightShape shape)
+        public static bool ApplyToUnityLight(Light light, in LightSourceShape shape)
         {
             if (light == null) throw new ArgumentNullException(nameof(light));
             DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
@@ -238,10 +238,10 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // Unity's lightmapper has no tube or line emitter; like HDRP, those shapes are realtime only.
-        public static bool IsBakeable(in FLightShape shape) => !shape.IsTube;
+        public static bool IsBakeable(in LightSourceShape shape) => !shape.IsTube;
 
         // True when the shape describes an emitter with a positive area or a valid punctual setup.
-        public static bool IsValid(in FLightShape shape)
+        public static bool IsValid(in LightSourceShape shape)
         {
             switch (shape.type)
             {

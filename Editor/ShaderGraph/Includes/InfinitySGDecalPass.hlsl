@@ -34,7 +34,7 @@ void frag(PackedVaryings packedInput, out float4 DBufferA : SV_Target0, out floa
 #if defined(VARYINGS_NEED_TEXCOORD0)
     projected.texCoord0 = float4(DecalProjectedUV(objectPos), 0, 0);
 #endif
-    FInfinitySurface surface = EvaluateInfinitySurface(projected);
+    InfinitySurface surface = EvaluateInfinitySurface(projected);
     surface.alpha *= DecalAngleFade(positionWS, normalWS, _WorldSpaceCameraPos);
     clip(surface.alpha - 1e-4);
 

@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 for (int cascade = 0; cascade < allocator.ActiveCascadeCount; ++cascade)
                 {
-                    FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                    CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                     if (!slice.valid)
                     {
                         continue;
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
             {
-                FLocalShadowSlice local = allocator.LocalSlices[sliceIndex];
+                LocalShadowSlice local = allocator.LocalSlices[sliceIndex];
                 if (local.cachedSampling || !local.valid || !cullingResults.GetShadowCasterBounds(local.visibleLightIndex, out _))
                 {
                     continue;

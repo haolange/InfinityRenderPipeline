@@ -40,13 +40,13 @@ namespace InfinityTech.Rendering.Pipeline
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
         public CameraRenderPolicy renderPolicy;
-        public FResolvedFrameSettings frameSettings;
+        public ResolvedFrameSettings frameSettings;
         // Debug view of this camera this frame (InfinityDebugDisplaySettings.ResolveDebugView).
         public EDebugView debugView;
         internal bool acceptedHiZ;
         internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
         internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;
-        internal FTemporalColorView temporalColorView;
+        internal TemporalColorView temporalColorView;
         internal ulong meshViewKey;
 
         internal const int GameUnseenFramesToRecycle = 8;

@@ -10,7 +10,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/Lighting/LightLoop.hlsl"
-#include "../../ShaderLibrary/Lighting/LightShapes.hlsl"
+#include "../../ShaderLibrary/Lighting/LightSourceShapes.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 
 int ContactShadow_NumSteps;
@@ -87,7 +87,7 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
 
         if (g_SunRecordIndex >= 0 && g_SunRecordIndex < g_DirectionalLightCount)
         {
-            FLightRecord sunLight = g_LightRecordBuffer[g_SunRecordIndex];
+            LightRecord sunLight = g_LightRecordBuffer[g_SunRecordIndex];
             if ((sunLight.flags & LIGHT_FLAG_CONTACT) != 0
                 && TraceContactShadow(worldPos, DirectionalLightL(sunLight), ContactShadow_MaxDistance, ContactShadow_SunNumSteps, jitter))
             {
@@ -95,13 +95,13 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
             }
         }
 
-        FLightLoop lightLoop;
+        LightLoopState lightLoop;
         BeginLightLoop(id.xy, viewDepth, lightLoop);
         uint recordIndex;
         [loop]
         while (NextLight(lightLoop, recordIndex))
         {
-            FLightRecord light = g_LightRecordBuffer[recordIndex];
+            LightRecord light = g_LightRecordBuffer[recordIndex];
             int bit = LightContactShadowBit(light);
             if (bit < 0 || LocalLightWindow(light, worldPos) <= 0)
             {

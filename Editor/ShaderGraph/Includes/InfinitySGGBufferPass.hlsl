@@ -7,7 +7,7 @@ void frag(PackedVaryings packedInput,
 {
     Varyings input = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(input);
-    FInfinitySurface surface = EvaluateInfinitySurface(input);
+    InfinitySurface surface = EvaluateInfinitySurface(input);
 
     float3 positionWS = input.positionWS;
     float3 normalWS = InfinitySurfaceNormalWS(input, surface.normalTS);
@@ -19,7 +19,7 @@ void frag(PackedVaryings packedInput,
     ApplyDBuffer(input.positionCS.xy * rcp(_ScreenParams.xy), albedo, normalWS, roughness, metallic);
 #endif
 
-    FGBufferData data;
+    GBufferData data;
     data.Normal = normalWS;
     data.Albedo = albedo;
     data.Specular = surface.specularLevel;

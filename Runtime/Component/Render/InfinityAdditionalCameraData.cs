@@ -16,7 +16,7 @@ namespace InfinityTech.Component
         public ESuperResolutionOverride superResolutionOverride = ESuperResolutionOverride.UseAsset;
         // Frame Settings overrides of this camera; settings not overridden follow the RP Asset defaults.
         public bool customFrameSettings;
-        public FFrameSettingsOverride frameSettings;
+        public FrameSettingsOverride frameSettings;
         [System.NonSerialized] public ProfilingSampler viewProfiler;
 
         public Camera attachedCamera => GetComponent<Camera>();

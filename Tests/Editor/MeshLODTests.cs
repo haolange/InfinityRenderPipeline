@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         static readonly MeshLODProjection Perspective = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1 };
 
         // A bound whose largest half-extent is exactly 1, so the screen size is 1 / distance under the perspective projection above.
-        static FBound UnitBound(float distance) => new FBound(new float3(distance, 0, 0), new float3(1, 0, 0));
+        static BoundingBox UnitBound(float distance) => new BoundingBox(new float3(distance, 0, 0), new float3(1, 0, 0));
 
         [Test]
         public void LodChainCreate_RejectsChainsThatAreNotLodGroupLowerBounds()
@@ -41,8 +41,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         public void LodChain_MatchesHlslFieldForField()
         {
             const string path = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MeshLOD.hlsl";
-            Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+FMeshLODChain\s*\{(?<body>[^}]*)\}");
-            Assert.IsTrue(body.Success, "FMeshLODChain not found in " + path);
+            Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+MeshLODChain\s*\{(?<body>[^}]*)\}");
+            Assert.IsTrue(body.Success, "MeshLODChain not found in " + path);
             MatchCollection hlsl = Regex.Matches(body.Groups["body"].Value, @"(\w+)\s+(\w+)\s*;");
             FieldInfo[] fields = typeof(MeshLODChain).GetFields(BindingFlags.Instance | BindingFlags.Public);
             Assert.AreEqual(hlsl.Count, fields.Length, "Field count");

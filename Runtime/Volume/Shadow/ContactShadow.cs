@@ -28,10 +28,10 @@ namespace InfinityTech.Rendering.PostProcess
 
         public bool IsActive() => active && enable.value && Intensity.value > 0.0f;
 
-        public FContactShadowSettings Resolve()
+        public ContactShadowSettings Resolve()
         {
-            FContactShadowSettings settings = quality.value == EQualityLevel.Custom
-                ? new FContactShadowSettings { numSteps = NumSteps.value, sunNumSteps = SunNumSteps.value }
+            ContactShadowSettings settings = quality.value == EQualityLevel.Custom
+                ? new ContactShadowSettings { numSteps = NumSteps.value, sunNumSteps = SunNumSteps.value }
                 : QualityPresets.Select(QualityPresets.ContactShadow, quality.value);
             settings.maxDistance = MaxDistance.value;
             settings.thickness = Thickness.value;

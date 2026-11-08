@@ -82,7 +82,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return new MeshEntityDesc { flags = flags, layerMask = layerMask, renderingLayerMask = renderingLayerMask, sceneCullingMask = sceneCullingMask };
         }
 
-        internal static FBound Bound(float3 center) => new FBound(center, new float3(0.5f));
+        internal static BoundingBox Bound(float3 center) => new BoundingBox(center, new float3(0.5f));
 
         /// <summary>A perspective-like LOD projection from the origin (screen size = largest half-extent / distance).</summary>
         internal static readonly MeshLODProjection Lod = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1 };

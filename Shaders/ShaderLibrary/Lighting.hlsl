@@ -9,7 +9,7 @@ int g_DirectionalLightCount;
 int g_LocalLightCount;
 int g_SunRecordIndex;
 int g_LocalShadowSliceCount;
-StructuredBuffer<FLightRecord> g_LightRecordBuffer;
+StructuredBuffer<LightRecord> g_LightRecordBuffer;
 
 #include "Lighting/LightLoop.hlsl"
 

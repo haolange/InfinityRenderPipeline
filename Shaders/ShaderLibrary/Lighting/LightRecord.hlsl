@@ -1,6 +1,6 @@
 #ifndef INFINITY_LIGHT_RECORD
 #define INFINITY_LIGHT_RECORD
-// Light record v2. Must match C# FLightRecord (Runtime/RendererCore/LightPipeline/LightElement.cs, GPU-RECORD marker).
+// Light record v2. Must match C# LightRecord (Runtime/RendererCore/LightPipeline/LightElement.cs, GPU-RECORD marker).
 // There is no shape enum: a shape is a combination of flags and shape parameters.
 //   directional                       LIGHT_FLAG_DIRECTIONAL; shape.w = tan(sun half angle)
 //   punctual / sphere / line / tube   no spot or planar flag; shape.x = radius, shape.z = length along right
@@ -26,7 +26,7 @@
 #define SHADOW_FILTER_VSM 3
 #define SHADOW_FILTER_EVSM 4
 
-struct FLightRecord
+struct LightRecord
 {
     float4 radiance;
     float4 positionRange;
@@ -47,25 +47,25 @@ struct FLightRecord
     int cookieIndex;
 };
 
-bool LightHasFlag(FLightRecord light, int flag) { return (light.flags & flag) != 0; }
-bool IsDirectionalLight(FLightRecord light) { return LightHasFlag(light, LIGHT_FLAG_DIRECTIONAL); }
-bool IsPlanarLight(FLightRecord light) { return LightHasFlag(light, LIGHT_FLAG_PLANAR); }
-bool IsRectLight(FLightRecord light) { return IsPlanarLight(light) && light.area.x > 0 && light.area.y > 0; }
+bool LightHasFlag(LightRecord light, int flag) { return (light.flags & flag) != 0; }
+bool IsDirectionalLight(LightRecord light) { return LightHasFlag(light, LIGHT_FLAG_DIRECTIONAL); }
+bool IsPlanarLight(LightRecord light) { return LightHasFlag(light, LIGHT_FLAG_PLANAR); }
+bool IsRectLight(LightRecord light) { return IsPlanarLight(light) && light.area.x > 0 && light.area.y > 0; }
 
 // Unit vector from a surface toward a directional light.
-float3 DirectionalLightL(FLightRecord light) { return -light.forward.xyz; }
-float3 LightUp(FLightRecord light) { return cross(light.forward.xyz, light.right.xyz); }
+float3 DirectionalLightL(LightRecord light) { return -light.forward.xyz; }
+float3 LightUp(LightRecord light) { return cross(light.forward.xyz, light.right.xyz); }
 
-float LightDiffuseWeight(FLightRecord light) { return light.weights.x; }
-float LightSpecularWeight(FLightRecord light) { return light.weights.y; }
-float LightShadowStrength(FLightRecord light) { return light.misc.x; }
+float LightDiffuseWeight(LightRecord light) { return light.weights.x; }
+float LightSpecularWeight(LightRecord light) { return light.weights.y; }
+float LightShadowStrength(LightRecord light) { return light.misc.x; }
 
 // Contact (screen-space traced) shadows of local lights: record.misc.z is the light's bit in the contact mask, -1
 // without one. The mask holds 24 light bits and the occlusion strength in bits 24..31 (ContactShadowAllocation.cs).
 #define CONTACT_SHADOW_LIGHT_MASK 0x00FFFFFFu
-int LightContactShadowBit(FLightRecord light) { return (int)light.misc.z; }
+int LightContactShadowBit(LightRecord light) { return (int)light.misc.z; }
 
-float ContactShadowFromMask(FLightRecord light, uint contactMask)
+float ContactShadowFromMask(LightRecord light, uint contactMask)
 {
     int bit = LightContactShadowBit(light);
     float shadow = 1.0;
@@ -78,17 +78,17 @@ float ContactShadowFromMask(FLightRecord light, uint contactMask)
 }
 
 // Realtime radiance; zero when the direct contribution is baked into the lightmaps.
-float3 LightRadiance(FLightRecord light)
+float3 LightRadiance(LightRecord light)
 {
     return LightHasFlag(light, LIGHT_FLAG_BAKED) ? 0 : light.radiance.rgb;
 }
 
-float3 VolumeLightRadiance(FLightRecord light)
+float3 VolumeLightRadiance(LightRecord light)
 {
     return LightHasFlag(light, LIGHT_FLAG_VOLUMETRIC) ? light.radiance.rgb * light.weights.z : 0;
 }
 
-float VolumeShadowWeight(FLightRecord light, float shadow)
+float VolumeShadowWeight(LightRecord light, float shadow)
 {
     return lerp(1.0, shadow, light.weights.w);
 }
@@ -108,7 +108,7 @@ float RangeWindow(float distance, float range)
 }
 
 // Angular window of the spot shapes; 1 for lights without a spot flag. positionWS is the shaded point.
-float SpotWindow(FLightRecord light, float3 positionWS)
+float SpotWindow(LightRecord light, float3 positionWS)
 {
     float3 fromLight = positionWS - light.positionRange.xyz;
     float3 forward = light.forward.xyz;
@@ -139,7 +139,7 @@ float SpotWindow(FLightRecord light, float3 positionWS)
 }
 
 // Distance and angular attenuation of a local light at positionWS (shape-independent part).
-float LocalLightAttenuation(FLightRecord light, float3 positionWS)
+float LocalLightAttenuation(LightRecord light, float3 positionWS)
 {
     float distance = length(light.positionRange.xyz - positionWS);
     float falloff = LightHasFlag(light, LIGHT_FLAG_SPOT_BOX)
@@ -149,7 +149,7 @@ float LocalLightAttenuation(FLightRecord light, float3 positionWS)
 }
 
 // Direction toward a local light from positionWS. Box spots are collimated along -forward.
-float3 LocalLightL(FLightRecord light, float3 positionWS)
+float3 LocalLightL(LightRecord light, float3 positionWS)
 {
     return LightHasFlag(light, LIGHT_FLAG_SPOT_BOX) ? -light.forward.xyz : normalize(light.positionRange.xyz - positionWS);
 }

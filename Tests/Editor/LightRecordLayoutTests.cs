@@ -36,8 +36,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void LightRecord_MatchesHlslFieldForField()
         {
-            List<(string type, string name)> hlsl = ParseHlslStruct(File.ReadAllText(Path.GetFullPath(RecordPath)), "FLightRecord");
-            FieldInfo[] fields = typeof(FLightRecord).GetFields(BindingFlags.Instance | BindingFlags.Public);
+            List<(string type, string name)> hlsl = ParseHlslStruct(File.ReadAllText(Path.GetFullPath(RecordPath)), "LightRecord");
+            FieldInfo[] fields = typeof(LightRecord).GetFields(BindingFlags.Instance | BindingFlags.Public);
             Assert.AreEqual(hlsl.Count, fields.Length, "Field count");
             int bytes = 0;
             for (int i = 0; i < fields.Length; ++i)
@@ -46,8 +46,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(hlsl[i].type, HlslTypeOf(fields[i].FieldType), $"Field {fields[i].Name} type");
                 bytes += Marshal.SizeOf(fields[i].FieldType);
             }
-            Assert.AreEqual(bytes, Marshal.SizeOf<FLightRecord>(), "No padding");
-            Assert.AreEqual(0, Marshal.SizeOf<FLightRecord>() % 16, "Structured buffer stride is a multiple of 16 bytes");
+            Assert.AreEqual(bytes, Marshal.SizeOf<LightRecord>(), "No padding");
+            Assert.AreEqual(0, Marshal.SizeOf<LightRecord>() % 16, "Structured buffer stride is a multiple of 16 bytes");
         }
 
         [Test]
@@ -56,16 +56,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             string text = File.ReadAllText(Path.GetFullPath(RecordPath));
             var expected = new Dictionary<string, int>
             {
-                { "LIGHT_FLAG_SHADOW", FLightRecordFlags.EnableShadow },
-                { "LIGHT_FLAG_CONTACT", FLightRecordFlags.EnableContactShadow },
-                { "LIGHT_FLAG_VOLUMETRIC", FLightRecordFlags.EnableVolumetric },
-                { "LIGHT_FLAG_SHADOWMASK", FLightRecordFlags.MixedShadowmask },
-                { "LIGHT_FLAG_BAKED", FLightRecordFlags.Baked },
-                { "LIGHT_FLAG_DIRECTIONAL", FLightRecordFlags.Directional },
-                { "LIGHT_FLAG_SPOT_CONE", FLightRecordFlags.SpotCone },
-                { "LIGHT_FLAG_SPOT_PYRAMID", FLightRecordFlags.SpotPyramid },
-                { "LIGHT_FLAG_SPOT_BOX", FLightRecordFlags.SpotBox },
-                { "LIGHT_FLAG_PLANAR", FLightRecordFlags.Planar },
+                { "LIGHT_FLAG_SHADOW", LightRecordFlags.EnableShadow },
+                { "LIGHT_FLAG_CONTACT", LightRecordFlags.EnableContactShadow },
+                { "LIGHT_FLAG_VOLUMETRIC", LightRecordFlags.EnableVolumetric },
+                { "LIGHT_FLAG_SHADOWMASK", LightRecordFlags.MixedShadowmask },
+                { "LIGHT_FLAG_BAKED", LightRecordFlags.Baked },
+                { "LIGHT_FLAG_DIRECTIONAL", LightRecordFlags.Directional },
+                { "LIGHT_FLAG_SPOT_CONE", LightRecordFlags.SpotCone },
+                { "LIGHT_FLAG_SPOT_PYRAMID", LightRecordFlags.SpotPyramid },
+                { "LIGHT_FLAG_SPOT_BOX", LightRecordFlags.SpotBox },
+                { "LIGHT_FLAG_PLANAR", LightRecordFlags.Planar },
                 { "SHADOW_FILTER_HARD", (int)EShadowFilter.Hard },
                 { "SHADOW_FILTER_PCF", (int)EShadowFilter.PCF },
             };

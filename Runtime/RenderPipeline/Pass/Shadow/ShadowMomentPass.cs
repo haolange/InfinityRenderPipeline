@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_MomentsID = Shader.PropertyToID("UAV_Moments");
 
         // _ShadowMomentParams of ShadowSampling.hlsl.
-        internal static Vector4 SamplingParams(in FShadowFilterSettings settings) =>
+        internal static Vector4 SamplingParams(in ShadowFilterSettings settings) =>
             new Vector4(settings.evsmExponent, settings.lightBleedingReduction, MinMomentDeviation, 0);
 
         internal static int Mode(int shadowFilter) => shadowFilter == (int)EShadowFilter.EVSM ? 1 : 0;
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            FShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
 
             if (allocator.CascadeUsesMoments)
             {
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int count = 0;
                 for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
                 {
-                    FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                    CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                     if (!slice.valid) continue;
                     Vector4 cascadeParams = allocator.CascadeParams[cascade];
                     rects[count] = slice.atlasPixelRect * 0.5f;
@@ -91,9 +91,9 @@ namespace InfinityTech.Rendering.Pipeline
                 int count = 0;
                 for (int i = 0; i < allocator.LocalSliceCount && count < capacity; ++i)
                 {
-                    FLocalShadowSlice slice = allocator.LocalSlices[i];
+                    LocalShadowSlice slice = allocator.LocalSlices[i];
                     if (!slice.valid || !ShadowAllocator.UsesMoments(slice.shadowFilter)) continue;
-                    FLocalShadowSliceGPU gpu = allocator.LocalGPU[i];
+                    LocalShadowSliceGPU gpu = allocator.LocalGPU[i];
                     rects[count] = slice.atlasPixelRect * 0.5f;
                     depthParams[count] = gpu.depthParams;
                     momentParams[count] = new Vector4(ShadowMomentPassUtilityData.Mode(slice.shadowFilter), filter.evsmExponent, gpu.momentParams.x, filter.momentBlurRadius);

@@ -42,14 +42,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ContactShadowPassData
         {
-            public FContactShadowSettings settings;
+            public ContactShadowSettings settings;
             public int frameIndex;
             public int2 resolution;
             public Vector4 depthParams;
             public Matrix4x4 matrix_ViewProj;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
-            public FLightLoopInputs lightLoop;
+            public LightLoopInputs lightLoop;
             public RGBufferHandle lightRecordBuffer;
             public ComputeShader contactShadowShader;
             public RGTextureHandle depthTexture;
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ContactShadow);
-            FContactShadowSettings settings = ActiveVolumeStack.GetComponent<ContactShadow>().Resolve();
+            ContactShadowSettings settings = ActiveVolumeStack.GetComponent<ContactShadow>().Resolve();
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
-                FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = passData.contactShadowShader;
                     int kernel = shader.FindKernel(ContactShadowPassUtilityData.KernelName);
-                    FContactShadowSettings s = passData.settings;
+                    ContactShadowSettings s = passData.settings;
                     cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_NumStepsID, s.numSteps);
                     cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_SunNumStepsID, s.sunNumSteps);
                     cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_FrameIndexID, passData.frameIndex);

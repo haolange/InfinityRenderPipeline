@@ -330,7 +330,7 @@
 				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance);
 				#endif
 
-				FGBufferData GBufferData;
+				GBufferData GBufferData;
 				GBufferData.Normal = pnormalWS;
 				GBufferData.Albedo = surfaceAlbedo;
 				GBufferData.Specular = surfaceSpecular;

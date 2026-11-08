@@ -1,7 +1,7 @@
 namespace InfinityTech.Rendering.Pipeline
 {
     // Low-level GTAO settings consumed by GTAOPass.
-    public struct FGTAOSettings
+    public struct GTAOSettings
     {
         // Quality (preset-driven unless Custom)
         public int numRays;
@@ -18,12 +18,12 @@ namespace InfinityTech.Rendering.Pipeline
     public static partial class QualityPresets
     {
         // Medium matches the 0.4.0 defaults.
-        public static readonly FGTAOSettings[] GTAO =
+        public static readonly GTAOSettings[] GTAO =
         {
-            new FGTAOSettings { numRays = 1, numSteps = 2, sharpness = 0.5f, temporalScale = 1.0f, temporalWeight = 0.95f },  // Low
-            new FGTAOSettings { numRays = 2, numSteps = 2, sharpness = 0.5f, temporalScale = 1.25f, temporalWeight = 0.93f }, // Medium
-            new FGTAOSettings { numRays = 2, numSteps = 4, sharpness = 0.5f, temporalScale = 1.25f, temporalWeight = 0.93f }, // High
-            new FGTAOSettings { numRays = 4, numSteps = 8, sharpness = 0.6f, temporalScale = 1.5f, temporalWeight = 0.9f },   // Ultra
+            new GTAOSettings { numRays = 1, numSteps = 2, sharpness = 0.5f, temporalScale = 1.0f, temporalWeight = 0.95f },  // Low
+            new GTAOSettings { numRays = 2, numSteps = 2, sharpness = 0.5f, temporalScale = 1.25f, temporalWeight = 0.93f }, // Medium
+            new GTAOSettings { numRays = 2, numSteps = 4, sharpness = 0.5f, temporalScale = 1.25f, temporalWeight = 0.93f }, // High
+            new GTAOSettings { numRays = 4, numSteps = 8, sharpness = 0.6f, temporalScale = 1.5f, temporalWeight = 0.9f },   // Ultra
         };
     }
 }

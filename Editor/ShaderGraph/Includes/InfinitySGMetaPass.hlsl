@@ -4,7 +4,7 @@
 float4 frag(PackedVaryings packedInput) : SV_Target
 {
     Varyings input = UnpackVaryings(packedInput);
-    FInfinitySurface surface = EvaluateInfinitySurface(input);
+    InfinitySurface surface = EvaluateInfinitySurface(input);
     float4 result = 0;
     if (unity_MetaFragmentControl.x)
     {

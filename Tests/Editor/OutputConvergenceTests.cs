@@ -19,8 +19,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EOutputEncodePolicy.ShaderRec2020Linear, true)]
         public void UiOutput_PreservesLinearBlendContract(EOutputEncodePolicy policy, bool intermediate)
         {
-            Assert.AreEqual(intermediate, new FOutputPlan(true, policy, false, false, false, false).linearIntermediate);
-            Assert.IsFalse(new FOutputPlan(false, policy, false, false, false, false).linearIntermediate);
+            Assert.AreEqual(intermediate, new OutputPlan(true, policy, false, false, false, false).linearIntermediate);
+            Assert.IsFalse(new OutputPlan(false, policy, false, false, false, false).linearIntermediate);
         }
 
         [TestCase(true, false, false, false)]
@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(false, false, false, true)]
         public void LinearConsumers_RequireOwnedIntermediate(bool debug, bool capture, bool wire, bool gizmos)
         {
-            var plan = new FOutputPlan(false, EOutputEncodePolicy.HardwareSRGB, debug, capture, wire, gizmos);
+            var plan = new OutputPlan(false, EOutputEncodePolicy.HardwareSRGB, debug, capture, wire, gizmos);
             Assert.IsTrue(plan.linearIntermediate);
             Assert.AreEqual(wire || gizmos, plan.editorDepth);
         }
@@ -37,9 +37,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void PartialViewport_RequiresPreservedDestination()
         {
-            Assert.IsTrue(FOutputPlan.CoversTarget(new Rect(0, 0, 1, 1)));
-            Assert.IsFalse(FOutputPlan.CoversTarget(new Rect(.2f, 0, .8f, 1)));
-            Assert.IsFalse(FOutputPlan.CoversTarget(new Rect(0, 0, .5f, 1)));
+            Assert.IsTrue(OutputPlan.CoversTarget(new Rect(0, 0, 1, 1)));
+            Assert.IsFalse(OutputPlan.CoversTarget(new Rect(.2f, 0, .8f, 1)));
+            Assert.IsFalse(OutputPlan.CoversTarget(new Rect(0, 0, .5f, 1)));
         }
 
         [TestCase(EOutputEncodePolicy.LinearTarget)]

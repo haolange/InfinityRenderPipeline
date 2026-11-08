@@ -8,21 +8,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // emitter inside its tile's clip volume.
     public class LocalShadowFrustumTests
     {
-        static FLightRecord Record(int flags, Vector4 area, float radius = 0)
+        static LightRecord Record(int flags, Vector4 area, float radius = 0)
         {
-            return new FLightRecord
+            return new LightRecord
             {
                 positionRange = new Vector4(1, 2, 3, 10),
                 forward = new Vector4(0, 0, 1, 0.5f),
                 right = new Vector4(1, 0, 0, 0),
                 shape = new Vector4(radius, 0, 0, 0),
                 area = area,
-                flags = flags | FLightRecordFlags.EnableShadow,
+                flags = flags | LightRecordFlags.EnableShadow,
                 visibleLightIndex = 0,
             };
         }
 
-        static bool InsideClip(ShadowAllocator.FLocalShadowFrustum frustum, Vector3 positionWS)
+        static bool InsideClip(ShadowAllocator.LocalShadowViewProjection frustum, Vector3 positionWS)
         {
             Vector4 clip = frustum.projection * (frustum.view * new Vector4(positionWS.x, positionWS.y, positionWS.z, 1));
             if (clip.w <= 0) return false;
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void PointFaces_EachContainsItsAxis()
         {
-            FLightRecord record = Record(0, Vector4.zero, 0.2f);
+            LightRecord record = Record(0, Vector4.zero, 0.2f);
             Vector3[] axes = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
             Vector3 center = new Vector3(1, 2, 3);
             for (int face = 0; face < 6; ++face)
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             Vector3 ahead = new Vector3(1, 2, 3) + new Vector3(0, 0, 5);
             Vector3 behind = new Vector3(1, 2, 3) - new Vector3(0, 0, 5);
-            int[] flags = { FLightRecordFlags.SpotCone, FLightRecordFlags.SpotPyramid, FLightRecordFlags.SpotBox, FLightRecordFlags.Planar };
+            int[] flags = { LightRecordFlags.SpotCone, LightRecordFlags.SpotPyramid, LightRecordFlags.SpotBox, LightRecordFlags.Planar };
             Vector4[] areas = { Vector4.zero, new Vector4(0.5f, 0.3f, 0, 0), new Vector4(2, 1, 0, 0), new Vector4(1, 0.5f, 0, 0) };
             for (int i = 0; i < flags.Length; ++i)
             {
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void BoxSpot_IsOrthographic()
         {
-            var frustum = ShadowAllocator.LocalShadowFrustum(Record(FLightRecordFlags.SpotBox, new Vector4(2, 1, 0, 0)), null, 0, 512, 3);
+            var frustum = ShadowAllocator.LocalShadowFrustum(Record(LightRecordFlags.SpotBox, new Vector4(2, 1, 0, 0)), null, 0, 512, 3);
             Assert.IsTrue(frustum.orthographic);
             Assert.AreEqual(0.0f, frustum.near);
         }

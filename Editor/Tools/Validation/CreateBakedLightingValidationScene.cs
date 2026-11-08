@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             sun.shadows = LightShadows.Soft;
             RenderSettings.sun = sun;
             Light bulb = fixture.Light("Bulb (Baked)", new Vector3(2.5f, 3, 2.5f), Vector3.zero, EInfinityLightType.Point, new Color(1, 0.7f, 0.4f), 8, 8,
-                (ref FLightShape s) => s.sourceRadius = 0.1f);
+                (ref LightSourceShape s) => s.sourceRadius = 0.1f);
             bulb.lightmapBakeType = LightmapBakeType.Baked;
             bulb.shadows = LightShadows.Soft;
 

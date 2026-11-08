@@ -93,13 +93,13 @@ RWStructuredBuffer<uint> UAV_TileArgs;
 RWStructuredBuffer<uint> UAV_TileList;
 RWTexture2D<uint> UAV_TileClass;
 RWTexture2D<float4> UAV_RayHit;
-struct FReflectionSample
+struct ReflectionSample
 {
     float4 radiance; // rgb = unweighted Li, a = hit confidence
     float4 dirT;     // xyz = Dir * HitT from this sample's origin, w = signed inverse pdf
 };
-RWStructuredBuffer<FReflectionSample> UAV_Samples;
-StructuredBuffer<FReflectionSample> SRV_Samples;
+RWStructuredBuffer<ReflectionSample> UAV_Samples;
+StructuredBuffer<ReflectionSample> SRV_Samples;
 RWTexture2D<float4> UAV_Resolved;
 RWTexture2D<float4> UAV_HitMean;
 RWTexture2D<float4> UAV_HitDev;
@@ -110,7 +110,7 @@ RWTexture2D<uint2> UAV_Meta;
 RWTexture2D<float4> UAV_Output;
 RWTexture2D<float4> UAV_Debug;
 
-struct FSSRSurface
+struct SSRSurface
 {
     float rawDepth;
     float roughness;
@@ -140,9 +140,9 @@ bool IsReflectiveSurface(uint2 pixel, out float rawDepth, out float roughness)
     return valid;
 }
 
-bool LoadSurface(uint2 pixel, out FSSRSurface surface)
+bool LoadSurface(uint2 pixel, out SSRSurface surface)
 {
-    surface = (FSSRSurface)0;
+    surface = (SSRSurface)0;
     float rawDepth = 0, roughness = 1;
     bool valid = IsReflectiveSurface(pixel, rawDepth, roughness);
     surface.rawDepth = rawDepth;
@@ -179,7 +179,7 @@ uint ReflectionSampleIndex(uint2 pixel, uint sampleIndex)
 
 void WriteReflectionSample(uint2 pixel, uint sampleIndex, float4 radiance, float4 dirT)
 {
-    FReflectionSample record;
+    ReflectionSample record;
     record.radiance = radiance;
     record.dirT = dirT;
     UAV_Samples[ReflectionSampleIndex(pixel, sampleIndex)] = record;
@@ -259,7 +259,7 @@ uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId, out uint2 tile)
 
 // 0 keeps the hit. 1 is a back-facing surface, 2 is a zero edge fade, 3 is invalid temporal color.
 // Any of those is an empty sample: a miss still occupies estimator weight.
-int ShadeReflectionHit(FSSRSurface surface, float3 L, float pdf, FScreenSpaceHit hit, bool mirror, out float4 radiance, out float hitDistance)
+int ShadeReflectionHit(SSRSurface surface, float3 L, float pdf, ScreenSpaceHit hit, bool mirror, out float4 radiance, out float hitDistance)
 {
     float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
     hitDistance = max(length(hitWS - surface.positionWS), 1e-3);
@@ -291,7 +291,7 @@ void SSRTrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID
     uint2 tracePixel = TileTracePixel(groupId, groupThreadId, tile);
     if (any(tracePixel >= (uint2)SSR_TraceResolution.xy)) return;
     bool linearMarch = SRV_TileClass[tile] == SSR_CLASS_LINEAR;
-    FSSRSurface surface;
+    SSRSurface surface;
     if (!LoadSurface(TraceToFullPixel(tracePixel), surface))
     {
         ClearReflectionPixel(tracePixel);
@@ -329,7 +329,7 @@ void SSRTrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID
             pdf = sampleH.w / max(4 * saturate(dot(V, H)), 1e-5);
             sampled = dot(N, L) > 0;
         }
-        FScreenSpaceHit hit = (FScreenSpaceHit)0;
+        ScreenSpaceHit hit = (ScreenSpaceHit)0;
         bool found = false;
         if (sampled && dot(N, L) > 0)
         {
@@ -386,7 +386,7 @@ float3 TracePixelOrigin(uint2 tracePixel)
     return GetWorldSpacePos(GetNDCPos(uv, rawDepth), Matrix_InvViewProj);
 }
 
-void AccumulateReflectionRecord(FReflectionSample record, uint2 tracePixel, FSSRSurface surface, float3 N,
+void AccumulateReflectionRecord(ReflectionSample record, uint2 tracePixel, SSRSurface surface, float3 N,
     inout float3 radianceSum, inout float confidenceSum, inout float weightSum, inout float distanceSum, inout float distanceWeight,
     inout float3 rawColorSum, inout float3 rawColorSquareSum, inout float rawColorCount,
     inout float confidenceStatSum, inout float confidenceStatSquareSum, inout float confidenceStatCount)
@@ -426,7 +426,7 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
         return;
     }
     uint2 pixel = id.xy;
-    FSSRSurface surface;
+    SSRSurface surface;
     if (!LoadSurface(pixel, surface))
     {
         UAV_Resolved[pixel] = 0;
@@ -493,7 +493,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
         return;
     }
     uint2 pixel = id.xy;
-    FSSRSurface surface;
+    SSRSurface surface;
     if (!LoadSurface(pixel, surface))
     {
         UAV_Temporal[pixel] = 0;

@@ -29,23 +29,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var rtao = Create<RayTracingAmbientOcclusion>();
             try
             {
-                foreach (FGTAOSettings p in QualityPresets.GTAO)
+                foreach (GTAOSettings p in QualityPresets.GTAO)
                 {
                     Assert.That(p.numRays, Is.InRange(ao.NumRays.min, ao.NumRays.max));
                     Assert.That(p.numSteps, Is.InRange(ao.NumSteps.min, ao.NumSteps.max));
                     Assert.That(p.temporalWeight, Is.InRange(ao.TemporalWeight.min, ao.TemporalWeight.max));
                 }
-                foreach (FVolumetricFogSettings p in QualityPresets.VolumetricFog)
+                foreach (VolumetricFogSettings p in QualityPresets.VolumetricFog)
                 {
                     Assert.That(p.depthSlices, Is.InRange(fog.DepthSlices.min, fog.DepthSlices.max));
                     Assert.That(p.temporalWeight, Is.InRange(fog.TemporalWeight.min, fog.TemporalWeight.max));
                 }
-                foreach (FVolumetricCloudSettings p in QualityPresets.VolumetricCloud)
+                foreach (VolumetricCloudSettings p in QualityPresets.VolumetricCloud)
                 {
                     Assert.That(p.numPrimarySteps, Is.InRange(cloud.NumPrimarySteps.min, cloud.NumPrimarySteps.max));
                     Assert.That(p.numLightSteps, Is.InRange(cloud.NumLightSteps.min, cloud.NumLightSteps.max));
                 }
-                foreach (FRTAOSettings p in QualityPresets.RTAO)
+                foreach (RTAOSettings p in QualityPresets.RTAO)
                 {
                     Assert.That(p.numRays, Is.InRange(rtao.NumRays.min, rtao.NumRays.max));
                 }
@@ -65,12 +65,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 ao.NumRays.value = 3;
                 ao.Radius.value = 4.0f;
                 ao.quality.value = EQualityLevel.Custom;
-                FGTAOSettings custom = ao.Resolve();
+                GTAOSettings custom = ao.Resolve();
                 Assert.AreEqual(3, custom.numRays);
                 Assert.AreEqual(4.0f, custom.radius);
 
                 ao.quality.value = EQualityLevel.Ultra;
-                FGTAOSettings ultra = ao.Resolve();
+                GTAOSettings ultra = ao.Resolve();
                 Assert.AreEqual(QualityPresets.GTAO[(int)EQualityLevel.Ultra].numRays, ultra.numRays);
                 Assert.AreEqual(4.0f, ultra.radius, "Artistic parameters never come from a preset.");
             }
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var ssr = Create<ScreenSpaceReflection>();
             try
             {
-                foreach (FSSRSettings p in QualityPresets.SSR)
+                foreach (SSRSettings p in QualityPresets.SSR)
                 {
                     Assert.That(p.mirrorRoughness, Is.InRange(ssr.MirrorRoughness.min, ssr.MirrorRoughness.max));
                     Assert.That(p.linearRoughness, Is.InRange(ssr.LinearRoughness.min, ssr.LinearRoughness.max));
@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.Less(p.mirrorRoughness, p.linearRoughness, "Mirror pixels must classify as Hi-Z tiles.");
                 }
 
-                FSSRSettings medium = QualityPresets.SSR[(int)EQualityLevel.Medium];
+                SSRSettings medium = QualityPresets.SSR[(int)EQualityLevel.Medium];
                 Assert.AreEqual(medium.halfResolution, ssr.HalfResolution.value, "Medium equals the Volume defaults.");
                 Assert.AreEqual(medium.linearRoughness, ssr.LinearRoughness.value);
                 Assert.AreEqual(medium.hiZSteps, ssr.NumSteps.value);
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 ssr.TraceBehind.value = false;
                 ssr.quality.value = EQualityLevel.Low;
-                FSSRSettings low = ssr.Resolve();
+                SSRSettings low = ssr.Resolve();
                 Assert.IsTrue(low.halfResolution);
                 Assert.AreEqual(QualityPresets.SSR[(int)EQualityLevel.Low].resolveSamples, low.resolveSamples);
                 Assert.AreEqual(QualityPresets.SSR[(int)EQualityLevel.Low].binarySteps, low.binarySteps);
@@ -148,7 +148,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var ssgi = Create<ScreenSpaceIndirectDiffuse>();
             try
             {
-                foreach (FSSGISettings p in QualityPresets.SSGI)
+                foreach (SSGISettings p in QualityPresets.SSGI)
                 {
                     Assert.That(p.hiZSteps, Is.InRange(ssgi.NumSteps.min, ssgi.NumSteps.max));
                     Assert.That(p.temporalWeight, Is.InRange(ssgi.TemporalWeight.min, ssgi.TemporalWeight.max));
@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.That(p.samples, Is.InRange(ssgi.Samples.min, ssgi.Samples.max));
                 }
 
-                FSSGISettings medium = QualityPresets.SSGI[(int)EQualityLevel.Medium];
+                SSGISettings medium = QualityPresets.SSGI[(int)EQualityLevel.Medium];
                 Assert.AreEqual(medium.hiZSteps, ssgi.NumSteps.value);
                 Assert.AreEqual(medium.samples, ssgi.Samples.value);
                 Assert.AreEqual(medium.temporalWeight, ssgi.TemporalWeight.value);
@@ -164,7 +164,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 ssgi.IntensityScale.value = 0.5f;
                 ssgi.quality.value = EQualityLevel.Ultra;
-                FSSGISettings ultra = ssgi.Resolve();
+                SSGISettings ultra = ssgi.Resolve();
                 Assert.AreEqual(2, ultra.samples);
                 Assert.AreEqual(QualityPresets.SSGI[(int)EQualityLevel.Ultra].hiZSteps, ultra.hiZSteps);
                 Assert.AreEqual(0.5f, ultra.intensity, "Artistic parameters never come from a preset.");

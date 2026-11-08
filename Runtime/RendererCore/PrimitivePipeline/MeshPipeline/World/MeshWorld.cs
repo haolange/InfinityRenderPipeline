@@ -43,19 +43,19 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         SlotTable<MeshEntity> m_Entities;
         NativeList<float4x4> m_EntityTransforms;
-        NativeList<FBound> m_EntityBounds;
+        NativeList<BoundingBox> m_EntityBounds;
         NativeList<int> m_EntityToDynamic;
         SlotTable<MeshElement> m_Elements;
         SlotTable<MeshSection> m_Sections;
         SlotTable<MeshMaterial> m_Materials;
-        NativeParallelHashMap<FSectionKey, int> m_SectionLookup;
+        NativeParallelHashMap<SectionKey, int> m_SectionLookup;
         NativeParallelHashMap<ulong, int> m_MaterialLookup;
         DirtyPageBitmap m_TransformDirty;
         DirtyPageBitmap m_EntityDirty;
 
         TransformAccessArray m_DynamicTransforms;
         NativeList<int> m_DynamicToEntity;
-        NativeList<FBound> m_DynamicLocalBounds;
+        NativeList<BoundingBox> m_DynamicLocalBounds;
         NativeList<byte> m_DynamicChanged;
 
         bool m_Disposed;
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal NativeArray<MeshEntity> entities => m_Entities.Items;
         internal NativeArray<uint> entityGenerations => m_Entities.Generations;
         internal NativeArray<float4x4> entityTransforms => m_EntityTransforms.AsArray();
-        internal NativeArray<FBound> entityBounds => m_EntityBounds.AsArray();
+        internal NativeArray<BoundingBox> entityBounds => m_EntityBounds.AsArray();
         internal NativeArray<MeshElement> elements => m_Elements.Items;
         internal NativeArray<uint> elementGenerations => m_Elements.Generations;
         internal NativeArray<MeshSection> sections => m_Sections.Items;
@@ -94,18 +94,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             this.meshDrawShader = meshDrawShader;
             m_Entities = new SlotTable<MeshEntity>(k_InitialCapacity);
             m_EntityTransforms = new NativeList<float4x4>(k_InitialCapacity, Allocator.Persistent);
-            m_EntityBounds = new NativeList<FBound>(k_InitialCapacity, Allocator.Persistent);
+            m_EntityBounds = new NativeList<BoundingBox>(k_InitialCapacity, Allocator.Persistent);
             m_EntityToDynamic = new NativeList<int>(k_InitialCapacity, Allocator.Persistent);
             m_Elements = new SlotTable<MeshElement>(k_InitialCapacity * 2);
             m_Sections = new SlotTable<MeshSection>(k_InitialCapacity);
             m_Materials = new SlotTable<MeshMaterial>(k_InitialCapacity);
-            m_SectionLookup = new NativeParallelHashMap<FSectionKey, int>(k_InitialCapacity, Allocator.Persistent);
+            m_SectionLookup = new NativeParallelHashMap<SectionKey, int>(k_InitialCapacity, Allocator.Persistent);
             m_MaterialLookup = new NativeParallelHashMap<ulong, int>(k_InitialCapacity, Allocator.Persistent);
             m_TransformDirty.Init();
             m_EntityDirty.Init();
             m_DynamicTransforms = new TransformAccessArray(256);
             m_DynamicToEntity = new NativeList<int>(256, Allocator.Persistent);
-            m_DynamicLocalBounds = new NativeList<FBound>(256, Allocator.Persistent);
+            m_DynamicLocalBounds = new NativeList<BoundingBox>(256, Allocator.Persistent);
             m_DynamicChanged = new NativeList<byte>(256, Allocator.Persistent);
             InitializeTransaction();
             m_Gpu = new MeshWorldGPU(this, resourcePool);
@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return IsAlive(id);
         }
 
-        public bool TryGetPose(MeshEntityId id, out float4x4 localToWorld, out FBound bounds)
+        public bool TryGetPose(MeshEntityId id, out float4x4 localToWorld, out BoundingBox bounds)
         {
             bool alive = IsAlive(id);
             localToWorld = alive ? m_EntityTransforms[(int)id.Index] : float4x4.identity;
@@ -159,7 +159,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>
         /// Writes one entity pose outside transactions. Used for explicit static pose notifications.
         /// </summary>
-        public void WriteEntityPose(MeshEntityId id, in float4x4 localToWorld, in FBound bounds)
+        public void WriteEntityPose(MeshEntityId id, in float4x4 localToWorld, in BoundingBox bounds)
         {
             ThrowIfDisposed();
             if (m_TransactionOpen) throw new InvalidOperationException("Entity poses are written outside MeshWorldUpdate transactions.");
@@ -178,9 +178,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         struct MeshDynamicPoseJob : IJobParallelForTransform
         {
             [ReadOnly] public NativeArray<int> dynamicToEntity;
-            [ReadOnly] public NativeArray<FBound> localBounds;
+            [ReadOnly] public NativeArray<BoundingBox> localBounds;
             [NativeDisableParallelForRestriction] public NativeArray<float4x4> entityTransforms;
-            [NativeDisableParallelForRestriction] public NativeArray<FBound> entityBounds;
+            [NativeDisableParallelForRestriction] public NativeArray<BoundingBox> entityBounds;
             [WriteOnly] public NativeArray<byte> changed;
 
             public void Execute(int index, TransformAccess transform)
@@ -190,9 +190,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 bool same = matrix.Equals(entityTransforms[entity]);
                 changed[index] = (byte)(same ? 0 : 1);
                 if (same) return;
-                FBound local = localBounds[index];
+                BoundingBox local = localBounds[index];
                 entityTransforms[entity] = matrix;
-                entityBounds[entity] = new FBound(math.transform(matrix, local.center),
+                entityBounds[entity] = new BoundingBox(math.transform(matrix, local.center),
                     math.abs(matrix.c0.xyz) * local.extents.x + math.abs(matrix.c1.xyz) * local.extents.y + math.abs(matrix.c2.xyz) * local.extents.z);
             }
         }
@@ -257,7 +257,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             finally { changedCount.Dispose(); }
         }
 
-        void RegisterDynamic(int entity, Transform transform, in FBound localBounds)
+        void RegisterDynamic(int entity, Transform transform, in BoundingBox localBounds)
         {
             int slot = m_EntityToDynamic[entity];
             if (slot >= 0)

@@ -98,7 +98,7 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     }
 
     float3 color;
-    FGBufferData gbuffer;
+    GBufferData gbuffer;
     uint width, height;
     InfinityGetDimensions(SRV_GBufferTextureA, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
@@ -266,12 +266,12 @@ void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
     uint index;
     if (DV_Mode == DEBUGVIEW_REFLECTIONPROBECOMPLEXITY)
     {
-        FLightLoop loop = BeginProbeLoop(pixelCoord, viewDepth);
+        LightLoopState loop = BeginProbeLoop(pixelCoord, viewDepth);
         [loop] while (NextProbe(loop, index)) count++;
     }
     else
     {
-        FLightLoop loop;
+        LightLoopState loop;
         BeginLightLoop(pixelCoord, viewDepth, loop);
         [loop] while (NextLight(loop, index)) count++;
     }

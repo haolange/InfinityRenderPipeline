@@ -73,8 +73,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Frame Settings: features each camera may request (Game / SceneView / Preview cameras use the camera defaults,
         // reflection probe captures the reflection defaults; InfinityAdditionalCameraData can override single settings).
-        public FFrameSettings defaultFrameSettings = FFrameSettings.AllEnabled;
-        public FFrameSettings reflectionFrameSettings = FFrameSettings.ReflectionDefaults;
+        public FrameSettings defaultFrameSettings = FrameSettings.AllEnabled;
+        public FrameSettings reflectionFrameSettings = FrameSettings.ReflectionDefaults;
 
         // Reflection probe atlas: face resolution (power of two, GGX mips) and probe slots (6 slices each); 0 disables
         // probes (the sky reflects everything).
@@ -97,9 +97,9 @@ namespace InfinityTech.Rendering.Pipeline
         public float cascadeBlendWidth = 0.1f;
         // Shadow filtering quality: Low..Ultra pick QualityPresets.ShadowFilter; Custom uses customShadowFilter.
         public EQualityLevel shadowFilterQuality = EQualityLevel.Medium;
-        public FShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
+        public ShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
 
-        public FShadowFilterSettings ResolveShadowFilter() => shadowFilterQuality == EQualityLevel.Custom
+        public ShadowFilterSettings ResolveShadowFilter() => shadowFilterQuality == EQualityLevel.Custom
             ? customShadowFilter
             : QualityPresets.Select(QualityPresets.ShadowFilter, shadowFilterQuality);
 

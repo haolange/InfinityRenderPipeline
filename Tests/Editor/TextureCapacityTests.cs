@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Descriptor_SeparatesLogicalIdentityFromPhysicalCompatibility()
         {
-            var context=new FTextureCapacityContext(new int2(768,448),new int2(1280,768));
+            var context=new TextureCapacityContext(new int2(768,448),new int2(1280,768));
             var a=context.Resolve(new TextureDescriptor(641,361,ETextureSizingDomain.Internal));
             var b=context.Resolve(new TextureDescriptor(660,380,ETextureSizingDomain.Internal));
             Assert.IsFalse(a.Equals(b));Assert.IsTrue(a.PhysicalDescriptor().Equals(b.PhysicalDescriptor()));

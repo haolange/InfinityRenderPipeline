@@ -27,8 +27,8 @@ namespace InfinityTech.Rendering.GPUResource
             public bool invalidateNextGet;
         }
 
-        FTextureCapacityContext m_TextureCapacity;
-        public void SetTextureCapacity(FTextureCapacityContext capacity) => m_TextureCapacity = capacity;
+        TextureCapacityContext m_TextureCapacity;
+        public void SetTextureCapacity(TextureCapacityContext capacity) => m_TextureCapacity = capacity;
         readonly Dictionary<int, TextureSlot> m_Textures;
         readonly Dictionary<int, BufferSlot> m_Buffers;
         readonly List<RTHandle> m_RetiredTextures;

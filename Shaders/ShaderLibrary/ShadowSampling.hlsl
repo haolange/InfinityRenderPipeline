@@ -7,10 +7,10 @@
 #include "Lighting.hlsl"
 #include "ShadowMoments.hlsl"
 
-// Per local shadow slice (C# FLocalShadowSliceGPU). depthParams: x, y = m22, m23 of the GPU projection; z = world
+// Per local shadow slice (C# LocalShadowSliceGPU). depthParams: x, y = m22, m23 of the GPU projection; z = world
 // texel size at unit depth (perspective) or world texel size (orthographic); w = 1 for orthographic.
 // momentParams: x = 1 / far (moment depth normalization).
-struct FLocalShadowSlice
+struct LocalShadowSlice
 {
     float4 atlasRect;
     float4 depthParams;
@@ -19,7 +19,7 @@ struct FLocalShadowSlice
 };
 
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
-StructuredBuffer<FLocalShadowSlice> SRV_LocalShadowRects;
+StructuredBuffer<LocalShadowSlice> SRV_LocalShadowRects;
 
 float4 _CascadeShadowMapSize;
 int _CascadeCount;
@@ -212,7 +212,7 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
 }
 
 // Size of the light for PCSS: world radius for local lights, tan(angular radius) for the sun.
-float ShadowLightSize(FLightRecord light)
+float ShadowLightSize(LightRecord light)
 {
     float size = 0;
     if (IsDirectionalLight(light))
@@ -236,7 +236,7 @@ float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, floa
     return ShadowMomentVisibility(moments, ShadowMomentDepth(compareZ, depthParams, invFar), mode, _ShadowMomentParams);
 }
 
-float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
 {
     float shadow = 1;
     if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
@@ -259,7 +259,7 @@ float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLig
     return shadow;
 }
 
-float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, FLightRecord light, int cascadeIdx, float3 worldPos, float3 normal)
+float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, int cascadeIdx, float3 worldPos, float3 normal)
 {
     float4 shadowCoord = mul(_CascadeMatrices[cascadeIdx], float4(worldPos, 1.0));
     float shadow = 1;
@@ -288,7 +288,7 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, FLightRecord light, 
 
 // Picks the first cascade whose culling sphere holds the point and blends into the next one over the outer
 // blend-width fraction of the sphere radius.
-float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, FLightRecord light, float3 worldPos, float viewDepth, float3 normal = float3(0, 0, 0))
+float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, float3 worldPos, float viewDepth, float3 normal = float3(0, 0, 0))
 {
     float shadow = 1;
     if (_CascadeCount > 0)
@@ -324,7 +324,7 @@ float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, FLightRecord light,
     return shadow;
 }
 
-float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, float3 worldPos, float3 normal = float3(0, 0, 0))
+float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, float3 worldPos, float3 normal = float3(0, 0, 0))
 {
     float shadow = 1;
     if ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowMatrixIndex >= 0 && light.shadowSliceCount > 0)
@@ -337,7 +337,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
 
         int slice = light.shadowMatrixIndex + face;
         float4x4 shadowMatrix = SRV_LocalShadowMatrices[slice];
-        FLocalShadowSlice sliceData = SRV_LocalShadowRects[slice];
+        LocalShadowSlice sliceData = SRV_LocalShadowRects[slice];
         float4 clipRect = sliceData.atlasRect;
         float4 shadowCoord = mul(shadowMatrix, float4(worldPos, 1.0));
         if (shadowCoord.w > 0.0)
@@ -361,7 +361,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
 int _InfinityShadowmaskMode;
 float _InfinityShadowDistance;
 
-float MixBakedAndRealtimeShadow(FLightRecord light, float realtime, float4 mask, float viewDepth)
+float MixBakedAndRealtimeShadow(LightRecord light, float realtime, float4 mask, float viewDepth)
 {
     float fade = saturate((viewDepth / max(_InfinityShadowDistance, 0.001) - 0.9) * 10);
     float combined = lerp(realtime, 1, fade);

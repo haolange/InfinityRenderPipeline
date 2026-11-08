@@ -61,8 +61,8 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
             public RGBufferHandle lightRecordBuffer;
-            public FLightLoopInputs lightLoop;
-            public FShadowInputs shadows;
+            public LightLoopInputs lightLoop;
+            public ShadowInputs shadows;
             public ComputeShader volumetricCloudShader;
             public RGTextureHandle depthTexture;
             public RGTextureHandle transmittanceLUT;
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
-            FVolumetricCloudSettings cloud = volCloud.Resolve();
+            VolumetricCloudSettings cloud = volCloud.Resolve();
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
@@ -142,10 +142,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = camera.transform.position;
-                FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                FShadowInputs shadows = QueryShadowInputs(renderContext);
+                ShadowInputs shadows = QueryShadowInputs(renderContext);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));

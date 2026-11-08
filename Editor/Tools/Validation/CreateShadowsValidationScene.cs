@@ -30,14 +30,14 @@ namespace InfinityTech.Rendering.Editor.Validation
                 float x = -10 + i * 5;
                 fixture.Primitive(PrimitiveType.Cube, "Pole_" + filters[i], new Vector3(x, 1, 2), new Vector3(0.2f, 2, 0.2f), pole);
                 Light spot = fixture.Light("Spot_" + filters[i], new Vector3(x + 0.8f, 4.5f, 1.2f), new Vector3(75, -15, 0), EInfinityLightType.Spot,
-                    Color.white, 60, 12, (ref FLightShape s) => s.sourceRadius = filters[i] == EShadowFilter.PCSS ? 0.3f : 0.05f);
+                    Color.white, 60, 12, (ref LightSourceShape s) => s.sourceRadius = filters[i] == EShadowFilter.PCSS ? 0.3f : 0.05f);
                 spot.shadows = LightShadows.Soft;
                 spot.GetComponent<InfinityAdditionalLightData>().shadowFilter = filters[i];
             }
 
             fixture.Primitive(PrimitiveType.Sphere, "Ball", new Vector3(-6, 0.75f, -4), Vector3.one * 1.5f, pole);
             Light sphere = fixture.Light("Sphere Light PCSS", new Vector3(-6, 3, -5), Vector3.zero, EInfinityLightType.Point, new Color(1, 0.8f, 0.6f), 40, 10,
-                (ref FLightShape s) => s.sourceRadius = 0.4f);
+                (ref LightSourceShape s) => s.sourceRadius = 0.4f);
             sphere.shadows = LightShadows.Soft;
             sphere.GetComponent<InfinityAdditionalLightData>().shadowFilter = EShadowFilter.PCSS;
 
@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             contact.GetComponent<InfinityAdditionalLightData>().enableContactShadow = true;
 
             Light sun = fixture.Light("Sun", Vector3.zero, new Vector3(35, 150, 0), EInfinityLightType.Directional, new Color(1, 0.95f, 0.88f), 1.5f, 10,
-                (ref FLightShape s) => s.sourceAngle = 2.0f);
+                (ref LightSourceShape s) => s.sourceAngle = 2.0f);
             sun.shadows = LightShadows.Soft;
             var sunData = sun.GetComponent<InfinityAdditionalLightData>();
             sunData.shadowFilter = EShadowFilter.PCSS;

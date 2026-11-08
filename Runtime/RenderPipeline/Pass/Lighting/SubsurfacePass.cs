@@ -56,8 +56,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (changed)
             {
-                var next = m_ResourcePool.GetBuffer(new BufferDescriptor(uploadCount, Marshal.SizeOf<FDiffusionProfileRecord>()) { name = "DiffusionProfiles" });
-                var nextRecords = new FDiffusionProfileRecord[uploadCount];
+                var next = m_ResourcePool.GetBuffer(new BufferDescriptor(uploadCount, Marshal.SizeOf<DiffusionProfileRecord>()) { name = "DiffusionProfiles" });
+                var nextRecords = new DiffusionProfileRecord[uploadCount];
                 for (int i = 0; i < profileCount; ++i) nextRecords[i] = profiles[i] != null ? profiles[i].ToRecord() : default;
                 try { next.buffer.SetData(nextRecords); }
                 catch { m_ResourcePool.ReleaseBuffer(next); throw; }

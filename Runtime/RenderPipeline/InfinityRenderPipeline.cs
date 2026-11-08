@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.Pipeline
         private CameraUniform m_CameraUniform;
         private CameraFrameState m_ActiveFrameState;
         private BufferHandle m_DiffusionProfileBuffer;
-        private FDiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<FDiffusionProfileRecord>();
+        private DiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
         private LightCookieAtlas m_LightCookieAtlas;
@@ -476,7 +476,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 // ProcessLight
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                                 {
-                                    FShadowAllocatorSettings shadowSettings;
+                                    ShadowAllocatorSettings shadowSettings;
                                     shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
                                     shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
                                     shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
@@ -1026,14 +1026,14 @@ namespace InfinityTech.Rendering.Pipeline
             using (new PipelineFrameMeasurement.Scope(true))
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
             {
-                FGraphics.ProcessTasks(renderContext);
-                FGraphics.ClearTasks();
+                RenderTaskQueue.ProcessTasks(renderContext);
+                RenderTaskQueue.ClearTasks();
                 renderContext.InitializeWorldDecals();
                 if (ConsumeStaticPoseRefresh()) MeshComponent.NotifyAllStaticPoses();
 
                 // Registration tasks raised by the steps above apply in the same frame.
-                FGraphics.ProcessTasks(renderContext);
-                FGraphics.ClearTasks();
+                RenderTaskQueue.ProcessTasks(renderContext);
+                RenderTaskQueue.ClearTasks();
 
                 // One structural transaction, then poses: explicit static notifications and every dynamic transform.
                 renderContext.DrainDirtyMeshes();
@@ -1096,7 +1096,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ReferenceEquals(VolumeManager.instance.globalDefaultProfile, resources.defaultVolumeProfile) &&
                 ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
             m_OwnsVolumeManager = false;
-            m_DiffusionProfileRecords = Array.Empty<FDiffusionProfileRecord>();
+            m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
             Release(() => m_AtmosphereSharedCache?.Dispose());
             m_AtmosphereSharedCache = null;
             Release(() => m_LocalShadowCache?.Dispose());
@@ -1178,7 +1178,7 @@ namespace InfinityTech.Rendering.Pipeline
             features.Reset();
             VolumeStack stack = frameState.volumeStack;
             bool temporal = frameState.renderPolicy.temporal;
-            FResolvedFrameSettings frameSettings = frameState.frameSettings;
+            ResolvedFrameSettings frameSettings = frameState.frameSettings;
 
             features.Request(EFrameFeature.Depth);
             features.Request(EFrameFeature.GBuffer);
@@ -1301,7 +1301,7 @@ namespace InfinityTech.Rendering.Pipeline
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void OnEntryPlayEditor()
         {
-            FGraphics.ClearTasks();
+            RenderTaskQueue.ClearTasks();
         }
 #endif
     }

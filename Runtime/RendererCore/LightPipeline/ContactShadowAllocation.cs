@@ -15,11 +15,11 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // records: directional records first, then localCount local records in tileRects order. Returns the number of
         // bits assigned.
-        public static int Assign(NativeList<FLightRecord> records, int directionalCount, NativeList<int4> tileRects, int localCount)
+        public static int Assign(NativeList<LightRecord> records, int directionalCount, NativeList<int4> tileRects, int localCount)
         {
             for (int i = 0; i < records.Length; ++i)
             {
-                FLightRecord record = records[i];
+                LightRecord record = records[i];
                 record.misc.z = -1;
                 records[i] = record;
             }
@@ -29,8 +29,8 @@ namespace InfinityTech.Rendering.LightPipeline
             var areas = new NativeArray<int>(math.max(1, localCount), Allocator.Temp);
             for (int local = 0; local < localCount; ++local)
             {
-                FLightRecord record = records[directionalCount + local];
-                if ((record.flags & FLightRecordFlags.EnableContactShadow) == 0)
+                LightRecord record = records[directionalCount + local];
+                if ((record.flags & LightRecordFlags.EnableContactShadow) == 0)
                 {
                     continue;
                 }
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int bit = 0; bit < assigned; ++bit)
             {
                 int index = directionalCount + candidates[bit];
-                FLightRecord record = records[index];
+                LightRecord record = records[index];
                 record.misc.z = bit;
                 records[index] = record;
             }

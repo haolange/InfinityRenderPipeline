@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int lod;
         public int index;
         public float2 scale;
-        public FBound boundBox;
+        public BoundingBox boundBox;
         public float3 pivotPosition;
 
         public bool Equals(TerrainDrawCommand target)

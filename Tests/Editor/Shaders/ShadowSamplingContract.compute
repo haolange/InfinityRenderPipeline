@@ -44,7 +44,7 @@ float4 TestWorldPositions[2];
 void CachedPoint(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= 2) return;
-    FLightRecord light = (FLightRecord)0;
+    LightRecord light = (LightRecord)0;
     light.flags = LIGHT_FLAG_SHADOW;
     light.shadowMatrixIndex = 0;
     light.shadowSliceCount = 6;

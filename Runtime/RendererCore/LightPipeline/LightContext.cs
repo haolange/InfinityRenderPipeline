@@ -48,9 +48,9 @@ namespace InfinityTech.Rendering.LightPipeline
     }
 
     // One reflection probe of the camera's list (Unity order: importance, then smaller first).
-    // GPU-RECORD: FReflectionProbeRecord Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl
+    // GPU-RECORD: ReflectionProbeRecord Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl
     [StructLayout(LayoutKind.Sequential)]
-    internal struct FReflectionProbeRecord
+    internal struct ReflectionProbeRecord
     {
         // World to influence-box space (rows of a 3x4 affine; identity rotation, the box center at the origin).
         public Vector4 worldToBox0;
@@ -67,9 +67,9 @@ namespace InfinityTech.Rendering.LightPipeline
     }
 
     // Cookie and IES data of one light (record.cookieIndex). Rects are atlas uv (offset xy, scale zw); z = 0 means none.
-    // GPU-RECORD: FLightCookie Shaders/ShaderLibrary/Lighting/LightCookie.hlsl
+    // GPU-RECORD: LightCookie Shaders/ShaderLibrary/Lighting/LightCookie.hlsl
     [StructLayout(LayoutKind.Sequential)]
-    internal struct FLightCookieGPU
+    internal struct LightCookieGPU
     {
         public Vector4 cookieRect;
         public Vector4 iesRect;
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.LightPipeline
     {
         struct LocalCandidate
         {
-            public FLightRecord record;
+            public LightRecord record;
             public float depth;
             public int4 tileRect;
         }
@@ -124,29 +124,29 @@ namespace InfinityTech.Rendering.LightPipeline
         GraphicsBuffer m_ProbeTileRectBuffer;
         GraphicsBuffer m_ProbeZBinBuffer;
         int m_ProbeCapacity;
-        readonly List<FReflectionProbeRecord> m_Probes = new List<FReflectionProbeRecord>();
+        readonly List<ReflectionProbeRecord> m_Probes = new List<ReflectionProbeRecord>();
         readonly List<int> m_ProbeOrder = new List<int>();
-        FReflectionProbeRecord[] m_ProbeUpload = new FReflectionProbeRecord[1];
+        ReflectionProbeRecord[] m_ProbeUpload = new ReflectionProbeRecord[1];
         NativeList<int4> m_ProbeTileRects;
         NativeArray<uint> m_ProbeZBins;
-        static readonly int ProbeStride = Marshal.SizeOf<FReflectionProbeRecord>();
+        static readonly int ProbeStride = Marshal.SizeOf<ReflectionProbeRecord>();
         Matrix4x4 m_WorldToView;
         Matrix4x4 m_GpuProjection;
         bool m_Orthographic;
         float m_Near;
         GraphicsBuffer m_CookieBuffer;
         int m_CookieCapacity;
-        readonly List<FLightCookieGPU> m_Cookies = new List<FLightCookieGPU>();
-        FLightCookieGPU[] m_CookieUpload = new FLightCookieGPU[1];
-        static readonly int CookieStride = Marshal.SizeOf<FLightCookieGPU>();
-        NativeList<FLightRecord> m_Records;
+        readonly List<LightCookieGPU> m_Cookies = new List<LightCookieGPU>();
+        LightCookieGPU[] m_CookieUpload = new LightCookieGPU[1];
+        static readonly int CookieStride = Marshal.SizeOf<LightCookieGPU>();
+        NativeList<LightRecord> m_Records;
         NativeList<int4> m_TileRects;
         NativeArray<uint> m_ZBins;
         readonly List<LocalCandidate> m_LocalCandidates = new List<LocalCandidate>();
         readonly ShadowAllocator m_ShadowAllocator;
         readonly List<GraphicsBuffer> m_RetiredBuffers = new List<GraphicsBuffer>();
         static readonly uint[] s_EmptyMask = new uint[1];
-        static readonly int LocalShadowSliceStride = Marshal.SizeOf<FLocalShadowSliceGPU>();
+        static readonly int LocalShadowSliceStride = Marshal.SizeOf<LocalShadowSliceGPU>();
         static readonly Comparison<LocalCandidate> s_ByDepth = (a, b) =>
         {
             int cmp = a.depth.CompareTo(b.depth);
@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal LightContext()
         {
-            m_RecordStride = Marshal.SizeOf<FLightRecord>();
+            m_RecordStride = Marshal.SizeOf<LightRecord>();
             m_RecordCapacity = 1;
             m_RectCapacity = 1;
             m_LocalMatrixCapacity = 1;
@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_ProbeZBinBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, LightBinning.ZBinCount, sizeof(uint));
             m_ProbeTileRects = new NativeList<int4>(8, Allocator.Persistent);
             m_ProbeZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
-            m_Records = new NativeList<FLightRecord>(8, Allocator.Persistent);
+            m_Records = new NativeList<LightRecord>(8, Allocator.Persistent);
             m_TileRects = new NativeList<int4>(8, Allocator.Persistent);
             m_ZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
             m_ShadowAllocator = new ShadowAllocator();
@@ -200,7 +200,7 @@ namespace InfinityTech.Rendering.LightPipeline
         internal int ContactLightCount => m_ContactLightCount;
         // The sun record traces contact shadows.
         internal bool SunHasContactShadow => m_SunRecordIndex >= 0 && m_SunRecordIndex < m_Records.Length
-            && (m_Records[m_SunRecordIndex].flags & FLightRecordFlags.EnableContactShadow) != 0;
+            && (m_Records[m_SunRecordIndex].flags & LightRecordFlags.EnableContactShadow) != 0;
         // Visible lights skipped because their shape is invalid (for example a zero-area rect) or their native type is
         // unknown; they are counted, never substituted.
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
@@ -273,7 +273,7 @@ namespace InfinityTech.Rendering.LightPipeline
             in CullingResults cullingResults,
             Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup,
             Camera camera,
-            in FShadowAllocatorSettings settings,
+            in ShadowAllocatorSettings settings,
             int2 screenSize, MeshPipeline.MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
             Clear();
@@ -320,8 +320,8 @@ namespace InfinityTech.Rendering.LightPipeline
                     light.TryGetComponent(out ext);
                 }
 
-                FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
-                if (!FLightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out FLightRecord record))
+                LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
+                if (!LightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out LightRecord record))
                 {
                     if (LightShapeUtility.IsValid(shape)) m_DistanceCulledCount++;
                     else m_UnsupportedShapeCount++;
@@ -425,14 +425,14 @@ namespace InfinityTech.Rendering.LightPipeline
                 }
 
                 bool realtime = component.mode == ReflectionProbeMode.Realtime;
-                var key = new FProbeCubeKey(UnityEntityId.ToUInt64(component), UnityEntityId.ToUInt64(texture));
+                var key = new ProbeCubeKey(UnityEntityId.ToUInt64(component), UnityEntityId.ToUInt64(texture));
                 if (!atlas.Acquire(key, texture, texture.updateCount, realtime, frame, out int slot))
                 {
                     continue;
                 }
 
                 Vector3 capture = component.transform.position - center;
-                var record = new FReflectionProbeRecord
+                var record = new ReflectionProbeRecord
                 {
                     worldToBox0 = new Vector4(1, 0, 0, -center.x),
                     worldToBox1 = new Vector4(0, 1, 0, -center.y),
@@ -471,7 +471,7 @@ namespace InfinityTech.Rendering.LightPipeline
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
             for (int i = 0; i < m_Records.Length; ++i)
             {
-                FLightRecord record = m_Records[i];
+                LightRecord record = m_Records[i];
                 record.cookieIndex = -1;
                 if (atlas != null && atlas.Enabled && record.visibleLightIndex >= 0 && record.visibleLightIndex < visibleLights.Length)
                 {
@@ -481,7 +481,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     {
                         light.TryGetComponent(out ext);
                     }
-                    if (light != null && TryResolveCookie(atlas, record, light, ext, frame, out FLightCookieGPU cookie))
+                    if (light != null && TryResolveCookie(atlas, record, light, ext, frame, out LightCookieGPU cookie))
                     {
                         record.cookieIndex = m_Cookies.Count;
                         m_Cookies.Add(cookie);
@@ -498,12 +498,12 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        static bool TryResolveCookie(LightCookieAtlas atlas, in FLightRecord record, Light light, InfinityAdditionalLightData ext, int frame, out FLightCookieGPU cookie)
+        static bool TryResolveCookie(LightCookieAtlas atlas, in LightRecord record, Light light, InfinityAdditionalLightData ext, int frame, out LightCookieGPU cookie)
         {
             cookie = default;
             bool directional = record.IsDirectional;
-            bool point = !directional && (record.flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox | FLightRecordFlags.Planar)) == 0;
-            bool projectedSpot = (record.flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid)) != 0;
+            bool point = !directional && (record.flags & (LightRecordFlags.SpotCone | LightRecordFlags.SpotPyramid | LightRecordFlags.SpotBox | LightRecordFlags.Planar)) == 0;
+            bool projectedSpot = (record.flags & (LightRecordFlags.SpotCone | LightRecordFlags.SpotPyramid)) != 0;
 
             Texture texture = light.cookie;
             if (texture != null)
@@ -627,7 +627,7 @@ namespace InfinityTech.Rendering.LightPipeline
             cmdBuffer.SetBufferData(m_ProbeZBinBuffer, m_ProbeZBins);
             if (m_Probes.Count > 0)
             {
-                if (m_ProbeUpload.Length < m_Probes.Count) m_ProbeUpload = new FReflectionProbeRecord[m_Probes.Count];
+                if (m_ProbeUpload.Length < m_Probes.Count) m_ProbeUpload = new ReflectionProbeRecord[m_Probes.Count];
                 m_Probes.CopyTo(m_ProbeUpload);
                 cmdBuffer.SetBufferData(m_ProbeBuffer, m_ProbeUpload, 0, 0, m_Probes.Count);
                 cmdBuffer.SetBufferData(m_ProbeTileRectBuffer, m_ProbeTileRects.AsArray());
@@ -635,13 +635,13 @@ namespace InfinityTech.Rendering.LightPipeline
 
             if (m_Cookies.Count > 0)
             {
-                if (m_CookieUpload.Length < m_Cookies.Count) m_CookieUpload = new FLightCookieGPU[m_Cookies.Count];
+                if (m_CookieUpload.Length < m_Cookies.Count) m_CookieUpload = new LightCookieGPU[m_Cookies.Count];
                 m_Cookies.CopyTo(m_CookieUpload);
                 cmdBuffer.SetBufferData(m_CookieBuffer, m_CookieUpload, 0, 0, m_Cookies.Count);
             }
         }
 
-        internal bool TryGetSunRecord(out FLightRecord record)
+        internal bool TryGetSunRecord(out LightRecord record)
         {
             if (m_SunRecordIndex >= 0 && m_SunRecordIndex < m_Records.Length)
             {
@@ -667,7 +667,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
             for (int i = 0; i < m_Records.Length; ++i)
             {
-                FLightRecord record = m_Records[i];
+                LightRecord record = m_Records[i];
                 builder.Append("  record[").Append(i).Append(']');
                 builder.Append(" directional=").Append(record.IsDirectional);
                 builder.Append(" visible=").Append(record.visibleLightIndex);
@@ -682,7 +682,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
             for (int i = 0; i < m_ShadowAllocator.LocalSliceCount; ++i)
             {
-                FLocalShadowSlice slice = m_ShadowAllocator.LocalSlices[i];
+                LocalShadowSlice slice = m_ShadowAllocator.LocalSlices[i];
                 builder.Append("  slice[").Append(i).Append(']');
                 builder.Append(" record=").Append(slice.recordIndex);
                 builder.Append(" visible=").Append(slice.visibleLightIndex);
@@ -698,7 +698,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             direction = new Vector4(0, 1, 0, 0);
             radiance = new Vector4(1, 1, 1, 1);
-            if (context != null && context.TryGetSunRecord(out FLightRecord sun))
+            if (context != null && context.TryGetSunRecord(out LightRecord sun))
             {
                 direction = -sun.forward;
                 direction.w = 0;

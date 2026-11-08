@@ -292,7 +292,7 @@ namespace InfinityTech.Rendering.Editor
         static List<InfinityAdditionalLightData> LightsOutOfSync() => LoadedSceneComponents<InfinityAdditionalLightData>()
             .Where(d => d.shapeAuthored && d.attachedLight != null && !LightShapeUtility.IsInSync(d.attachedLight, d.shape)).ToList();
 
-        static FLightShape ShapeOf(Light light) =>
+        static LightSourceShape ShapeOf(Light light) =>
             light.TryGetComponent(out InfinityAdditionalLightData data) ? data.shape : LightShapeUtility.FromUnityLight(light);
 
         static List<Material> ConvertibleSceneMaterials() => LoadedSceneComponents<Renderer>()

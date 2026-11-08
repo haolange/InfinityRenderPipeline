@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
     // (Lighting/LightCookie.hlsl) and the reflection probes (Lighting/ReflectionProbes.hlsl). Query once at record time,
     // declare the reads with Read, then bind. Without cookies this frame the cookie atlas binds a white texture; no
     // record references it then.
-    internal struct FLightLoopInputs
+    internal struct LightLoopInputs
     {
         public RGBufferHandle zBins;
         public RGBufferHandle tileMasks;
@@ -133,13 +133,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        FLightLoopInputs QueryLightLoop(RenderContext renderContext)
+        LightLoopInputs QueryLightLoop(RenderContext renderContext)
         {
             LightContext context = renderContext.lightContext;
             bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
             bool hasProbeAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
             bool hasProbeList = hasProbeAtlas && context.ReflectionProbeCount > 0;
-            return new FLightLoopInputs
+            return new LightLoopInputs
             {
                 probes = m_RGScoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
                 probeZBins = m_RGScoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),

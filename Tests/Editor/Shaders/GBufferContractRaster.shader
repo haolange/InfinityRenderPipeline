@@ -66,7 +66,7 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
 
                 if (_FixtureId == 4 && pixel.x > pixel.y) discard;
                 if (_FixtureId == 5 && pixel.x != resolution.x / 2) discard;
-                FGBufferData data;
+                GBufferData data;
                 data.Albedo = FixtureAlbedo(_FixtureId, pixel, resolution);
                 data.Normal = normalize(_FixtureNormal.xyz);
                 data.Specular = 0.5;

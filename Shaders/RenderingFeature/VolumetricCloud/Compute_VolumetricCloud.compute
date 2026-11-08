@@ -143,7 +143,7 @@ float LightMarch(float3 startPos, float3 lightDir, float lightDistance)
     return transmittance;
 }
 
-float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, float density, float normalizedHeight)
+float3 EvaluateCloudLight(LightRecord light, float3 samplePos, float3 rayDir, float density, float normalizedHeight)
 {
     float3 L;
     float att = 1.0;
@@ -234,7 +234,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
         }
 
         float3 sampleViewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
-        FLightLoop lightLoop;
+        LightLoopState lightLoop;
         BeginLightLoopUV(screenUV, -sampleViewPos.z, lightLoop);
         uint recordIndex;
         [loop]

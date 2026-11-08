@@ -33,7 +33,7 @@ namespace InfinityTech.Component
             if (!m_Registered)
             {
                 m_Registered = true;
-                FGraphics.AddTask((RenderContext renderContext) =>
+                RenderTaskQueue.AddTask((RenderContext renderContext) =>
                 {
                     renderContext.AddWorldDecal();
                 });
@@ -45,7 +45,7 @@ namespace InfinityTech.Component
             if (m_Registered)
             {
                 m_Registered = false;
-                FGraphics.AddTask((RenderContext renderContext) =>
+                RenderTaskQueue.AddTask((RenderContext renderContext) =>
                 {
                     renderContext.RemoveWorldDecal();
                 });

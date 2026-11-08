@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int entity;
             public uint generation;
             public Transform transform;
-            public FBound localBounds;
+            public BoundingBox localBounds;
         }
 
         bool m_TransactionOpen;
@@ -166,7 +166,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         #region Structural edits
-        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLODChain lod)
+        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in BoundingBox bounds, in MeshEntityDesc desc, in MeshLODChain lod)
         {
             RequireTransaction(generation);
             RenderingLayerUtility.Validate(desc.renderingLayerMask);
@@ -209,7 +209,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void SetEntityMobility(ulong generation, MeshEntityId id, Transform transform, in FBound localBounds)
+        internal void SetEntityMobility(ulong generation, MeshEntityId id, Transform transform, in BoundingBox localBounds)
         {
             RequireTransaction(generation);
             RequireEntity(id);
@@ -314,7 +314,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         MeshSectionId AcquireSection(ulong meshId, int submesh)
         {
-            var key = new FSectionKey(meshId, submesh);
+            var key = new SectionKey(meshId, submesh);
             if (m_SectionLookup.TryGetValue(key, out int index))
             {
                 LogSection(index);
@@ -398,7 +398,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 if (!m_Sections.IsLive(index) || m_Sections[index].refCount != 0) continue;
                 MeshSection section = m_Sections[index];
-                m_SectionLookup.Remove(new FSectionKey(section.meshId, section.submesh));
+                m_SectionLookup.Remove(new SectionKey(section.meshId, section.submesh));
                 m_Sections.Kill(index);
                 m_Sections.Reclaim(index);
             }
@@ -434,20 +434,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransactionOpen = false;
         }
 
-        static void ReplayKeyed(ref SlotTable<MeshSection> table, NativeList<SlotUndo<MeshSection>> log, NativeParallelHashMap<FSectionKey, int> lookup)
+        static void ReplayKeyed(ref SlotTable<MeshSection> table, NativeList<SlotUndo<MeshSection>> log, NativeParallelHashMap<SectionKey, int> lookup)
         {
             // Sections are only killed at commit, so keys never move inside a transaction: drop every touched key, replay,
             // then publish the keys of the slots that are live again.
             foreach (SlotUndo<MeshSection> entry in log)
             {
-                if (table.IsLive(entry.index)) lookup.Remove(new FSectionKey(table[entry.index].meshId, table[entry.index].submesh));
-                if (entry.wasLive) lookup.Remove(new FSectionKey(entry.value.meshId, entry.value.submesh));
+                if (table.IsLive(entry.index)) lookup.Remove(new SectionKey(table[entry.index].meshId, table[entry.index].submesh));
+                if (entry.wasLive) lookup.Remove(new SectionKey(entry.value.meshId, entry.value.submesh));
             }
             var touched = new NativeList<int>(log.Length, Allocator.Temp);
             foreach (SlotUndo<MeshSection> entry in log) touched.Add(entry.index);
             Replay(ref table, log);
             foreach (int index in touched)
-                if (table.IsLive(index)) lookup[new FSectionKey(table[index].meshId, table[index].submesh)] = index;
+                if (table.IsLive(index)) lookup[new SectionKey(table[index].meshId, table[index].submesh)] = index;
             touched.Dispose();
         }
 
@@ -503,13 +503,13 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         MeshWorld world => m_World ?? throw new InvalidOperationException("Default MeshWorldUpdate.");
 
-        public MeshEntityId CreateEntity(in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLODChain lod)
+        public MeshEntityId CreateEntity(in float4x4 localToWorld, in BoundingBox bounds, in MeshEntityDesc desc, in MeshLODChain lod)
             => world.CreateEntity(m_Generation, localToWorld, bounds, desc, lod);
 
         public void SetEntityDesc(MeshEntityId entity, in MeshEntityDesc desc) => world.SetEntityDesc(m_Generation, entity, desc);
 
         /// <summary>A non-null transform makes the entity dynamic: its pose is read from the transform every frame.</summary>
-        public void SetEntityMobility(MeshEntityId entity, Transform dynamicTransform, in FBound localBounds)
+        public void SetEntityMobility(MeshEntityId entity, Transform dynamicTransform, in BoundingBox localBounds)
             => world.SetEntityMobility(m_Generation, entity, dynamicTransform, localBounds);
 
         public MeshElementId AddElement(MeshEntityId entity, ulong meshId, int submesh, int lodIndex, ulong materialId, in MeshMaterialState materialState, int priority)

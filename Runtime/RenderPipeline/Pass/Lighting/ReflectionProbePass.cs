@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct ReflectionProbeFilterPassData
         {
             public ComputeShader shader;
-            public FProbeCubeUpload[] uploads;
+            public ProbeCubeUpload[] uploads;
             public int resolution;
             public int mipCount;
             public RGTextureHandle atlas;
@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class ReflectionProbeProduction : IRGPassQueueObserver
         {
             public ReflectionProbeAtlas atlas;
-            public FProbeCubeKey[] keys;
+            public ProbeCubeKey[] keys;
             public void OnQueueFailed() { }
             public void OnQueued() => atlas.MarkProduced(keys, keys.Length);
         }
@@ -46,12 +46,12 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
-            List<FProbeCubeUpload> pending = m_ReflectionProbeAtlas.Uploads;
+            List<ProbeCubeUpload> pending = m_ReflectionProbeAtlas.Uploads;
             if (pending.Count > 0)
             {
-                FProbeCubeUpload[] uploads = pending.ToArray();
+                ProbeCubeUpload[] uploads = pending.ToArray();
                 pending.Clear();
-                var keys = new FProbeCubeKey[uploads.Length];
+                var keys = new ProbeCubeKey[uploads.Length];
                 for (int i = 0; i < uploads.Length; ++i) keys[i] = uploads[i].key;
 
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passRef.SetQueueObserver(new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas, keys = keys });
                     passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
-                        foreach (FProbeCubeUpload upload in passData.uploads)
+                        foreach (ProbeCubeUpload upload in passData.uploads)
                         {
                             if (upload.source == null) continue;
                             // Intensity and HDR decode stay in the record (params.x), so a changed intensity needs no refilter.

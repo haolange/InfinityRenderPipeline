@@ -234,7 +234,7 @@ namespace InfinityTech.Rendering.Pipeline
             return decision;
         }
 
-        internal struct FHDROutputState
+        internal struct HDROutputState
         {
             internal bool available, active, changeRequested;
             internal GraphicsFormat format;
@@ -242,9 +242,9 @@ namespace InfinityTech.Rendering.Pipeline
             internal float paperWhiteNits;
         }
 
-        internal static FHDROutputState ReadHdrOutput()
+        internal static HDROutputState ReadHdrOutput()
         {
-            var state = new FHDROutputState { gamut = ColorGamut.sRGB };
+            var state = new HDROutputState { gamut = ColorGamut.sRGB };
 #if UNITY_EDITOR
             if (!PlayerSettings.allowHDRDisplaySupport) return state;
 #endif

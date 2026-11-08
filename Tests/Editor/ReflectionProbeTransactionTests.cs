@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         Cubemap m_Texture;
         ReflectionProbeAtlas m_Atlas;
         const ulong TextureId = 17;
-        static FProbeCubeKey Key => new FProbeCubeKey(7, TextureId);
+        static ProbeCubeKey Key => new ProbeCubeKey(7, TextureId);
 
         [SetUp]
         public void SetUp()
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Acquire(1);
             AcceptQueuedUpload();
             const ulong secondId = 18;
-            var secondKey = new FProbeCubeKey(8, secondId);
+            var secondKey = new ProbeCubeKey(8, secondId);
             Assert.IsTrue(m_Atlas.Acquire(secondKey, m_Texture, 1, false, 1, out _));
             Assert.AreEqual(1, m_Atlas.Uploads.Count);
             m_Atlas.DiscardUnproducedPending();

@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
         // Feature state of the most recently configured camera (read-only display).
         public FrameFeatureSet lastFeatures;
         // Frame Settings of the most recently configured camera.
-        public FResolvedFrameSettings lastFrameSettings;
+        public ResolvedFrameSettings lastFrameSettings;
         public bool hasFrameSettings;
 
         public void Reset()

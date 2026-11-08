@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void ExplicitImportUsesTerrainDataWithoutColliderAndSurvivesReenable()
         {
-            int start = FGraphics.GraphicsTasks.Count;
+            int start = RenderTaskQueue.GraphicsTasks.Count;
             var data = new TerrainData { heightmapResolution = 65, size = new Vector3(64, 10, 64) };
             var go = new GameObject("OwnedTerrainAuthoring");
             go.SetActive(false);
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 UnityEngine.Object.DestroyImmediate(go);
                 UnityEngine.Object.DestroyImmediate(data);
-                FGraphics.GraphicsTasks.RemoveRange(start, FGraphics.GraphicsTasks.Count - start);
+                RenderTaskQueue.GraphicsTasks.RemoveRange(start, RenderTaskQueue.GraphicsTasks.Count - start);
             }
         }
 

@@ -12,7 +12,7 @@
 
 #define LIGHT_SHAPE_PI 3.14159265
 
-struct FLightShapeSample
+struct LightSourceShapeSample
 {
     // Diffuse: E / I (irradiance per unit intensity), including N.L and the horizon.
     float diffuseIrradiance;
@@ -65,7 +65,7 @@ float3 SegmentRepresentativePoint(float3 p0, float3 p1, float3 R)
 }
 
 // Point of a planar emitter closest to where the reflection ray meets its plane; rect (halfSize) or disk (radius).
-float3 PlanarRepresentativePoint(FLightRecord light, float3 center, float3 R, bool rect, float2 halfSize, float radius, out float2 emitterUV)
+float3 PlanarRepresentativePoint(LightRecord light, float3 center, float3 R, bool rect, float2 halfSize, float radius, out float2 emitterUV)
 {
     float3 normal = light.forward.xyz;
     float denominator = dot(R, normal);
@@ -103,7 +103,7 @@ float RectIlluminance(float3 center, float3 right, float3 up, float2 halfSize, f
 }
 
 // Range window, spot window, emitter side and barn doors of a local light (no inverse-square term).
-float LocalLightWindow(FLightRecord light, float3 positionWS)
+float LocalLightWindow(LightRecord light, float3 positionWS)
 {
     float3 fromLight = positionWS - light.positionRange.xyz;
     float window = 0;
@@ -130,9 +130,9 @@ float LocalLightWindow(FLightRecord light, float3 positionWS)
     return window;
 }
 
-FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS, float3 N, float3 V, float roughness)
+LightSourceShapeSample EvaluateLocalLightSourceShape(LightRecord light, float3 positionWS, float3 N, float3 V, float roughness)
 {
-    FLightShapeSample s = (FLightShapeSample)0;
+    LightSourceShapeSample s = (LightSourceShapeSample)0;
     float3 R = reflect(-V, N);
     float alpha = max(roughness * roughness, 1e-3);
     float3 center = light.positionRange.xyz - positionWS;
@@ -219,7 +219,7 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
 }
 
 // Sun disk: the direction inside the disk closest to the reflection ray (Karis 2013), energy widened by the disk.
-float3 SunDiskSpecularL(FLightRecord light, float3 R, float roughness, out float energy)
+float3 SunDiskSpecularL(LightRecord light, float3 R, float roughness, out float energy)
 {
     float3 L = DirectionalLightL(light);
     float tanHalf = light.shape.w;

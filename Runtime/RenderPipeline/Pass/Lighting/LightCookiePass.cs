@@ -25,14 +25,14 @@ namespace InfinityTech.Rendering.Pipeline
         struct LightCookiePassData
         {
             public ComputeShader shader;
-            public FCookieUpload[] uploads;
+            public CookieUpload[] uploads;
             public RGTextureHandle atlas;
         }
 
         sealed class CookieProduction : IRGPassQueueObserver
         {
             public LightCookieAtlas atlas;
-            public FCookieKey[] keys;
+            public CookieKey[] keys;
             public void OnQueueFailed() { }
             public void OnQueued() => atlas.MarkProduced(keys, keys.Length);
         }
@@ -50,12 +50,12 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
 
-            List<FCookieUpload> pending = m_LightCookieAtlas.Uploads;
+            List<CookieUpload> pending = m_LightCookieAtlas.Uploads;
             if (pending.Count > 0)
             {
-                FCookieUpload[] uploads = pending.ToArray();
+                CookieUpload[] uploads = pending.ToArray();
                 pending.Clear();
-                var keys = new FCookieKey[uploads.Length];
+                var keys = new CookieKey[uploads.Length];
                 for (int i = 0; i < uploads.Length; ++i) keys[i] = uploads[i].key;
 
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
                         int copy2D = shader.FindKernel(LightCookiePassUtilityData.KernelCopy2D);
                         int cubeToOcta = shader.FindKernel(LightCookiePassUtilityData.KernelCubeToOctahedral);
                         int downsample = shader.FindKernel(LightCookiePassUtilityData.KernelDownsample);
-                        foreach (FCookieUpload upload in passData.uploads)
+                        foreach (CookieUpload upload in passData.uploads)
                         {
                             if (upload.source == null) continue;
                             bool cube = upload.layout == ECookieLayout.Octahedral;

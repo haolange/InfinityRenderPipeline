@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 atlas.Configure(256, 128);
-                var key = new FCookieKey(7, ECookieLayout.Projected);
+                var key = new CookieKey(7, ECookieLayout.Projected);
 
                 atlas.BeginFrame();
                 Assert.IsTrue(Acquire(atlas, 7, 1, 1, out Vector4 rect));

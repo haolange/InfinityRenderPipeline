@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
     // (QueryShadowInputs), declare the reads on the consuming pass (Read), then bind in the execute function (Bind for
     // one compute kernel, BindGlobal for raster passes). Moment atlases fall back to a black texture on frames where
     // no visible light uses VSM / EVSM; no shader samples them then.
-    internal struct FShadowInputs
+    internal struct ShadowInputs
     {
         public RGTextureHandle cascadeMap;
         public RGTextureHandle localMap;
@@ -109,14 +109,14 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        FShadowInputs QueryShadowInputs(RenderContext renderContext)
+        ShadowInputs QueryShadowInputs(RenderContext renderContext)
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            FShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
             // The cascade atlas holds 2x2 tiles of cascadeShadowMapResolution.
             float cascadeSize = pipelineAsset.cascadeShadowMapResolution * 2;
             float localSize = pipelineAsset.localShadowMapResolution;
-            var inputs = new FShadowInputs
+            var inputs = new ShadowInputs
             {
                 cascadeMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
                 localMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),

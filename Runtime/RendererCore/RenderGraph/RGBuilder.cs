@@ -177,7 +177,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public void SetTextureCapacity(FTextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
+        public void SetTextureCapacity(TextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
 
         /// <summary>
         /// Record a Unity RendererList descriptor. Does not call ScriptableRenderContext.CreateRendererList.

@@ -318,7 +318,7 @@ namespace InfinityTech.Component.Editor
             var light = (Light)target;
             if (light == null || !light.TryGetComponent(out InfinityAdditionalLightData data)) return;
 
-            FLightShape shape = data.shape;
+            LightSourceShape shape = data.shape;
             float range = light.range;
             float spotAngle = light.spotAngle;
             Color color = light.color;

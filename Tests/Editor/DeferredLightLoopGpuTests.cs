@@ -125,7 +125,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int i = 0; i < 6; i++) environment.SetPixels(new[] { Color.clear }, i);
                 environment.Apply();
                 var output = Target(); var diffuse = Target(); var specular = Target();
-                var records = new FLightRecord[directionalCount + Math.Max(1, localCount)];
+                var records = new LightRecord[directionalCount + Math.Max(1, localCount)];
                 for (int i = 0; i < records.Length; i++)
                 {
                     records[i].positionRange = new Vector4(0, 0, -1, 20);
@@ -145,13 +145,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int tile = 0; tile < tileCount * tileCount; ++tile)
                     for (int i = 0; i < localCount; i++) masks[tile * words + i / 32] |= 1u << (i & 31);
                 uint packed = localCount == 0 ? 0x0000ffffu : (uint)(localCount - 1) << 16;
-                var lightBuffer = Buffer(records, Marshal.SizeOf<FLightRecord>());
+                var lightBuffer = Buffer(records, Marshal.SizeOf<LightRecord>());
                 shader.SetBuffer(kernel, "g_LightRecordBuffer", lightBuffer);
                 shader.SetBuffer(kernel, "SRV_LightTileMasks", Buffer(masks, 4));
                 shader.SetBuffer(kernel, "SRV_LightZBins", Buffer(new[] { packed }, 4));
                 shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", Buffer(new[] { Matrix4x4.identity }, 64));
                 // Replay fixtures bind the actual stage's inactive-resource layout, never a later shader payload.
-                bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl").Contains("struct FLocalShadowSlice");
+                bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl").Contains("struct LocalShadowSlice");
                 if (shadowSlices)
                 {
                     shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice { rect = Vector4.zero, depth = Vector4.zero, moments = Vector4.zero } }, 48));

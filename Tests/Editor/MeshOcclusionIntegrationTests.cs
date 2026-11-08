@@ -82,7 +82,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             using (var update = m_World.BeginUpdate())
             {
                 m_Entity = update.CreateEntity(float4x4.TRS(new float3(1000,1000,1003), quaternion.identity, new float3(.5f)),
-                    new FBound(new float3(1000,1000,1003), new float3(.25f)),
+                    new BoundingBox(new float3(1000,1000,1003), new float3(.25f)),
                     MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.ReceiveShadow | EMeshEntityFlags.ObjectMotion, layerMask: 1 << 31), MeshLODChain.Single);
                 update.AddElement(m_Entity, UnityEntityId.ToUInt64(mesh), 0, 0, UnityEntityId.ToUInt64(m_MeshMaterial), MeshTestUtility.StateOf(m_MeshMaterial), 0);
                 update.Commit(); m_Registered = true;

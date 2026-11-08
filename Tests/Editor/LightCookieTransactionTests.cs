@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         Texture2D m_Texture;
         LightCookieAtlas m_Atlas;
         const ulong TextureId = 17;
-        static FCookieKey Key => new FCookieKey(TextureId, ECookieLayout.Projected);
+        static CookieKey Key => new CookieKey(TextureId, ECookieLayout.Projected);
 
         [SetUp]
         public void SetUp()
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Acquire(1);
             AcceptQueuedUpload();
             const ulong secondId = 18;
-            var secondKey = new FCookieKey(secondId, ECookieLayout.Projected);
+            var secondKey = new CookieKey(secondId, ECookieLayout.Projected);
             Assert.IsTrue(m_Atlas.Acquire(m_Texture, ECookieLayout.Projected, ECookieChannels.RGB,
                 secondId, 1, 16, 16, 1, out _));
             Assert.AreEqual(1, m_Atlas.Uploads.Count);

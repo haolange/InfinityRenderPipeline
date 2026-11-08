@@ -73,12 +73,12 @@ float3 FroxelToWorld(uint3 froxelCoord)
     return _WorldSpaceCameraPos + viewDir * depth;
 }
 
-float VolumeLightAttenuation(FLightRecord light, float3 worldPos)
+float VolumeLightAttenuation(LightRecord light, float3 worldPos)
 {
     return IsDirectionalLight(light) ? 1.0 : LocalLightAttenuation(light, worldPos);
 }
 
-float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
+float3 EvaluateVolumeLight(LightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
 {
     float3 L;
     float att = 1.0;
@@ -109,7 +109,7 @@ void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, f
         return;
     }
 
-    FLightLoop lightLoop;
+    LightLoopState lightLoop;
     BeginLightLoopUV(screenUV, viewDepth, lightLoop);
     uint recordIndex;
     [loop]

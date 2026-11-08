@@ -6,7 +6,7 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FTemporalColorView
+    internal struct TemporalColorView
     {
         internal RGTextureHandle color, depth, mips;
         internal Vector4 resolution, jitterDelta;
@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct TemporalColorMipData
         {
-            internal FTemporalColorView source;
+            internal TemporalColorView source;
             internal ComputeShader shader;
             internal int kernel, mipCount;
             internal int2 size;
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.filterMode = FilterMode.Bilinear;
             var mips = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
             Vector2 currentJitter = ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
-            var source = new FTemporalColorView
+            var source = new TemporalColorView
             {
                 color = m_RGBuilder.ImportTexture(color), depth = m_RGBuilder.ImportTexture(depth), mips = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
@@ -99,12 +99,12 @@ namespace InfinityTech.Rendering.Pipeline
             }
             MarkFeatureProduced(EFrameFeature.TemporalColorPyramid);
         }
-        static FTemporalColorView ReadTemporalColorView(RGComputePassHandle pass, FTemporalColorView source)
+        static TemporalColorView ReadTemporalColorView(RGComputePassHandle pass, TemporalColorView source)
         {
             source.color = pass.ReadTexture(source.color); source.depth = pass.ReadTexture(source.depth);
             source.mips = pass.ReadTexture(source.mips); return source;
         }
-        static void BindTemporalColorView(in RGComputeEncoder commands, ComputeShader shader, int kernel, in FTemporalColorView source)
+        static void BindTemporalColorView(in RGComputeEncoder commands, ComputeShader shader, int kernel, in TemporalColorView source)
         {
             commands.SetComputeIntParam(shader, TemporalColorBindings.Valid, source.valid ? 1 : 0);
             commands.SetComputeIntParam(shader, TemporalColorBindings.MipCount, source.mipCount);

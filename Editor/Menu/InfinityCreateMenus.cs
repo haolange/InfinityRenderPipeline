@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Editor
         const int RenderingPriority = 10;
         internal const string DefaultDecalMaterialPath = "Assets/InfinityDefaultDecal.mat";
 
-        delegate void ShapeEdit(ref FLightShape shape);
+        delegate void ShapeEdit(ref LightSourceShape shape);
 
         [MenuItem(LightMenu + "Directional Light", false, LightPriority)]
         static void CreateDirectional(MenuCommand command) => CreateLight(command, "Directional Light", EInfinityLightType.Directional, null);
@@ -31,23 +31,23 @@ namespace InfinityTech.Rendering.Editor
 
         [MenuItem(LightMenu + "Sphere Light", false, LightPriority + 2)]
         static void CreateSphere(MenuCommand command) =>
-            CreateLight(command, "Sphere Light", EInfinityLightType.Point, (ref FLightShape s) => s.sourceRadius = 0.1f);
+            CreateLight(command, "Sphere Light", EInfinityLightType.Point, (ref LightSourceShape s) => s.sourceRadius = 0.1f);
 
         [MenuItem(LightMenu + "Tube Light", false, LightPriority + 3)]
         static void CreateTube(MenuCommand command) =>
-            CreateLight(command, "Tube Light", EInfinityLightType.Point, (ref FLightShape s) => { s.sourceLength = 1.0f; s.sourceRadius = 0.05f; });
+            CreateLight(command, "Tube Light", EInfinityLightType.Point, (ref LightSourceShape s) => { s.sourceLength = 1.0f; s.sourceRadius = 0.05f; });
 
         [MenuItem(LightMenu + "Spot Light (Cone)", false, LightPriority + 4)]
         static void CreateCone(MenuCommand command) =>
-            CreateLight(command, "Spot Light", EInfinityLightType.Spot, (ref FLightShape s) => s.spotShape = ESpotShape.Cone);
+            CreateLight(command, "Spot Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Cone);
 
         [MenuItem(LightMenu + "Spot Light (Pyramid)", false, LightPriority + 5)]
         static void CreatePyramid(MenuCommand command) =>
-            CreateLight(command, "Pyramid Light", EInfinityLightType.Spot, (ref FLightShape s) => s.spotShape = ESpotShape.Pyramid);
+            CreateLight(command, "Pyramid Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Pyramid);
 
         [MenuItem(LightMenu + "Spot Light (Box)", false, LightPriority + 6)]
         static void CreateBox(MenuCommand command) =>
-            CreateLight(command, "Box Light", EInfinityLightType.Spot, (ref FLightShape s) => s.spotShape = ESpotShape.Box);
+            CreateLight(command, "Box Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Box);
 
         [MenuItem(LightMenu + "Rect Light", false, LightPriority + 7)]
         static void CreateRect(MenuCommand command) => CreateLight(command, "Rect Light", EInfinityLightType.Rect, null);
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Editor
                 go.transform.rotation = Quaternion.Euler(90, 0, 0);
             }
             InfinityAdditionalLightData data = InfinityAdditionalLightData.GetOrCreate(light, false);
-            FLightShape shape = FLightShape.Default(type);
+            LightSourceShape shape = LightSourceShape.Default(type);
             edit?.Invoke(ref shape);
             data.SetShape(shape);
             Finish(go, "Create " + name);

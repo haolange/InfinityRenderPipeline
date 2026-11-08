@@ -1,7 +1,7 @@
 namespace InfinityTech.Rendering.Pipeline
 {
     // Low-level screen-space traced (contact) shadow settings consumed by ContactShadowPass.
-    public struct FContactShadowSettings
+    public struct ContactShadowSettings
     {
         // Quality (preset-driven unless Custom)
         public int numSteps;
@@ -16,12 +16,12 @@ namespace InfinityTech.Rendering.Pipeline
     public static partial class QualityPresets
     {
         // Medium keeps the 0.4.0 step count for local lights.
-        public static readonly FContactShadowSettings[] ContactShadow =
+        public static readonly ContactShadowSettings[] ContactShadow =
         {
-            new FContactShadowSettings { numSteps = 6, sunNumSteps = 8 },   // Low
-            new FContactShadowSettings { numSteps = 8, sunNumSteps = 16 },  // Medium
-            new FContactShadowSettings { numSteps = 12, sunNumSteps = 24 }, // High
-            new FContactShadowSettings { numSteps = 16, sunNumSteps = 32 }, // Ultra
+            new ContactShadowSettings { numSteps = 6, sunNumSteps = 8 },   // Low
+            new ContactShadowSettings { numSteps = 8, sunNumSteps = 16 },  // Medium
+            new ContactShadowSettings { numSteps = 12, sunNumSteps = 24 }, // High
+            new ContactShadowSettings { numSteps = 16, sunNumSteps = 32 }, // Ultra
         };
     }
 }
