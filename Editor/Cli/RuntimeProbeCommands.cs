@@ -106,6 +106,7 @@ namespace InfinityTech.Rendering.Editor
         readonly List<UnityEngine.Object> m_Owned = new List<UnityEngine.Object>();
         readonly List<Transform> m_Moving = new List<Transform>();
         readonly List<Vector3> m_BasePositions = new List<Vector3>();
+        readonly bool m_PreviousRunInBackground;
         readonly bool m_PreviousMeasurement;
         readonly MeshPipeline.EMeshBackendPolicy? m_PreviousBackend;
         readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations;
@@ -157,6 +158,8 @@ namespace InfinityTech.Rendering.Editor
             m_Scratch = new double[capacity];
 
             Directory.CreateDirectory(request.outputDirectory);
+            m_PreviousRunInBackground = Application.runInBackground;
+            Application.runInBackground = true;
             m_PreviousMeasurement = PipelineFrameMeasurement.enabled;
             m_PreviousBackend = InfinityDebugDisplaySettings.current.mesh.backendOverride;
             try
@@ -220,6 +223,7 @@ namespace InfinityTech.Rendering.Editor
         void OnUpdate()
         {
             if (Finished) return;
+            PumpPlayerLoop();
             try
             {
                 Move();
@@ -240,6 +244,17 @@ namespace InfinityTech.Rendering.Editor
             {
                 Stop("Failed", error);
             }
+        }
+
+        static void PumpPlayerLoop()
+        {
+            // A backgrounded Editor does not render the Game view, which leaves every window at zero samples.
+            EditorApplication.QueuePlayerLoopUpdate();
+            var gameView = Type.GetType("UnityEditor.GameView, UnityEditor");
+            if (gameView == null) return;
+            var views = Resources.FindObjectsOfTypeAll(gameView);
+            for (int i = 0; i < views.Length; ++i)
+                if (views[i] is EditorWindow window) window.Repaint();
         }
 
         void Move()
@@ -323,6 +338,7 @@ namespace InfinityTech.Rendering.Editor
             m_Moving.Clear();
             InfinityDebugDisplaySettings.current.mesh.backendOverride = m_PreviousBackend;
             PipelineFrameMeasurement.enabled = m_PreviousMeasurement;
+            Application.runInBackground = m_PreviousRunInBackground;
             if (m_ReloadLocked) { EditorApplication.UnlockReloadAssemblies(); m_ReloadLocked = false; }
             evidence.restored = true;
             try { File.WriteAllText(Path.Combine(m_Request.outputDirectory, "probe.json"), JsonUtility.ToJson(evidence, true)); }
