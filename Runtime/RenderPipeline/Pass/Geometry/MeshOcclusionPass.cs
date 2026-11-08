@@ -18,12 +18,15 @@ namespace InfinityTech.Rendering.Pipeline
                 || world.SelectBackend(MeshPassTable.Depth) != EMeshDrawBackendPolicy.GPUIndirect) return false;
             var size = m_ActiveFrameState.dimensions.internalSize;
             var history = m_ActiveFrameState.historyCache;
+            // A reset or a first frame has no Hi-Z to test. Those views join the one frustum dispatch.
+            if (m_ActiveFrameState.cameraUniform.historyReset || motion.previous == null) return false;
             var previous = history.GetTexture(HiZPassUtilityData.HistoryFurthest,
                 HiZDescriptor(size.x, size.y, "HiZFurthest"), out bool created);
             bool valid = !created && history.TextureGeneration(HiZPassUtilityData.HistoryFurthest) > 0
-                && m_ActiveFrameState.acceptedHiZ && !m_ActiveFrameState.cameraUniform.historyReset && motion.previous != null;
+                && m_ActiveFrameState.acceptedHiZ;
+            if (!valid) return false;
             lists = m_RGBuilder.RecordMeshOcclusionPrediction(view, motion,
-                valid ? m_RGBuilder.ImportTexture(previous) : default,
+                m_RGBuilder.ImportTexture(previous),
                 m_ActiveFrameState.cameraUniform.matrix_LastViewFlipYJitterProj, size,
                 (ulong)history.TextureGeneration(HiZPassUtilityData.HistoryFurthest));
             view = lists.final;
