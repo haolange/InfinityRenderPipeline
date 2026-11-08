@@ -171,10 +171,10 @@ namespace InfinityTech.Rendering.Pipeline
             mesh.children.Add(new DebugUI.Value { displayName = "Pass Caches", getter = () => (object)state.mesh.passCacheCount });
             mesh.children.Add(new DebugUI.Value { displayName = "Cached Commands", getter = () => (object)state.mesh.commandCount });
             mesh.children.Add(new DebugUI.BoolField { displayName = "Override Mesh Backend", getter = () => state.mesh.backendOverride.HasValue,
-                setter = value => state.mesh.backendOverride = value ? EMeshBackendPolicy.Auto : (EMeshBackendPolicy?)null });
-            mesh.children.Add(new DebugUI.EnumField { displayName = "Mesh Backend", autoEnum = typeof(EMeshBackendPolicy),
-                getter = () => (int)(state.mesh.backendOverride ?? EMeshBackendPolicy.Auto), setter = value => state.mesh.backendOverride = (EMeshBackendPolicy)value,
-                getIndex = () => (int)(state.mesh.backendOverride ?? EMeshBackendPolicy.Auto), setIndex = value => state.mesh.backendOverride = (EMeshBackendPolicy)value,
+                setter = value => state.mesh.backendOverride = value ? EMeshDrawBackendPolicy.Auto : (EMeshDrawBackendPolicy?)null });
+            mesh.children.Add(new DebugUI.EnumField { displayName = "Mesh Backend", autoEnum = typeof(EMeshDrawBackendPolicy),
+                getter = () => (int)(state.mesh.backendOverride ?? EMeshDrawBackendPolicy.Auto), setter = value => state.mesh.backendOverride = (EMeshDrawBackendPolicy)value,
+                getIndex = () => (int)(state.mesh.backendOverride ?? EMeshDrawBackendPolicy.Auto), setIndex = value => state.mesh.backendOverride = (EMeshDrawBackendPolicy)value,
                 isHiddenCallback = () => !state.mesh.backendOverride.HasValue });
             mesh.children.Add(new DebugUI.Value { displayName = "Requested Backend", getter = () => state.mesh.requestedBackend.ToString() });
             mesh.children.Add(new DebugUI.Value { displayName = "Actual Backend", getter = () => state.mesh.actualBackend.ToString() });

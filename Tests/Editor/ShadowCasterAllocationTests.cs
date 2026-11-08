@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     using (MeshWorldUpdate update = world.BeginUpdate())
                     {
                         entity = update.CreateEntity(float4x4.identity, new FBound(new float3(0, 0, -5), new float3(.25f)),
-                            MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1), MeshLodChain.Single);
+                            MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1), MeshLODChain.Single);
                         update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                         update.Commit();
                     }

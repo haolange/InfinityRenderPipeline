@@ -61,8 +61,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// (a lower bound, strictly decreasing); below the last level nothing is drawn. The cross-fade band sits above each
     /// threshold and is <c>fadeWidth</c> of the gap to the previous threshold (1 for LOD 0).
     /// </summary>
-    // GPU-RECORD: FMeshLodChain Shaders/ShaderLibrary/MeshLod.hlsl
-    public struct MeshLodChain : IEquatable<MeshLodChain>
+    // GPU-RECORD: FMeshLODChain Shaders/ShaderLibrary/MeshLOD.hlsl
+    public struct MeshLODChain : IEquatable<MeshLODChain>
     {
         public const int MaxLevels = 8;
         public float4 screenSize0;
@@ -71,18 +71,18 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int count;
 
         /// <summary>One level drawn at every screen size.</summary>
-        public static MeshLodChain Single => new MeshLodChain { count = 1, fadeWidth = 0.2f };
+        public static MeshLODChain Single => new MeshLODChain { count = 1, fadeWidth = 0.2f };
 
         public float ScreenSize(int level) => level < 4 ? screenSize0[level] : screenSize1[level - 4];
 
         /// <summary>Bounds strictly decrease, so some level has a cross-fade band exactly when LOD 0's bound is positive.</summary>
         public bool hasFadeBand => count > 0 && screenSize0.x > 0;
 
-        public static MeshLodChain Create(ReadOnlySpan<float> screenSizes, float fadeWidth)
+        public static MeshLODChain Create(ReadOnlySpan<float> screenSizes, float fadeWidth)
         {
             if (screenSizes.Length < 1 || screenSizes.Length > MaxLevels)
                 throw new ArgumentOutOfRangeException(nameof(screenSizes), screenSizes.Length, $"A LOD chain has 1 to {MaxLevels} levels.");
-            var chain = new MeshLodChain { count = screenSizes.Length, fadeWidth = fadeWidth };
+            var chain = new MeshLODChain { count = screenSizes.Length, fadeWidth = fadeWidth };
             for (int i = 0; i < screenSizes.Length; ++i)
                 if (i < 4) chain.screenSize0[i] = screenSizes[i]; else chain.screenSize1[i - 4] = screenSizes[i];
             chain.ThrowIfInvalid();
@@ -104,16 +104,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public bool Equals(MeshLodChain other) => screenSize0.Equals(other.screenSize0) && screenSize1.Equals(other.screenSize1)
+        public bool Equals(MeshLODChain other) => screenSize0.Equals(other.screenSize0) && screenSize1.Equals(other.screenSize1)
             && fadeWidth == other.fadeWidth && count == other.count;
-        public override bool Equals(object obj) => obj is MeshLodChain other && Equals(other);
+        public override bool Equals(object obj) => obj is MeshLODChain other && Equals(other);
         public override int GetHashCode() => screenSize0.GetHashCode() ^ (count * 397);
     }
 
     public struct MeshEntity
     {
         public MeshEntityDesc desc;
-        public MeshLodChain lod;
+        public MeshLODChain lod;
         /// <summary>Head of this entity's element chain (element index), -1 when empty.</summary>
         public int firstElement;
         public int elementCount;

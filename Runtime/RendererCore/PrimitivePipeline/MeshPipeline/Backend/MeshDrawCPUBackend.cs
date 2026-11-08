@@ -12,14 +12,14 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// CPU direct drawing: a draw list's sorted instance-to-entity table is uploaded once, then every merged run is one
     /// <c>DrawMeshInstancedProcedural</c>. The property block's buffers are set once per draw list.
     /// </summary>
-    internal sealed class MeshCpuDrawBackend : IDisposable
+    internal sealed class MeshDrawCPUBackend : IDisposable
     {
         static readonly GlobalKeyword s_LodDither = GlobalKeyword.Create("INFINITY_LOD_DITHER");
         readonly ResourcePool m_Pool;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly List<BufferHandle> m_Retired = new List<BufferHandle>(16);
 
-        internal MeshCpuDrawBackend(ResourcePool pool) => m_Pool = pool;
+        internal MeshDrawCPUBackend(ResourcePool pool) => m_Pool = pool;
 
         /// <summary>Record-time allocation of the instance-to-entity and fade tables, sized by the pass's member count.</summary>
         internal void AllocateInstances(int memberCount, out BufferHandle instances, out BufferHandle fades)
@@ -44,8 +44,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
         }
 
-        internal void Submit(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
-            in MeshWorldGpuTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
+        internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
         {
             if (build.draws.Length == 0) return;
             string marker = MeshDrawProfiling.Draw(viewKind, false);
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
-                foreach (MeshInstancedDraw draw in build.draws)
+                foreach (MeshDrawCall draw in build.draws)
                 {
                     MeshDrawCommandBinding binding = cache.GetBinding(draw.command);
                     if (binding.mesh == null || binding.material == null)

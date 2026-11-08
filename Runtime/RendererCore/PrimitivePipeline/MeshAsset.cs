@@ -76,18 +76,18 @@ namespace InfinityTech.Rendering.MeshPipeline
 
 
         /// <summary>The world LOD chain of this asset. Call <see cref="ThrowIfInvalid"/> first.</summary>
-        public MeshLodChain BuildLodChain()
+        public MeshLODChain BuildLodChain()
         {
             int count = lodCount;
-            if (count < 1 || count > MeshLodChain.MaxLevels) throw new InvalidOperationException($"MeshAsset '{name}' has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
-            Span<float> sizes = stackalloc float[MeshLodChain.MaxLevels];
+            if (count < 1 || count > MeshLODChain.MaxLevels) throw new InvalidOperationException($"MeshAsset '{name}' has {count} LOD levels; 1 to {MeshLODChain.MaxLevels} are supported.");
+            Span<float> sizes = stackalloc float[MeshLODChain.MaxLevels];
             for (int i = 0; i < count; ++i) sizes[i] = lODInfos[i].screenSize;
-            return MeshLodChain.Create(sizes.Slice(0, count), fadeWidth);
+            return MeshLODChain.Create(sizes.Slice(0, count), fadeWidth);
         }
 
         /// <summary>
         /// Throws <see cref="InvalidOperationException"/> unless the asset has 1 to 8 levels, one non-null mesh per level,
-        /// screen sizes and fade width that <see cref="MeshLodChain.Create"/> accepts, and material slots inside
+        /// screen sizes and fade width that <see cref="MeshLODChain.Create"/> accepts, and material slots inside
         /// <c>materials</c>. Submesh counts are not checked here: they belong to the live meshes.
         /// </summary>
         public void ThrowIfInvalid() => ThrowIfInvalid(this, meshes, materials, lODInfos, fadeWidth);
@@ -97,12 +97,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             string label() => owner is GameObject ? $"Prefab '{owner.name}'" : $"MeshAsset '{(owner != null ? owner.name : string.Empty)}'";
             int count = lods?.Length ?? 0;
-            if (count < 1 || count > MeshLodChain.MaxLevels)
-                throw new InvalidOperationException($"{label()} has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
+            if (count < 1 || count > MeshLODChain.MaxLevels)
+                throw new InvalidOperationException($"{label()} has {count} LOD levels; 1 to {MeshLODChain.MaxLevels} are supported.");
             if ((meshes?.Length ?? 0) != count)
                 throw new InvalidOperationException($"{label()} has {meshes?.Length ?? 0} meshes for {count} LOD levels; each level needs one mesh.");
             int materialCount = materials?.Length ?? 0;
-            Span<float> sizes = stackalloc float[MeshLodChain.MaxLevels];
+            Span<float> sizes = stackalloc float[MeshLODChain.MaxLevels];
             for (int i = 0; i < count; ++i)
             {
                 if (meshes[i] == null) throw new InvalidOperationException($"{label()} has no mesh in LOD {i}.");
@@ -113,7 +113,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                             throw new InvalidOperationException($"{label()} LOD {i} submesh {s} uses material slot {slots[s]}; the asset has {materialCount} slots.");
                 sizes[i] = lods[i].screenSize;
             }
-            try { MeshLodChain.Create(sizes.Slice(0, count), fadeWidth); }
+            try { MeshLODChain.Create(sizes.Slice(0, count), fadeWidth); }
             catch (ArgumentException exception) { throw new InvalidOperationException($"{label()}: {exception.Message}", exception); }
         }
 

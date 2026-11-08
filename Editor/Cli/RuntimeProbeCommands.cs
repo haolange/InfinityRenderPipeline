@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Editor
         readonly List<Vector3> m_BasePositions = new List<Vector3>();
         readonly bool m_PreviousRunInBackground;
         readonly bool m_PreviousMeasurement;
-        readonly MeshPipeline.EMeshBackendPolicy? m_PreviousBackend;
+        readonly MeshPipeline.EMeshDrawBackendPolicy? m_PreviousBackend;
         readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations, m_FrameAllocBytes, m_ProxyAllocBytes;
         readonly double[] m_Scratch;
         int m_Frame, m_WindowSamples, m_WindowIndex;
@@ -166,7 +166,7 @@ namespace InfinityTech.Rendering.Editor
             try
             {
                 if (!string.IsNullOrEmpty(request.meshBackend))
-                    InfinityDebugDisplaySettings.current.mesh.backendOverride = (MeshPipeline.EMeshBackendPolicy)Enum.Parse(typeof(MeshPipeline.EMeshBackendPolicy), request.meshBackend);
+                    InfinityDebugDisplaySettings.current.mesh.backendOverride = (MeshPipeline.EMeshDrawBackendPolicy)Enum.Parse(typeof(MeshPipeline.EMeshDrawBackendPolicy), request.meshBackend);
                 PipelineFrameMeasurement.ThrowIfAllocationByteCounterMissing();
                 PipelineFrameMeasurement.enabled = true;
                 RuntimeProbeContent.Spawn(request, m_Camera, m_Owned, m_Moving, m_BasePositions, out evidence.translucent);

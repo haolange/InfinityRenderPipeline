@@ -166,7 +166,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         #region Structural edits
-        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLodChain lod)
+        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLODChain lod)
         {
             RequireTransaction(generation);
             RenderingLayerUtility.Validate(desc.renderingLayerMask);
@@ -503,7 +503,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         MeshWorld world => m_World ?? throw new InvalidOperationException("Default MeshWorldUpdate.");
 
-        public MeshEntityId CreateEntity(in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLodChain lod)
+        public MeshEntityId CreateEntity(in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLODChain lod)
             => world.CreateEntity(m_Generation, localToWorld, bounds, desc, lod);
 
         public void SetEntityDesc(MeshEntityId entity, in MeshEntityDesc desc) => world.SetEntityDesc(m_Generation, entity, desc);

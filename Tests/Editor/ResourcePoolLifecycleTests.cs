@@ -98,11 +98,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             using (var fixture = new MeshWorldFixture())
             {
-                MeshTestUtility.RequireGpuIndirect(fixture.world);
-                MeshGpuDrawBackend backend = fixture.world.gpuBackend;
+                MeshTestUtility.RequireGPUIndirect(fixture.world);
+                MeshDrawGPUBackend backend = fixture.world.gpuBackend;
                 var graph = new RGBuilder("RecordedPayload", fixture.pool);
-                MeshGpuDrawPayload payload = backend.RentPayload(1, 1);
-                MeshGpuDrawPayload next = null;
+                MeshGPUDrawPayload payload = backend.RentPayload(1, 1);
+                MeshGPUDrawPayload next = null;
                 try
                 {
                     BufferHandle original = payload.indirectArgs;

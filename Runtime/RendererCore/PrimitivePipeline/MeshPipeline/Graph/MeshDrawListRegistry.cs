@@ -11,26 +11,26 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// Logical draw-list handle. Not an ERGResourceType; it lives in the mesh graph extension's registry.
     /// The registry reference binds it to one builder; the generation binds it to one graph lifetime.
     /// </summary>
-    public readonly struct RGDrawListHandle
+    public readonly struct RGMeshDrawListHandle
     {
-        internal readonly RGDrawListContext context;
+        internal readonly MeshDrawListRegistry context;
         internal readonly int index;
         internal readonly int generation;
 
-        internal RGDrawListHandle(RGDrawListContext context, int index, int generation)
+        internal RGMeshDrawListHandle(MeshDrawListRegistry context, int index, int generation)
         {
             this.context = context;
             this.index = index;
             this.generation = generation;
         }
 
-        /// <summary>Registry-only validity. Generation and index are checked by UseDrawList and Draw.</summary>
+        /// <summary>Registry-only validity. Generation and index are checked by UseMeshDrawList and Draw.</summary>
         public bool IsValid => context != null;
 
-        public static RGDrawListHandle Invalid => default;
+        public static RGMeshDrawListHandle Invalid => default;
     }
 
-    internal enum ERGDrawListCompileState : byte
+    internal enum EMeshDrawListState : byte
     {
         Declared = 0,
         Live = 1,
@@ -38,14 +38,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         Released = 3
     }
 
-    internal struct RGDrawListRecord
+    internal struct MeshDrawListRecord
     {
         public MeshView view;
         public MeshPassCache cache;
-        public EMeshBackendPolicy backend;
-        public MeshWorldGpuTables tables;
+        public EMeshDrawBackendPolicy backend;
+        public MeshWorldGPUTables tables;
         public MeshMotionBinding motion;
-        public ERGDrawListCompileState state;
+        public EMeshDrawListState state;
         public List<int> consumerPassIndices;
         // CPU direct
         public MeshVisibilityHandle visibility;
@@ -55,79 +55,79 @@ namespace InfinityTech.Rendering.MeshPipeline
         // GPU indirect
         public RGBufferHandle gpuVisibility;
         public BufferHandle gpuVisibilityBuffer;
-        public MeshGpuDrawPayload payload;
+        public MeshGPUDrawPayload payload;
         public int commandCount;
         public int candidateCount;
         public uint cacheRevision;
     }
 
     /// <summary>Per-graph draw-list registry used by compile, preparation and submit.</summary>
-    internal sealed class RGDrawListContext
+    internal sealed class MeshDrawListRegistry
     {
         readonly MeshWorld m_World;
-        readonly List<RGDrawListRecord> m_Records = new List<RGDrawListRecord>(16);
+        readonly List<MeshDrawListRecord> m_Records = new List<MeshDrawListRecord>(16);
         readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
-        // Start at 1 so default(RGDrawListHandle) never matches a live graph.
+        // Start at 1 so default(RGMeshDrawListHandle) never matches a live graph.
         int m_GraphGeneration = 1;
 
-        internal RGDrawListContext(MeshWorld world) => m_World = world;
+        internal MeshDrawListRegistry(MeshWorld world) => m_World = world;
 
         public int Count => m_Records.Count;
         public int GraphGeneration => m_GraphGeneration;
 
-        public bool IsLive(in RGDrawListHandle draws)
+        public bool IsLive(in RGMeshDrawListHandle draws)
             => draws.context == this && draws.generation == m_GraphGeneration && draws.index >= 0 && draws.index < m_Records.Count;
 
-        public RGDrawListRecord GetRecordCopy(int index) => m_Records[index];
+        public MeshDrawListRecord GetRecordCopy(int index) => m_Records[index];
 
-        public RGDrawListHandle Declare(in MeshView view, in MeshPassDesc desc)
+        public RGMeshDrawListHandle Declare(in MeshView view, in MeshPassDesc desc)
         {
             MeshPassCache cache = m_World.GetPassCache(desc);
             cache.EnsureShaderBindings();
             MeshMotionBinding motion = m_World.GetPreviousTransforms(view.viewKey);
             if (desc.requirePreviousTransforms && !motion.isValid)
                 throw new InvalidOperationException($"Mesh pass '{desc.lightMode}' requires the view's previous-transform producer.");
-            MeshWorldGpuTables tables = m_World.gpu.Snapshot();
+            MeshWorldGPUTables tables = m_World.gpu.Snapshot();
             if (!tables.isValid) throw new InvalidOperationException("Draw lists require uploaded MeshWorld residency.");
-            EMeshBackendPolicy backend = m_World.SelectBackend(desc);
+            EMeshDrawBackendPolicy backend = m_World.SelectBackend(desc);
             tables.version.Retain();
             int index = m_Records.Count;
-            m_Records.Add(new RGDrawListRecord
+            m_Records.Add(new MeshDrawListRecord
             {
                 view = view,
                 cache = cache,
                 backend = backend,
                 tables = tables,
                 motion = motion,
-                state = ERGDrawListCompileState.Declared,
+                state = EMeshDrawListState.Declared,
                 consumerPassIndices = m_ConsumerLists.Count > 0 ? m_ConsumerLists.Pop() : new List<int>(4),
                 visibility = MeshVisibilityHandle.Invalid
             });
-            return new RGDrawListHandle(this, index, m_GraphGeneration);
+            return new RGMeshDrawListHandle(this, index, m_GraphGeneration);
         }
 
         public void ClearConsumers()
         {
             for (int i = 0; i < m_Records.Count; ++i)
             {
-                RGDrawListRecord record = m_Records[i];
+                MeshDrawListRecord record = m_Records[i];
                 record.consumerPassIndices.Clear();
-                if (record.state != ERGDrawListCompileState.Released) record.state = ERGDrawListCompileState.Declared;
+                if (record.state != EMeshDrawListState.Released) record.state = EMeshDrawListState.Declared;
                 m_Records[i] = record;
             }
         }
 
         public void MarkLiveConsumer(int drawListIndex, int passIndex)
         {
-            RGDrawListRecord record = m_Records[drawListIndex];
+            MeshDrawListRecord record = m_Records[drawListIndex];
             record.consumerPassIndices.Add(passIndex);
-            if (record.state == ERGDrawListCompileState.Declared) record.state = ERGDrawListCompileState.Live;
+            if (record.state == EMeshDrawListState.Declared) record.state = EMeshDrawListState.Live;
             m_Records[drawListIndex] = record;
         }
 
-        public void BindGpuVisibility(int index, in RGBufferHandle visibility, in BufferHandle buffer)
+        public void BindGPUVisibility(int index, in RGBufferHandle visibility, in BufferHandle buffer)
         {
-            RGDrawListRecord record = m_Records[index];
+            MeshDrawListRecord record = m_Records[index];
             record.gpuVisibility = visibility;
             record.gpuVisibilityBuffer = buffer;
             m_Records[index] = record;
@@ -141,17 +141,17 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             for (int i = 0; i < m_Records.Count; ++i)
             {
-                RGDrawListRecord record = m_Records[i];
-                if (record.state != ERGDrawListCompileState.Live)
+                MeshDrawListRecord record = m_Records[i];
+                if (record.state != EMeshDrawListState.Live)
                 {
-                    record.state = ERGDrawListCompileState.Released;
+                    record.state = EMeshDrawListState.Released;
                     m_Records[i] = record;
                     continue;
                 }
 
                 MeshPassCache cache = record.cache;
                 record.cacheRevision = cache.revision;
-                if (record.backend == EMeshBackendPolicy.GpuIndirect)
+                if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
                 {
                     if (!record.gpuVisibility.IsValid())
                         throw new InvalidOperationException("A GPU draw list requires its view's GPU culling producer.");
@@ -170,13 +170,13 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_Records[i] = record;
                     m_World.cpuBackend.AllocateInstances(cache.memberCount, out record.cpuInstances, out record.cpuFades);
                 }
-                record.state = ERGDrawListCompileState.Scheduled;
+                record.state = EMeshDrawListState.Scheduled;
                 m_Records[i] = record;
             }
             JobHandle.ScheduleBatchedJobs();
         }
 
-        void RequireUnchanged(in RGDrawListRecord record)
+        void RequireUnchanged(in MeshDrawListRecord record)
         {
             if (record.cache.revision != record.cacheRevision)
                 throw new InvalidOperationException("A pass cache changed between draw-list record and execution.");
@@ -184,16 +184,16 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void Upload(int index, CommandBuffer commands)
         {
-            RGDrawListRecord record = m_Records[index];
+            MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
-            if (record.backend == EMeshBackendPolicy.GpuIndirect) m_World.gpuBackend.Upload(commands, record.payload, record.cache, record.commandCount);
+            if (record.backend == EMeshDrawBackendPolicy.GPUIndirect) m_World.gpuBackend.Upload(commands, record.payload, record.cache, record.commandCount);
             else m_World.cpuBackend.Upload(commands, ref record.build, record.cpuInstances, record.cpuFades);
             m_Records[index] = record;
         }
 
         internal void Compact(int index, CommandBuffer commands)
         {
-            RGDrawListRecord record = m_Records[index];
+            MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
             string slice = SliceSampleName(record.view);
             if (slice != null) commands.BeginSample(slice);
@@ -205,17 +205,17 @@ namespace InfinityTech.Rendering.MeshPipeline
             finally { if (slice != null) commands.EndSample(slice); }
         }
 
-        public void Submit(CommandBuffer commands, in RGDrawListHandle draws)
+        public void SubmitMeshDrawList(CommandBuffer commands, in RGMeshDrawListHandle draws)
         {
-            // Draw is only reachable from a live consumer declared with UseDrawList; anything else is a broken pass.
+            // Draw is only reachable from a live consumer declared with UseMeshDrawList; anything else is a broken pass.
             if (!IsLive(draws)) throw new InvalidOperationException("Draw received a draw list of another builder or an earlier graph.");
-            RGDrawListRecord record = m_Records[draws.index];
-            if (record.state != ERGDrawListCompileState.Scheduled) throw new InvalidOperationException("Draw received a draw list that its pass did not declare with UseDrawList.");
+            MeshDrawListRecord record = m_Records[draws.index];
+            if (record.state != EMeshDrawListState.Scheduled) throw new InvalidOperationException("Draw received a draw list that its pass did not declare with UseMeshDrawList.");
             RequireUnchanged(record);
-            if (record.backend == EMeshBackendPolicy.GpuIndirect)
-                m_World.gpuBackend.Submit(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);
+            if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
+                m_World.gpuBackend.SubmitMeshDrawList(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);
             else
-                m_World.cpuBackend.Submit(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view.kind);
+                m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view.kind);
         }
 
         static string SliceSampleName(in MeshView view)
@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             List<Exception> failures = null;
             for (int i = 0; i < m_Records.Count; ++i)
             {
-                RGDrawListRecord record = m_Records[i];
+                MeshDrawListRecord record = m_Records[i];
                 try
                 {
                     record.build.Dispose();

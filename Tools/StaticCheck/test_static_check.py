@@ -62,15 +62,15 @@ class StaticCheckTests(unittest.TestCase):
 
     def test_mesh_submit_only_draws(self):
         root = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline/'
-        self.write(root + 'Backend/MeshCpuDrawBackend.cs',
-                   'class A { internal void Submit(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
-        self.write(root + 'Backend/MeshGpuDrawBackend.cs',
-                   'class B { internal void Submit(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
+        self.write(root + 'Backend/MeshDrawCPUBackend.cs',
+                   'class A { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
+        self.write(root + 'Backend/MeshDrawGPUBackend.cs',
+                   'class B { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
         self.write(root + 'Graph/MeshGraphExtension.cs', 'InsertDrawListPreparation MeshDrawProfiling.upload MeshDrawProfiling.compaction')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)
         self.assertEqual(1, len(out))
-        self.assertIn('MeshCpuDrawBackend.cs: Submit calls SetBufferData', out[0][2])
+        self.assertIn('MeshDrawCPUBackend.cs: SubmitMeshDrawList calls SetBufferData', out[0][2])
 
     def test_find_property_names_a_serialized_field(self):
         self.write('Runtime/Component/Render/Thing.cs', 'public class Thing : Base { [SerializeField] private int mobility; [SerializeField, Range(0, 1)]\n float m_Scale; }')
@@ -83,11 +83,11 @@ class StaticCheckTests(unittest.TestCase):
         self.assertIn('"movebility"', out[0][2])
 
     def test_mesh_pass_files_leave_backend_choice_to_the_world(self):
-        self.write('Runtime/RenderPipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshBackendPolicy.GpuIndirect) {}')
-        self.write('Runtime/RenderPipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.GBuffer);')
+        self.write('Runtime/RenderPipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshDrawBackendPolicy.GPUIndirect) {}')
+        self.write('Runtime/RenderPipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));')
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
-        self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshBackendPolicy')], out)
+        self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshDrawBackendPolicy')], out)
 
     def test_opaque_mesh_passes_dither_lod_transitions(self):
         dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'

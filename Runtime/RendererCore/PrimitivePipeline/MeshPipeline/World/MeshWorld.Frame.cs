@@ -8,61 +8,58 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     public sealed partial class MeshWorld
     {
-        const int k_MaxPassCaches = 64;
-
-        MeshWorldGpu m_Gpu;
+        MeshWorldGPU m_Gpu;
         ResourcePool m_ResourcePool;
-        MeshCpuDrawBackend m_CpuBackend;
-        MeshGpuDrawBackend m_GpuBackend;
+        MeshDrawCPUBackend m_CPUBackend;
+        MeshDrawGPUBackend m_GPUBackend;
         MeshVisibilityShare m_VisibilityShare;
-        MeshGpuVisibilityCache m_GpuVisibility;
+        MeshGPUVisibilityCache m_GPUVisibility;
         readonly List<MeshPassCache> m_PassCaches = new List<MeshPassCache>(16);
         readonly Dictionary<ulong, MeshMotionBinding> m_PreviousTransforms = new Dictionary<ulong, MeshMotionBinding>(8);
         Camera m_ActiveCamera;
-        EMeshBackendPolicy? m_BackendOverride;
-        internal EMeshBackendPolicy assetBackendPolicy;
+        EMeshDrawBackendPolicy? m_BackendOverride;
+        internal EMeshDrawBackendPolicy assetBackendPolicy;
 
-        internal MeshWorldGpu gpu => m_Gpu;
+        internal MeshWorldGPU gpu => m_Gpu;
         internal ResourcePool resourcePool => m_ResourcePool;
-        internal MeshCpuDrawBackend cpuBackend => m_CpuBackend;
-        internal MeshGpuDrawBackend gpuBackend => m_GpuBackend;
+        internal MeshDrawCPUBackend cpuBackend => m_CPUBackend;
+        internal MeshDrawGPUBackend gpuBackend => m_GPUBackend;
         internal MeshVisibilityShare visibilityShare => m_VisibilityShare;
-        internal MeshGpuVisibilityCache gpuVisibility => m_GpuVisibility;
+        internal MeshGPUVisibilityCache gpuVisibility => m_GPUVisibility;
         internal MeshTransformVersionCache transformVersions => m_Gpu.transformVersions;
         internal IReadOnlyList<MeshPassCache> passCaches => m_PassCaches;
 
         void InternPresets()
         {
-            foreach (MeshPassDesc preset in MeshPassPresets.all) GetPassCache(preset);
+            foreach (MeshPassDesc preset in MeshPassTable.all) CreatePassCache(preset);
         }
 
-        /// <summary>
-        /// The interned cache of a pass desc. The presets exist from construction; another desc is built from the world
-        /// on its first request. A world interns at most 64 descs and never evicts one.
-        /// </summary>
+        /// <summary>The nine pass caches created with the world. A desc that is not one of them throws.</summary>
         internal MeshPassCache GetPassCache(in MeshPassDesc desc)
         {
             foreach (MeshPassCache existing in m_PassCaches)
                 if (existing.desc.Equals(desc)) return existing;
+            throw new ArgumentException($"'{desc.lightMode}' is not one of the nine mesh passes.");
+        }
+
+        void CreatePassCache(in MeshPassDesc desc)
+        {
             ThrowIfDisposed();
-            if (m_TransactionOpen) throw new InvalidOperationException("A pass cache cannot be interned while a MeshWorldUpdate is open.");
-            if (m_PassCaches.Count >= k_MaxPassCaches) throw new InvalidOperationException($"A MeshWorld interns at most {k_MaxPassCaches} pass descs.");
             var cache = new MeshPassCache(desc);
             try
             {
                 cache.Build(this);
-                if (m_GpuBackend.isSupported) cache.UploadCandidates(m_ResourcePool, stats);
+                if (m_GPUBackend.isSupported) cache.UploadCandidates(m_ResourcePool, stats);
             }
             catch
             {
-                cache.ReleaseGpu(m_ResourcePool);
+                cache.ReleaseGPU(m_ResourcePool);
                 cache.Dispose();
                 throw;
             }
             m_PassCaches.Add(cache);
             stats.passCacheBuilds++;
             PublishStats();
-            return cache;
         }
 
         /// <summary>Entity slots with at least one member element in the pass (for example shadow casters).</summary>
@@ -93,45 +90,45 @@ namespace InfinityTech.Rendering.MeshPipeline
             return binding;
         }
 
-        public void SetBackendOverride(EMeshBackendPolicy? policy) => m_BackendOverride = policy;
+        public void SetBackendOverride(EMeshDrawBackendPolicy? policy) => m_BackendOverride = policy;
 
         /// <summary>
         /// Backend for one draw list. Order: explicit camera or test override, then the Rendering Debugger, then the asset.
         /// Auto and GPU Indirect follow device capability. Back-to-front passes record on the CPU backend.
         /// </summary>
-        internal EMeshBackendPolicy SelectBackend(in MeshPassDesc desc)
+        internal EMeshDrawBackendPolicy SelectBackend(in MeshPassDesc desc)
         {
             var debug = InfinityDebugDisplaySettings.current.mesh;
-            EMeshBackendPolicy requested = m_BackendOverride ??
+            EMeshDrawBackendPolicy requested = m_BackendOverride ??
                 (m_ActiveCamera != null && RenderCaptureService.HasBackendOverride(m_ActiveCamera)
                     ? RenderCaptureService.BackendFor(m_ActiveCamera) : debug.backendOverride ?? assetBackendPolicy);
-            EMeshBackendPolicy actual;
-            if (requested == EMeshBackendPolicy.CpuDirect)
+            EMeshDrawBackendPolicy actual;
+            if (requested == EMeshDrawBackendPolicy.CPUDirect)
             {
-                actual = EMeshBackendPolicy.CpuDirect;
+                actual = EMeshDrawBackendPolicy.CPUDirect;
                 debug.backendReason = "Requested CPU Direct";
             }
-            else if (!m_GpuBackend.isSupported)
+            else if (!m_GPUBackend.isSupported)
             {
-                actual = EMeshBackendPolicy.CpuDirect;
+                actual = EMeshDrawBackendPolicy.CPUDirect;
                 debug.backendReason = "Indirect drawing unsupported; CPU Direct";
             }
             else
             {
-                actual = EMeshBackendPolicy.GpuIndirect;
+                actual = EMeshDrawBackendPolicy.GPUIndirect;
                 debug.backendReason = "Indirect drawing supported; back-to-front passes use CPU Direct";
             }
             debug.requestedBackend = requested;
             debug.actualBackend = actual;
-            return desc.sortMode == ESortMode.BackToFront ? EMeshBackendPolicy.CpuDirect : actual;
+            return desc.sortMode == ESortMode.BackToFront ? EMeshDrawBackendPolicy.CPUDirect : actual;
         }
 
-        internal BufferHandle GetGpuVisibilityBuffer(in MeshView view) => m_GpuVisibility.GetBufferHandle(view, entityHighWater);
+        internal BufferHandle GetGPUVisibilityBuffer(in MeshView view) => m_GPUVisibility.GetBufferHandle(view, entityHighWater);
 
         internal void ReleaseView(ulong viewKey)
         {
             m_PreviousTransforms.Remove(viewKey);
-            m_GpuVisibility.ReleaseView(viewKey);
+            m_GPUVisibility.ReleaseView(viewKey);
         }
 
         /// <summary>Uploads dirty entity columns, the next transform version and stale pass candidate tables.</summary>
@@ -139,7 +136,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             ThrowIfDisposed();
             m_Gpu.Update();
-            if (!m_GpuBackend.isSupported) return;
+            if (!m_GPUBackend.isSupported) return;
             foreach (MeshPassCache cache in m_PassCaches) cache.UploadCandidates(m_ResourcePool, stats);
         }
 
@@ -147,15 +144,15 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void FlushRetired(ResourceReuseFence reuseFence)
         {
             m_Gpu.transformVersions.AfterSubmit(reuseFence);
-            m_CpuBackend.FlushRetired(reuseFence);
-            m_GpuBackend.FlushRetired(reuseFence);
-            m_GpuVisibility.FlushRetired();
+            m_CPUBackend.FlushRetired(reuseFence);
+            m_GPUBackend.FlushRetired(reuseFence);
+            m_GPUVisibility.FlushRetired();
         }
 
         void DisposeFrameState()
         {
             m_PreviousTransforms.Clear();
-            foreach (MeshPassCache cache in m_PassCaches) cache.ReleaseGpu(m_ResourcePool);
+            foreach (MeshPassCache cache in m_PassCaches) cache.ReleaseGPU(m_ResourcePool);
         }
     }
 }

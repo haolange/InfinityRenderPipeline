@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// One resident GPU visibility buffer (one uint per entity slot) per visibility key. The graph extension records one
     /// culling producer per key and camera render; draw lists only read it.
     /// </summary>
-    internal sealed class MeshGpuVisibilityCache : IDisposable
+    internal sealed class MeshGPUVisibilityCache : IDisposable
     {
         struct Slot
         {
@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly List<BufferHandle> m_Retired = new List<BufferHandle>(8);
         bool m_Disposed;
 
-        public MeshGpuVisibilityCache(ResourcePool resourcePool)
+        public MeshGPUVisibilityCache(ResourcePool resourcePool)
         {
             m_ResourcePool = resourcePool ?? throw new ArgumentNullException(nameof(resourcePool));
         }

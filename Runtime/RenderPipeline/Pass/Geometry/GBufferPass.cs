@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
             public bool bindDBuffer;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
             public RGTextureHandle dBufferA;
             public RGTextureHandle dBufferB;
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
 
-            RGDrawListHandle gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.GBuffer);
+            RGMeshDrawListHandle gbufferMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterGBufferPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -120,7 +120,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
-                    passData.draws = passRef.UseDrawList(gbufferDraws);
+                    passData.meshDrawList = passRef.UseMeshDrawList(gbufferMeshDrawList);
                     passData.rendererList = passRef.UseRendererList(gbufferRendererList);
                     if (bindDBuffer)
                     {
@@ -143,7 +143,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferC, passData.dBufferC);
                     }
 
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

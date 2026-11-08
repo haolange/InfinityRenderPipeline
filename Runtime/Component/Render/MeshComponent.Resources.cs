@@ -36,7 +36,7 @@ namespace InfinityTech.Component
                 stale = false;
                 unchecked { revision = ++s_Revision; }
                 ReadOnlySpan<Mesh> source = asset.Meshes;
-                int levels = Math.Min(Math.Min(source.Length, asset.lodCount), MeshLodChain.MaxLevels);
+                int levels = Math.Min(Math.Min(source.Length, asset.lodCount), MeshLODChain.MaxLevels);
                 var levelMeshes = new Mesh[levels];
                 var ids = new ulong[levels];
                 var counts = new int[levels];

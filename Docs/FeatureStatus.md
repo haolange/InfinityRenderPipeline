@@ -10,11 +10,11 @@ Earlier dated sections below retain their original verification boundaries; the 
 
 Editor acceptance of the mesh drawing pipeline on an independent Example mirror. Unity 6000.6.0f1, Metal, Apple M3 Max. The user's Editor stayed on the original Example project. Numbers are in [History/MeshDrawing-2026-11-08/Results.md](History/MeshDrawing-2026-11-08/Results.md).
 
-`MeshWorld`, interned pass caches, per-view LOD selection, CPU and GPU draw-list backends and the render-graph extension are the implementation in [ARCHITECTURE.md §7](../ARCHITECTURE.md#7-mesh-drawing-pipeline). `MeshComponent` draws a `MeshAsset`. After package `6c2d282`, the migration bridge fields are gone and the migrated Example scenes still hold `asset` on the 8024 components that had a legacy mesh (64024 components in the loaded scenes, 56000 with no mesh and therefore no asset).
+`MeshWorld`, interned pass caches, per-view LOD selection, CPU and GPU draw-list backends and the render-graph extension are the implementation in [ARCHITECTURE.md §7](../ARCHITECTURE.md#7-mesh-drawing-pipeline). `MeshComponent` draws a `MeshAsset`. After package `6c2d282`, the migration bridge fields are gone. The user Example's `Scene_Spazon`, `BoxMatix_MeshPipeline` and `MeshGroup_64000-1` hold `asset` on every component that had a legacy mesh. Components with no legacy mesh stay empty.
 
-Compile on this Editor: zero C# errors. `Compute_MeshDrawPipeline` initially failed Metal compile because `MeshLod.hlsl` indexed `float4` with a variable. `dbe6b62` selects the component explicitly. A following Play frame on GPU indirect did not log `Kernel at index is invalid`. `CS0414` on unused `m_Disposed` and `m_UpdateInit` was already present at the `a814a40` baseline.
+Compile on this Editor: zero C# errors. `Compute_MeshDrawPipeline` initially failed Metal compile because `MeshLOD.hlsl` indexed `float4` with a variable. `dbe6b62` selects the component explicitly. A following Play frame on GPU indirect did not log `Kernel at index is invalid`. `CS0414` on unused `m_Disposed` and `m_UpdateInit` was already present at the `a814a40` baseline.
 
-Migration at `6703ab8`, on the mirror only: 8024 components migrated, 4 one-level MeshAssets created, 0 rebuilt because no `MeshAsset` had a non-null `target`. No loaded instance overrode `asset` to None or to a different asset; the Example content does not contain that case. Second save of the eight written files was byte-identical. The second menu run migrated 0, created 0, rebuilt 0, and `AssetBaseline.py compare` passed.
+The `6703ab8` menu created 4 one-level MeshAssets and rebuilt 0, because no `MeshAsset` had a non-null `target`. Its second run migrated 0, and `AssetBaseline.py compare` passed on the mirror. Those assets are now in the user Example. Spazon is 8 of 8. `MeshGroup_64000-1` is 8000 of 64000. `BoxMatix_MeshPipeline` is 8008 of 64008, and its 8000 prefab instances resolve the same `asset` as the prefab. A second save under `720a209` was byte-identical and no longer stores `meshAsset`, `movebility` or `MeshAsset.target`. Landscape was not overwritten. Play mode on this Editor put 8 entities in the Spazon mesh world and 8008 in the Box mesh world.
 
 EditMode `infinity_tests_start` at the candidate before the draw-list test fix: 813 passed, 15 failed, 1 skipped. `MeshDrawListTests` was rerun after `6509201` and passed 7/7. Ten `ShaderStrippingTests` failures are `attempt to write a readonly database` and already failed the same way at `a814a40` on this ExFAT mirror. `MeshResidencySubmissionTests.FailedGraph_ThenGrowthBeforeSubmit_PreservesQueuedInputs` and `VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True)` also failed at `a814a40`. `FindPassIndex_ShaderReplacement_ResolvesCurrentShaderIncludingMissingPass` failed on that first candidate (`material.FindPass` returned 0, `FindPassIndex` returned -1). The round 2 suite, below, passes it.
 
@@ -47,7 +47,7 @@ Verified on the owned InfinityExample Editor, Unity 6000.6.0f1, Metal, `Scene_Sp
 EditMode via `infinity_tests_start`:
 
 - `RenderGraph`: 57 tests, 56 passed, 0 failed, 1 skipped. The skip is `RenderGraphQueueGpuTests.CrossQueueHazardsAndPhysicalReuse_PreserveValues` because this GPU/API does not support async compute. `GraphicsQueueHazardsAndPhysicalReuse_PreserveValues` passed. The run includes `RenderGraphCompileTests` (including the merged-execute and split-segment profiling scope cases), `RenderGraphQueueHazardTests`, `RenderGraphFailureTests` and `RenderGraphViewerTests`.
-- `RGDrawListLifetimeTests`: 11 passed, 0 failed.
+- `MeshDrawListLifetimeTests`: 11 passed, 0 failed.
 - `HistoryCacheCommitTests`: 6 passed, 0 failed.
 
 The Play snapshot for MainCamera had 3 submission segments, 36 physical alias slots, and merged groups: RasterDepth with RasterGBuffer (subpasses 0 and 1), object motion with camera motion, and translucent T1 with T2. This frame culled no passes, so the viewer had no cull reason to show. Cross-type culling is covered by the passing EditMode tests.
@@ -411,7 +411,7 @@ history/depth and sharpened display in one dispatch. The runtime Sharpen kernel
 and two TAA history-copy passes are removed. MeshDraw compaction/upload are
 explicit graph producers; disjoint batch ranges prevent later preparation from
 overwriting earlier output. The unused CPU immediate-submit entry was removed;
-callers submit through RGDrawList. Neutral functional scopes and MeshDraw markers
+callers submit through MeshDrawListRegistry. Neutral functional scopes and MeshDraw markers
 leave Unity's own batching labels intact.
 
 Unity 6000.6.0f1 / OSXEditor / Metal / Apple M3 Max. Final script recompile:
@@ -443,7 +443,7 @@ registry tests: 12/12 passed. Final accepted relevant EditMode/GPU cases:
 | HistoryCacheCommitTests | 6 | `67cd9328-f6dd-4e52-8c3c-c3e51aea88ca` |
 | RenderGraphFailureTests | 6 | `15db7149-9a6f-4da7-ad18-b4db57b10d7c` |
 | SceneViewOutputTests | 10 | `d7e4e264-0d07-4592-b589-395d62da3b71` |
-| RGDrawListLifetimeTests | 10 | `666f7b5c-71df-4d50-9f4b-18b0c016a9ab` |
+| MeshDrawListLifetimeTests | 10 | `666f7b5c-71df-4d50-9f4b-18b0c016a9ab` |
 | RenderCaptureTests | 13 | `24be5558-3beb-42f6-9c07-16e073ad2367` |
 
 Normal-frame and resource evidence:
@@ -546,7 +546,7 @@ push, Player build or system shutdown was performed.
 - Static gate: 0 errors / 0 warnings; all 12 static-check regression/negative
   tests passed. Unity 6000.6.0f1 script compilation: 0 errors / 0 warnings.
 - EditMode: 23 passed, 0 failed, 0 skipped. MeshDrawProfilingTests 7
-  (`389f1380-9b61-45ff-b21b-1bda437c8d52`), RGDrawListLifetimeTests 11
+  (`389f1380-9b61-45ff-b21b-1bda437c8d52`), MeshDrawListLifetimeTests 11
   (`70cd9bba-ef20-4720-8793-408939e1ca64`), CompactContractTests 3
   (`4962cc6a-7f3f-4aa9-b325-6de02b90dd74`), PipelineSeamTests 2
   (`10f3f408-f7f4-4b60-8c3c-152782c8c284`). Coverage includes Auto, CPU/GPU,

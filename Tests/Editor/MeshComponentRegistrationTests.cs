@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(reenable, world.IsAlive(component.entityId));
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic ? 1 : 0, world.dynamicEntityCount);
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic, world.IsDynamic(component.entityId));
-                if (reenable) Assert.Greater(world.GetPassCache(MeshPassPresets.Shadow).memberCount, 0, "A shadow-casting component joins the Shadow pass.");
+                if (reenable) Assert.Greater(world.GetPassCache(MeshPassTable.Shadow).memberCount, 0, "A shadow-casting component joins the Shadow pass.");
                 CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
                 Assert.IsFalse(go.GetComponent<Renderer>().forceRenderingOff, "Custom registration must not mutate native rendering state.");
                 UnityEngine.Object.DestroyImmediate(go);

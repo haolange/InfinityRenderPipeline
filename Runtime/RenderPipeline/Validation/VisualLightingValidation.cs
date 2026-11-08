@@ -93,12 +93,12 @@ namespace InfinityTech.Rendering.Pipeline
         public bool Finished { get; private set; }
         internal Evidence State => m_Evidence;
         internal bool OwnsCamera(Camera camera) => !Finished && camera == m_Camera;
-        internal EMeshBackendPolicy ActiveBackend { get; private set; }
+        internal EMeshDrawBackendPolicy ActiveBackend { get; private set; }
 
         internal VisualLightingSession(string directory, bool pauseForVisual, string scenario)
         {
             if (!Path.IsPathRooted(directory) || Directory.Exists(directory)) throw new ArgumentException("A new absolute fixture directory is required.");
-            if (!MeshGpuDrawBackend.DeviceSupportsIndirect) throw new NotSupportedException("This fixture requires actual GPU indirect support, not a CPU fallback.");
+            if (!MeshDrawGPUBackend.DeviceSupportsIndirect) throw new NotSupportedException("This fixture requires actual GPU indirect support, not a CPU fallback.");
             foreach (GameObject go in UnityEngine.Object.FindObjectsByType<GameObject>())
                 if (go.layer == 31) throw new InvalidOperationException("Fixture layer 31 is occupied; no user layer will be changed.");
             int firstScenario = scenario == null ? 0 : Array.IndexOf(s_Scenarios, scenario);
@@ -255,7 +255,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (m_Evidence.phase == m_EndPhase) { m_Stopping = true; Cleanup(); return; }
                 int phase = m_Evidence.phase;
                 bool gpu = phase % 2 != 0;
-                ActiveBackend = gpu ? EMeshBackendPolicy.GpuIndirect : EMeshBackendPolicy.CpuDirect;
+                ActiveBackend = gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
                 int scenario = phase / 2;
                 bool temporal = scenario >= 25;
                 int lightingScenario = temporal ? 0 : scenario;
@@ -312,7 +312,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 string name = s_Scenarios[scenario] + (gpu ? "-GPU" : "-CPU");
                 string directory = Path.Combine(m_Evidence.directory, name);
-                var expectation = new PhaseEvidence { name = name, backend = gpu ? "GpuIndirect" : "CpuDirect", mode = QualitySettings.shadowmaskMode.ToString(), maskChannel = channel, shadowStrength = m_Light.shadowStrength, casters = casters };
+                var expectation = new PhaseEvidence { name = name, backend = gpu ? "GPUIndirect" : "CPUDirect", mode = QualitySettings.shadowmaskMode.ToString(), maskChannel = channel, shadowStrength = m_Light.shadowStrength, casters = casters };
                 for (int i = 0; i < m_Receivers.Count; i++)
                 {
                     var receiver = m_Receivers[i]; int map = receiver.lightmapIndex - m_PreviousMaps.Length;
@@ -337,7 +337,7 @@ namespace InfinityTech.Rendering.Pipeline
                 File.WriteAllText(Path.Combine(m_Evidence.directory, name + "-expected.json"), JsonUtility.ToJson(expectation, true));
                 RenderCaptureService.Start(new RenderCaptureRequest { outputDirectory = directory, fixture = name, scene = m_Scene.name, camera = m_Camera.name,
                     width = m_Camera.pixelWidth, height = m_Camera.pixelHeight, warmupFrames = temporal ? 16 : 120, frameCount = temporal ? 16 : 3, frameInterval = 1,
-                    meshBackend = gpu ? EMeshBackendPolicy.GpuIndirect : EMeshBackendPolicy.CpuDirect, includeConfidence = true,
+                    meshBackend = gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect, includeConfidence = true,
                     buffers = temporal
                         ? new[] { "DisplayColor", "TAAInput", "TAAAccumulation", "AntiAliasing", "Motion", "MotionMetadata", "Depth", "TAAReprojection" }
                         : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "BakedDiffuse", "BakedOcclusion", "IndirectDiffuse", "IndirectSpecular", "CascadeShadow" },

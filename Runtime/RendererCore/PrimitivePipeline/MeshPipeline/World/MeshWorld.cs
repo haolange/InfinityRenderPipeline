@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly MeshWorldStats stats = new MeshWorldStats();
 
         public int entityCount => m_Entities.LiveCount;
-        public int allocatedGpuViewCount => m_GpuVisibility.allocatedViewCount;
+        public int allocatedGpuViewCount => m_GPUVisibility.allocatedViewCount;
         public int elementCount => m_Elements.LiveCount;
         public int sectionCount => m_Sections.LiveCount;
         public int materialCount => m_Materials.LiveCount;
@@ -108,12 +108,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_DynamicLocalBounds = new NativeList<FBound>(256, Allocator.Persistent);
             m_DynamicChanged = new NativeList<byte>(256, Allocator.Persistent);
             InitializeTransaction();
-            m_Gpu = new MeshWorldGpu(this, resourcePool);
+            m_Gpu = new MeshWorldGPU(this, resourcePool);
             m_ResourcePool = resourcePool;
-            m_CpuBackend = new MeshCpuDrawBackend(resourcePool);
-            m_GpuBackend = new MeshGpuDrawBackend(resourcePool, meshDrawShader);
+            m_CPUBackend = new MeshDrawCPUBackend(resourcePool);
+            m_GPUBackend = new MeshDrawGPUBackend(resourcePool, meshDrawShader);
             m_VisibilityShare = new MeshVisibilityShare();
-            m_GpuVisibility = new MeshGpuVisibilityCache(resourcePool);
+            m_GPUVisibility = new MeshGPUVisibilityCache(resourcePool);
             InternPresets();
         }
 
@@ -314,10 +314,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             Release(() => m_Gpu.Dispose());
             foreach (MeshPassCache cache in m_PassCaches) Release(cache.Dispose);
             m_PassCaches.Clear();
-            Release(m_CpuBackend.Dispose);
-            Release(m_GpuBackend.Dispose);
+            Release(m_CPUBackend.Dispose);
+            Release(m_GPUBackend.Dispose);
             Release(m_VisibilityShare.Dispose);
-            Release(m_GpuVisibility.Dispose);
+            Release(m_GPUVisibility.Dispose);
             Release(DisposeTransaction);
             m_Entities.Dispose();
             m_EntityTransforms.Dispose();

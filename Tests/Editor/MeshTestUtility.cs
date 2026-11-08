@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// A material state that no preset accepts: opaque presets end at queue 2999 and translucent presets require a
         /// translucent stage. World bookkeeping tests use it so that commits never resolve Unity objects.
         /// </summary>
-        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(MeshPassPresets.TranslucentQueueMax + 1, 0, 0, 0);
+        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(MeshPassTable.TranslucentQueueMax + 1, 0, 0, 0);
 
         internal static ComputeShader LoadMeshDrawShader()
         {
@@ -32,9 +32,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         /// <summary>GPU fixtures run only where the world's indirect backend is real; they never pass on a CPU path.</summary>
-        internal static void RequireGpuIndirect(MeshWorld world)
+        internal static void RequireGPUIndirect(MeshWorld world)
         {
-            if (!MeshGpuDrawBackend.DeviceSupportsIndirect || !world.gpuBackend.isSupported)
+            if (!MeshDrawGPUBackend.DeviceSupportsIndirect || !world.gpuBackend.isSupported)
                 Assert.Ignore("GPU indirect mesh drawing is not supported on this device.");
         }
 
@@ -85,12 +85,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         internal static FBound Bound(float3 center) => new FBound(center, new float3(0.5f));
 
         /// <summary>A perspective-like LOD projection from the origin (screen size = largest half-extent / distance).</summary>
-        internal static readonly MeshLodProjection Lod = new MeshLodProjection { origin = float3.zero, scale = 1, bias = 1 };
+        internal static readonly MeshLODProjection Lod = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1 };
 
         internal static MeshEntityId CreateEntity(in MeshWorldUpdate update, float3 center, EMeshEntityFlags flags = EMeshEntityFlags.Visible,
             int layerMask = ~0, uint renderingLayerMask = 1, ulong sceneCullingMask = ulong.MaxValue)
         {
-            return update.CreateEntity(float4x4.Translate(center), Bound(center), Desc(flags, layerMask, renderingLayerMask, sceneCullingMask), MeshLodChain.Single);
+            return update.CreateEntity(float4x4.Translate(center), Bound(center), Desc(flags, layerMask, renderingLayerMask, sceneCullingMask), MeshLODChain.Single);
         }
 
         /// <summary>Six planes enclosing [-10, 10] on every axis.</summary>
@@ -163,8 +163,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             finally { world.visibilityShare.Release(handle); }
         }
 
-        /// <summary>The LOD inputs every culling kernel reads, bound the way <c>MeshGpuDrawBackend.BindCullBounds</c> binds them.</summary>
-        internal static void BindLod(ComputeShader shader, int kernel, ComputeBuffer chains, in MeshLodProjection lod)
+        /// <summary>The LOD inputs every culling kernel reads, bound the way <c>MeshDrawGPUBackend.BindCullBounds</c> binds them.</summary>
+        internal static void BindLod(ComputeShader shader, int kernel, ComputeBuffer chains, in MeshLODProjection lod)
         {
             shader.SetBuffer(kernel, "_EntityLodChains", chains);
             shader.SetVector("_LodOrigin", new Vector4(lod.origin.x, lod.origin.y, lod.origin.z, 0));

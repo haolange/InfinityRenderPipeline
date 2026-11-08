@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DepthPassData
         {
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
         }
 
@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
             RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Depth);
+            RGMeshDrawListHandle depthMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterDepthPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -47,12 +47,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
-                passData.draws = passRef.UseDrawList(depthDraws);
+                passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
                 passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

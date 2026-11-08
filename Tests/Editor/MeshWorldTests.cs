@@ -121,7 +121,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.SetElementPriority(keptFirst, 9);
                     update.SetEntityDesc(kept, MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 4));
                     // The same material id with a new state edits the shared material record.
-                    update.SetElementMaterial(keptFirst, 1, new MeshMaterialState(MeshPassPresets.TranslucentQueueMax + 2, 0, 0, 0));
+                    update.SetElementMaterial(keptFirst, 1, new MeshMaterialState(MeshPassTable.TranslucentQueueMax + 2, 0, 0, 0));
                     update.RemoveEntity(removed);
                     created = MeshTestUtility.CreateEntity(update, new float3(4, 0, 0));
                     update.AddElement(created, 100, 0, 0, 1, s_Unrouted, 0);
@@ -431,23 +431,23 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 MeshWorld world = fixture.world;
                 InfinityDebugDisplaySettingsMesh debug = InfinityDebugDisplaySettings.current.mesh;
-                EMeshBackendPolicy? previousDebugOverride = debug.backendOverride;
-                EMeshBackendPolicy indirect = world.gpuBackend.isSupported ? EMeshBackendPolicy.GpuIndirect : EMeshBackendPolicy.CpuDirect;
+                EMeshDrawBackendPolicy? previousDebugOverride = debug.backendOverride;
+                EMeshDrawBackendPolicy indirect = world.gpuBackend.isSupported ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
                 try
                 {
-                    world.assetBackendPolicy = EMeshBackendPolicy.GpuIndirect;
-                    debug.backendOverride = EMeshBackendPolicy.CpuDirect;
-                    Assert.AreEqual(EMeshBackendPolicy.CpuDirect, world.SelectBackend(MeshPassPresets.GBuffer), "The debugger precedes the asset.");
-                    world.SetBackendOverride(EMeshBackendPolicy.GpuIndirect);
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassPresets.GBuffer), "An explicit override precedes the debugger.");
-                    Assert.AreEqual(EMeshBackendPolicy.CpuDirect, world.SelectBackend(MeshPassPresets.TranslucentT0), "Back-to-front passes record on the CPU backend.");
+                    world.assetBackendPolicy = EMeshDrawBackendPolicy.GPUIndirect;
+                    debug.backendOverride = EMeshDrawBackendPolicy.CPUDirect;
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer), "The debugger precedes the asset.");
+                    world.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
+                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "An explicit override precedes the debugger.");
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "Back-to-front passes record on the CPU backend.");
 
                     world.SetBackendOverride(null);
                     debug.backendOverride = null;
-                    world.assetBackendPolicy = EMeshBackendPolicy.CpuDirect;
-                    Assert.AreEqual(EMeshBackendPolicy.CpuDirect, world.SelectBackend(MeshPassPresets.GBuffer));
-                    world.assetBackendPolicy = EMeshBackendPolicy.Auto;
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassPresets.GBuffer), "Auto follows device capability.");
+                    world.assetBackendPolicy = EMeshDrawBackendPolicy.CPUDirect;
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer));
+                    world.assetBackendPolicy = EMeshDrawBackendPolicy.Auto;
+                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "Auto follows device capability.");
                 }
                 finally { debug.backendOverride = previousDebugOverride; }
             }

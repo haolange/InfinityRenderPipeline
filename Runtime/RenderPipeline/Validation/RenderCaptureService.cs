@@ -27,12 +27,12 @@ namespace InfinityTech.Rendering.Pipeline
             (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
             || (current != null && !current.Finished && current.request.Matches(camera));
 
-        internal static MeshPipeline.EMeshBackendPolicy BackendFor(Camera camera)
+        internal static MeshPipeline.EMeshDrawBackendPolicy BackendFor(Camera camera)
         {
             if (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
                 return VisualLightingValidation.current.ActiveBackend;
             if (current == null || current.Finished || !current.request.Matches(camera))
-                return MeshPipeline.EMeshBackendPolicy.Auto;
+                return MeshPipeline.EMeshDrawBackendPolicy.Auto;
             return current.request.meshBackend;
         }
 
@@ -41,9 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
             if (current != null && !current.Finished) throw new InvalidOperationException("An existing capture must finish draining before starting another.");
             if (!SystemInfo.supportsAsyncGPUReadback) throw new NotSupportedException("Async GPU readback is required for normal-frame capture.");
             if (request == null) throw new ArgumentNullException(nameof(request));
-            if (!Enum.IsDefined(typeof(MeshPipeline.EMeshBackendPolicy), request.meshBackend))
+            if (!Enum.IsDefined(typeof(MeshPipeline.EMeshDrawBackendPolicy), request.meshBackend))
                 throw new ArgumentOutOfRangeException(nameof(request.meshBackend));
-            if (request.meshBackend == MeshPipeline.EMeshBackendPolicy.GpuIndirect && !MeshPipeline.MeshGpuDrawBackend.DeviceSupportsIndirect)
+            if (request.meshBackend == MeshPipeline.EMeshDrawBackendPolicy.GPUIndirect && !MeshPipeline.MeshDrawGPUBackend.DeviceSupportsIndirect)
                 throw new NotSupportedException("GPU capture requires indirect support; CPU fallback is not evidence for that route.");
             current = new RenderCaptureSession(request);
         }

@@ -26,10 +26,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [Serializable]
-    public enum EMeshBackendPolicy
+    public enum EMeshDrawBackendPolicy
     {
         Auto = 0,
-        CpuDirect = 1,
-        GpuIndirect = 2
+        CPUDirect = 1,
+        GPUIndirect = 2
     }
 }

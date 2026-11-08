@@ -275,7 +275,7 @@ def check_graph_dependency(repo, out):
 
 MESH_DIR = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline'
 MESH_SHADERS = ('Shaders/ShaderLibrary/GPUScene.hlsl',
-                'Shaders/ShaderLibrary/MeshLod.hlsl',
+                'Shaders/ShaderLibrary/MeshLOD.hlsl',
                 'Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute',
                 'Shaders/RenderingFeature/MeshDrawPipeline/MeshOcclusion.hlsl')
 MESH_ID_SOURCES = ('Runtime/RenderPipeline/Utility/PipelineIDs.cs',)
@@ -333,17 +333,17 @@ def method_body(text, signature):
 
 def check_mesh_submit(repo, out):
     # The raster consumer of a draw list only draws; preparation belongs to the upload and compute producers.
-    for rel in ('Backend/MeshCpuDrawBackend.cs', 'Backend/MeshGpuDrawBackend.cs'):
+    for rel in ('Backend/MeshDrawCPUBackend.cs', 'Backend/MeshDrawGPUBackend.cs'):
         path = os.path.join(repo, MESH_DIR, rel)
         if not os.path.exists(path): continue
-        body = method_body(without_comments(read(path)), 'internal void Submit(')
+        body = method_body(without_comments(read(path)), 'internal void SubmitMeshDrawList(')
         if body is None:
-            out.append(('ERROR', 'meshsubmit', f'{rel}: no Submit method'))
+            out.append(('ERROR', 'meshsubmit', f'{rel}: no SubmitMeshDrawList method'))
             continue
         for token in ('DispatchCompute(', 'SetBufferData(', 'SetData(', 'GetBuffer(', 'RentPayload(', 'AllocateInstances('):
-            if token in body: out.append(('ERROR', 'meshsubmit', f'{rel}: Submit calls {token.rstrip("(")}'))
+            if token in body: out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList calls {token.rstrip("(")}'))
         if 'MeshDrawProfiling.Draw(viewKind' not in body:
-            out.append(('ERROR', 'meshsubmit', f'{rel}: Submit does not open the MeshDrawProfiling draw marker'))
+            out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList does not open the MeshDrawProfiling draw marker'))
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):
         text = without_comments(read(extension))
@@ -353,7 +353,7 @@ def check_mesh_submit(repo, out):
 
 MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
                    'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
-MESH_PASS_FORBIDDEN = ('EMeshBackendPolicy', 'MeshVisibilityHandle', 'scriptableRenderContext.CreateRendererList',
+MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'MeshVisibilityHandle', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
 
 

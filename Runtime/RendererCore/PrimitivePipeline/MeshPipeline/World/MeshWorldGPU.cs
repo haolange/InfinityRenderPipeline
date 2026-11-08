@@ -11,14 +11,14 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// for the draw list's lifetime; the entity columns are replaced atomically by residency and never written in place
     /// while referenced by recorded work.
     /// </summary>
-    internal readonly struct MeshWorldGpuTables
+    internal readonly struct MeshWorldGPUTables
     {
         internal readonly BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
         internal readonly MeshTransformVersion version;
         internal readonly int entityCount;
         internal bool isValid => renderingLayers.buffer != null && version != null;
 
-        internal MeshWorldGpuTables(MeshWorldGpu gpu, int entityCount)
+        internal MeshWorldGPUTables(MeshWorldGPU gpu, int entityCount)
         {
             boundsCenter = gpu.boundsCenter; boundsExtent = gpu.boundsExtent; flags = gpu.flags;
             layerMask = gpu.layerMask; sceneCullingMask = gpu.sceneCullingMask; renderingLayers = gpu.renderingLayers; lodChains = gpu.lodChains;
@@ -31,25 +31,25 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// Resident GPU entity columns, uploaded by dirty pages. Transform matrices live in immutable transform versions; the
     /// columns here hold bounds, flags, masks and rendering layers per entity slot.
     /// </summary>
-    internal sealed class MeshWorldGpu
+    internal sealed class MeshWorldGPU
     {
         readonly MeshWorld m_World;
         readonly ResourcePool m_Pool;
-        readonly ProfilingSampler m_Sampler = new ProfilingSampler("UpdateMeshWorldGpu");
+        readonly ProfilingSampler m_Sampler = new ProfilingSampler("UpdateMeshWorldGPU");
         internal readonly MeshTransformVersionCache transformVersions;
         int m_Capacity;
 
         internal BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
         internal int capacity => m_Capacity;
 
-        internal MeshWorldGpu(MeshWorld world, ResourcePool pool)
+        internal MeshWorldGPU(MeshWorld world, ResourcePool pool)
         {
             m_World = world;
             m_Pool = pool;
             transformVersions = new MeshTransformVersionCache(pool);
         }
 
-        internal MeshWorldGpuTables Snapshot() => new MeshWorldGpuTables(this, m_World.entityHighWater);
+        internal MeshWorldGPUTables Snapshot() => new MeshWorldGPUTables(this, m_World.entityHighWater);
 
         internal void Update()
         {
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layers = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, sizeof(uint)) { name = "EntityLayerMask" });
                 scene = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<uint2>()) { name = "EntitySceneCullingMask" });
                 rendering = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, sizeof(uint)) { name = "EntityRenderingLayers" });
-                lods = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<MeshLodChain>()) { name = "EntityLodChains" });
+                lods = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<MeshLODChain>()) { name = "EntityLodChains" });
                 (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains) = (center, extent, flagBuffer, layers, scene, rendering, lods);
                 Upload(0, m_World.entityHighWater);
             }
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
             var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
             var renderingMasks = new NativeArray<uint>(count, Allocator.Temp);
-            var chains = new NativeArray<MeshLodChain>(count, Allocator.Temp);
+            var chains = new NativeArray<MeshLODChain>(count, Allocator.Temp);
             try
             {
                 var entities = m_World.entities;
@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 sceneCullingMask.buffer.SetData(sceneMasks, 0, begin, count);
                 renderingLayers.buffer.SetData(renderingMasks, 0, begin, count);
                 lodChains.buffer.SetData(chains, 0, begin, count);
-                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLodChain>());
+                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLODChain>());
             }
             finally
             {

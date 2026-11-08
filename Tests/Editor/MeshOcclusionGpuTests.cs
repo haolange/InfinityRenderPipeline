@@ -54,9 +54,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var boundRendering = Buffer(rendering, 4); var boundScenes = Buffer(scenes, 8);
                 // A small positive bound: with a missing or zero LOD scale every such entity would be LOD-culled. Entity 1 keeps
                 // a zero bound (always stable) and entity 10 has zero extent, so its screen size is 0.
-                var chainValues = new MeshLodChain[Count];
-                for (int i = 0; i < Count; ++i) chainValues[i] = i == 1 || i == 10 ? MeshLodChain.Single : MeshLodChain.Create(new[] { 1e-3f }, 0.2f);
-                var chains = Buffer(chainValues, System.Runtime.InteropServices.Marshal.SizeOf<MeshLodChain>());
+                var chainValues = new MeshLODChain[Count];
+                for (int i = 0; i < Count; ++i) chainValues[i] = i == 1 || i == 10 ? MeshLODChain.Single : MeshLODChain.Create(new[] { 1e-3f }, 0.2f);
+                var chains = Buffer(chainValues, System.Runtime.InteropServices.Marshal.SizeOf<MeshLODChain>());
                 int noHistory = shader.FindKernel("CullFirstNoHistory"), history = shader.FindKernel("CullFirstWithHistory"), recovery = shader.FindKernel("CullOcclusionRecovery");
                 foreach (int kernel in new[] { noHistory, history })
                 {
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 boundCenters.SetData(centers);
                 var shifted = Matrix4x4.identity; shifted.m03 = shifted.m13 = shifted.m23 = -2048;
                 shader.SetMatrix("_MeshCullProjection", shifted);
-                var shiftedLod = new MeshLodProjection { origin = new Unity.Mathematics.float3(2048, 2048, 2048), scale = 1, bias = 1 };
+                var shiftedLod = new MeshLODProjection { origin = new Unity.Mathematics.float3(2048, 2048, 2048), scale = 1, bias = 1 };
                 foreach (int kernel in new[] { noHistory, history, recovery }) MeshTestUtility.BindLod(shader, kernel, chains, shiftedLod);
                 shader.SetVectorArray("_FrustumPlanes", new[] {new Vector4(1,0,0,-2047),new Vector4(-1,0,0,2049),new Vector4(0,1,0,-2047),new Vector4(0,-1,0,2049),new Vector4(0,0,1,-2048),new Vector4(0,0,-1,2049)});
                 shader.Dispatch(history, 1, 1, 1);

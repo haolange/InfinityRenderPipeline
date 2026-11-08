@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool enableSRPBatch = true;
         public bool enableDynamicBatch = true;
         public bool enableInstanceBatch = true;
-        public EMeshBackendPolicy meshBackendPolicy = EMeshBackendPolicy.Auto;
+        public EMeshDrawBackendPolicy meshBackendPolicy = EMeshDrawBackendPolicy.Auto;
 
         [SerializeField, Range(0.5f, 1.0f)]
         float m_RenderScale = 1.0f;

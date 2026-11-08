@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal MeshPassCache(in MeshPassDesc desc)
         {
-            if (!MeshPassPresets.IsMeshLightMode(desc.lightMode))
+            if (!MeshPassTable.IsMeshLightMode(desc.lightMode))
                 throw new ArgumentException($"'{desc.lightMode}' is not an Infinity mesh LightMode.", nameof(desc));
             if (desc.queueMin > desc.queueMax) throw new ArgumentException("queueMin exceeds queueMax.", nameof(desc));
             this.desc = desc;
@@ -409,7 +409,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_UploadedRevision = revision;
         }
 
-        internal void ReleaseGpu(ResourcePool pool)
+        internal void ReleaseGPU(ResourcePool pool)
         {
             if (m_CandidateBuffer.buffer != null) pool.ReleaseBuffer(m_CandidateBuffer);
             m_CandidateBuffer = default;

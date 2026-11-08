@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual(mask, roundTrip.sceneCullingMask);
             }
 
-            MeshView firstPhase = main; firstPhase.visibilityPhase = EMeshVisibilityPhase.First;
+            MeshView firstPhase = main; firstPhase.visibilityPhase = EMeshVisibilityPhase.Prediction;
             Assert.AreNotEqual(Key(main), Key(firstPhase));
             MeshView history = firstPhase; history.visibilityHistory = 9;
             Assert.AreEqual(Key(firstPhase), Key(history), "Storage identity ignores the occlusion history.");
@@ -143,7 +143,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         public void ResidentGpuVisibility_IsKeptAcrossCameraMotion()
         {
             var pool = new ResourcePool();
-            var cache = new MeshGpuVisibilityCache(pool);
+            var cache = new MeshGPUVisibilityCache(pool);
             try
             {
                 MeshView view = MeshTestUtility.CameraView(51);
@@ -174,7 +174,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                MeshTestUtility.RequireGpuIndirect(world);
+                MeshTestUtility.RequireGPUIndirect(world);
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     MeshTestUtility.CreateEntity(update, new float3(3, 0, 0));
@@ -188,7 +188,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshWorldGpu gpu = world.gpu;
+                MeshWorldGPU gpu = world.gpu;
                 ComputeShader shader = Object.Instantiate(fixture.shader);
                 var output = new ComputeBuffer(world.entityHighWater, sizeof(uint));
                 try

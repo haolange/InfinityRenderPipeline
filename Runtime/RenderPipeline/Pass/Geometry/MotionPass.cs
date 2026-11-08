@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ObjectMotionPassData
         {
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
         }
 
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
-            RGDrawListHandle motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Motion);
+            RGMeshDrawListHandle motionMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterMotionPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -75,14 +75,14 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 {
-                    passData.draws = passRef.UseDrawList(motionDraws);
+                    passData.meshDrawList = passRef.UseMeshDrawList(motionMeshDrawList);
                     passData.rendererList = passRef.UseRendererList(motionRendererList);
                 }
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

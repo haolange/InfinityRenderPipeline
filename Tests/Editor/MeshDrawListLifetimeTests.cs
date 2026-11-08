@@ -11,10 +11,10 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.RenderGraph.Tests
 {
-    public class RGDrawListLifetimeTests
+    public class MeshDrawListLifetimeTests
     {
         struct EmptyRasterData { }
-        struct DrawPassData { public RGDrawListHandle draws; }
+        struct DrawPassData { public RGMeshDrawListHandle meshDrawList; }
 
         static void Compile(RGBuilder graph)
             => typeof(RGBuilder).GetMethod("CompilePass", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(graph, null);
@@ -34,15 +34,15 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         static RGTextureHandle Target(RGBuilder graph)
             => graph.CreateTexture(new TextureDescriptor(1, 1) { colorFormat = GraphicsFormat.R8G8B8A8_UNorm, dimension = TextureDimension.Tex2D });
 
-        static void AddConsumer(RGBuilder graph, RGTextureHandle target, CustomSamplerId sampler, RGDrawListHandle draws, bool keep)
+        static void AddConsumer(RGBuilder graph, RGTextureHandle target, CustomSamplerId sampler, RGMeshDrawListHandle draws, bool keep)
         {
             using (RGRasterPassHandle pass = graph.AddRasterPass<DrawPassData>(ProfilingSampler.Get(sampler)))
             {
                 pass.SetColorAttachment(target, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 if (keep) pass.EnablePassCulling(false);
                 ref DrawPassData data = ref pass.GetPassData<DrawPassData>();
-                data.draws = pass.UseDrawList(draws);
-                pass.SetExecuteFunc((in DrawPassData passData, in RGRasterEncoder encoder) => encoder.Draw(passData.draws));
+                data.meshDrawList = pass.UseMeshDrawList(draws);
+                pass.SetExecuteFunc((in DrawPassData passData, in RGRasterEncoder encoder) => encoder.SubmitMeshDrawList(passData.meshDrawList));
             }
         }
 
@@ -58,9 +58,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        static RGBuilder CreateGraph(MeshWorldFixture fixture, string name, EMeshBackendPolicy backend)
+        static RGBuilder CreateGraph(MeshWorldFixture fixture, string name, EMeshDrawBackendPolicy backend)
         {
-            if (backend == EMeshBackendPolicy.GpuIndirect) MeshTestUtility.RequireGpuIndirect(fixture.world);
+            if (backend == EMeshDrawBackendPolicy.GPUIndirect) MeshTestUtility.RequireGPUIndirect(fixture.world);
             fixture.world.SetBackendOverride(backend);
             fixture.world.UpdateResidency();
             var graph = new RGBuilder(name, fixture.pool);
@@ -69,25 +69,25 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void UseDrawList_RejectsAnotherBuildersHandle()
+        public void UseMeshDrawList_RejectsAnotherBuildersHandle()
         {
             using (var fixture = new MeshWorldFixture())
             {
-                RGBuilder owner = CreateGraph(fixture, "DrawListOwner", EMeshBackendPolicy.CpuDirect);
+                RGBuilder owner = CreateGraph(fixture, "DrawListOwner", EMeshDrawBackendPolicy.CPUDirect);
                 var foreign = new RGBuilder("DrawListForeign", fixture.pool);
                 try
                 {
                     foreign.SetMeshWorld(fixture.world);
-                    RGDrawListHandle draws = owner.CreateDrawList(MeshTestUtility.CameraView(1), MeshPassPresets.GBuffer);
+                    RGMeshDrawListHandle draws = owner.CreateMeshDrawList(new MeshDrawListDesc(MeshTestUtility.CameraView(1), InfinityPassIDs.RasterGBufferPass));
                     using (RGRasterPassHandle pass = foreign.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Foreign")))
                     {
-                        Assert.Throws<System.InvalidOperationException>(() => pass.UseDrawList(draws), "A foreign handle fails at record.");
+                        Assert.Throws<System.InvalidOperationException>(() => pass.UseMeshDrawList(draws), "A foreign handle fails at record.");
                         Assert.AreEqual(0, pass.pass.extensionUses.Count);
                         pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
                     }
                     using (RGRasterPassHandle pass = owner.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Owner")))
                     {
-                        Assert.IsTrue(pass.UseDrawList(draws).IsValid);
+                        Assert.IsTrue(pass.UseMeshDrawList(draws).IsValid);
                         CollectionAssert.AreEqual(new[] { draws.index }, pass.pass.extensionUses);
                         pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
                     }
@@ -97,6 +97,22 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshTestUtility.Release(foreign);
                     MeshTestUtility.Release(owner);
                 }
+            }
+        }
+
+        [Test]
+        public void CreateMeshDrawList_RejectsATagThatIsNotAMeshPass()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                RGBuilder graph = CreateGraph(fixture, "UnknownMeshPass", EMeshDrawBackendPolicy.CPUDirect);
+                try
+                {
+                    var desc = new MeshDrawListDesc(MeshTestUtility.CameraView(3), new ShaderTagId("NotAMeshPass"));
+                    System.ArgumentException error = Assert.Throws<System.ArgumentException>(() => graph.CreateMeshDrawList(desc));
+                    StringAssert.Contains("NotAMeshPass", error.Message);
+                }
+                finally { MeshTestUtility.Release(graph); }
             }
         }
 
@@ -113,25 +129,25 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                     update.Commit();
                 }
-                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassPresets.TranslucentT0).memberCount, "A stage-1 material belongs to T0.");
-                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassPresets.TranslucentDepth).memberCount, "Translucent surfaces write translucent depth.");
-                Assert.AreEqual(0, fixture.world.GetPassCache(MeshPassPresets.GBuffer).memberCount, "Translucent surfaces never enter opaque passes.");
+                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassTable.TranslucentT0).memberCount, "A stage-1 material belongs to T0.");
+                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassTable.TranslucentDepth).memberCount, "Translucent surfaces write translucent depth.");
+                Assert.AreEqual(0, fixture.world.GetPassCache(MeshPassTable.GBuffer).memberCount, "Translucent surfaces never enter opaque passes.");
 
-                RGBuilder graph = CreateGraph(fixture, "TranslucentDrawLists", EMeshBackendPolicy.CpuDirect);
+                RGBuilder graph = CreateGraph(fixture, "TranslucentDrawLists", EMeshDrawBackendPolicy.CPUDirect);
                 try
                 {
                     // Even a GPU request records blended stages on the CPU backend, which sorts back to front.
-                    fixture.world.SetBackendOverride(EMeshBackendPolicy.GpuIndirect);
+                    fixture.world.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
                     MeshView view = MeshTestUtility.CameraView(7);
-                    Assert.Throws<System.InvalidOperationException>(() => graph.CreateDrawList(view, MeshPassPresets.TranslucentT0),
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterTranslucentT0Pass)),
                         "A stage that writes motion fails at record without the view's previous-transform producer.");
                     fixture.world.BindPreviousTransforms(view.viewKey, new MeshMotionBinding(fixture.world.transformVersions.current, null));
-                    RGDrawListHandle draws = graph.CreateDrawList(view, MeshPassPresets.TranslucentT0);
-                    Assert.AreEqual(EMeshBackendPolicy.CpuDirect, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).backend);
+                    RGMeshDrawListHandle draws = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterTranslucentT0Pass));
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).backend);
 
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterTranslucentT0, draws, keep: true);
                     Compile(graph);
-                    Assert.AreEqual(ERGDrawListCompileState.Scheduled, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).state);
+                    Assert.AreEqual(EMeshDrawListState.Scheduled, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).state);
                     Assert.AreEqual(1, CountPasses(graph, "UploadMeshData", liveOnly: true));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshCompaction", liveOnly: true));
                 }
@@ -148,16 +164,16 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "DrawListRelease", EMeshBackendPolicy.CpuDirect);
+                RGBuilder graph = CreateGraph(fixture, "DrawListRelease", EMeshDrawBackendPolicy.CPUDirect);
                 try
                 {
                     MeshView view = MeshTestUtility.CameraView(2);
-                    RGDrawListHandle stale = graph.CreateDrawList(view, MeshPassPresets.GBuffer);
+                    RGMeshDrawListHandle stale = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterGBuffer, stale, true);
-                    RGDrawListContext lists = MeshGraphExtension.Of(graph).drawLists;
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
                     Assert.AreEqual(2, fixture.world.transformVersions.current.references, "A recorded list retains its frozen transform version.");
                     Compile(graph);
-                    Assert.AreEqual(ERGDrawListCompileState.Scheduled, lists.GetRecordCopy(stale.index).state);
+                    Assert.AreEqual(EMeshDrawListState.Scheduled, lists.GetRecordCopy(stale.index).state);
                     Assert.AreEqual(1, fixture.world.visibilityShare.liveCount);
                     int generation = lists.GraphGeneration;
 
@@ -168,13 +184,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(0, fixture.world.visibilityShare.liveCount);
                     Assert.AreEqual(1, fixture.world.transformVersions.current.references);
 
-                    RGDrawListHandle fresh = graph.CreateDrawList(view, MeshPassPresets.GBuffer);
+                    RGMeshDrawListHandle fresh = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));
                     Assert.AreEqual(stale.index, fresh.index);
                     Assert.IsTrue(lists.IsLive(fresh));
                     Assert.IsFalse(lists.IsLive(stale), "The graph generation rejects a handle whose index was reused.");
                     using (RGRasterPassHandle pass = graph.AddRasterPass<EmptyRasterData>(new ProfilingSampler("StaleConsumer")))
                     {
-                        Assert.Throws<System.InvalidOperationException>(() => pass.UseDrawList(stale), "A stale handle fails at record.");
+                        Assert.Throws<System.InvalidOperationException>(() => pass.UseMeshDrawList(stale), "A stale handle fails at record.");
                         Assert.AreEqual(0, pass.pass.extensionUses.Count);
                         pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
                     }
@@ -183,9 +199,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        [TestCase(EMeshBackendPolicy.CpuDirect)]
-        [TestCase(EMeshBackendPolicy.GpuIndirect)]
-        public void UnusedDrawList_SchedulesNothing(EMeshBackendPolicy backend)
+        [TestCase(EMeshDrawBackendPolicy.CPUDirect)]
+        [TestCase(EMeshDrawBackendPolicy.GPUIndirect)]
+        public void UnusedDrawList_SchedulesNothing(EMeshDrawBackendPolicy backend)
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -194,14 +210,14 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 try
                 {
                     MeshView view = MeshTestUtility.CameraView(3);
-                    RGDrawListHandle draws = graph.CreateDrawList(view, MeshPassPresets.Depth);
+                    RGMeshDrawListHandle draws = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterDepthPass));
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterDepth, draws, false);
-                    Assert.AreEqual(backend == EMeshBackendPolicy.GpuIndirect ? 1 : 0, CountPasses(graph, "ComputeMeshCulling", false));
+                    Assert.AreEqual(backend == EMeshDrawBackendPolicy.GPUIndirect ? 1 : 0, CountPasses(graph, "ComputeMeshCulling", false));
                     Compile(graph);
 
-                    RGDrawListContext lists = MeshGraphExtension.Of(graph).drawLists;
-                    RGDrawListRecord record = lists.GetRecordCopy(draws.index);
-                    Assert.AreEqual(ERGDrawListCompileState.Released, record.state);
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
+                    MeshDrawListRecord record = lists.GetRecordCopy(draws.index);
+                    Assert.AreEqual(EMeshDrawListState.Released, record.state);
                     Assert.IsNull(record.payload);
                     Assert.IsFalse(record.visibility.IsValid);
                     Assert.AreEqual(0, fixture.world.stats.visibilityProductions);
@@ -219,18 +235,18 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "DrawListCpuShare", EMeshBackendPolicy.CpuDirect);
+                RGBuilder graph = CreateGraph(fixture, "DrawListCpuShare", EMeshDrawBackendPolicy.CPUDirect);
                 try
                 {
                     MeshView view = MeshTestUtility.CameraView(4);
                     RGTextureHandle target = Target(graph);
-                    RGDrawListHandle depth = graph.CreateDrawList(view, MeshPassPresets.Depth);
-                    RGDrawListHandle gbuffer = graph.CreateDrawList(view, MeshPassPresets.GBuffer);
+                    RGMeshDrawListHandle depth = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterDepthPass));
+                    RGMeshDrawListHandle gbuffer = graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));
                     AddConsumer(graph, target, CustomSamplerId.RasterDepth, depth, true);
                     AddConsumer(graph, target, CustomSamplerId.RasterGBuffer, gbuffer, true);
                     Compile(graph);
 
-                    RGDrawListContext lists = MeshGraphExtension.Of(graph).drawLists;
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
                     MeshVisibilityHandle first = lists.GetRecordCopy(depth.index).visibility;
                     MeshVisibilityHandle second = lists.GetRecordCopy(gbuffer.index).visibility;
                     Assert.IsTrue(first.IsValid);
@@ -251,7 +267,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "DrawListGpuCull", EMeshBackendPolicy.GpuIndirect);
+                RGBuilder graph = CreateGraph(fixture, "DrawListGpuCull", EMeshDrawBackendPolicy.GPUIndirect);
                 try
                 {
                     MeshView main = MeshTestUtility.CameraView(5);
@@ -259,16 +275,16 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         (uint)ERenderingLayer.Everything, 0, ulong.MaxValue, MeshTestUtility.Lod);
                     MeshView local = MeshView.FromShadow(EMeshViewKind.LocalShadow, 0xCAFEul, main.CopyPlanes(), main.viewPosition, ~0,
                         (uint)ERenderingLayer.Everything, 0, ulong.MaxValue, MeshTestUtility.Lod);
-                    graph.EnsureMeshGpuCull(main);
-                    graph.EnsureMeshGpuCull(cascade);
-                    graph.EnsureMeshGpuCull(local);
-                    RGDrawListHandle depth = graph.CreateDrawList(main, MeshPassPresets.Depth);
-                    RGDrawListHandle gbuffer = graph.CreateDrawList(main, MeshPassPresets.GBuffer);
-                    RGDrawListHandle cascadeShadow = graph.CreateDrawList(cascade, MeshPassPresets.Shadow);
-                    RGDrawListHandle localShadow = graph.CreateDrawList(local, MeshPassPresets.Shadow);
+                    graph.RequestMeshGPUCulling(main);
+                    graph.RequestMeshGPUCulling(cascade);
+                    graph.RequestMeshGPUCulling(local);
+                    RGMeshDrawListHandle depth = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
+                    RGMeshDrawListHandle gbuffer = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterGBufferPass));
+                    RGMeshDrawListHandle cascadeShadow = graph.CreateMeshDrawList(new MeshDrawListDesc(cascade, InfinityPassIDs.RasterShadowPass));
+                    RGMeshDrawListHandle localShadow = graph.CreateMeshDrawList(new MeshDrawListDesc(local, InfinityPassIDs.RasterShadowPass));
                     Assert.AreEqual(3, CountPasses(graph, "ComputeMeshCulling", false));
 
-                    RGDrawListContext lists = MeshGraphExtension.Of(graph).drawLists;
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
                     RGBufferHandle mainVisibility = lists.GetRecordCopy(depth.index).gpuVisibility;
                     Assert.IsTrue(mainVisibility.IsValid());
                     Assert.AreEqual(mainVisibility.handle, lists.GetRecordCopy(gbuffer.index).gpuVisibility.handle, "Lists of one view bind one culling producer.");
@@ -279,12 +295,12 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        [TestCase(EMeshBackendPolicy.Auto, true)]
-        [TestCase(EMeshBackendPolicy.CpuDirect, true)]
-        [TestCase(EMeshBackendPolicy.CpuDirect, false)]
-        [TestCase(EMeshBackendPolicy.GpuIndirect, true)]
-        [TestCase(EMeshBackendPolicy.GpuIndirect, false)]
-        public void CompiledGraph_PreparesEachLiveListOnce_BeforeItsFirstConsumer(EMeshBackendPolicy backend, bool live)
+        [TestCase(EMeshDrawBackendPolicy.Auto, true)]
+        [TestCase(EMeshDrawBackendPolicy.CPUDirect, true)]
+        [TestCase(EMeshDrawBackendPolicy.CPUDirect, false)]
+        [TestCase(EMeshDrawBackendPolicy.GPUIndirect, true)]
+        [TestCase(EMeshDrawBackendPolicy.GPUIndirect, false)]
+        public void CompiledGraph_PreparesEachLiveListOnce_BeforeItsFirstConsumer(EMeshDrawBackendPolicy backend, bool live)
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -292,14 +308,14 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 RGBuilder graph = CreateGraph(fixture, "DrawListPreparation", backend);
                 try
                 {
-                    RGDrawListHandle draws = graph.CreateDrawList(MeshTestUtility.CameraView(6), MeshPassPresets.GBuffer);
+                    RGMeshDrawListHandle draws = graph.CreateMeshDrawList(new MeshDrawListDesc(MeshTestUtility.CameraView(6), InfinityPassIDs.RasterGBufferPass));
                     RGTextureHandle target = Target(graph);
                     AddConsumer(graph, target, CustomSamplerId.RasterGBuffer, draws, live);
                     AddConsumer(graph, target, CustomSamplerId.RasterDepth, draws, live);
                     Compile(graph);
 
-                    RGDrawListRecord record = MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index);
-                    bool gpu = record.backend == EMeshBackendPolicy.GpuIndirect;
+                    MeshDrawListRecord record = MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index);
+                    bool gpu = record.backend == EMeshDrawBackendPolicy.GPUIndirect;
                     Assert.AreEqual(live ? 1 : 0, CountPasses(graph, "UploadMeshData", true));
                     Assert.AreEqual(live && gpu ? 1 : 0, CountPasses(graph, "ComputeMeshCompaction", true));
                     if (!live) return;
@@ -331,15 +347,15 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         {
             using (var fixture = new MeshWorldFixture())
             {
-                MeshTestUtility.RequireGpuIndirect(fixture.world);
-                MeshGpuDrawBackend backend = fixture.world.gpuBackend;
-                var rented = new System.Collections.Generic.List<MeshGpuDrawPayload>();
+                MeshTestUtility.RequireGPUIndirect(fixture.world);
+                MeshDrawGPUBackend backend = fixture.world.gpuBackend;
+                var rented = new System.Collections.Generic.List<MeshGPUDrawPayload>();
                 try
                 {
-                    MeshGpuDrawPayload payload = backend.RentPayload(1, 1);
+                    MeshGPUDrawPayload payload = backend.RentPayload(1, 1);
                     backend.RetirePayload(payload);
                     Assert.IsNotNull(payload.indirectArgs.buffer, "Retire is logical; the buffers stay with the payload until flush.");
-                    MeshGpuDrawPayload other = backend.RentPayload(1, 1);
+                    MeshGPUDrawPayload other = backend.RentPayload(1, 1);
                     rented.Add(other);
                     Assert.AreNotSame(payload, other, "A retired payload is not handed out again before flush.");
                     backend.RetirePayload(other);
@@ -355,7 +371,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 }
                 finally
                 {
-                    foreach (MeshGpuDrawPayload payload in rented) backend.RetirePayload(payload);
+                    foreach (MeshGPUDrawPayload payload in rented) backend.RetirePayload(payload);
                     backend.FlushRetired(default);
                 }
             }

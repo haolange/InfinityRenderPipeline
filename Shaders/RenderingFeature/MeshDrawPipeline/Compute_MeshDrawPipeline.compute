@@ -24,7 +24,7 @@
 #define MESH_ENTITY_VISIBLE 4u
 #define MESH_META_STRIDE 5u
 #define MESH_ARGS_STRIDE 5u
-#include "../../ShaderLibrary/MeshLod.hlsl"
+#include "../../ShaderLibrary/MeshLOD.hlsl"
 
 uint _EntityCount;
 uint _CommandCount;
@@ -92,7 +92,7 @@ bool MeshFrustumVisible(uint entity)
 uint MeshCullVisibility(uint entity)
 {
     uint packed = 0u;
-    if (MeshFrustumVisible(entity)) packed = MeshPackLodVisibility(entity, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
+    if (MeshFrustumVisible(entity)) packed = MeshPackLODVisibility(entity, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
     return packed;
 }
 
@@ -122,7 +122,7 @@ void ClearCounts(uint3 id : SV_DispatchThreadID)
 
 // One thread per element slot of the pass cache. A visible member of the selected LOD appends its entity to its command's
 // stable range (range 0). Inside a cross-fade band of a dithering pass the outgoing level appends +f and the next level -f
-// to the fading range (range 1); mirrors MeshDrawGatherJob.LodFactor.
+// to the fading range (range 1); mirrors MeshDrawGatherJob.LODFactor.
 [numthreads(64, 1, 1)]
 void Compact(uint3 id : SV_DispatchThreadID)
 {

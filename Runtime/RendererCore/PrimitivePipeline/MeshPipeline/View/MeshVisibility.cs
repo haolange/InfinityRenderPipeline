@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly ulong sceneCullingMask;
         public readonly uint renderingLayerMask;
         public readonly bool filterRenderingLayers;
-        public readonly MeshLodProjection lodProjection;
+        public readonly MeshLODProjection lodProjection;
 
         /// <param name="requestIdentity">Includes the occlusion history, so a recovered request never shares a stale buffer.</param>
         /// <param name="residentIdentity">
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong sceneCullingMask;
         public uint renderingLayerMask;
         public bool filterRenderingLayers;
-        public MeshLodProjection lodProjection;
+        public MeshLODProjection lodProjection;
         [WriteOnly] public NativeArray<byte> visible;
         [WriteOnly] public NativeArray<float> depth;
         [WriteOnly] public NativeArray<byte> lod;
@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             byte result = 0;
             float distance = 0;
-            byte level = MeshLodSelection.None;
+            byte level = MeshLODSelection.None;
             float levelFade = 1;
             if ((generations[index] & 1u) != 0)
             {
@@ -124,8 +124,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     bool inside = Inside(plane0, 0, bound) && Inside(plane1, 1, bound) && Inside(plane2, 2, bound)
                         && Inside(plane3, 3, bound) && Inside(plane4, 4, bound) && Inside(plane5, 5, bound);
                     distance = math.length(bound.center - viewPosition);
-                    if (inside) MeshLodSelection.Select(entities[index].lod, bound, lodProjection, out level, out levelFade);
-                    result = (byte)(inside && level != MeshLodSelection.None ? 1 : 0);
+                    if (inside) MeshLODSelection.Select(entities[index].lod, bound, lodProjection, out level, out levelFade);
+                    result = (byte)(inside && level != MeshLODSelection.None ? 1 : 0);
                 }
             }
             visible[index] = result;
@@ -143,11 +143,11 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// LOD selection shared by the CPU culling job and mirrored by <c>MeshLod.hlsl</c>. The selected level is the first
+    /// LOD selection shared by the CPU culling job and mirrored by <c>MeshLOD.hlsl</c>. The selected level is the first
     /// whose lower bound the screen size reaches; the fade is 1 outside the band above that bound and in [0, 1) inside it.
     /// A level whose bound is 0 never fades.
     /// </summary>
-    internal static class MeshLodSelection
+    internal static class MeshLODSelection
     {
         public const byte None = 255;
 
@@ -155,13 +155,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// The largest half-extent of the world bounds times scale and bias over distance: for a camera, the share of the
         /// view height the bounds' largest side covers, as <c>LODGroup.size</c> drives <c>screenRelativeTransitionHeight</c>.
         /// </summary>
-        public static float ScreenSize(in FBound bound, in MeshLodProjection projection)
+        public static float ScreenSize(in FBound bound, in MeshLODProjection projection)
         {
             float distance = projection.orthographic ? 1.0f : math.max(math.length(bound.center - projection.origin), 1e-6f);
             return math.cmax(bound.extents) * projection.scale * projection.bias / distance;
         }
 
-        public static void Select(in MeshLodChain chain, in FBound bound, in MeshLodProjection projection, out byte level, out float fade)
+        public static void Select(in MeshLODChain chain, in FBound bound, in MeshLODProjection projection, out byte level, out float fade)
         {
             float screen = ScreenSize(bound, projection);
             level = None;

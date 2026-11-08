@@ -132,7 +132,7 @@ void CullOcclusionRecovery(uint3 id : SV_DispatchThreadID)
     bool deferred = _OcclusionDeferred[id.x] != 0;
     uint packed = 0u;
     if (deferred && !MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz))
-        packed = MeshPackLodVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
+        packed = MeshPackLODVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
     _RecoveredVisibility[id.x] = packed;
     if (deferred) _FinalVisibility[id.x] = packed;
 }

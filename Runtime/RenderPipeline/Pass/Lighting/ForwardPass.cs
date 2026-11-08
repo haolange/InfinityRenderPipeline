@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public bool hasSubsurface;
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
             public RGTextureHandle atmosphereGGX;
             public RGTextureHandle occlusion;
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
-            RGDrawListHandle forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Forward);
+            RGMeshDrawListHandle forwardMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterForwardPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterForwardPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.hasOcclusion = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusion);
                     if (passData.hasOcclusion) passData.occlusion = passRef.ReadTexture(occlusion);
-                    passData.draws = passRef.UseDrawList(forwardDraws);
+                    passData.meshDrawList = passRef.UseMeshDrawList(forwardMeshDrawList);
                     passData.rendererList = passRef.UseRendererList(forwardRendererList);
                     passData.atmosphereGGX = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter));
                     passData.atmosphereSH = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH));
@@ -120,7 +120,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     passData.BindLighting(cmdEncoder);
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

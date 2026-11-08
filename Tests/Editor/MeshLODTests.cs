@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 {
     public class MeshLodTests
     {
-        static readonly MeshLodProjection Perspective = new MeshLodProjection { origin = float3.zero, scale = 1, bias = 1 };
+        static readonly MeshLODProjection Perspective = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1 };
 
         // A bound whose largest half-extent is exactly 1, so the screen size is 1 / distance under the perspective projection above.
         static FBound UnitBound(float distance) => new FBound(new float3(distance, 0, 0), new float3(1, 0, 0));
@@ -23,16 +23,16 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void LodChainCreate_RejectsChainsThatAreNotLodGroupLowerBounds()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLodChain.Create(ReadOnlySpan<float>.Empty, 0.2f));
-            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLodChain.Create(new float[MeshLodChain.MaxLevels + 1], 0.2f));
-            Assert.Throws<ArgumentException>(() => MeshLodChain.Create(new[] { 0.5f, 0.5f }, 0.2f), "Bounds strictly decrease.");
-            Assert.Throws<ArgumentException>(() => MeshLodChain.Create(new[] { 1.5f }, 0.2f), "Bounds lie in [0, 1].");
-            Assert.Throws<ArgumentException>(() => MeshLodChain.Create(new[] { -0.1f }, 0.2f), "Bounds lie in [0, 1].");
-            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLodChain.Create(new[] { 0.5f }, 0f));
-            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLodChain.Create(new[] { 0.5f }, 1f));
+            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLODChain.Create(ReadOnlySpan<float>.Empty, 0.2f));
+            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLODChain.Create(new float[MeshLODChain.MaxLevels + 1], 0.2f));
+            Assert.Throws<ArgumentException>(() => MeshLODChain.Create(new[] { 0.5f, 0.5f }, 0.2f), "Bounds strictly decrease.");
+            Assert.Throws<ArgumentException>(() => MeshLODChain.Create(new[] { 1.5f }, 0.2f), "Bounds lie in [0, 1].");
+            Assert.Throws<ArgumentException>(() => MeshLODChain.Create(new[] { -0.1f }, 0.2f), "Bounds lie in [0, 1].");
+            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLODChain.Create(new[] { 0.5f }, 0f));
+            Assert.Throws<ArgumentOutOfRangeException>(() => MeshLODChain.Create(new[] { 0.5f }, 1f));
 
-            MeshLodChain chain = MeshLodChain.Create(new[] { 0.6f, 0.5f, 0.4f, 0.3f, 0.2f, 0.1f, 0.05f, 0f }, 0.25f);
-            Assert.AreEqual(MeshLodChain.MaxLevels, chain.count);
+            MeshLODChain chain = MeshLODChain.Create(new[] { 0.6f, 0.5f, 0.4f, 0.3f, 0.2f, 0.1f, 0.05f, 0f }, 0.25f);
+            Assert.AreEqual(MeshLODChain.MaxLevels, chain.count);
             Assert.AreEqual(0.05f, chain.ScreenSize(6));
             Assert.AreEqual(0.25f, chain.fadeWidth);
         }
@@ -40,11 +40,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void LodChain_MatchesHlslFieldForField()
         {
-            const string path = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MeshLod.hlsl";
-            Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+FMeshLodChain\s*\{(?<body>[^}]*)\}");
-            Assert.IsTrue(body.Success, "FMeshLodChain not found in " + path);
+            const string path = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MeshLOD.hlsl";
+            Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+FMeshLODChain\s*\{(?<body>[^}]*)\}");
+            Assert.IsTrue(body.Success, "FMeshLODChain not found in " + path);
             MatchCollection hlsl = Regex.Matches(body.Groups["body"].Value, @"(\w+)\s+(\w+)\s*;");
-            FieldInfo[] fields = typeof(MeshLodChain).GetFields(BindingFlags.Instance | BindingFlags.Public);
+            FieldInfo[] fields = typeof(MeshLODChain).GetFields(BindingFlags.Instance | BindingFlags.Public);
             Assert.AreEqual(hlsl.Count, fields.Length, "Field count");
             int bytes = 0;
             for (int i = 0; i < fields.Length; ++i)
@@ -55,24 +55,24 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual(hlsl[i].Groups[1].Value, expected, $"Field {fields[i].Name} type");
                 bytes += Marshal.SizeOf(type);
             }
-            Assert.AreEqual(bytes, Marshal.SizeOf<MeshLodChain>(), "No padding");
+            Assert.AreEqual(bytes, Marshal.SizeOf<MeshLODChain>(), "No padding");
         }
 
         [Test]
         public void LodChain_ThrowIfInvalid_RejectsHandBuiltChains()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodChain { count = 0, fadeWidth = 0.2f }.ThrowIfInvalid());
-            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodChain { count = 1 }.ThrowIfInvalid(), "fadeWidth 0 would divide by zero in the band.");
-            Assert.Throws<ArgumentException>(() => new MeshLodChain { count = 2, fadeWidth = 0.2f }.ThrowIfInvalid(), "Two zero bounds do not decrease.");
-            Assert.DoesNotThrow(() => MeshLodChain.Single.ThrowIfInvalid());
-            Assert.IsFalse(MeshLodChain.Single.hasFadeBand);
-            Assert.IsTrue(MeshLodChain.Create(new[] { 0.1f }, 0.2f).hasFadeBand, "A single level with a positive bound fades out.");
-            Assert.IsTrue(MeshLodChain.Create(new[] { 0.5f, 0f }, 0.2f).hasFadeBand);
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLODChain { count = 0, fadeWidth = 0.2f }.ThrowIfInvalid());
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLODChain { count = 1 }.ThrowIfInvalid(), "fadeWidth 0 would divide by zero in the band.");
+            Assert.Throws<ArgumentException>(() => new MeshLODChain { count = 2, fadeWidth = 0.2f }.ThrowIfInvalid(), "Two zero bounds do not decrease.");
+            Assert.DoesNotThrow(() => MeshLODChain.Single.ThrowIfInvalid());
+            Assert.IsFalse(MeshLODChain.Single.hasFadeBand);
+            Assert.IsTrue(MeshLODChain.Create(new[] { 0.1f }, 0.2f).hasFadeBand, "A single level with a positive bound fades out.");
+            Assert.IsTrue(MeshLODChain.Create(new[] { 0.5f, 0f }, 0.2f).hasFadeBand);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => default(MeshLodProjection).ThrowIfInvalid(), "Scale 0 culls every positive bound.");
-            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodProjection { scale = float.PositiveInfinity, bias = 1 }.ThrowIfInvalid());
-            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodProjection { scale = 1, bias = 0 }.ThrowIfInvalid());
-            Assert.Throws<ArgumentException>(() => new MeshLodProjection { origin = new float3(float.NaN, 0, 0), scale = 1, bias = 1 }.ThrowIfInvalid());
+            Assert.Throws<ArgumentOutOfRangeException>(() => default(MeshLODProjection).ThrowIfInvalid(), "Scale 0 culls every positive bound.");
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLODProjection { scale = float.PositiveInfinity, bias = 1 }.ThrowIfInvalid());
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLODProjection { scale = 1, bias = 0 }.ThrowIfInvalid());
+            Assert.Throws<ArgumentException>(() => new MeshLODProjection { origin = new float3(float.NaN, 0, 0), scale = 1, bias = 1 }.ThrowIfInvalid());
             Assert.DoesNotThrow(() => Perspective.ThrowIfInvalid());
         }
 
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 MeshWorld world = fixture.world;
                 Mesh mesh = fixture.Mesh(1);
-                MeshLodChain[] chains = { MeshLodChain.Single, MeshLodChain.Create(new[] { 0.1f }, 0.2f), MeshLodChain.Create(new[] { 0.5f, 0f }, 0.2f) };
+                MeshLODChain[] chains = { MeshLODChain.Single, MeshLODChain.Create(new[] { 0.1f }, 0.2f), MeshLODChain.Create(new[] { 0.5f, 0f }, 0.2f) };
                 int[] expected = { 0, 1, 1 };
                 var materials = new Material[chains.Length];
                 using (MeshWorldUpdate update = world.BeginUpdate())
@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                     update.Commit();
                 }
-                MeshPassCache cache = world.GetPassCache(MeshPassPresets.GBuffer);
+                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
                 for (int i = 0; i < chains.Length; ++i)
                 {
                     ulong materialId = MeshTestUtility.Id(materials[i]);
@@ -117,54 +117,54 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         public void LodSelection_UsesLowerBoundsAndBandsAboveEachBound()
         {
             // Bands: level 0 [0.5, 0.6] (0.2 of 1 - 0.5), level 1 [0.25, 0.3] (0.2 of 0.5 - 0.25). Below 0.25 nothing draws.
-            MeshLodChain chain = MeshLodChain.Create(new[] { 0.5f, 0.25f }, 0.2f);
+            MeshLODChain chain = MeshLODChain.Create(new[] { 0.5f, 0.25f }, 0.2f);
             (float screen, byte level, float fade)[] cases =
             {
                 (1.0f, 0, 1), (0.65f, 0, 1), (0.55f, 0, 0.5f), (0.5f, 0, 0),
-                (0.4f, 1, 1), (0.275f, 1, 0.5f), (0.25f, 1, 0), (0.2f, MeshLodSelection.None, 1)
+                (0.4f, 1, 1), (0.275f, 1, 0.5f), (0.25f, 1, 0), (0.2f, MeshLODSelection.None, 1)
             };
             foreach (var (screen, level, fade) in cases)
             {
-                MeshLodSelection.Select(chain, UnitBound(1 / screen), Perspective, out byte selected, out float selectedFade);
+                MeshLODSelection.Select(chain, UnitBound(1 / screen), Perspective, out byte selected, out float selectedFade);
                 Assert.AreEqual(level, selected, $"level at screen size {screen}");
                 Assert.AreEqual(fade, selectedFade, 1e-4f, $"fade at screen size {screen}");
             }
 
             // A zero last bound never culls and never fades.
-            MeshLodChain open = MeshLodChain.Create(new[] { 0.5f, 0f }, 0.2f);
-            MeshLodSelection.Select(open, UnitBound(1e6f), Perspective, out byte far, out float farFade);
+            MeshLODChain open = MeshLODChain.Create(new[] { 0.5f, 0f }, 0.2f);
+            MeshLODSelection.Select(open, UnitBound(1e6f), Perspective, out byte far, out float farFade);
             Assert.AreEqual(1, far);
             Assert.AreEqual(1f, farFade);
 
             // Orthographic views measure screen size at distance 1, wherever the bound is.
-            var orthographic = new MeshLodProjection { origin = float3.zero, scale = 0.35f, bias = 1, orthographic = true };
-            MeshLodSelection.Select(chain, UnitBound(1000), orthographic, out byte ortho, out float orthoFade);
+            var orthographic = new MeshLODProjection { origin = float3.zero, scale = 0.35f, bias = 1, orthographic = true };
+            MeshLODSelection.Select(chain, UnitBound(1000), orthographic, out byte ortho, out float orthoFade);
             Assert.AreEqual(1, ortho);
             Assert.AreEqual(1f, orthoFade);
         }
 
         [Test]
-        public void LodFactor_IsComplementaryInsideTheBand_AndStableOnlyWithoutDither()
+        public void LODFactor_IsComplementaryInsideTheBand_AndStableOnlyWithoutDither()
         {
-            Assert.IsTrue(MeshDrawGatherJob.LodFactor(0, 0, 1, true, out float stable));
+            Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, 1, true, out float stable));
             Assert.AreEqual(0f, stable, "Stable instances carry no dither factor.");
-            Assert.IsFalse(MeshDrawGatherJob.LodFactor(1, 0, 1, true, out _), "Outside a band the next level does not draw.");
+            Assert.IsFalse(MeshDrawGatherJob.LODFactor(1, 0, 1, true, out _), "Outside a band the next level does not draw.");
 
             foreach (float fade in new[] { 0.01f, 0.5f, 0.99f })
             {
-                Assert.IsTrue(MeshDrawGatherJob.LodFactor(0, 0, fade, true, out float outgoing));
-                Assert.IsTrue(MeshDrawGatherJob.LodFactor(1, 0, fade, true, out float incoming));
+                Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, fade, true, out float outgoing));
+                Assert.IsTrue(MeshDrawGatherJob.LODFactor(1, 0, fade, true, out float incoming));
                 Assert.AreEqual(fade, outgoing);
                 Assert.AreEqual(-fade, incoming, "LODDitheringTransition keeps complementary pixels for +f and -f.");
-                Assert.IsFalse(MeshDrawGatherJob.LodFactor(2, 0, fade, true, out _));
+                Assert.IsFalse(MeshDrawGatherJob.LODFactor(2, 0, fade, true, out _));
 
-                Assert.IsTrue(MeshDrawGatherJob.LodFactor(0, 0, fade, false, out float translucent));
+                Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, fade, false, out float translucent));
                 Assert.AreEqual(0f, translucent);
-                Assert.IsFalse(MeshDrawGatherJob.LodFactor(1, 0, fade, false, out _), "Passes without dither draw the stable level only.");
+                Assert.IsFalse(MeshDrawGatherJob.LODFactor(1, 0, fade, false, out _), "Passes without dither draw the stable level only.");
             }
 
-            Assert.IsFalse(MeshDrawGatherJob.LodFactor(0, 0, 0, true, out _), "At the bound the outgoing level has faded out.");
-            Assert.IsTrue(MeshDrawGatherJob.LodFactor(1, 0, 0, true, out float entering));
+            Assert.IsFalse(MeshDrawGatherJob.LODFactor(0, 0, 0, true, out _), "At the bound the outgoing level has faded out.");
+            Assert.IsTrue(MeshDrawGatherJob.LODFactor(1, 0, 0, true, out float entering));
             Assert.Less(entering, 0f, "The incoming level is fully present at the bound.");
         }
 
@@ -176,7 +176,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshWorld world = fixture.world;
                 Mesh mesh = fixture.Mesh(1);
                 Material opaque = fixture.Material(0, 0), translucent = fixture.Material(0, 1);
-                MeshLodChain chain = MeshLodChain.Create(new[] { 0.5f, 0.25f }, 0.2f);
+                MeshLODChain chain = MeshLODChain.Create(new[] { 0.5f, 0.25f }, 0.2f);
                 MeshEntityId entity;
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
@@ -187,9 +187,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
 
-                var opaqueDraws = BuildInBand(world, MeshPassPresets.GBuffer, entity, 0.5f);
+                var opaqueDraws = BuildInBand(world, MeshPassTable.GBuffer, entity, 0.5f);
                 CollectionAssert.AreEquivalent(new[] { (true, 0.5f), (true, -0.5f) }, opaqueDraws, "Opaque passes cross-fade both levels.");
-                var translucentDraws = BuildInBand(world, MeshPassPresets.TranslucentT0, entity, 0.5f);
+                var translucentDraws = BuildInBand(world, MeshPassTable.TranslucentT0, entity, 0.5f);
                 CollectionAssert.AreEqual(new[] { (false, 0f) }, translucentDraws, "Translucent passes draw the selected level only.");
             }
         }
@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 build = MeshDrawListBuild.Schedule(cache, world, visibility);
                 build.job.Complete();
                 var result = new List<(bool, float)>();
-                foreach (MeshInstancedDraw draw in build.draws)
+                foreach (MeshDrawCall draw in build.draws)
                     for (int i = 0; i < draw.instanceCount; ++i) result.Add((draw.fading, build.instanceFade[draw.instanceOffset + i]));
                 return result;
             }
@@ -235,8 +235,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                MeshTestUtility.RequireGpuIndirect(world);
-                MeshLodChain chain = MeshLodChain.Create(new[] { 0.4f, 0.2f, 0.1f }, 0.3f);
+                MeshTestUtility.RequireGPUIndirect(world);
+                MeshLODChain chain = MeshLODChain.Create(new[] { 0.4f, 0.2f, 0.1f }, 0.3f);
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     // Half-extent 0.5: distances from 0.6 m to 5.85 m sweep every level, every band and the LOD-culled range
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshWorldGpu gpu = world.gpu;
+                MeshWorldGPU gpu = world.gpu;
                 ComputeShader shader = Object.Instantiate(fixture.shader);
                 var output = new ComputeBuffer(world.entityHighWater, sizeof(uint));
                 try
@@ -259,7 +259,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     foreach (bool orthographic in new[] { false, true })
                     {
                         MeshView view = MeshTestUtility.CameraView(41);
-                        view.lodProjection = new MeshLodProjection { origin = float3.zero, scale = orthographic ? 0.25f : 1, bias = 1, orthographic = orthographic };
+                        view.lodProjection = new MeshLODProjection { origin = float3.zero, scale = orthographic ? 0.25f : 1, bias = 1, orthographic = orthographic };
                         uint[] cpu = MeshTestUtility.PackedCullOnCpu(world, view);
                         int kernel = shader.FindKernel("CullFrustum");
                         var planes = new Vector4[MeshView.MaxPlanes];

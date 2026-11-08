@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// One visible (entity, command) pair of a draw list. <c>fade</c> is 0 for the stable LOD and the signed dither factor
     /// inside a cross-fade band: +f for the outgoing level, -f for the incoming one.
     /// </summary>
-    internal struct MeshDrawItem
+    internal struct MeshDrawInstance
     {
         public ulong key;
         public int command;
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// A run of instances that one draw call submits: <c>instanceToEntity[instanceOffset .. +instanceCount)</c>. A fading run
     /// draws with INFINITY_LOD_DITHER and reads its per-instance factor from the parallel fade table.
     /// </summary>
-    internal struct MeshInstancedDraw
+    internal struct MeshDrawCall
     {
         public int command;
         public int instanceOffset;
@@ -78,11 +78,11 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// modes: stable before fading (one dither keyword change per list, as on the GPU backend), key, command, distance
     /// ascending, entity, fade.
     /// </summary>
-    internal struct MeshDrawItemComparer : IComparer<MeshDrawItem>
+    internal struct MeshDrawInstanceComparer : IComparer<MeshDrawInstance>
     {
         public bool backToFront;
 
-        public int Compare(MeshDrawItem a, MeshDrawItem b)
+        public int Compare(MeshDrawInstance a, MeshDrawInstance b)
         {
             int c;
             if (backToFront)
@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly] public NativeArray<float> fade;
         public ESortMode sortMode;
         public bool ditherLod;
-        public NativeList<MeshDrawItem>.ParallelWriter items;
+        public NativeList<MeshDrawInstance>.ParallelWriter items;
 
         public void Execute(int element)
         {
@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int entity = (int)candidate.x;
             if (visible[entity] == 0) return;
             int command = (int)(candidate.y & MeshPassCache.CommandMask);
-            if (!LodFactor((int)(candidate.y >> MeshPassCache.LodShift), lod[entity], fade[entity], ditherLod, out float itemFade)) return;
+            if (!LODFactor((int)(candidate.y >> MeshPassCache.LodShift), lod[entity], fade[entity], ditherLod, out float itemFade)) return;
             float distance = depth[entity];
             ulong key;
             switch (sortMode)
@@ -146,7 +146,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     key = commands[command].stateKey;
                     break;
             }
-            items.AddNoResize(new MeshDrawItem { key = key, command = command, entity = entity, depth = distance, fade = itemFade });
+            items.AddNoResize(new MeshDrawInstance { key = key, command = command, entity = entity, depth = distance, fade = itemFade });
         }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// the selected level the outgoing level draws +f and the next level -f, so the two dither patterns are complementary;
         /// at f = 0 only the incoming level draws. Without dithering only the selected level draws.
         /// </summary>
-        public static bool LodFactor(int elementLod, int selected, float fade, bool dither, out float itemFade)
+        public static bool LODFactor(int elementLod, int selected, float fade, bool dither, out float itemFade)
         {
             itemFade = 0;
             bool fading = dither && fade < 1;
@@ -176,8 +176,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     [BurstCompile]
     internal struct MeshDrawSortJob : IJob
     {
-        public NativeList<MeshDrawItem> items;
-        public MeshDrawItemComparer comparer;
+        public NativeList<MeshDrawInstance> items;
+        public MeshDrawInstanceComparer comparer;
 
         public void Execute() => items.AsArray().Sort(comparer);
     }
@@ -185,8 +185,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     [BurstCompile]
     internal struct MeshDrawMergeJob : IJob
     {
-        [ReadOnly] public NativeList<MeshDrawItem> items;
-        public NativeList<MeshInstancedDraw> draws;
+        [ReadOnly] public NativeList<MeshDrawInstance> items;
+        public NativeList<MeshDrawCall> draws;
         [WriteOnly] public NativeArray<uint> instanceToEntity;
         [WriteOnly] public NativeArray<float> instanceFade;
 
@@ -195,19 +195,19 @@ namespace InfinityTech.Rendering.MeshPipeline
             draws.Clear();
             for (int instance = 0; instance < items.Length; ++instance)
             {
-                MeshDrawItem item = items[instance];
+                MeshDrawInstance item = items[instance];
                 instanceToEntity[instance] = (uint)item.entity;
                 instanceFade[instance] = item.fade;
                 int last = draws.Length - 1;
                 if (last >= 0 && draws[last].command == item.command && draws[last].fading == item.fading)
                 {
-                    MeshInstancedDraw run = draws[last];
+                    MeshDrawCall run = draws[last];
                     run.instanceCount++;
                     draws[last] = run;
                 }
                 else
                 {
-                    draws.Add(new MeshInstancedDraw { command = item.command, instanceOffset = instance, instanceCount = 1, fading = item.fading });
+                    draws.Add(new MeshDrawCall { command = item.command, instanceOffset = instance, instanceCount = 1, fading = item.fading });
                 }
             }
         }
@@ -219,8 +219,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal struct MeshDrawListBuild : IDisposable
     {
-        public NativeList<MeshDrawItem> items;
-        public NativeList<MeshInstancedDraw> draws;
+        public NativeList<MeshDrawInstance> items;
+        public NativeList<MeshDrawCall> draws;
         public NativeArray<uint> instanceToEntity;
         public NativeArray<float> instanceFade;
         public JobHandle job;
@@ -233,8 +233,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int capacity = math.max(1, cache.memberCount);
             var build = new MeshDrawListBuild
             {
-                items = new NativeList<MeshDrawItem>(capacity, Allocator.TempJob),
-                draws = new NativeList<MeshInstancedDraw>(capacity, Allocator.TempJob),
+                items = new NativeList<MeshDrawInstance>(capacity, Allocator.TempJob),
+                draws = new NativeList<MeshDrawCall>(capacity, Allocator.TempJob),
                 instanceToEntity = new NativeArray<uint>(capacity, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
                 instanceFade = new NativeArray<float>(capacity, Allocator.TempJob, NativeArrayOptions.UninitializedMemory)
             };
@@ -249,13 +249,13 @@ namespace InfinityTech.Rendering.MeshPipeline
                 lod = visibility.lod,
                 fade = visibility.fade,
                 sortMode = cache.desc.sortMode,
-                ditherLod = cache.desc.ditherLodTransitions,
+                ditherLod = cache.desc.ditherLODTransitions,
                 items = build.items.AsParallelWriter()
             }.Schedule(candidates.Length, 256, visibility.job);
             handle = new MeshDrawSortJob
             {
                 items = build.items,
-                comparer = new MeshDrawItemComparer { backToFront = cache.desc.sortMode == ESortMode.BackToFront }
+                comparer = new MeshDrawInstanceComparer { backToFront = cache.desc.sortMode == ESortMode.BackToFront }
             }.Schedule(handle);
             build.job = new MeshDrawMergeJob
             {

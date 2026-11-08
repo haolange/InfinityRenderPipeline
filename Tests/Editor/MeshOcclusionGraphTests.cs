@@ -11,8 +11,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void LogicalHistoryKeyChanges_PhysicalCapacityDoesNotGrowPerHistoryVersion()
         {
             var pool = new ResourcePool();
-            var storage = new MeshGpuVisibilityCache(pool);
-            var first = new MeshView { viewKey = 101, visibilityPhase = EMeshVisibilityPhase.First, visibilityHistory = 1 };
+            var storage = new MeshGPUVisibilityCache(pool);
+            var first = new MeshView { viewKey = 101, visibilityPhase = EMeshVisibilityPhase.Prediction, visibilityHistory = 1 };
             var next = first; next.visibilityHistory = 2;
             var final = first; final.visibilityPhase = EMeshVisibilityPhase.Final;
             try

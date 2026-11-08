@@ -296,7 +296,7 @@ namespace InfinityTech.Component
                     error = exception.Message;
                     return false;
                 }
-                foreach (MeshPassDesc pass in MeshPassPresets.all)
+                foreach (MeshPassDesc pass in MeshPassTable.all)
                 {
                     if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode)) continue;
                     if (MeshPassShaderUtility.FindPassIndex(material, pass.lightMode) < 0)

@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             m_World = world;
             m_Casters.Clear();
-            NativeArray<int> members = world.GetPassMembers(MeshPassPresets.Shadow);
+            NativeArray<int> members = world.GetPassMembers(MeshPassTable.Shadow);
             NativeArray<MeshEntity> entities = world.entities;
             for (int entity = 0; entity < members.Length; ++entity)
                 if (members[entity] > 0 && (entities[entity].desc.flags & EMeshEntityFlags.Visible) != 0) m_Casters.Add(entity);

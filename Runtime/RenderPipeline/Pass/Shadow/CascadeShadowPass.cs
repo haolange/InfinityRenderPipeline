@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 cascadeSplitDistances;
             public Vector4[] casterBias;
             public Vector4 casterLight;
-            public RGDrawListHandle[] draws;
+            public RGMeshDrawListHandle[] meshDrawLists;
             public RGRendererListHandle[] rendererLists;
         }
 
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
-            RGDrawListHandle[] cascadeDraws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(cascadeCount);
+            RGMeshDrawListHandle[] cascadeMeshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
             RGRendererListHandle[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                 FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
-                cascadeDraws[cascade] = RGDrawListHandle.Invalid;
+                cascadeMeshDrawLists[cascade] = RGMeshDrawListHandle.Invalid;
                 cascadeRendererLists[cascade] = RGRendererListHandle.Invalid;
             }
 
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(CascadeShadowView(shadowLight, slice, cascade, camera), MeshPassPresets.Shadow);
+                    cascadeMeshDrawLists[cascade] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(CascadeShadowView(shadowLight, slice, cascade, camera), InfinityPassIDs.RasterShadowPass));
 
                     if (!hasNativeCasters) continue;
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
@@ -135,13 +135,13 @@ namespace InfinityTech.Rendering.Pipeline
                     for (int i = 0; i < cascadeCount; i++) passData.casterBias[i] = allocator.CascadeSlices[i].casterBias;
                     if (lightIndex >= 0) passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
 
-                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(cascadeCount);
+                    passData.meshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
                     passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
                     {
-                        passData.draws[cascade] = cascadeDraws[cascade].IsValid
-                            ? passRef.UseDrawList(cascadeDraws[cascade])
-                            : RGDrawListHandle.Invalid;
+                        passData.meshDrawLists[cascade] = cascadeMeshDrawLists[cascade].IsValid
+                            ? passRef.UseMeshDrawList(cascadeMeshDrawLists[cascade])
+                            : RGMeshDrawListHandle.Invalid;
                         passData.rendererLists[cascade] = cascadeRendererLists[cascade].IsValid
                             ? passRef.UseRendererList(cascadeRendererLists[cascade])
                             : RGRendererListHandle.Invalid;
@@ -171,9 +171,9 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewProjID, passData.shadowMatrices[cascade]);
                         cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.shadowMatrices[cascade]);
 
-                        if (passData.draws != null && cascade < passData.draws.Length && passData.draws[cascade].IsValid)
+                        if (passData.meshDrawLists != null && cascade < passData.meshDrawLists.Length && passData.meshDrawLists[cascade].IsValid)
                         {
-                            cmdEncoder.Draw(passData.draws[cascade]);
+                            cmdEncoder.SubmitMeshDrawList(passData.meshDrawLists[cascade]);
                         }
 
                         if (passData.rendererLists != null && cascade < passData.rendererLists.Length && passData.rendererLists[cascade].IsValid)

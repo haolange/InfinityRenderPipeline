@@ -39,27 +39,27 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         public void Comparer_IsATotalOrder(bool backToFront)
         {
             var random = new System.Random(5);
-            var items = new MeshDrawItem[64];
+            var items = new MeshDrawInstance[64];
             for (int i = 0; i < items.Length; ++i)
             {
                 // Translucent (back-to-front) passes never fade; other modes mix stable and fading items.
                 bool fading = !backToFront && random.Next(3) == 0;
                 float fade = fading ? (random.Next(2) == 0 ? 1 : -1) * (0.05f + 0.9f * (float)random.NextDouble()) : 0;
-                items[i] = new MeshDrawItem { key = (ulong)random.Next(3), command = random.Next(3), entity = i, depth = random.Next(4), fade = fade };
+                items[i] = new MeshDrawInstance { key = (ulong)random.Next(3), command = random.Next(3), entity = i, depth = random.Next(4), fade = fade };
             }
-            var comparer = new MeshDrawItemComparer { backToFront = backToFront };
-            foreach (MeshDrawItem a in items)
-                foreach (MeshDrawItem b in items)
+            var comparer = new MeshDrawInstanceComparer { backToFront = backToFront };
+            foreach (MeshDrawInstance a in items)
+                foreach (MeshDrawInstance b in items)
                     Assert.AreEqual(Math.Sign(comparer.Compare(a, b)), -Math.Sign(comparer.Compare(b, a)));
 
-            MeshDrawItem[] first = items.OrderBy(_ => random.Next()).ToArray();
-            MeshDrawItem[] second = items.OrderBy(_ => random.Next()).ToArray();
+            MeshDrawInstance[] first = items.OrderBy(_ => random.Next()).ToArray();
+            MeshDrawInstance[] second = items.OrderBy(_ => random.Next()).ToArray();
             Array.Sort(first, comparer);
             Array.Sort(second, comparer);
             CollectionAssert.AreEqual(first.Select(item => item.entity), second.Select(item => item.entity), "A total order has one sorted sequence.");
             for (int i = 1; i < first.Length; ++i)
             {
-                MeshDrawItem a = first[i - 1], b = first[i];
+                MeshDrawInstance a = first[i - 1], b = first[i];
                 if (!backToFront)
                 {
                     Assert.IsTrue(!a.fading || b.fading, "Stable items precede fading ones, so a list changes the dither keyword once.");
@@ -75,14 +75,14 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void Merge_EmitsOneRunPerConsecutiveCommand_InSortedInstanceOrder()
         {
-            var items = new NativeList<MeshDrawItem>(6, Allocator.Temp);
-            var draws = new NativeList<MeshInstancedDraw>(6, Allocator.Temp);
+            var items = new NativeList<MeshDrawInstance>(6, Allocator.Temp);
+            var draws = new NativeList<MeshDrawCall>(6, Allocator.Temp);
             var instanceToEntity = new NativeArray<uint>(6, Allocator.Temp);
             var instanceFade = new NativeArray<float>(6, Allocator.Temp);
             try
             {
                 int[] commands = { 2, 2, 5, 2, 7, 7 };
-                for (int i = 0; i < commands.Length; ++i) items.Add(new MeshDrawItem { command = commands[i], entity = 10 + i });
+                for (int i = 0; i < commands.Length; ++i) items.Add(new MeshDrawInstance { command = commands[i], entity = 10 + i });
                 new MeshDrawMergeJob { items = items, draws = draws, instanceToEntity = instanceToEntity, instanceFade = instanceFade }.Execute();
 
                 CollectionAssert.AreEqual(new uint[] { 10, 11, 12, 13, 14, 15 }, instanceToEntity.ToArray());
@@ -184,7 +184,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     new DrawSpec(0, 0, 5f), new DrawSpec(1, 0, 20f), new DrawSpec(0, 0, 10f),
                     new DrawSpec(0, -1, 1f), new DrawSpec(0, 1, 50f), new DrawSpec(0, 0, 30f, visible: false)
                 };
-                Build(fixture, MeshPassPresets.TranslucentT0, materials, specs, out int[] order, out var runs, out int[] commands);
+                Build(fixture, MeshPassTable.TranslucentT0, materials, specs, out int[] order, out var runs, out int[] commands);
 
                 CollectionAssert.AreEqual(new[] { 3, 1, 2, 0, 4 }, order);
                 // Translucent passes do not dither, so the three visible members of command 0 are one run.
@@ -200,7 +200,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(0, 0) };
                 // 2.0 m and 2.05 m share a decimeter bucket, so state (the first-created material) decides inside it.
                 DrawSpec[] specs = { new DrawSpec(0, 0, 12f), new DrawSpec(1, 0, 2f), new DrawSpec(0, 0, 2.05f), new DrawSpec(1, 0, 0.5f) };
-                Build(fixture, MeshPassPresets.Depth, materials, specs, out int[] order, out var runs, out _);
+                Build(fixture, MeshPassTable.Depth, materials, specs, out int[] order, out var runs, out _);
 
                 CollectionAssert.AreEqual(new[] { 3, 2, 1, 0 }, order);
                 Assert.AreEqual(4, runs.Length);
@@ -214,13 +214,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                MeshTestUtility.RequireGpuIndirect(world);
+                MeshTestUtility.RequireGPUIndirect(world);
                 Mesh mesh = fixture.Mesh(2);
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(1, 0) };
                 // Bands [0.3, 0.44] and [0.1, 0.14]; the bound's largest half-extent is 0.5, so the screen size is 0.5 / distance.
                 // The distances cover stable and fading levels 0 and 1, a fading last level and a LOD-culled entity (5.2 m).
                 // The same mesh fills both levels, so a fading command holds the outgoing and the incoming instance of one entity.
-                MeshLodChain chain = MeshLodChain.Create(new[] { 0.3f, 0.1f }, 0.2f);
+                MeshLODChain chain = MeshLODChain.Create(new[] { 0.3f, 0.1f }, 0.2f);
                 float[] distances = { 0.6f, 1.25f, 1.45f, 1.2f, 2.3f, 3.8f, 5.2f, 0.85f, 1.3f, 1.75f, 4f, 4.6f };
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
@@ -241,8 +241,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshPassCache cache = world.GetPassCache(MeshPassPresets.GBuffer);
-                Assert.IsTrue(cache.desc.ditherLodTransitions);
+                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
+                Assert.IsTrue(cache.desc.ditherLODTransitions);
                 Assert.IsNotNull(cache.candidateBuffer.buffer, "Residency uploads the candidate table.");
                 int commandCount = cache.commandHighWater, candidateCount = cache.candidates.Length;
                 Assert.Greater(commandCount, 1);
@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     build = MeshDrawListBuild.Schedule(cache, world, world.visibilityShare.Get(handle));
                     build.job.Complete();
-                    foreach (MeshInstancedDraw draw in build.draws)
+                    foreach (MeshDrawCall draw in build.draws)
                     {
                         var key = (draw.command, draw.fading);
                         if (!cpu.TryGetValue(key, out var list)) cpu.Add(key, list = new List<(uint, float)>());

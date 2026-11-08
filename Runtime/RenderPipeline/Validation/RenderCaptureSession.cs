@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
         public float timeoutSeconds = 120;
         public bool includeConfidence = true;
         public bool lockHistoryReset;
-        public MeshPipeline.EMeshBackendPolicy meshBackend = MeshPipeline.EMeshBackendPolicy.Auto;
+        public MeshPipeline.EMeshDrawBackendPolicy meshBackend = MeshPipeline.EMeshDrawBackendPolicy.Auto;
         public string[] buffers = { "DisplayColor", "Lighting" };
         public RectInt roi;
     }

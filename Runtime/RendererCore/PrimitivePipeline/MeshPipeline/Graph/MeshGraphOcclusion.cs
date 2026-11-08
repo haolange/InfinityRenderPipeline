@@ -42,20 +42,20 @@ namespace InfinityTech.Rendering.MeshPipeline
                 CurrentGenerations = Shader.PropertyToID("_MeshCullCurrentGenerations"), PreviousGenerations = Shader.PropertyToID("_MeshCullPreviousGenerations");
         }
 
-        RGBufferHandle OcclusionList(RGBuilder builder, in MeshView view) => builder.ImportBuffer(world.GetGpuVisibilityBuffer(view));
+        RGBufferHandle OcclusionList(RGBuilder builder, in MeshView view) => builder.ImportBuffer(world.GetGPUVisibilityBuffer(view));
 
-        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer) => m_GpuCullVisibility.Add(new MeshVisibilityKey(view, true), buffer);
+        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer) => m_GPUCullVisibility.Add(new MeshVisibilityKey(view, true), buffer);
 
         static readonly RGComputePassExecuteAction<MeshOcclusionData> s_ExecuteMeshOcclusion = ExecuteMeshOcclusion;
 
-        internal MeshOcclusionLists RecordMeshOcclusionFirst(RGBuilder builder, MeshView view, MeshMotionBinding motion,
+        internal MeshOcclusionLists RecordMeshOcclusionPrediction(RGBuilder builder, MeshView view, MeshMotionBinding motion,
             RGTextureHandle previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
         {
             view.lodProjection.ThrowIfInvalid();
-            MeshGpuDrawBackend backend = world.gpuBackend;
+            MeshDrawGPUBackend backend = world.gpuBackend;
             bool history = previousFurthest.IsValid() && motion.previous != null;
             view.visibilityHistory = historyVersion;
-            var first = view; first.visibilityPhase = EMeshVisibilityPhase.First;
+            var first = view; first.visibilityPhase = EMeshVisibilityPhase.Prediction;
             var deferredView = view; deferredView.visibilityPhase = EMeshVisibilityPhase.Deferred;
             var recovered = view; recovered.visibilityPhase = EMeshVisibilityPhase.Recovered;
             RGBufferHandle visible = OcclusionList(builder, first), final = OcclusionList(builder, view), deferred = OcclusionList(builder, deferredView);
@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.recovery = true;
                 data.kernel = world.gpuBackend.FindKernel("CullOcclusionRecovery");
                 data.deferred = pass.ReadBuffer(lists.deferred);
-                data.final = pass.WriteBuffer(m_GpuCullVisibility[new MeshVisibilityKey(lists.final, true)]);
+                data.final = pass.WriteBuffer(m_GPUCullVisibility[new MeshVisibilityKey(lists.final, true)]);
                 data.recovered = pass.WriteBuffer(recovered);
                 data.furthest = pass.ReadTexture(furthest);
                 data.projection = projection;
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         static void ExecuteMeshOcclusion(in MeshOcclusionData data, in RGComputeEncoder commands)
         {
-            MeshGpuDrawBackend backend = data.world.gpuBackend;
+            MeshDrawGPUBackend backend = data.world.gpuBackend;
             ComputeShader shader = backend.shader;
             int kernel = data.kernel;
             if (data.recovery)

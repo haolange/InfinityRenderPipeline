@@ -755,7 +755,7 @@ RenderTexture, UI, DebugView and camera disposal without changing saved assets.
 Poison unused texture regions; validate valid edges and fractional/odd mip samples
 against exact-sized textures. Test rollback without advancing extent history.
 Run TextureCapacityTests, TemporalResolveGpuTests, MeshDrawListTests,
-RGDrawListLifetimeTests, MeshWorldTests and related graph/history/output contracts.
+MeshDrawListLifetimeTests, MeshWorldTests and related graph/history/output contracts.
 Read accepted history before requesting a resized pending target; roll back and
 verify that its old logical/physical view survives. Also change only capacity and
 verify that history remains valid. Capture a zero-warmup resize frame to prove
@@ -772,7 +772,7 @@ restore the owned Editor and remove task-generated data at completion.
 
 ### Mesh profiling domain and hierarchy checks
 
-Run MeshDrawProfilingTests, RGDrawListLifetimeTests and the `meshsubmit` and
+Run MeshDrawProfilingTests, MeshDrawListLifetimeTests and the `meshsubmit` and
 `meshpasses` rules of `Tools/StaticCheck/static_check.py`. Verify normal/SceneView/Preview draws use RenderLoop.* and
 cascade/local shadow draws use Shadows.*. All views share exactly three cached
 preparation samplers: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData.
@@ -867,7 +867,7 @@ After drain, restore Play/pause, scenes/camera/Asset/Volume/HDR, remove transien
 
 ### Runtime probe
 
-`infinity_runtime_probe_start(requestPath)` runs in Play mode on one active Game camera. It spawns `count` MeshComponents of the built-in cube as root objects in a grid in front of the camera, moves `movingRatio` of them every frame, and when `moveCamera` is set walks that camera around its starting pose on a circle of `cameraPathRadius` and restores the pose when the probe stops. It gives `translucentRatio` of the spawned objects a Forward-route T0 material, and records windows that close at `windowsSeconds` after `warmupFrames` (default 5, 20 and 60 s, at most 600 s; each window holds the frames since the previous one). `meshBackend` is Auto, CpuDirect or GpuIndirect through the Rendering Debugger override, or empty for the asset policy. The request names an absolute, new `outputDirectory`. The probe writes only `probe.json` there, on completion, cancellation or failure. Each window includes `allocatedViewCount` from the GPU visibility cache and `liveSetBytes`, the Mono used size after `GC.Collect`, `WaitForPendingFinalizers` and `GC.Collect` on the Editor update. `_status` reports progress and `_cancel` destroys the spawned content. Play-mode exit cancels the probe. It locks assembly reload while it runs and never saves assets.
+`infinity_runtime_probe_start(requestPath)` runs in Play mode on one active Game camera. It spawns `count` MeshComponents of the built-in cube as root objects in a grid in front of the camera, moves `movingRatio` of them every frame, and when `moveCamera` is set walks that camera around its starting pose on a circle of `cameraPathRadius` and restores the pose when the probe stops. It gives `translucentRatio` of the spawned objects a Forward-route T0 material, and records windows that close at `windowsSeconds` after `warmupFrames` (default 5, 20 and 60 s, at most 600 s; each window holds the frames since the previous one). `meshBackend` is Auto, CPUDirect or GPUIndirect through the Rendering Debugger override, or empty for the asset policy. The request names an absolute, new `outputDirectory`. The probe writes only `probe.json` there, on completion, cancellation or failure. Each window includes `allocatedViewCount` from the GPU visibility cache and `liveSetBytes`, the Mono used size after `GC.Collect`, `WaitForPendingFinalizers` and `GC.Collect` on the Editor update. `_status` reports progress and `_cancel` destroys the spawned content. Play-mode exit cancels the probe. It locks assembly reload while it runs and never saves assets.
 
 Each window reports p50/p95/min/max/mean of the complete Render scope, the proxy update and its transform and apply sections in milliseconds, GC.Alloc counts and `GC Allocated In Frame` bytes for the Render and proxy scopes, Mono used bytes, the reserved Mono heap, the post-GC live set, total allocated and reserved bytes, graphics-driver bytes, ResourcePool texture and buffer estimates, GC collection counts, the mesh entity and element counts and the actual backend. Every sample pairs one frame's Render scope with the same frame's proxy sections. Movement, window closing, the forced collection and the evidence write run on the Editor update, outside Render. Keep only the Game view rendering (close or hide Scene views) so each Render call belongs to the probed camera. A frame rate above 1000 Hz fails the probe instead of dropping samples.
 

@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// Per-draw-list GPU buffers. The object is an empty CPU shell between uses; the buffers belong to the resource pool
     /// and are rented once, before recording, at the draw list's capacity.
     /// </summary>
-    internal sealed class MeshGpuDrawPayload
+    internal sealed class MeshGPUDrawPayload
     {
         internal BufferHandle commandMeta, visibleCounts, indirectArgs, instanceToEntity, instanceFade;
         internal ResourceReuseFence metaWait, countsWait, argsWait, instancesWait, fadeWait;
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// candidate table into per-command stable and fading instance ranges and writes indirect arguments; the raster consumer
     /// issues one <c>DrawMeshInstancedIndirect</c> per live command and range. There is no batching and no CPU fallback.
     /// </summary>
-    internal sealed class MeshGpuDrawBackend : IDisposable
+    internal sealed class MeshDrawGPUBackend : IDisposable
     {
         static readonly int ID_EntityCount = Shader.PropertyToID("_EntityCount");
         static readonly int ID_FrustumPlanes = Shader.PropertyToID("_FrustumPlanes");
@@ -76,8 +76,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly ComputeShader m_Shader;
         readonly int m_CullKernel = -1, m_ClearKernel = -1, m_CompactKernel = -1, m_ArgsKernel = -1;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
-        readonly Stack<MeshGpuDrawPayload> m_FreePayloads = new Stack<MeshGpuDrawPayload>(8);
-        readonly List<MeshGpuDrawPayload> m_Retired = new List<MeshGpuDrawPayload>(8);
+        readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
+        readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
 
         /// <summary>Device capability only; the backend additionally needs its compute shader.</summary>
         public static bool DeviceSupportsIndirect => SystemInfo.supportsComputeShaders && SystemInfo.supportsInstancing;
@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public bool isSupported { get; }
         internal ComputeShader shader => m_Shader;
 
-        internal MeshGpuDrawBackend(ResourcePool pool, ComputeShader shader)
+        internal MeshDrawGPUBackend(ResourcePool pool, ComputeShader shader)
         {
             m_Pool = pool;
             m_Shader = shader;
@@ -133,7 +133,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Bounds and LOD inputs every culling kernel reads; the packed visibility carries the selected level.</summary>
         internal void BindCullBounds<TCommands>(TCommands commands, int kernel, in MeshView view, in MeshCullInputs inputs) where TCommands : struct, IComputeCommands
         {
-            MeshLodProjection lod = view.lodProjection;
+            MeshLODProjection lod = view.lodProjection;
             commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
             commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenter);
             commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsExtent, inputs.boundsExtent);
@@ -156,12 +156,12 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         #region Draw lists
         /// <summary>Capacity for every command's stable and fading range: two counts and two argument records per command, two instances per member.</summary>
-        internal MeshGpuDrawPayload RentPayload(int commandCount, int memberCount)
+        internal MeshGPUDrawPayload RentPayload(int commandCount, int memberCount)
         {
             RequireSupported();
             int commands = math.ceilpow2(math.max(64, commandCount));
             int instances = math.ceilpow2(math.max(256, memberCount * 2));
-            MeshGpuDrawPayload payload = m_FreePayloads.Count > 0 ? m_FreePayloads.Pop() : new MeshGpuDrawPayload();
+            MeshGPUDrawPayload payload = m_FreePayloads.Count > 0 ? m_FreePayloads.Pop() : new MeshGPUDrawPayload();
             try
             {
                 payload.commandMeta = m_Pool.GetBuffer(new BufferDescriptor(commands * MeshPassCache.MetaStride, sizeof(uint)) { name = "MeshDrawCommandMeta" }, true, false, out payload.metaWait);
@@ -181,7 +181,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return payload;
         }
 
-        internal void Upload(CommandBuffer commands, MeshGpuDrawPayload payload, MeshPassCache cache, int commandCount)
+        internal void Upload(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount)
         {
             if (commandCount > payload.commandCapacity) throw new InvalidOperationException("A GPU draw list outgrew its record-time command capacity.");
             payload.WaitForReuse(commands);
@@ -189,13 +189,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (commandCount > 0) commands.SetBufferData(payload.commandMeta.buffer, meta, 0, 0, commandCount * MeshPassCache.MetaStride);
         }
 
-        internal void Compact(CommandBuffer commands, MeshGpuDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
+        internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
             ComputeBuffer visibility, MeshWorldStats stats)
         {
             RequireSupported();
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
-            commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLodTransitions ? 1 : 0);
+            commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
             commands.SetComputeBufferParam(m_Shader, m_ClearKernel, ID_VisibleCounts, payload.visibleCounts.buffer);
             commands.SetComputeBufferParam(m_Shader, m_ClearKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
             commands.DispatchCompute(m_Shader, m_ClearKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
@@ -215,8 +215,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             stats.compactDispatches++;
         }
 
-        internal void Submit(CommandBuffer commands, MeshGpuDrawPayload payload, MeshPassCache cache, int commandCount,
-            in MeshWorldGpuTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
+        internal void SubmitMeshDrawList(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount,
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
         {
             string marker = MeshDrawProfiling.Draw(viewKind, true);
             commands.BeginSample(marker);
@@ -240,7 +240,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     DrawRange(commands, payload, cache, meta, command, 0);
                 }
                 // Fading ranges exist only for commands with members that can fade, and only in passes that dither.
-                if (anyFading && cache.desc.ditherLodTransitions)
+                if (anyFading && cache.desc.ditherLODTransitions)
                 {
                     dithering = true;
                     commands.SetKeyword(s_LodDither, true);
@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         // range 0 = stable, 1 = fading; arguments are (command, range) records of k_ArgsStride uints.
-        void DrawRange(CommandBuffer commands, MeshGpuDrawPayload payload, MeshPassCache cache, NativeArray<uint> meta, int command, int range)
+        void DrawRange(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, NativeArray<uint> meta, int command, int range)
         {
             MeshDrawCommandBinding binding = cache.GetBinding(command);
             if (binding.mesh == null || binding.material == null)
@@ -269,12 +269,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 payload.indirectArgs.buffer, (command * 2 + range) * k_ArgsStride * sizeof(uint), m_Properties);
         }
 
-        internal void RetirePayload(MeshGpuDrawPayload payload)
+        internal void RetirePayload(MeshGPUDrawPayload payload)
         {
             if (payload != null) m_Retired.Add(payload);
         }
 
-        void ReleaseBuffers(MeshGpuDrawPayload payload, ResourceReuseFence reuseFence)
+        void ReleaseBuffers(MeshGPUDrawPayload payload, ResourceReuseFence reuseFence)
         {
             if (payload.commandMeta.buffer != null) m_Pool.ReleaseBuffer(payload.commandMeta, reuseFence);
             if (payload.visibleCounts.buffer != null) m_Pool.ReleaseBuffer(payload.visibleCounts, reuseFence);
@@ -288,7 +288,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void FlushRetired(ResourceReuseFence reuseFence)
         {
-            foreach (MeshGpuDrawPayload payload in m_Retired)
+            foreach (MeshGPUDrawPayload payload in m_Retired)
             {
                 ReleaseBuffers(payload, reuseFence);
                 m_FreePayloads.Push(payload);

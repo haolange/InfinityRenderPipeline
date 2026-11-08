@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
-            public RGDrawListHandle[] draws;
+            public RGMeshDrawListHandle[] meshDrawLists;
             public RGRendererListHandle[] rendererLists;
         }
 
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
             Vector4[] casterBias = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
             Vector4[] casterLight = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
-            RGDrawListHandle[] sliceDraws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(matrixCount);
+            RGMeshDrawListHandle[] sliceMeshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(matrixCount);
             RGRendererListHandle[] sliceRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(matrixCount);
             // Cache slot per slice (-1 = rendered into the frame atlas) and whether the slot re-renders this frame.
             int[] cacheSlots = m_RGBuilder.GetRecordingArray<int>(matrixCount);
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 shadowMatrices[i] = Matrix4x4.identity;
                 tileRects[i] = Vector4.zero;
-                sliceDraws[i] = RGDrawListHandle.Invalid;
+                sliceMeshDrawLists[i] = RGMeshDrawListHandle.Invalid;
                 sliceRendererLists[i] = RGRendererListHandle.Invalid;
                 cacheSlots[i] = -1;
             }
@@ -167,7 +167,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                sliceDraws[slice] = m_RGBuilder.CreateDrawList(LocalShadowView(visibleLight, local, camera), MeshPassPresets.Shadow);
+                sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(visibleLight, local, camera), InfinityPassIDs.RasterShadowPass));
 
                 if (!cullingResults.GetShadowCasterBounds(lightIdx, out _)) continue;
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
@@ -193,14 +193,14 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
                     passData.casterLight = casterLight;
-                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(matrixCount);
+                    passData.meshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(matrixCount);
                     passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(matrixCount);
                     for (int slice = 0; slice < matrixCount; ++slice)
                     {
                         // Current cached tiles have no draws; they are copied in from the cache afterwards.
-                        passData.draws[slice] = sliceDraws[slice].IsValid
-                            ? passRef.UseDrawList(sliceDraws[slice])
-                            : RGDrawListHandle.Invalid;
+                        passData.meshDrawLists[slice] = sliceMeshDrawLists[slice].IsValid
+                            ? passRef.UseMeshDrawList(sliceMeshDrawLists[slice])
+                            : RGMeshDrawListHandle.Invalid;
                         passData.rendererLists[slice] = sliceRendererLists[slice].IsValid
                             ? passRef.UseRendererList(sliceRendererLists[slice])
                             : RGRendererListHandle.Invalid;
@@ -218,14 +218,14 @@ namespace InfinityTech.Rendering.Pipeline
 
                     for (int slice = 0; slice < passData.sliceCount; ++slice)
                     {
-                        bool hasDraws = passData.draws[slice].IsValid;
+                        bool hasDraws = passData.meshDrawLists[slice].IsValid;
                         bool hasRendererList = passData.rendererLists[slice].IsValid;
                         if (!hasDraws && !hasRendererList) continue;
                         string faceMarker = MeshDrawProfiling.Slice(EMeshViewKind.LocalShadow, slice);
                         cmdEncoder.BeginSample(faceMarker);
                         Vector4 rect = passData.tileRects[slice];
                         DrawShadowSlice(cmdEncoder, rect, passData.casterBias[slice], passData.casterLight[slice], passData.shadowMatrices[slice],
-                            passData.draws[slice], passData.rendererLists[slice]);
+                            passData.meshDrawLists[slice], passData.rendererLists[slice]);
                         cmdEncoder.EndSample(faceMarker);
                     }
 
@@ -238,7 +238,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         static void DrawShadowSlice(in RGRasterEncoder cmdEncoder, Vector4 rect, Vector4 casterBias, Vector4 casterLight, Matrix4x4 shadowMatrix,
-            RGDrawListHandle draws, RGRendererListHandle rendererList)
+            RGMeshDrawListHandle draws, RGRendererListHandle rendererList)
         {
             cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
             cmdEncoder.SetGlobalDepthBias(0, 0);
@@ -246,7 +246,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterLightID, casterLight);
             cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, shadowMatrix);
             cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, shadowMatrix);
-            if (draws.IsValid) cmdEncoder.Draw(draws);
+            if (draws.IsValid) cmdEncoder.SubmitMeshDrawList(draws);
             if (rendererList.IsValid) cmdEncoder.DrawRendererList(rendererList);
             cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);
         }

@@ -15,14 +15,14 @@ namespace InfinityTech.Rendering.Pipeline
             lists = default;
             if (!m_ActiveFrameState.renderPolicy.temporal || !ShouldRecordFeature(EFrameFeature.HiZ)
                 || world.entityCount == 0
-                || world.SelectBackend(MeshPassPresets.Depth) != EMeshBackendPolicy.GpuIndirect) return false;
+                || world.SelectBackend(MeshPassTable.Depth) != EMeshDrawBackendPolicy.GPUIndirect) return false;
             var size = m_ActiveFrameState.dimensions.internalSize;
             var history = m_ActiveFrameState.historyCache;
             var previous = history.GetTexture(HiZPassUtilityData.HistoryFurthest,
                 HiZDescriptor(size.x, size.y, "HiZFurthest"), out bool created);
             bool valid = !created && history.TextureGeneration(HiZPassUtilityData.HistoryFurthest) > 0
                 && m_ActiveFrameState.acceptedHiZ && !m_ActiveFrameState.cameraUniform.historyReset && motion.previous != null;
-            lists = m_RGBuilder.RecordMeshOcclusionFirst(view, motion,
+            lists = m_RGBuilder.RecordMeshOcclusionPrediction(view, motion,
                 valid ? m_RGBuilder.ImportTexture(previous) : default,
                 m_ActiveFrameState.cameraUniform.matrix_LastViewFlipYJitterProj, size,
                 (ulong)history.TextureGeneration(HiZPassUtilityData.HistoryFurthest));
@@ -35,14 +35,14 @@ namespace InfinityTech.Rendering.Pipeline
             var early = ComputeEarlyFurthestHiZ();
             m_RGBuilder.RecordMeshOcclusionRecovery(lists, early,
                 m_ActiveFrameState.cameraUniform.matrix_ViewFlipYJitterProj, m_ActiveFrameState.dimensions.internalSize);
-            var draws = m_RGBuilder.CreateDrawList(lists.recovered, MeshPassPresets.Depth);
+            var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(lists.recovered, InfinityPassIDs.RasterDepthPass));
             using (var pass = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery)))
             {
                 pass.SetDepthStencilAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer),
                     UnityEngine.Rendering.RenderBufferLoadAction.Load, UnityEngine.Rendering.RenderBufferStoreAction.Store, EDepthAccess.Write);
                 ref var data = ref pass.GetPassData<DepthPassData>(); data = default;
-                data.draws = pass.UseDrawList(draws);
-                pass.SetExecuteFunc((in DepthPassData data, in RGRasterEncoder commands) => commands.Draw(data.draws));
+                data.meshDrawList = pass.UseMeshDrawList(draws);
+                pass.SetExecuteFunc((in DepthPassData data, in RGRasterEncoder commands) => commands.SubmitMeshDrawList(data.meshDrawList));
             }
         }
     }

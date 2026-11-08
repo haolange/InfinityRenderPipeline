@@ -124,9 +124,9 @@ namespace InfinityTech.Rendering.Pipeline
 
     public sealed class InfinityDebugDisplaySettingsMesh
     {
-        public EMeshBackendPolicy? backendOverride;
-        public EMeshBackendPolicy requestedBackend { get; internal set; }
-        public EMeshBackendPolicy actualBackend { get; internal set; }
+        public EMeshDrawBackendPolicy? backendOverride;
+        public EMeshDrawBackendPolicy requestedBackend { get; internal set; }
+        public EMeshDrawBackendPolicy actualBackend { get; internal set; }
         public string backendReason { get; internal set; } = "Not recorded";
         public int entityCount { get; internal set; }
         public int elementCount { get; internal set; }

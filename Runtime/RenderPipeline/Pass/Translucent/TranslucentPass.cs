@@ -23,13 +23,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct TranslucentDepthPassData
         {
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
         }
 
         struct TranslucentColorPassData
         {
-            public RGDrawListHandle draws;
+            public RGMeshDrawListHandle meshDrawList;
             public RGRendererListHandle rendererList;
             public bool writeReactive;
             public bool bindFog;
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
-            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.TranslucentDepth);
+            RGMeshDrawListHandle depthMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterTranslucentDepthPass));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
@@ -72,12 +72,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref TranslucentDepthPassData passData = ref passRef.GetPassData<TranslucentDepthPassData>();
-                passData.draws = passRef.UseDrawList(depthDraws);
+                passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
                 passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
@@ -85,17 +85,17 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterTranslucentT0(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT0Pass, MeshPassPresets.TranslucentT0, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
         void RasterTranslucentT1(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT1Pass, MeshPassPresets.TranslucentT1, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
         void RasterTranslucentT2(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT2Pass, MeshPassPresets.TranslucentT2, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }
 
         // MeshComponent content is drawn back to front before the native renderer list in the same pass. The two lists are
@@ -106,7 +106,6 @@ namespace InfinityTech.Rendering.Pipeline
             in MeshView view,
             in CullingResults cullingResults,
             ShaderTagId lightMode,
-            in MeshPassDesc meshPass,
             CustomSamplerId samplerId,
             bool bindFog,
             bool bindPyramid)
@@ -157,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
-            RGDrawListHandle meshDraws = m_RGBuilder.CreateDrawList(view, meshPass);
+            RGMeshDrawListHandle meshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, lightMode));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
@@ -170,7 +169,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passRef.GetPassData<TranslucentColorPassData>();
-                passData.draws = passRef.UseDrawList(meshDraws);
+                passData.meshDrawList = passRef.UseMeshDrawList(meshDrawList);
                 passData.rendererList = passRef.UseRendererList(rendererList);
                 passData.writeReactive = writeReactive;
                 passData.bindFog = hasFog;
@@ -220,7 +219,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepth);
                     }
-                    cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
