@@ -24,6 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         public int width, height, warmupFrames = 120, frameCount = 3, frameInterval = 1;
         public float timeoutSeconds = 120;
         public bool includeConfidence = true;
+        public bool lockHistoryReset;
         public MeshPipeline.EMeshBackendPolicy meshBackend = MeshPipeline.EMeshBackendPolicy.Auto;
         public string[] buffers = { "DisplayColor", "Lighting" };
         public RectInt roi;

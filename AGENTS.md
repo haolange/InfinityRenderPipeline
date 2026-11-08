@@ -4,47 +4,54 @@ This document is normative for changes to `com.infinity.render-pipeline`. [ARCHI
 
 A silent fallback is not a fix. Console output with no errors has hidden ownership, order and lifetime defects, including a depth clear that left the Game view empty.
 
-## 1. Work tracking
+## 1. Work
 
 Track active work in the conversation task list. Do not create a root task ledger. Completed verification belongs in `Docs/FeatureStatus.md`.
 
-### Execution
+### From request to change
 
-Deliver the requested scope in the same interaction: decide, change, verify, and leave a connected result. Do not shrink it to a sample, a draft, or a proof of concept, and do not stop after the easy path, a plan, or a local patch that its callers never reach. Stages inside the interaction are allowed. Stop only when continuing could lose data, break an API, ABI, or serialized schema, force a wide or irreversible change, move a security or permission boundary, or change user-visible behavior that cannot be rolled back, or when the evidence supports no safe default. Ask in those cases. For every other ambiguity, state the default, why it was chosen, the risk, and the rollback, then finish the reversible work.
+Start from the behavior the user wants changed and the reason the current code cannot produce it, then choose where the change goes and how large it is. Every planned item traces to the request, an existing contract or an observed defect. Base a load-bearing decision on code, documents, logs, tests, historical assets or an explicit user instruction. Keep the working state as a short summary that can be rechecked: goal, evidence, decision and what is still open.
 
-Do not create a git branch unless the user explicitly asks, or the session is already a worktree. Choosing an approach is not a branch. `Docs/History` does not authorize a push or new work.
+When a plan collects conditions, flags, guards or patches for individual cases, look for their shared cause first. Prefer a change of data representation, ownership, interface or resource lifetime that makes those cases correct by construction. Size the change from evidence: a structural change with a demonstrated cause is in scope, an unrelated refactor is not.
 
-Base a load-bearing decision on code, documents, logs, tests, historical assets, or an explicit user instruction. Keep the working state as a short summary that can be rechecked: goal size, evidence, decision, and what is still open.
+Every branch, state, abstraction, option, retry and fallback has a maintenance cost and multiplies the failure combinations. Add one only for a current use with a named owner. "It may be needed later" or "it is safer" is not a reason on its own. Change only the requested code, documents and the couplings that must move with them. Do not keep a second implementation, and do not add a compatibility shim to avoid deleting a replaced path (§2 principle 5).
 
-Change only the requested code, documents, and the couplings that must move with them. Do not add flexibility, abstraction, or a repository-wide rewrite for later. Do not keep a second implementation, and do not add a compatibility shim to avoid deleting a replaced path. Principle 5 still requires that deletion once its consumers are closed.
+Decide which conditions are preconditions, which failures are raised, and who handles them. A precondition is validated once, by its owner, at setup or record, and a broken one is raised there instead of being absorbed downstream. A layer that cannot handle a failure correctly passes it to the owner the contract names. It does not guess, retry, substitute a value or repeat another layer's check. The data-integrity, permission and irreversible-side-effect rules in this document still apply.
 
-The checks that match the goal are the stop condition. A static check does not close a runtime path. An independent verifier, when one is used, does not replace the implementing agent's own checks.
+### Delivery
+
+Deliver the requested scope in the same interaction: decide, change, verify, and leave a connected result. Do not shrink it to a sample, a draft or a proof of concept, and do not stop after the easy path, a plan, or a local patch that its callers never reach. A simpler implementation still delivers the requested behavior and its direct couplings. For implementation work the code is the result. Documents follow the actual change. Plans, reports and process steps are not progress on their own.
+
+Stop only when continuing could lose data, break an API, ABI or serialized schema, force a wide or irreversible change, move a security or permission boundary, or change user-visible behavior that cannot be rolled back, or when the evidence supports no safe default. Ask in those cases. For every other ambiguity, state the default, why it was chosen, the risk and the rollback, then finish the reversible work.
+
+Do not create a git branch unless the user explicitly asks, or the session is already a worktree. `Docs/History` does not authorize a push or new work. Player builds and packaging require explicit user authorization.
+
+### Verification
+
+Choose checks from the request, the contracts it touches and real regressions. A test must be able to fail for a meaningful error. Cover one mechanism with representative cases, not a mechanical product of inputs. When tests keep demanding patches, re-examine the design assumption instead of adding the next patch. The checks that match the goal are the stop condition: close when the acceptance criteria and the applicable gates pass. A static check does not close a runtime path.
+
+An implementing agent owns planning, code and self-tests. An independent verifier reviews a candidate batch and does not replace the implementer's checks. A failed, partial or missing verification returns the batch and locks dependent batches. Without an Editor, `Tools/StaticCheck/` plus independent review is the static verification of a batch, and dependent batches may build on it. Runtime and image results stay `TODO(UNVERIFIED)` until an Editor run confirms them. A failing Editor run returns the batch that owns the defect together with the batches built on it. Verification does not downgrade a result. Model names are not part of this contract.
 
 ### Living documents
 
 After an iteration, update each of `AGENTS.md`, `ARCHITECTURE.md`, and `DESIGN.md` that exists. Add a durable fact that became true, delete a statement that is no longer true, and rewrite a statement that changed. Do not append an iteration log. `AGENTS.md` is the short normative contract and stays the shortest of the three. `ARCHITECTURE.md` describes the implementation. `DESIGN.md` exists only for a visual design system this package actually has; it is absent on purpose. Prefer a tighter sentence, or a deletion, to a new section.
 
-Player builds and packaging require explicit user authorization. Editor load and script reload never migrate, rebuild, delete or save user assets. A migration is explicit and targeted, with current-byte backups, an integrity check, a reopen and a no-op. Preflight never activates source scenes or instantiates prefabs.
-
-An implementing agent owns planning, code and self-tests. An independent verifier reviews a candidate batch. A failed, partial or missing verification returns the batch and locks dependent batches. Verification does not downgrade a result. Model names are not part of this contract.
-
-Without an Editor, the offline gate is `Tools/StaticCheck/`. Image results stay `TODO(UNVERIFIED)` until a captured frame confirms them.
+Editor load and script reload never migrate, rebuild, delete or save user assets. A migration is explicit and targeted, with current-byte backups, an integrity check, a reopen and a no-op. Preflight never activates source scenes or instantiates prefabs.
 
 ### Intermediate data
 
-1. Task output lives in `<Unity project root>/intermediate/<task-id>/<run-id>/`. For this workspace that root is the Example project's `intermediate/`, never the package root. `.gitignore` excludes `intermediate/`. The directory holds captures, repeated screenshots, test output, diagnostic log copies, temporary scripts, scratch projects and temporary archives. Do not accumulate those files in `/tmp`, `/private/tmp`, the home directory or an unrelated archive. If a tool forces another path, collect the output into the task directory and remove the tool's copy once it is no longer in use.
-2. Before a large capture, record paths, approximate size and owner. Check free space and estimate size from resolution, format, buffer count and frame count. Bound the capture count.
-3. After a completed task or subtask, stop producers, drain pending writes and readbacks, keep the required summary, and delete that task's intermediate data. GPU drain and disk cleanup are separate checks.
-4. Data may remain between steps only for a named next consumer. Record the path, reason and consuming step. Delete it when that consumer finishes.
-5. Before declaring the overall task complete, delete every intermediate path that task owns, including carry-over, and remove the empty task directory. If no other task owns data there, `intermediate/` is empty or absent. A blocked task reports retained paths, sizes and the next consumer, and is not described as complete.
-6. Keep original failure evidence unchanged while diagnosis needs it. A durable raw archive exists only when a separate user requirement asks for one, and only after that archive is verified. Moving files is not cleanup.
-7. Delete by recorded task path. Do not delete user source, baked data, Unity `Library`, engine caches, user logs, approved deliverables or another task's files. Do not recursively delete a shared `intermediate/` that contains other tasks. Do not commit intermediate payloads.
-8. The delivery note states that the task paths are gone, the reclaimed space, and any cleanup blocker. A delete command alone is not that statement.
+1. Task output lives in `<Unity project root>/intermediate/<task-id>/<run-id>/`: for this workspace the Example project's `intermediate/`, never the package root. `.gitignore` excludes `intermediate/`. It holds captures, screenshots, test output, diagnostic log copies, temporary scripts, scratch projects and temporary archives. Do not accumulate those files in `/tmp`, `/private/tmp`, the home directory or an unrelated archive. Collect output that a tool forces elsewhere into the task directory and remove the tool's copy once it is no longer in use.
+2. Before a large capture, record paths, owner and an estimated size from resolution, format, buffer count and frame count. Check free space and bound the capture count.
+3. After a task or subtask, stop producers, drain pending writes and readbacks, keep the required summary, and delete that task's data. GPU drain and disk cleanup are separate checks. Data stays between steps only for a named next consumer, with its path and reason recorded, and is deleted when that consumer finishes.
+4. Before declaring the task complete, delete every path it owns, including carry-over, and remove the empty task directory. If no other task owns data there, `intermediate/` is empty or absent. A blocked task reports retained paths, sizes and the next consumer, and is not described as complete.
+5. Keep original failure evidence unchanged while diagnosis needs it. A durable raw archive exists only when a separate user requirement asks for one, and only after that archive is verified. Moving files is not cleanup.
+6. Delete by recorded task path. Do not delete user source, baked data, Unity `Library`, engine caches, user logs, approved deliverables or another task's files, and do not recursively delete a shared `intermediate/`. Do not commit intermediate payloads.
+7. The delivery note states that the task paths are gone, the reclaimed space and any cleanup blocker. A delete command alone is not that statement.
 
 ## 2. Principles
 
-1. Entity data belongs to the entity. One logical object owns one `TransformId` and one bounds record. Submesh, material and pass add draw references.
-2. Stable structure is cached. View results are regenerated. Pass bins rebuild on structural change. Visibility, LOD, sort and compaction are per request.
+1. Entity data belongs to the entity. One logical object owns one entity slot, which is its transform and bounds record. Submesh, material and pass add element and command references.
+2. Stable structure is cached. View results are regenerated. Pass caches change incrementally at commit. Visibility, LOD, sort and compaction are per request.
 3. Passes record mesh work with `RGDrawListHandle` (`CreateDrawList`, `UseDrawList`, `Draw`). Content code mutates `MeshComponent`. Backends stay internal. There is no `MeshDrawRequest` type.
 4. `CreateDrawList` records only. Structural culling runs first and crosses every resource type. Only live draw lists schedule work. A pass that must run calls `EnablePassCulling(false)`. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded order is otherwise the schedule. Adjacent graphics work is one submission segment. Compatible raster passes are one native render pass. Overlap is a descriptor-level slot plan executed by `ResourcePool`. Handles carry a generation and are rejected after their graph.
 5. A replaced path is deleted after its consumers are closed and the replacement owns the same responsibility. Two authorities for one quantity are not kept.
@@ -70,7 +77,7 @@ Assembly names are `Unity.RenderPipelines.Infinity.*`. Old identities appear onl
 
 Components prefer `[ExecuteAlways]` and `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private`. Shader paths start with `InfinityPipeline/`. The shader tag is `RenderPipeline=InfinityRenderPipeline`. Compute files are `Compute_<Feature>.compute`. LightMode values match `InfinityPassIDs`.
 
-Comments are English. A TODO has the form `// TODO: <action>`. Do not commit large blocks of commented-out code. When a change touches a misspelled symbol, correct that spelling. Do not add a new divergent spelling.
+Comments are English. A TODO has the form `// TODO: <action>`. Do not commit large blocks of commented-out code. When a change touches a misspelled symbol, correct that spelling. A misspelled serialized field is corrected only inside an approved migration (§11), because a plain rename resets user values. Do not add a new divergent spelling.
 
 GPU work uses Raster for draw, Compute for dispatch, Copy for resource copy and Upload for CPU upload. Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` remain the engine entry points. Infinity LightModes and the matching pass names use `RasterXXXPass`. Other owned raster shader names use the Raster prefix. Ray-traced occlusion selects `ComputeRayTracedOcclusion` or `RayTracingOcclusion` from its Unified Ray Tracing backend. Its graph pass type stays RayTracing. Pass names come from the existing `ProfilingSampler`. Old-name aliases are not added.
 
@@ -82,41 +89,29 @@ Hot paths are structs and Burst jobs with an explicit `Allocator` (`Persistent`,
 
 Fixed object counts after warmup aim for zero managed allocation in normal library proxy update, graph record and execution, for stationary and moving objects. Growth, registration and requested diagnostics are separate. Diagnostic observers run outside the measured scope. Reuse does not shorten recording, submission, cancellation or completion ownership.
 
-## 5. Mesh scene
+## 5. Mesh world
 
-| Module | Responsibility |
-|---|---|
-| `MeshScene` / `MeshSceneUpdate` | SoA tables, typed IDs, dirty pages, undo transactions |
-| `GpuScene` | Dirty-page upload of transforms, layers, bounds and flags |
-| `PassBinStore` / `MeshDrawCommandKey` | Per-pass filter, structural sort, command spans |
-| `MeshVisibilityShare` | Interned CPU results in `MeshVisibilityCache.cs` |
-| `MeshGpuVisibilityCache` | Physical visibility buffers per view |
-| `MeshDrawCompiler` | `MeshPassExtractJob` |
-| `MeshCandidateTableStore` | Per-pass GPU command and candidate tables |
-| `MeshDrawPipeline` / `MeshWorld` | Extract, resolve, submit; per-scene ownership |
-| `MeshDrawGPUBackend` | Per-draw-list payloads, compaction, indirect arguments |
-| `RGDrawListContext` | Graph registry. Not an `ERGResourceType` |
+Modules and their files are listed in [ARCHITECTURE.md](ARCHITECTURE.md) §7. `RGDrawListContext` is the draw-list registry, not an `ERGResourceType`.
 
-1. `MeshSceneUpdate` undoes every mutation. `Dispose` without `Commit` restores live counts, relations, revisions and dirty ranges through the undo log. Free-list membership and high-water marks stay with `Free*`, `Restore*` and deferred reclaim. Rollback does not truncate free lists. A structural edit is not left half applied.
-2. A section or material whose reference count reaches zero inside `BeginUpdate`…`EndUpdate` is queued. `Commit` flushes the queue. `Rollback` discards it after undo restores the counts.
-3. Visibility results are interned by `MeshVisibilityShare`. `ReleaseAllDrawLists` owns that handle lifetime. TempJob cull arrays do not survive the frame.
-4. GPU payload objects in the backend pool are empty. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU.
-5. No process-global indirect or argument buffer is shared across draw lists or cameras.
-6. GPU culling indexes instance slots. Compacted indices and CPU `MeshDrawList.instanceIndices` are transform indices.
-7. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass-bin rebuild does not apply this mask. Shadow views do, through visibility.
-8. `ReleaseAll` and `ReleaseAllDrawLists` perform logical cleanup and `RetirePayload` only. After native submit, `FlushRetiredPayloads` and `FlushRetiredBuffers` return allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
-9. Before recording, compute the payload budget and call `EnsureCapacity` once. During recording, `RequireCapacity` checks only. Do not grow or recreate a buffer already bound to a live command buffer.
-10. `CreateInstance` rejects an owned transform. Do not share one transform across instances without that rejection.
-11. `GpuScene.Update` throws while a transaction is open. Replacement attribute tables are published atomically. Draw lists bind the frozen tables.
-12. Policy order is an explicit camera or test override, then the Rendering Debugger override, then the asset `meshBackendPolicy`. Auto is capability-based. CPU direct records no GPU mesh culling or compaction.
-13. `MeshComponent` keeps its serialized field identities. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. Do not add a public mutable material array or per-instance resource polling.
-14. Call `NotifyGeometryChanged` after in-place mesh edits, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue or pass edits, and `NotifyInstanceChanged` after static pose or external instance edits. Dynamic world matrices are read automatically. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
-15. Change queues deduplicate until publication. One transaction applies changed transforms and bounds. A `MeshSceneUpdate` lease carries a generation. A copied or expired lease cannot mutate a newer transaction. Instance draw links remove only that instance's draws.
-16. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
-17. Steady state requires `MeshScene.MatrixDuplicateRatio == 1.0`.
+1. An entity's index is its transform slot. An element is one submesh of one LOD level with one material. Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`.
+2. `MeshWorldUpdate` undoes every structural mutation. `Dispose` without `Commit` restores slots, chains, lookups, revisions and dirty pages. A killed slot returns to the free list only at commit, so an id never aliases after rollback and rollback never truncates free lists. A lease carries the transaction generation. Section and material reclaim waits for commit.
+3. Poses (transform and bounds) are written outside transactions by `WriteEntityPose` and `UpdateDynamicPoses` and take no part in undo. Flags that decide pass membership are structural edits.
+4. Commit prepares every pass cache's new bindings before it publishes anything; a failure leaves the transaction open for rollback. Pass caches live as long as their world. The presets are interned at construction; a world interns at most 64 descs.
+5. Membership is `MaterialRouteUtility.RouteEnablesPass`, the desc queue range and the required entity flags. Material pass state is not consulted. A component whose material lacks `InfinityMeshInstancing` or a routed pass is logged with its context and not drawn.
+6. Visibility results are interned per camera by `MeshVisibilityShare`. `RGDrawListContext.ReleaseAll` owns that handle lifetime. TempJob arrays do not survive the frame.
+7. GPU payload objects are empty between uses. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU. No process-global indirect or argument buffer is shared across draw lists or cameras.
+8. Capacity (member count, command high water) is acquired once before recording. Execution checks it and never grows or recreates a buffer bound to a live command buffer. A draw list whose pass cache changed after record fails at execute.
+9. `ReleaseAll` performs logical cleanup and retirement only. After native submit, `FlushRetired` returns allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
+10. `MeshWorldGpu.Update` throws while a transaction is open. Replacement tables are published atomically. Draw lists bind the frozen tables.
+11. Backend order is an explicit camera or test override, then the Rendering Debugger override, then the asset `meshBackendPolicy`. Auto and GPU Indirect follow capability. Back-to-front passes record on the CPU backend. CPU direct records no GPU mesh culling or compaction. Backends hold no static mutable state.
+12. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass membership does not apply this mask. Shadow views do, through visibility.
+13. `MeshComponent` draws its `asset` (`MeshAsset`) with its own materials, indexed by the asset's material slots. Its other serialized field identities are unchanged. 0.4 data migrates only at commit `6703ab8`, the last with the migration menu. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. An invalid asset is logged with the component and not drawn. One structural transaction per frame syncs every dirty component.
+14. Call `NotifyGeometryChanged(Mesh)` after in-place mesh edits, `NotifyGeometryChanged(MeshAsset)` after script edits of an asset, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue edits, and `NotifyEntityChanged` after static pose, layer, scene or external entity edits from script. Editor edits notify through Undo and hierarchy events; no component polls its transform. Dynamic poses are read every frame. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
+15. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
+16. LOD level and fade are selected per view in the same CPU job or GPU kernel as frustum culling, from the entity's `MeshLodChain` (`LODGroup` lower bounds) and the view's `MeshLodProjection`; shadow views copy their camera's projection. Opaque passes cross-fade the outgoing level with +f and the incoming level with −f through `LODDitheringTransition`. Translucent passes draw the selected level only. Every opaque mesh pass (Shadow, Depth, GBuffer, Forward, Motion) declares `multi_compile _ INFINITY_LOD_DITHER` and calls `LODDitheringTransition`.
 
 ```csharp
-RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassPresets.GBuffer);
 data.draws = pass.UseDrawList(draws);
 cmdEncoder.Draw(data.draws);
 ```
@@ -153,7 +148,7 @@ cmdEncoder.Draw(data.draws);
 28. `ReactiveMask` exists only for temporal anti-aliasing. The first translucent color pass clears it even with zero draws. Later passes load it. Other policies omit the output and compact the motion and metadata targets. There is no standalone clear dispatch.
 29. Display-depth upsampling exists only for recorded Editor overlays that need it. Cached depth-atlas tile copies stay raster. Unity `CopyTexture` forbids a partial depth-only copy.
 30. Debug view writes linear quantities only, immediately before gizmos and wire overlay, and only into the post buffer when a debug view is active. `TAAConfidenceBuffer` is created only when `debugView != None` or this frame's capture requests confidence. Capture does not change debug view or history.
-31. One live draw list receives one upload producer and, for GPU indirect, one compute producer with visibility, metadata, index and argument dependencies. Raster consumers only draw. Batch index and argument ranges are disjoint. Payload capacity is acquired before recording and does not grow during execution.
+31. One live draw list receives one upload producer and, for GPU indirect, one compute producer with visibility, metadata, index and argument dependencies. Raster consumers only draw. The stable and fading instance and argument ranges of every command are disjoint. Payload capacity is acquired before recording and does not grow during execution.
 
 ## 7. Temporal
 
@@ -174,13 +169,12 @@ cmdEncoder.Draw(data.draws);
 5. Atlases that live across cameras and frames follow `AtmosphereSharedCache`: pending reservations, commit on queue-accepted `MarkProduced`, `DiscardUnproducedPending` for failed cameras, physical retirement after submit. Cross-frame keys are instance IDs, not per-frame record indices.
 6. Volume, asset, kernel and dependency configuration run before culling. Recording that depends on scene content is decided after `LightContext.Build`.
 7. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`. `Tools/StaticCheck/static_check.py` and an EditMode test compare field order and types with the HLSL struct.
-8. Screen-space reflection may trace at half resolution. Resolve, temporal, bilateral cleanup and history stay full resolution. `Samples` is the ray count traced per reflective pixel, from 1 to 4. `ResolveSamples` is the Poisson reuse count and is not that count. Trace writes one Halcyon record per ray: unweighted radiance, hit confidence, `Dir * HitT` and a signed inverse pdf. A positive inverse pdf is a hit, zero is an empty sample, and a negative inverse pdf is a miss whose xyz is the unit direction. Resolve places the hit at that sample's own origin plus `Dir * HitT`. Facing failure, an edge fade of zero and invalid hit color are empty samples and do not enter the average. A miss does not enter it either. The blend weight is the mean screen-edge fade of the hits; no hit leaves that weight at 0. Resolve averages the hit colors and does not sample color. The center pixel uses every hit. Poisson neighbors use only sample 0. Resolve writes that average premultiplied by the edge fade, plus the mean and standard deviation of the unpremultiplied hit colors. Temporal samples the surface motion vector and the hit point, weights them by `exp2(-10 * luma(dist))` on the unpremultiplied color, and clamps that color to its interval. A history sample whose confidence is below half the current resolve is not reused, and a kept history is not clamped below this frame's color. The stored result is that color times this frame's edge fade. Bilateral cleanup filters color only and keeps the center edge fade. It runs after temporal only where the reconstruction variance, smoothed with hysteresis 0.5, is high. History is the temporal output. Classify clears skipped tiles. One indirect dispatch traces a tile with either the Hi-Z walk or the 2D march. A ray ends at the near plane, the far plane or the screen edge. There is no world-space maximum distance. Hi-Z uses the closest and furthest depth pyramids. A hit is the ray segment crossing that raw-depth interval. A full-resolution texel is a point depth. A step that is already behind the next texel still hits when the shared edge lies between the two depths and either neighboring triple is colinear within 0.25 of that step. `SCREEN_TRACE_RELATIVE_THICKNESS` selects 2% of eye depth instead; production shaders do not declare it. There is no Volume thickness. Rough tiles use a 2D march plus binary refinement. Trace-behind and toward-camera are one uniform flag for the dispatch. Hit color is the accepted unsharpened previous frame, sampled while tracing.
-9. Screen-space indirect diffuse has no ray-reuse resolve. The work grid is half resolution. `Samples` averages that many cosine rays per work pixel, from 1 to 4. Rays sample full-resolution accepted previous color. The production march is Hi-Z. `SSGI_TRACE_LINEAR` selects the 2D march. An 8×8 group compacts valid pixels in group shared memory and those lanes trace in the same dispatch. Denoising is two stages. Each stage accumulates temporally, then filters in world space on the tangent plane, then mixes the filter with the temporal output. The first spatial pass uses a 6 m base radius and no normal weight. The second uses 3 m and `saturate(dot)`. Each stage keeps its own half-resolution history, and that history is the mix. Bilateral upsample always writes full resolution.
-10. Half-resolution indirect-diffuse samples keep the accepted view's quad phase with the history transaction. Reconstruction uses the representative positions, including the shorter last interval on an odd edge. Metadata is `R32G32_UInt`. Integer loads only. Diagnostic readback decodes on the GPU because Metal does not expose that format to `AsyncGPUReadback`. Ray-hit storage is diagnostic-only. A trace capture snapshots trace radiance before the first temporal stage. All lanes participate in the group barriers of the fused trace. The production path does not output a ray pdf or raw depth. The world-space radius is `BaseRadius * F(viewZ) * F(variance) * F(AO)`. The three functions are monotone stand-ins; the Metro slide does not give their bodies.
-11. Subsurface owns an optional diffuse-only attachment when it is supported and requested. Deferred and forward produce it. Indirect composition replaces its indirect term. Half-resolution diffusion recomposes main color as main minus original diffuse plus filtered diffuse. Specular and emissive light never enter the filter. The material profile index selects the profile. The Volume owns enable and `numSamples`. The asset owns diffusion profiles. No subsurface allocation or extra output exists when the feature is off. Routing still requires opaque Deferred subsurface.
-12. Async eligibility is not evidence of overlap. History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer. Early visibility recovery and immediately dependent late effects stay on graphics by design.
-13. Native HDR state is queried live. Encoding matches the active swapchain transfer and primaries. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are different contracts. HLG needs a native HLG interface, which the current color-gamut API does not provide. HDR automatic tonemapping has one owner and is restored on exit.
-14. Subsurface sample count lives only on the Volume. Fixed-ratio super resolution uses asset `renderScale` in `[0.5, 1.0]`, default 1, for Game cameras when super resolution is enabled. One per-camera descriptor owns internal and display size. Explicit Unity camera targets are imported by identifier. Dimensions freeze after `BeginCameraRendering`.
+8. Screen-space reflection and indirect diffuse follow [ARCHITECTURE.md](ARCHITECTURE.md) §11, which owns their resolutions, sample records, resolve, temporal, denoise and history contracts. `Samples` is rays per pixel, from 1 to 4. Reflection `ResolveSamples` is the Poisson reuse count, not a ray count. There is no world-space ray length and no Volume thickness. Hit color is the accepted unsharpened previous frame. `SCREEN_TRACE_RELATIVE_THICKNESS` and `SSGI_TRACE_LINEAR` are diagnostic variants that production shaders do not declare. Bilateral reflection cleanup uses hysteresis 0.5 on the reconstruction variance.
+9. Indirect-diffuse metadata is read with integer loads only, and all lanes participate in the group barriers of the fused trace. Quad phase, reconstruction positions, diagnostic readback and the filter radius are ARCHITECTURE §11.
+10. Subsurface follows ARCHITECTURE §11. Routing requires opaque Deferred subsurface, specular and emissive light never enter the filter, and no subsurface allocation or output exists when the feature is off.
+11. Async eligibility is not evidence of overlap. History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer. Early visibility recovery and immediately dependent late effects stay on graphics by design.
+12. Native HDR state is queried live. Encoding matches the active swapchain transfer and primaries. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are different contracts. HLG needs a native HLG interface, which the current color-gamut API does not provide. HDR automatic tonemapping has one owner and is restored on exit.
+13. Fixed-ratio super resolution uses asset `renderScale` in `[0.5, 1.0]`, default 1, for Game cameras when super resolution is enabled. One per-camera descriptor owns internal and display size. Explicit Unity camera targets are imported by identifier. Dimensions freeze after `BeginCameraRendering`.
 
 ## 9. Shaders and materials
 
@@ -249,12 +243,13 @@ A Game view that is not redrawing produces identical screenshots. Require Play m
 
 Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs/FeatureStatus.md`.
 
-- Mesh bins sort only by `CompareStructural`. `defaultSort` is not applied.
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is undiagnosed.
+- Translucent MeshComponent content and native translucent renderers are sorted in two lists. Each list is strictly back to front; between them there is no distance order.
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render. Moving objects do not update them. There is no dynamic-caster overlay.
 - Rectangle and disk shadow tiles cover a 120° cone in front of the emitter.
 - Reflection probes are axis-aligned, limited to the asset slot count, and have no rendering-layer test. Unity culls them by box bounds, so a larger sphere influence can be culled while visible. Translucent T0 has no specular environment term.
-- Shader Graph scene depth is bound only in decal graphs, and scene color only in translucent T1. The fog node returns no fog. Graph motion assumes rigid motion.
+- Shader Graph scene depth is bound only in decal graphs, and scene color only in translucent T1. The fog node returns no fog. Graph motion assumes rigid motion. Shader Graph materials have no mesh-instancing path, so `MeshComponent` does not draw them.
+- `MeshComponent` Receive Shadow and Affect Indirect Lighting are stored on the entity, and no pass reads them.
 - Contact shadows cover at most 24 local lights per camera, largest on screen first. Directional lights other than the sun get none.
 - InfinityLit has no metallic, mask, occlusion, detail, height or emission map. Converters drop them and the wizard lists them.
 - Light and reflection-probe complexity views count clustered-loop visits, not lights that reach the pixel.

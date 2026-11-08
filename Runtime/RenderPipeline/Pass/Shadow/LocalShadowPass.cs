@@ -147,7 +147,6 @@ namespace InfinityTech.Rendering.Pipeline
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
-                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
 
                 if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
@@ -168,17 +167,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                Plane[] shadowPlanes = m_RGBuilder.GetRecordingArray<Plane>(local.splitData.cullingPlaneCount);
-                for (int plane = 0; plane < shadowPlanes.Length; plane++) shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);
-                MeshView localView = MeshView.FromLocalShadow(
-                    lightInstanceId,
-                    shadowPlanes,
-                    lightPosition,
-                    shadowLight.cullingMask,
-                    shadowRenderingLayerMask,
-                    local.face,
-                    sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
-                sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
+                sliceDraws[slice] = m_RGBuilder.CreateDrawList(LocalShadowView(visibleLight, local, camera), MeshPassPresets.Shadow);
 
                 if (!cullingResults.GetShadowCasterBounds(lightIdx, out _)) continue;
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);

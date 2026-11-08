@@ -9,9 +9,9 @@ InfinityRP is a Scriptable Render Pipeline. `InfinityRenderPipeline` derives fro
 Two geometry paths share the frame:
 
 - Native renderers are submitted with Unity `CullingResults`, `RendererList` and `ShadowRendererList`. Lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion data stay on those renderer lists.
-- `MeshComponent` instances live in `MeshScene` and are submitted through `RGDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
+- `MeshComponent` instances are entities of `MeshWorld` and are submitted through `RGDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
 
-The package owns the render graph, the physical resource pool, image history, the mesh scene, GPU scene tables, light records, shadow allocation and the atmosphere profile. Unity owns the device, command submission, fences, native culling and the Volume manager.
+The package owns the render graph, the physical resource pool, image history, the mesh world and its GPU entity columns, light records, shadow allocation and the atmosphere profile. Unity owns the device, command submission, fences, native culling and the Volume manager.
 
 ## 2. Layout
 
@@ -68,7 +68,7 @@ Async eligibility is a queue assignment. It is not a measurement of overlap. The
 
 ## 5. Render graph
 
-`RGBuilder` records passes, textures, buffers, draw lists and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected.
+`RGBuilder` records passes, textures, buffers and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected. Work the core does not model attaches as one `IRGGraphExtension` per builder: the extension contributes inserted passes once per compile and clears its state whenever the recorded graph is dropped, with or without execution. A pass stores the extension's ids in `extensionUses`, and pass handles and raster encoders carry their builder's extension, so a draw list from another builder is never consumed or submitted. The render graph has no dependency on the mesh pipeline; mesh draw lists are that extension, in `MeshPipeline/Graph/`.
 
 Compile runs structural culling first. Culling propagates across texture and buffer reads. A pass that writes an imported resource, or that calls `EnablePassCulling(false)`, stays live. The mesh compile extension then inserts one upload producer per live draw list and, for GPU indirect drawing, one compute compaction producer. Those producers are placed at the earliest index whose inputs exist. Liveness runs again. The compiler then assigns descriptor-level alias slots, submission segments and native render-pass groups.
 
@@ -96,86 +96,104 @@ Each camera has its own `TextureCapacityState` for internal and display extents.
 
 Screen-texture bindings carry logical and physical metadata. Normalized sampling uses `TextureView.hlsl`. Integer loads use logical pixels. Material texture sampling is unchanged. Binding registries are generated with `python3 -B Tools/TextureViews.py --write`.
 
-`GpuScene.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers for the scene. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks scene identity, snapshot range and slot generation.
+`MeshWorldGpu.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers per entity slot. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks world identity, snapshot range and slot generation.
 
 Clear depth and sampled depth are different values. `ClearRenderTarget` and `AttachmentDescriptor.clearDepth` take `GraphicsUtility.ClearDepthFar`, which is normalized so that 1 means the far plane. Shader comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`.
 
 ## 7. Mesh drawing pipeline
 
-`MeshComponent` content is not submitted through a renderer list. The authoritative store is an SoA scene with separate lifetimes:
+`MeshComponent` content is not submitted through a renderer list. Layers, from stable to per request:
 
-1. One logical instance and one exclusive transform.
-2. Geometry sections and material records, reference-counted.
-3. Per-pass bins and grouped command spans, rebuilt only on structural change.
-4. Per-view visibility, from a CPU job or from GPU `CullFrustum`.
-5. Per-draw-list submission payload, CPU procedural or GPU indirect.
+1. **World**: slot tables for entities, elements, sections and materials, owned by `MeshWorld`, one per `RenderContext`.
+2. **Pass**: one `MeshPassCache` per interned `MeshPassDesc`: which elements belong to the pass and which cached command each draws with.
+3. **View**: per-camera visibility of entity slots, from a Burst job or from GPU culling.
+4. **Draw list**: one request for one view and one pass: gather, sort and merge on the CPU backend, or compaction on the GPU backend.
+5. **Graph**: the builder's `MeshGraphExtension` inserts each live list's producers and submits it from its raster consumer.
 
 ```text
-MeshInstanceRecord ──TransformId──► TransformRecord     (1:1)
-        └── MeshDraw[] ──► MeshSectionId + MaterialDataId
-
-PassBin            filtered, structurally sorted draws for one MeshPassId
-MeshPassCommand    MeshDrawCommandKey + member span
-MeshDrawCommand    mesh, section, material, count, offset (one view, one list)
+MeshEntity  (slot = transform slot)  desc, LOD chain, element chain   transforms[], bounds[] parallel columns
+  └─ MeshElement (one submesh of one LOD)  section ─► MeshSection (mesh, submesh, refCount)
+                                           material ─► MeshMaterial (id, queue, route, stage, shader, refCount)
+MeshPassCache   candidates[element] = (entity, command | lod << 24)   commands[] = key (section, material), refCount, stateKey
+MeshDrawListBuild  items (key, command, entity, depth, fade) ─sort─► draws (command, fading, offset, count)
+                                                                    + instanceToEntity[] + instanceFade[]
 ```
 
-`MeshInstanceId`, `TransformId`, `MeshDrawId`, `MeshSectionId` and `MaterialDataId` store an index and a generation. Generation 0 is invalid. `MeshSceneUpdate.CreateInstance` rejects a transform that already has an owner. `MatrixDuplicateRatio` is `TransformCount / LogicalInstanceCount` and is 1 in steady state.
+Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`. Ids store an index and a generation. Live generations are odd, dead ones even. A killed slot returns to its free list only when the transaction commits, so an id handed out by a rolled-back transaction never matches a later slot.
 
 | Type | File | Responsibility |
 |---|---|---|
-| `MeshScene`, `MeshSceneRecords` | `MeshPipeline/MeshScene.cs`, `MeshSceneRecords.cs` | SoA tables, free lists, ownership map, dirty pages, revisions |
-| `MeshSceneUpdate` | `MeshSceneUpdate.cs` | Transaction and undo log. `Dispose` without `Commit` rolls back |
-| `GpuScene` | `GpuScene.cs` | GPU mirror. Dirty 64-slot runs of transforms, layers, bounds, flags |
-| `MeshTransformVersionCache` | `MeshTransformVersionCache.cs` | Immutable transform versions and their GPU production |
-| `MeshWorld` | `MeshWorld.cs` | Per-scene owner of the scene, GPU scene, visibility, pass registry and draw pipeline |
-| `PassRegistry`, `MeshPassTypes` | `PassRegistry.cs`, `MeshPassTypes.cs` | Nine `MeshPassId` definitions |
-| `PassBinStore` | `PassBinStore.cs` | Filter, structural sort, grouping by `MeshDrawCommandKey` |
-| `MeshVisibilityShare` | `MeshVisibilityCache.cs` | Interned CPU visibility by `MeshVisibilitySignature` |
-| `MeshGpuVisibilityCache` | `MeshGpuVisibilityCache.cs` | One GPU visibility buffer per view key |
-| `MeshDrawCompiler` | `MeshDrawCompiler.cs` | `MeshPassExtractJob` |
-| `MeshCandidateTableStore` | `MeshCandidateTableStore.cs` | Per-pass GPU command and candidate tables |
-| `MeshDrawGPUBackend` | `MeshDrawGPUBackend.cs` | Payloads, compaction, indirect arguments |
-| `RGDrawListContext` | `RenderGraph/RGDrawList.cs` | Graph registry. A draw list is not an `ERGResourceType` |
+| `MeshWorld` | `MeshPipeline/World/MeshWorld*.cs` | Tables, revisions, dirty pages, pose writes, dynamic poses, interned pass caches, backends, residency |
+| `MeshWorldUpdate` | `World/MeshWorldUpdate.cs` | Structural transaction lease and per-table undo logs |
+| `SlotTable<T>` | `World/SlotTable.cs` | Fixed-index storage with generations and commit-time reclaim |
+| `MeshWorldGpu` | `World/MeshWorldGpu.cs` | Entity columns (bounds, flags, masks, rendering layers, LOD chains) by dirty 64-slot pages |
+| `MeshTransformVersionCache` | `World/MeshTransformVersionCache.cs` | Immutable per-entity transform versions and their GPU production |
+| `MeshPassDesc`, `MeshPassPresets` | `Pass/MeshPassDesc.cs` | Pass request: LightMode, queue range, sort mode, required entity flags, previous transforms |
+| `MeshPassCache` | `Pass/MeshPassCache.cs` | Incremental membership, command refcounts, bindings, candidate table |
+| `MeshView`, `MeshVisibilityKey`, `MeshVisibilityShare` | `View/` | Views, culling identity, per-camera CPU visibility and LOD jobs |
+| `MeshGpuVisibilityCache` | `View/MeshGpuVisibilityCache.cs` | One resident GPU visibility buffer per key |
+| `MeshDrawListBuild` | `DrawList/MeshDrawListBuild.cs` | Gather, sort and merge jobs; `SortKeyPacking` |
+| `MeshCpuDrawBackend`, `MeshGpuDrawBackend` | `Backend/` | World-owned backends: instance tables, payloads, culling, compaction, submission |
+| `MeshGraphExtension`, `RGDrawListContext` | `Graph/` | Per-builder graph extension and draw-list registry. A draw list is not an `ERGResourceType` |
 
-`MeshPassId` is Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, TranslucentT1, TranslucentT2. The frame calls `CreateDrawList` for depth, a recovered depth view, GBuffer, forward, motion, cascade shadow and local shadow. Translucent stages are drawn with `RendererListDesc` in `TranslucentPass`. Their mesh pass identifiers remain registered and are not a second submit path.
+### World
 
-`PassBinStore` keeps a draw when it is eligible, inside the pass queue range, and alive. Motion rejects camera-only motion. The bin order is `CompareStructural` (queue, material, mesh, section). `defaultSort` and `MeshSortKey.PackSortKey` are not applied to bins. Rendering-layer and culling-mask tests belong to `MeshView` and the visibility job, not to the bin rebuild. `filterRenderingLayers` is set on cascade and local shadow views.
+`MeshWorld.BeginUpdate` opens one transaction and snapshots revisions and dirty pages. Each table logs the slot state before its first change. `Commit` first asks every pass cache to prepare the bindings it would create; a failure leaves the transaction open and the lease's `Dispose` rolls it back. After that the transaction is closed, so nothing can revive a reclaimed slot. Commit then reclaims killed slots, retires sections and materials whose reference count stayed zero, applies pending mobility changes and publishes the dirty elements to every pass cache. `Rollback` replays the logs in reverse, rebuilds the touched section and material lookups and restores revisions and dirty pages.
 
-`MeshDrawCommandKey` and `MeshVisibilitySignature` use structured `Equals`. Hash codes only accelerate lookup. `MeshSortKey` saturates each 16-bit segment before packing.
+Poses do not take part in transactions. `WriteEntityPose` writes one static pose; `UpdateDynamicPoses` reads every dynamic entity's `Transform` in an `IJobParallelForTransform`, writes changed poses by entity index and marks dirty pages in a second job. Both throw while a transaction is open. Changing a flag that decides membership (`CastShadow`, `ObjectMotion`) is a structural edit. No component polls its transform: a static pose is read when the entity is created, after `NotifyEntityChanged`, and, in the Editor, through `MeshComponentEditNotifier` (Undo-recorded edits of the object or a parent notify that hierarchy; undo, redo and hierarchy changes in Edit mode notify every static component).
 
-### Transaction
+### Pass
 
-`MeshScene.BeginUpdate` allows one transaction and snapshots revisions and dirty pages. Every mutation pushes an undo entry. Section and material slots whose reference count reaches zero during the transaction are queued. `Commit` flushes that queue. `Rollback` discards it after undo restores the counts, increments `BinEpoch`, and does not truncate free lists. `GpuScene.Update` refuses to run while a transaction is open.
+Membership of an element in a pass is: its material's route and stage enable the pass LightMode (`MaterialRouteUtility.RouteEnablesPass`, the one authority that also sets material pass state), its queue is inside the desc range, and its entity carries the required flags. Pass state on the material is not consulted. A command is keyed by (section slot, material slot) and binds the mesh, material, pass index and submesh range when it is created. Its state key packs a per-cache shader-state rank, the material slot and the section slot, each saturated to its segment. After a shader import `MeshPassShaderUtility.NotifyShadersChanged` advances an epoch and each cache resolves its pass indices again before its next draw list.
+
+The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, T1, T2) are interned when the world is created, so shadow-caster bounds and residency see them before any draw list. Another desc is built from the world on its first request, and its candidate table is written into a fresh buffer at that moment; later changes upload in residency like the presets. A world interns at most 64 descs and never evicts one. Motion and the translucent stages require the view's previous transforms.
 
 ### Frame
 
-1. `RenderContext` applies dynamic transforms and drains dirty mesh components through one `MeshSceneUpdate`.
-2. `MeshWorld.UpdateResidency` uploads dirty GPU-scene pages.
-3. `MeshWorld.BeginCamera` resets per-camera counters.
-4. Passes call `CreateDrawList(meshView, passId)`. On the GPU-indirect policy that declaration also requests `EnsureMeshGpuCull`.
-5. Compile drops draw lists with no consumer, selects the backend, and inserts upload and compaction.
-6. Execute draws. `ReleaseAll` retires payloads and visibility references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
+1. Proxy update: registration tasks, one `MeshWorldUpdate` for removals and every dirty component, explicit static poses, then dynamic poses. A component stages its sync inside the transaction and publishes it after the commit; an id is valid only in the world that issued it, and a new world resyncs every registered component. A shader import or a shader swap on a material makes the affected components validate again and the commands resolve their pass indices again.
+2. `MeshWorld.UpdateResidency` uploads dirty entity columns, the next transform version and stale pass candidate tables.
+3. `MeshWorld.BeginCamera` resets per-camera counters and visibility interning.
+4. Passes call `CreateDrawList(meshView, MeshPassPresets.X)`. On the GPU backend that declaration also requests `EnsureMeshGpuCull` for the view.
+5. Compile releases draw lists with no live consumer. Live CPU lists acquire interned visibility and schedule their gather, sort and merge jobs; live GPU lists rent their payload. The extension inserts one upload producer per list and, for GPU indirect, one compute producer, then moves them to the earliest pass whose inputs exist.
+6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity` and `instanceFade`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer runs `ClearCounts`, `Compact` (one thread per element slot of the candidate table) and `BuildIndirectArgs`; the consumer issues one `DrawMeshInstancedIndirect` per live command for its stable range and, for a command with members whose chain has a band, one more for its fading range. Raster submission only draws.
+7. `ReleaseAll` completes and frees build jobs, releases visibility references and retires payloads, instance buffers and transform-version references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
 
-CPU direct drawing acquires interned visibility, runs `MeshPassExtractJob`, and calls `DrawMeshInstancedProcedural` with transform indices. GPU indirect drawing culls once per view key, builds a candidate table of `(instance slot, local command)` for the whole bin, and at execute runs `ClearCounts`, `Compact` and `BuildIndirectArgs`. Compacted indices are transform indices. Shaders read `transformBuffer`, `previousTransformBuffer` and `instanceIndexBuffer`.
+Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key's segments, each saturated to 16 bits; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Outside back to front, stable items come before fading ones, so a list changes the dither keyword once. Ties break by command, distance, entity and fade (back to front compares distance before command), so the order is total. The GPU backend issues its commands in state-key order; it has no per-instance distance order.
 
-`EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and an explicit GPU request both require instancing, compute, the mesh-draw compute shader and its four kernels. A payload that cannot be sized falls back to CPU direct and increments `GpuOverflowCount`. There is no process-global indirect-argument buffer and no same-frame visible-count readback.
+### LOD
+
+An entity carries a `MeshLodChain` of 1 to 8 levels in `LODGroup` semantics: level *i* draws while the screen size is at least its lower bound `screenSize[i]`, bounds strictly decrease, and below the last bound nothing draws (a last bound of 0 never culls). Screen size is the largest half-extent of the world bounds (`LODGroup.size` / 2 for an unrotated object; rotation grows the world bounds by up to √3) × `scale` × `bias` / distance, where `MeshLodProjection.FromCamera` takes the camera position, 1 / tan(fov / 2) or 1 / orthographic size, and `QualitySettings.lodBias`; orthographic views use distance 1. Shadow views copy their camera's projection, so casters switch level with the visible object. The projection is part of the per-render `MeshVisibilityKey`; the resident GPU visibility buffers leave it out, because it moves with the camera every frame. Each element names its level.
+
+The cross-fade band of level *i* lies above its bound and is `fadeWidth` × (previous bound − bound) wide, with a previous bound of 1 for level 0; a bound of 0 has no band. Inside the band the fade *f* runs from 0 at the bound to 1 at the band top. The CPU job (`MeshLodSelection`) writes per entity `visible`, `lod` and `fade`; GPU culling (`MeshPackLodVisibility` in `MeshLod.hlsl`) writes one word, 0 or `1 | level << 8 | fade << 16`, with 65535 for stable and the band position quantized to [0, 65534). Both evaluate the same expression in the same kernel or job as frustum culling, including both Hi-Z phases.
+
+A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.ditherLodTransitions`). There, inside a band the selected level draws with +*f* and the next level with −*f* in the command's fading range; `LODDitheringTransition` keeps complementary pixels for the two signs, so the pair covers every pixel once. At *f* = 0 the outgoing level is gone. Translucent passes draw the selected level only and never fade. Every command has a stable and a fading range: GPU command metadata holds index count, start index, base vertex, stable base and fading base (stable base + member count), counts and indirect arguments are interleaved per (command, range), and instance capacity is twice the member count. Fading draws set the global keyword `INFINITY_LOD_DITHER` and clear it afterwards; shaders read the factor through `MeshInstanceFade`. Ray tracing takes level 0 only.
+
+### Content
+
+`MeshComponent` draws a `MeshAsset`: `meshes[i]` is LOD *i* (one mesh may fill several levels), `lODInfos[i].screenSize` its lower bound, `lODInfos[i].materialSlot[s]` the material slot of submesh *s*, and `fadeWidth` the band width. A submesh without a slot entry has no material and draws nothing; an explicit slot outside the asset's materials makes the asset invalid. The asset's materials are authoring defaults that the inspector copies into a component once, on assignment; the component's material array, indexed by slot, is the runtime authority. Components share one geometry state per asset (level meshes, submesh counts, union bounds and the element table, one entry per level and submesh). An edit of the asset or one of its meshes marks that state stale, and every component that references it rebuilds its entity on the next sync. Only a registered component holds a reference on its asset's state, and destroying the asset re-syncs its components. A component whose asset fails `MeshAsset.ThrowIfInvalid` is logged with its context and not drawn. Loading never converts 0.4 data. The explicit migration menu, which assigns each component a shared one-level asset of its old mesh, exists only at commit `6703ab8`; the hidden legacy fields it read are removed after it.
+
+### Backends and shaders
+
+`EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
+
+Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshInstanceEntity`, then `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` guarded by generations. A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`; a component whose material lacks it, or lacks a pass its route enables, is logged with its context and not drawn.
 
 `ERenderingLayer : byte` is the shared mesh and light mask, with `Everything = 0xFF`. Surface masks in GBuffer C are an 8-bit unorm value. High bits are rejected.
 
 Public recording for a pass is:
 
 ```csharp
-RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassPresets.GBuffer);
 data.draws = pass.UseDrawList(draws);
 // execute:
 cmdEncoder.Draw(data.draws);
 ```
 
-Content code mutates `MeshComponent`. It does not call `CreateDrawList`. There is no `MeshDrawRequest` type.
+Content code mutates `MeshComponent`. It does not call `CreateDrawList`.
 
 Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. Preparation samplers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, shared across views and owned by `MeshDrawProfiling`. Shared sampler names do not merge graph nodes.
 
-Out of scope for this pipeline: GPU sorting of draw keys, GPU LOD, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects. `RefineVisibilityHiZ` is present and empty.
+`TranslucentPass` draws MeshComponent content from the TranslucentDepth (front to back) and T0/T1/T2 (back to front, CPU) presets before the native renderer list of the same pass, with the pass's keywords and global inputs already bound. The two lists are sorted separately, so MeshComponent and native translucent renderers have no distance order between them. Out of scope for this pipeline: GPU sorting of draw keys, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects.
 
 ## 8. Materials
 
@@ -213,11 +231,11 @@ Mixed lighting supports baked indirect and shadowmask. Distance shadowmask is th
 
 Screen-space reflection may trace at half resolution. Classify, resolve, temporal filter, bilateral cleanup and history stay at full resolution. History is the temporal output. `Samples` traces 1 to 4 rays inside `SSRTrace`. Each ray writes a Halcyon sample record: unweighted radiance, hit confidence, `Dir * HitT` and a signed inverse pdf. A positive inverse pdf is a hit, zero is empty, and a negative inverse pdf is a miss whose xyz is the unit direction. Facing failure, an edge fade of zero and invalid hit color are empty, so they do not add estimator weight. Resolve rebuilds the hit as that sample's origin plus `Dir * HitT` and rejects a direction into the receiver. It does not sample color and does not weight hits by the GGX pdf. The center pixel uses every hit. Neighbor reuse is a Poisson disk and reads only sample 0. A miss does not enter the average. The blend weight is the mean screen-edge fade of the hits, and the stored color is that average times the fade. Resolve also stores the mean and standard deviation of the unpremultiplied hit colors. Temporal weights the surface-motion and hit-point reprojections by `exp2(-10 * luma(dist))` on the unpremultiplied color and clamps that color to its interval. A history sample whose confidence is below half the current resolve is not reused, and a kept history is not clamped below this frame's color. The stored result is that color times this frame's edge fade. Bilateral cleanup filters color only and keeps the center edge fade. It runs after that only where the hysteresis-smoothed reconstruction variance is high. Classify writes a skip tile's records to zero. The indirect counter is cleared by `SSRClearArgs` in the same shader. Hi-Z and linear tiles share one indirect dispatch; the tile class selects the march. `SSRTRayCast.hlsl` clips each ray to the near and far planes and the screen. Hi-Z walks the closest and furthest pyramids. A hit is the ray segment crossing that raw-depth interval. A full-resolution texel is a point depth. A step that is already behind the next texel still hits when the shared edge lies between the two depths and either neighboring triple is colinear within 0.25 of that step. `SCREEN_TRACE_RELATIVE_THICKNESS` selects 2% of eye depth instead; production shaders do not declare it. There is no Volume thickness. Rough tiles march in screen space and refine a crossing with binary search. The refined segment must still cross the texel it lands on, and the hit stores that texel's depth. Trace-behind and toward-camera are bits of one uniform. Trace samples the accepted unsharpened previous frame through `TemporalColorSource`. That frame already contains the composite, so a later frame can show another bounce. A miss falls back to the probe and sky term. An empty sample does not.
 
-Screen-space indirect diffuse has no resolve kernel and no ray-reuse controls. The work grid is always half resolution. `Samples` averages 1 to 4 cosine rays per work pixel. Those rays sample full-resolution accepted previous color. The production march is the same Hi-Z walk. Defining `SSGI_TRACE_LINEAR` selects the 2D march, with step count `NumSteps * 4` and four binary-search iterations. An 8×8 group compacts valid pixels in group shared memory and the valid lanes trace in that same dispatch. Denoising then runs two stages. Each stage accumulates temporally and then filters on the tangent plane. The first pass has a 6 m base radius and no normal weight. The second has a 3 m base radius and `saturate(dot)`. The radius is also scaled by view depth, a 3×3 variance of the temporal output, and ambient occlusion when that buffer exists. Each stage writes its own history, which is `lerp(filtered, temporal, 0.5 * accumSpeed)` with `accumSpeed` 0.93 when the history is mature. Bilateral upsample always writes full resolution from the second mix. Surface metadata is `R32G32_UInt`: exact depth bits, a 12+12 octahedral normal, 7 bits of age and 1 validity bit. Invalid or off-screen history has zero weight. The production kernels do not write a ray record. Intensity is a Volume scale from 0 to 10. Low and Medium trace one ray. High and Ultra trace two.
+Screen-space indirect diffuse has no resolve kernel and no ray-reuse controls. The work grid is always half resolution. `Samples` averages 1 to 4 cosine rays per work pixel. Those rays sample full-resolution accepted previous color. The production march is the same Hi-Z walk. Defining `SSGI_TRACE_LINEAR` selects the 2D march, with step count `NumSteps * 4` and four binary-search iterations. An 8×8 group compacts valid pixels in group shared memory and the valid lanes trace in that same dispatch. Denoising then runs two stages. Each stage accumulates temporally and then filters on the tangent plane. The first pass has a 6 m base radius and no normal weight. The second has a 3 m base radius and `saturate(dot)`. The radius is also scaled by view depth, a 3×3 variance of the temporal output, and ambient occlusion when that buffer exists. Each stage writes its own history, which is `lerp(filtered, temporal, 0.5 * accumSpeed)` with `accumSpeed` 0.93 when the history is mature. Bilateral upsample always writes full resolution from the second mix. Surface metadata is `R32G32_UInt`: exact depth bits, a 12+12 octahedral normal, 7 bits of age and 1 validity bit. Invalid or off-screen history has zero weight. Half-resolution samples keep the accepted view's quad phase with the history transaction, and reconstruction uses the representative sample positions, including the shorter last interval on an odd edge. Metadata is read with integer loads only, and all lanes take part in the group barriers of the fused trace. The world-space filter radius is `BaseRadius * F(viewZ) * F(variance) * F(AO)`; the three functions are monotone stand-ins because the Metro slide does not give their bodies. The production kernels do not write a ray record: ray-hit storage is diagnostic-only, a trace capture snapshots trace radiance before the first temporal stage, and diagnostic readback decodes metadata on the GPU because Metal does not expose `R32G32_UInt` to `AsyncGPUReadback`. Intensity is a Volume scale from 0 to 10. Low and Medium trace one ray. High and Ultra trace two.
 
 Ground-truth ambient occlusion traces, filters and accumulates at half resolution, then upsamples. Its history is half resolution. Ray-traced ambient occlusion records at the internal resolution when Unified Ray Tracing has a context, an acceleration structure, `VisibilityRTAO.urtshader` and at least one instance. Otherwise ground-truth ambient occlusion owns the ambient-occlusion buffer. Ray-traced ambient occlusion does not use the occlusion history cache. `SystemInfo.supportsRayTracing` is not treated as a Metal capability. Metal uses the compute backend of Unified Ray Tracing.
 
-Subsurface scattering, when the Volume is active and a diffusion profile exists, writes a diffuse-only component from deferred and opaque forward shading. Indirect composition replaces that component's indirect term. `ComputeBurleySubsurface` filters the half-resolution diffuse buffer and recomposes full resolution as the original color minus the original diffuse plus the filtered diffuse. Specular and emissive light stay outside the filter. The material profile index selects the diffusion parameters. The Volume owns enable and sample count. The pipeline asset owns the diffusion profile list. No subsurface target is allocated when the feature is off.
+Subsurface scattering, when the Volume is active and a diffusion profile exists, writes a diffuse-only component from deferred and opaque forward shading; the attachment exists only when the device supports it and the frame requests it. Indirect composition replaces that component's indirect term. `ComputeBurleySubsurface` filters the half-resolution diffuse buffer and recomposes full resolution as the original color minus the original diffuse plus the filtered diffuse. Specular and emissive light stay outside the filter. The material profile index selects the diffusion parameters. The Volume owns enable and sample count. The pipeline asset owns the diffusion profile list. No subsurface target is allocated when the feature is off.
 
 ## 12. Atmosphere, fog, clouds and translucency
 
@@ -261,7 +279,7 @@ Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`
 
 The ownership audit is [Docs/UnityIntegrationAudit.md](Docs/UnityIntegrationAudit.md). The rules that follow are the architectural boundary.
 
-Native renderer content uses Unity culling and renderer lists. Custom mesh content uses `MeshScene`. Ray tracing adapts native geometry through the public explicit-instance API of Unified Ray Tracing. Native renderer identity and custom draw generation are different. A mesh asset is not an instance identity. Native scene changes do not wait for a mesh-scene revision.
+Native renderer content uses Unity culling and renderer lists. Custom mesh content uses `MeshWorld`. Ray tracing adapts native geometry through the public explicit-instance API of Unified Ray Tracing. Native renderer identity and custom draw generation are different. A mesh asset is not an instance identity. Native scene changes do not wait for a mesh-world revision.
 
 Adaptive Probe Volumes are bound with Core RP's `ProbeReferenceVolume` APIs on the pipeline command buffer before the graph records. One integration owns initialization and cleanup. A material samples probes in world space. The pipeline does not upload a per-instance probe record for mesh content.
 
@@ -273,7 +291,6 @@ Custom VFX Graph outputs are unsupported. Particle systems use the translucent r
 
 These are properties of the current implementation, not a verification record. [Docs/FeatureStatus.md](Docs/FeatureStatus.md) states what has actually been executed.
 
-- Mesh bins ignore `defaultSort`.
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render.
 - Rectangle and disk shadow tiles cover a 120° cone.
 - Reflection probes are axis-aligned, slot-limited and not filtered by rendering layer. Translucent T0 has no specular environment term.

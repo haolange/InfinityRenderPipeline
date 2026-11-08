@@ -12,9 +12,8 @@ StructuredBuffer<uint> _MeshCullCurrentGenerations, _MeshCullPreviousGenerations
 RWStructuredBuffer<uint> _DeferredVisibility, _FinalVisibility, _RecoveredVisibility;
 StructuredBuffer<uint> _OcclusionDeferred;
 
-bool MeshHasStableHistory(uint instance)
+bool MeshHasStableHistory(uint transform)
 {
-    uint transform = _InstanceToTransform[instance];
     bool stable = false;
     if (transform < _MeshCullCurrentCount && transform < _MeshCullPreviousCount)
     {
@@ -104,35 +103,37 @@ bool MeshOccluded(float3 center, float3 extent)
     return occluded;
 }
 
-void MeshWriteFirst(uint instance, bool visible, bool deferred)
+// packed is the entity's LOD visibility (0 when culled); a deferred entity waits for the recovery test.
+void MeshWriteFirst(uint entity, uint packed, bool deferred)
 {
-    _Visibility[instance] = visible && !deferred ? 1 : 0;
-    _FinalVisibility[instance] = visible && !deferred ? 1 : 0;
-    _DeferredVisibility[instance] = deferred ? 1 : 0;
+    _Visibility[entity] = deferred ? 0u : packed;
+    _FinalVisibility[entity] = deferred ? 0u : packed;
+    _DeferredVisibility[entity] = deferred ? 1u : 0u;
 }
 [numthreads(64, 1, 1)]
 void CullFirstNoHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _InstanceCount) MeshWriteFirst(id.x, MeshFrustumVisible(id.x), false);
+    if (id.x < _EntityCount) MeshWriteFirst(id.x, MeshCullVisibility(id.x), false);
 }
 [numthreads(64, 1, 1)]
 void CullFirstWithHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _InstanceCount) return;
-    bool visible = MeshFrustumVisible(id.x);
+    if (id.x >= _EntityCount) return;
+    uint packed = MeshCullVisibility(id.x);
     bool deferred = false;
-    if (visible && MeshHasStableHistory(id.x))
-        deferred = MeshOccluded(_InstanceBoundsCenter[id.x].xyz, _InstanceBoundsExtent[id.x].xyz);
-    MeshWriteFirst(id.x, visible, deferred);
+    if (packed != 0u && MeshHasStableHistory(id.x))
+        deferred = MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
+    MeshWriteFirst(id.x, packed, deferred);
 }
 [numthreads(64, 1, 1)]
 void CullOcclusionRecovery(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _InstanceCount) return;
+    if (id.x >= _EntityCount) return;
     bool deferred = _OcclusionDeferred[id.x] != 0;
-    bool visible = false;
-    if (deferred) visible = !MeshOccluded(_InstanceBoundsCenter[id.x].xyz, _InstanceBoundsExtent[id.x].xyz);
-    _RecoveredVisibility[id.x] = visible ? 1 : 0;
-    if (deferred) _FinalVisibility[id.x] = visible ? 1 : 0;
+    uint packed = 0u;
+    if (deferred && !MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz))
+        packed = MeshPackLodVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
+    _RecoveredVisibility[id.x] = packed;
+    if (deferred) _FinalVisibility[id.x] = packed;
 }
 #endif

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.MeshPipeline;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering.RendererUtils;
@@ -17,8 +16,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGObjectPool objectPool;
         internal CommandBuffer cmdBuffer;
         public RenderContext renderContext;
-        internal RGDrawListContext drawLists;
         internal RGRendererListContext rendererLists;
+        internal IRGGraphExtension extension;
     }
 
     internal struct RGPassCompileInfo
@@ -127,10 +126,15 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly List<RGProfileScope> m_ProfileScopes = new List<RGProfileScope>(8);
         readonly List<RGProfileScope> m_OpenScopes = new List<RGProfileScope>(4);
         readonly List<RGNativePassGroup> m_NativeGroups = new List<RGNativePassGroup>(8);
-        IRGCompileExtension m_CompileExtension;
+        // Set by the owner of graph-level work that the core does not model, such as mesh draw lists.
+        internal IRGGraphExtension extension;
         bool m_RecordingCompilerPasses;
         bool m_ExtensionContributed;
         internal bool RecordingCompilerPasses => m_RecordingCompilerPasses;
+        // Read by a graph extension inside Contribute, before inserted passes are placed.
+        internal int passCount => m_PassList.Count;
+        internal IRGPass GetPass(int index) => m_PassList[index];
+        internal bool IsCulled(int passIndex) => m_PassCompileInfos[passIndex].culled;
         internal T[] GetRecordingArray<T>(int count)
         {
             T[] array = m_ObjectPool.GetRecordingArray<T>(count);
@@ -146,14 +150,11 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
-        readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
+        readonly List<IRGPass> m_PlaceAnchored = new List<IRGPass>(64), m_PlacePending = new List<IRGPass>(16), m_PlacePlaced = new List<IRGPass>(64);
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
-        RGDrawListContext m_DrawListRecords = new RGDrawListContext();
         RGRendererListContext m_RendererListRecords = new RGRendererListContext();
-        MeshWorld m_MeshWorld;
-        readonly Dictionary<MeshGpuVisibilityKey, RGBufferHandle> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferHandle>(8);
 
         readonly bool m_AsyncComputeSupported;
 
@@ -477,7 +478,7 @@ namespace InfinityTech.Rendering.RenderGraph
             rasterPass.name = profilerSampler.name;
             rasterPass.customSampler = profilerSampler;
             RegisterPass(rasterPass);
-            return new RGRasterPassHandle(rasterPass, m_Resources, m_DrawListRecords, m_RendererListRecords);
+            return new RGRasterPassHandle(rasterPass, m_Resources, m_RendererListRecords, extension);
         }
 
         /// <summary>
@@ -500,8 +501,9 @@ namespace InfinityTech.Rendering.RenderGraph
             RGContext graphContext = new RGContext
             {
                 cmdBuffer = graphCommands, objectPool = m_ObjectPool,
-                renderContext = renderContext, drawLists = m_DrawListRecords,
-                rendererLists = m_RendererListRecords
+                renderContext = renderContext,
+                rendererLists = m_RendererListRecords,
+                extension = extension
             };
             System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
             try
@@ -567,9 +569,8 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()
         {
-            m_ScheduledMeshVersions.Clear();
             Exception failure = null;
-            try { ReleaseAllDrawLists(); }
+            try { extension?.Clear(); }
             catch (Exception error) { failure = error; }
             try { ReleaseAllRendererLists(); }
             catch (Exception error)
@@ -587,7 +588,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             m_PassList.Clear();
-            m_GpuCullVisibility.Clear();
             m_ObjectPool.ReleaseRecordingAlloc();
             m_ProfileScopes.Clear();
             m_OpenScopes.Clear();
@@ -606,20 +606,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ReleaseAllDrawLists()
-        {
-            m_DrawListRecords.ReleaseAll();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ReleaseAllRendererLists()
         {
             m_RendererListRecords.ReleaseAll();
         }
 
+        /// <summary>Drops any recorded graph (and its extension state) before releasing the resource registry.</summary>
         public void Dispose()
         {
-            m_Resources.Dispose();
+            try { ClearPass(); }
+            finally { m_Resources.Dispose(); }
         }
     }
 

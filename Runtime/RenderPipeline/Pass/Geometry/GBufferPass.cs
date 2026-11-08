@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
 
-            RGDrawListHandle gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.GBuffer);
+            RGDrawListHandle gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.GBuffer);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterGBufferPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

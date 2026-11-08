@@ -689,20 +689,14 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.IssuePluginEventAndData(callback, eventId, data);
         }
         internal CommandBuffer m_CommandBuffer;
-        internal RGDrawListContext m_DrawLists;
         internal RGRendererListContext m_RendererLists;
+        internal IRGGraphExtension m_Extension;
 
-        internal RGRasterEncoder(CommandBuffer commandBuffer, RGDrawListContext drawLists = null, RGRendererListContext rendererLists = null)
+        internal RGRasterEncoder(CommandBuffer commandBuffer, RGRendererListContext rendererLists = null, IRGGraphExtension extension = null)
         {
             m_CommandBuffer = commandBuffer;
-            m_DrawLists = drawLists;
             m_RendererLists = rendererLists;
-        }
-
-        public void Draw(in RGDrawListHandle draws)
-        {
-            // Submit rejects stale generation / out-of-range refs without throwing.
-            m_DrawLists?.Submit(m_CommandBuffer, draws);
+            m_Extension = extension;
         }
 
         public void BeginSample(string name)

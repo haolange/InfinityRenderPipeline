@@ -3,7 +3,7 @@
 ## [0.5.0] - Unreleased
 
 - Separate native Unity renderer lighting/state from custom Mesh content. Custom Mesh removes Lightmap and CPU per-instance Probe attributes and retains shader world-space APV. Native Shadowmask decisions use visible Light baking output. This supersedes the earlier destroyed-lightmap-cache repair; no custom cache remains.
-- Keep URT native/custom instances distinct and refresh native input independently of MeshScene revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
+- Keep URT native/custom instances distinct and refresh native input independently of mesh world revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
 - Target development refresh/capture tools by explicit project/process. Refresh invokes public AssetDatabase through Unity CLI, with no cross-session UI fallback; temporary native capture compiler caches are cleaned on exit.
 
 Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
@@ -21,7 +21,12 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Screen-space reflection and indirect diffuse no longer take a world-space maximum distance. Rays end at the near plane, the far plane or the screen edge. Hi-Z walks closest and furthest depth. Rough reflection tiles use a 2D march plus binary search. Trace-behind and toward-camera are one uniform flag. Indirect diffuse samples full-resolution previous color, keeps LDS compaction, and can select the 2D march with `SSGI_TRACE_LINEAR`. Intensity Scale reaches 10. The environment BRDF in the composite is the same approximation deferred shading uses.
 - Inactive RTAO no longer initializes or rebuilds URT geometry while Mesh transforms move; the existing request/capability gates remain authoritative.
 - Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
-- Mesh component updates use explicit geometry/routing/instance notifications, persistent Burst transform/bounds batches, one reusable generation-checked transaction. Instance draw links remove quadratic destruction scans; normal-frame compile and patch staging reuse bounded storage.
+- Mesh drawing pipeline v2. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. Nine interned pass presets keep membership and commands incrementally. Passes record with `CreateDrawList`, `UseDrawList` and `Draw` through a render-graph extension, and the render graph no longer depends on the mesh pipeline.
+- CPU direct gathers, sorts (State, FrontToBack with saturated key segments, BackToFront) and merges in Burst jobs and issues one instanced draw per run. GPU indirect runs one compute producer per draw list and issues one indirect draw per command and range in state order. Command batching and the CPU overflow fallback are removed.
+- Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
+- Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
+- Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Each view selects levels in the same CPU job or GPU kernel as culling; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
+- `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data; see [Upgrade 0.4 to 0.5](Documentation~/upgrade-0.4-to-0.5.md).
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
 - SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
 - HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
@@ -30,15 +35,15 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - SSGI reconstruction uses the actual rotating quad sample positions and shortened odd-edge intervals. SSS diffusion parameters follow each material's profile index instead of a Volume-active override of profile zero.
 - Previous-color effects are recorded before independent shadow rasterization, with their history copies after that window. Early visibility recovery and late dependent effects remain on Graphics; hardware overlap/performance requires separate platform evidence.
 - Super Resolution writes unsharpened color and display-grid surface depth directly to pending history; sharpening stays display-only and the old sharpened-history copy pass is removed. Reset/offscreen history is rejected before sampling.
-- Mesh motion history retains scene-owned immutable transform/generation versions instead of per-camera matrix arrays and uploads; dirty-page patches and GPU copy/patch production preserve independent sparse-view history.
-- RenderGraph resolves actual queue capability, tracks RAW/WAR/WAW and physical import aliases, and guards pooled reuse across recording references, specific submission batches, failures and CPU completion. Dirty GPU Scene attributes use writable replacements; DrawLists freeze their scene/candidate tables, and pool disposal waits for actual completion.
+- Mesh motion history retains world-owned immutable per-entity transform/generation versions instead of per-camera matrix arrays and uploads; dirty-page patches and GPU copy/patch production preserve independent sparse-view history.
+- RenderGraph resolves actual queue capability, tracks RAW/WAR/WAW and physical import aliases, and guards pooled reuse across recording references, specific submission batches, failures and CPU completion. Dirty entity columns use writable replacements; draw lists freeze their entity tables, and pool disposal waits for actual completion.
 - Closed the current InfinityExample Metal warnings in Cookie channel selection, VSM/EVSM moments, cloud intersections/integration, probe lighting, receiver gradients, GTAO channel/pow domains and terrain matrix macros. Updated the LUT debug pragma and explicit cascade atlas indexing.
 - Deferred shading uses 8x8 workgroups with record-time kernel/thread-group metadata; light-cluster tiles stay 16x16. Added odd-extent AO/contact combinations, production Cookie channel and degenerate receiver-gradient GPU coverage. No GPU performance claim accompanies this diagnostic change.
 - Metal shader helpers use explicitly defined result/output paths for screen-space surfaces, reprojection, depth, texture views, lighting, shadows and atmosphere, removing cross-compiler uninitialized-output diagnostics without changing rendering formulas.
 - Mesh draw profiling uses RenderLoop.* / Shadows.*; preparation shares ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData across views; RendererList wrapper scopes are removed, with native batching and shadow region labels preserved.
 - Screen framebuffer textures separate logical view extents from retained physical capacity; shared graph/resource pools evict aged idle allocations above retention watermarks.
 - TAA accumulates and sharpens in one tiled dispatch, writing unsharpened pending history directly.
-- MeshDraw upload and compaction are explicit graph producers; raster scopes contain draws only, and batches use disjoint output ranges.
+- Each live draw list has one upload producer and, for GPU indirect, one compute producer; raster scopes contain draws only.
 - Raster post-combine can write the camera target directly; linear consumers retain an explicitly owned intermediate. Hardware-sRGB SDR UI can blend after direct output.
 - ReactiveMask initialization uses the first transparent color attachment clear instead of a compute dispatch; non-TAA variants omit the MRT output.
 - Editor depth upsampling is consumer-driven; cached shadow atlas copies use the canonical raster tile-copy path.
@@ -190,8 +195,6 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Complete the default Volume registry with APV Options through the explicit current-schema asset save. Preserve existing effective component values, local IDs and references; the same bounded save materializes current defaults and retires inactive legacy SSR/SSGI fields. Editor load and script reload do not perform this save.
 - GBuffer GPU contract tests queue their own readbacks with the dispatch and yield Editor updates instead of blocking on process-wide `WaitAllRequests`, which stalled the Metal full suite. The same color, silhouette, rendering-layer and normal assertions run through UnityTest; callback data is copied before expiry, and timed-out resources retire only after their callbacks drain. The menu uses the existing XML TestRunner for every case.
 - Terrain supplies the basemap shader and generator Unity needs to collect its baked material. The base material samples the generated albedo in Meta and retains the Terrain raster passes.
-- Newly enabled MeshComponents join the existing world lists before the shared probe interpolation batch, then register through dirty synchronization before upload. Static invalidation also batches before proxy updates. A CPU profiler marker counts both batch and explicit single-sample interpolation paths.
-- Static MeshComponent probe samples invalidate when asynchronous tetrahedralization completes, after the new interpolation topology becomes available.
 - Baking sky outputs are keyed by the saved scene GUID so scenes with the same name do not share faces or materials. The explicit command saves only its output assets; all six faces are read before updating the durable texture, and resize keeps the existing object through `CopySerialized`. A failed refresh or mismatched scene material cancels the bake instead of continuing with stale faces.
 - APV shader stripping queries the global `PROBE_VOLUMES_L1/L2` keywords used by the pipeline, rather than treating them as shader-local keywords. The default-profile test now distinguishes CoreRP sampling options from Infinity effect enable switches; the RP Asset still owns APV activation.
 - Cookie and IES atlas versions compare full Editor image hashes and sampling format/dimensions/mips/channels as well as runtime updateCount. Reimporting a texture can preserve identity and updateCount; it now refreshes the atlas once instead of retaining stale decoded colors.
@@ -199,7 +202,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Normal-frame capture accepts the explicit ContactShadowSun (R8) and ContactShadowMask (R32 UInt) outputs. Captures keep integer mask bits, use the normal RenderGraph resource lifetime, and fail when a requested producer is absent; no contact feature or history setting is changed by capture.
 - Deferred MeshComponent registration now checks its active state and component registration epoch. Disabling before
   the queued registration runs cannot resurrect an inactive mesh; re-enabling with changed Static/Dynamic mobility
-  cannot leave duplicate world-list membership. Captured old instance IDs still retire through the existing path.
+  cannot leave duplicate dynamic membership.
 - OnDemand local-shadow depth now retains its produced projection, decode, cube-face origin, source size and face
   topology until an explicit request. Complete queued groups are transactional with their depth; missing/mixed faces
   rebuild together, undersized caches draw the entire group normally, and an OnEnable pending overwrite cannot fall
@@ -215,7 +218,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - VSM/EVSM visibility accounts for the half-float mean's representation error, including interpolation, fixing the
   reproduced quantization self-shadow cases while retaining occlusion for separate receivers behind the surface.
   The normal-frame sun EVSM comparison retains a reported single-half-step residual.
-- Shadow allocation includes eligible MeshScene casters when no native renderer casts shadows. Directional splits
+- Shadow allocation includes Shadow-pass MeshComponent members when no native renderer casts shadows. Directional splits
   use one light-space fit for both draw paths; local candidates test their actual guarded shadow frustums before
   consuming the atlas budget. Native culling indices remain compact when the camera near plane skips early cascades.
 - Cached local shadow tiles use separate Raster depth-save/depth-restore passes. Depth-only region CopyTexture is unsupported and produced native errors on Metal; slot transactions and atlas formats are preserved. Actual GPU tile round-trip coverage includes nonzero offsets, neighbour sentinels and an independent color-copy oracle.
@@ -247,7 +250,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Inspector section foldouts allow nested serialized arrays, including Diffusion Profiles in Lighting & Shadows,
   and keep layout groups paired when selecting mixed Light types.
 - Preview and Reflection camera uniforms now obey the camera policy when preparing jitter, including after successful history commits.
-- Custom Mesh visibility retains the full Unity scene mask through instance metadata, CPU/GPU culling, shadow views and cache identity; static scene changes refresh without requiring proxy updates. Cached local shadows distinguish cameras with different scene masks.
+- Custom Mesh visibility retains the full Unity scene mask through the entity description, CPU/GPU culling, shadow views and cache identity; the mask is read when a component syncs, and Editor scene moves notify static components. Cached local shadows distinguish cameras with different scene masks.
 - Pending-verification tests use NUnit's legal `Unverified_0_5` category. The former hyphenated name made NUnit
   reject tests as Failed:Invalid before execution; the rename preserves all pending markers and assertions.
 
@@ -283,9 +286,10 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
 - The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
 - `ObjectFactory` adds `InfinityAdditionalCameraData` (with Undo) when a Camera is added, as it already did for Lights.
-- `BuildMeshAssetFromPrefab` accepts a prefab with a LODGroup or with a MeshFilter + MeshRenderer, and rejects others.
+- `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
 
 ### Removed
+- The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
 - Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.
 - One-off migration and diagnosis tools in `Editor/Tools/Validation` that had no entry point.
 - The commented-out RTAO ray-tracing pass in InfinityLit, the unused `PreintegratedDGF_LUT` function, the RenderGraph

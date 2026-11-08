@@ -9,19 +9,20 @@ namespace InfinityTech.Rendering.Pipeline
     {
         bool PrepareMeshOcclusion(ref MeshView view, out MeshOcclusionLists lists)
         {
-            var motion = m_ActiveFrameState.meshMotionHistory.Prepare(m_MeshWorld.Residency.transformVersions.current);
-            m_MeshWorld.BindPreviousTransforms(view.viewKey, motion);
+            MeshWorld world = renderContext.meshWorld;
+            var motion = m_ActiveFrameState.meshMotionHistory.Prepare(world.transformVersions.current);
+            world.BindPreviousTransforms(view.viewKey, motion);
             lists = default;
             if (!m_ActiveFrameState.renderPolicy.temporal || !ShouldRecordFeature(EFrameFeature.HiZ)
-                || m_MeshWorld.Residency.Scene.LogicalInstanceCount == 0
-                || MeshDrawGPUBackend.SelectPolicy(m_MeshWorld.SelectPolicy()) != EMeshBackendPolicy.GpuIndirect) return false;
+                || world.entityCount == 0
+                || world.SelectBackend(MeshPassPresets.Depth) != EMeshBackendPolicy.GpuIndirect) return false;
             var size = m_ActiveFrameState.dimensions.internalSize;
             var history = m_ActiveFrameState.historyCache;
             var previous = history.GetTexture(HiZPassUtilityData.HistoryFurthest,
                 HiZDescriptor(size.x, size.y, "HiZFurthest"), out bool created);
             bool valid = !created && history.TextureGeneration(HiZPassUtilityData.HistoryFurthest) > 0
                 && m_ActiveFrameState.acceptedHiZ && !m_ActiveFrameState.cameraUniform.historyReset && motion.previous != null;
-            lists = m_RGBuilder.RecordMeshOcclusionFirst(view, shaders.meshDrawPipelineCS, motion,
+            lists = m_RGBuilder.RecordMeshOcclusionFirst(view, motion,
                 valid ? m_RGBuilder.ImportTexture(previous) : default,
                 m_ActiveFrameState.cameraUniform.matrix_LastViewFlipYJitterProj, size,
                 (ulong)history.TextureGeneration(HiZPassUtilityData.HistoryFurthest));
@@ -32,9 +33,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!lists.history) return;
             var early = ComputeEarlyFurthestHiZ();
-            m_RGBuilder.RecordMeshOcclusionRecovery(lists, shaders.meshDrawPipelineCS, early,
+            m_RGBuilder.RecordMeshOcclusionRecovery(lists, early,
                 m_ActiveFrameState.cameraUniform.matrix_ViewFlipYJitterProj, m_ActiveFrameState.dimensions.internalSize);
-            var draws = m_RGBuilder.CreateDrawList(lists.recovered, MeshPassId.Depth);
+            var draws = m_RGBuilder.CreateDrawList(lists.recovered, MeshPassPresets.Depth);
             using (var pass = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery)))
             {
                 pass.SetDepthStencilAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer),

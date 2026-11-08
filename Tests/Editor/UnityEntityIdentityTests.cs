@@ -1,7 +1,9 @@
 using NUnit.Framework;
+using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Core;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -20,17 +22,31 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally { Object.DestroyImmediate(mesh); Object.DestroyImmediate(material); }
         }
+
         [Test]
         public void UpperIdentityBitsAndShadowSubview_ArePartOfEquality()
         {
             ulong first = (768ul << 32) | 42, second = (769ul << 32) | 42;
-            Assert.AreNotEqual(
-                new MeshDrawCommandKey { meshUnityId = first, materialUnityId = first },
-                new MeshDrawCommandKey { meshUnityId = second, materialUnityId = first });
-            var slice0 = new MeshVisibilitySignature(1, first, 7, 1, MeshVisibilityShare.PolicyCascadeShadow, 0);
-            var slice1 = new MeshVisibilitySignature(1, first, 7, 1, MeshVisibilityShare.PolicyCascadeShadow, 1);
-            var replaced = new MeshVisibilitySignature(1, second, 7, 1, MeshVisibilityShare.PolicyCascadeShadow, 0);
-            Assert.AreNotEqual(slice0, slice1); Assert.AreNotEqual(slice0, replaced);
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshWorld world = fixture.world;
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
+                    update.AddElement(entity, first, 0, 0, first, MeshTestUtility.Unrouted, 0);
+                    update.AddElement(entity, second, 0, 0, second, MeshTestUtility.Unrouted, 0);
+                    update.Commit();
+                }
+                Assert.AreEqual(2, world.sectionCount, "Meshes that differ only in identity generation bits are distinct sections.");
+                Assert.AreEqual(2, world.materialCount);
+            }
+
+            Plane[] planes = MeshTestUtility.BoxPlanes();
+            var slice0 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
+            var slice1 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 1, ulong.MaxValue, MeshTestUtility.Lod), false);
+            var replaced = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, second, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
+            Assert.AreNotEqual(slice0, slice1);
+            Assert.AreNotEqual(slice0, replaced);
         }
     }
 }

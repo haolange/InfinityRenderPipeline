@@ -20,6 +20,9 @@ namespace InfinityTech.Rendering.Pipeline
             name == "SSRTileClass" || name == "SSRMeta" || name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGITraceRadiance" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
             name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";
 
+        internal static bool LockHistoryReset(Camera camera) =>
+            current != null && !current.Finished && current.request.lockHistoryReset && current.request.Matches(camera);
+
         internal static bool HasBackendOverride(Camera camera) =>
             (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
             || (current != null && !current.Finished && current.request.Matches(camera));
@@ -40,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (!Enum.IsDefined(typeof(MeshPipeline.EMeshBackendPolicy), request.meshBackend))
                 throw new ArgumentOutOfRangeException(nameof(request.meshBackend));
-            if (request.meshBackend == MeshPipeline.EMeshBackendPolicy.GpuIndirect && !MeshPipeline.MeshDrawGPUBackend.SupportsIndirect)
+            if (request.meshBackend == MeshPipeline.EMeshBackendPolicy.GpuIndirect && !MeshPipeline.MeshGpuDrawBackend.DeviceSupportsIndirect)
                 throw new NotSupportedException("GPU capture requires indirect support; CPU fallback is not evidence for that route.");
             current = new RenderCaptureSession(request);
         }

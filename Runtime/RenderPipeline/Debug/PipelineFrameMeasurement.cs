@@ -8,9 +8,9 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class PipelineFrameMeasurement
     {
         internal static bool enabled;
-        // -1 means allocations occurred; this marker reports count/time, never byte size.
+        // GC.Alloc reports an allocation count. Byte size comes from the separate "GC Allocated In Frame" counter.
         internal static long frameBytes, proxyBytes, frameAllocations, proxyAllocations, frameTicks, proxyTicks, sequence;
-        static ProfilerRecorder s_FrameAllocations, s_ProxyAllocations, s_SubmitAllocations;
+        static ProfilerRecorder s_FrameAllocations, s_ProxyAllocations, s_SubmitAllocations, s_FrameAllocBytes;
         internal static long nativeSubmitAllocations;
         static ProfilerRecorder Recorder(bool proxy)
         {
@@ -20,13 +20,32 @@ namespace InfinityTech.Rendering.Pipeline
                     ProfilerRecorderOptions.CollectOnlyOnCurrentThread | ProfilerRecorderOptions.SumAllSamplesInFrame);
             return recorder;
         }
+        static bool s_ByteRecorderStarted;
+        static void EnsureByteRecorder()
+        {
+            if (!s_FrameAllocBytes.Valid)
+                s_FrameAllocBytes = new ProfilerRecorder(ProfilerCategory.Memory, "GC Allocated In Frame", 1);
+            if (!s_ByteRecorderStarted && s_FrameAllocBytes.Valid)
+            {
+                s_FrameAllocBytes.Start();
+                s_ByteRecorderStarted = true;
+            }
+        }
+        internal static void ThrowIfAllocationByteCounterMissing()
+        {
+            using (var recorder = new ProfilerRecorder(ProfilerCategory.Memory, "GC Allocated In Frame", 1))
+                if (!recorder.Valid) throw new InvalidOperationException("GC Allocated In Frame is not available, so allocation bytes cannot be recorded.");
+        }
         internal static void Dispose()
         {
             enabled = false;
             if (s_FrameAllocations.Valid) s_FrameAllocations.Dispose();
             if (s_ProxyAllocations.Valid) s_ProxyAllocations.Dispose();
             if (s_SubmitAllocations.Valid) s_SubmitAllocations.Dispose();
+            if (s_FrameAllocBytes.Valid) s_FrameAllocBytes.Dispose();
             s_FrameAllocations = default; s_ProxyAllocations = default; s_SubmitAllocations = default;
+            s_FrameAllocBytes = default;
+            s_ByteRecorderStarted = false;
         }
         internal static long transformTicks, applyTicks;
         internal readonly struct NativeSubmitScope : IDisposable
@@ -66,14 +85,21 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly struct Scope : IDisposable
         {
             readonly bool m_Enabled, m_Proxy;
-            readonly long m_Ticks;
+            readonly long m_Ticks, m_LatchedBytes;
             readonly ProfilerRecorder m_Allocations;
             internal Scope(bool proxy)
             {
                 m_Enabled = enabled; m_Proxy = proxy;
                 if (m_Enabled && !proxy) nativeSubmitAllocations = 0;
                 m_Allocations = m_Enabled ? Recorder(proxy) : default;
-                if (m_Enabled) { m_Allocations.Reset(); m_Allocations.Start(); }
+                m_LatchedBytes = 0;
+                if (m_Enabled)
+                {
+                    m_Allocations.Reset(); m_Allocations.Start();
+                    // The byte counter is published once per frame, after this scope ends, so a delta inside the
+                    // scope is always zero. The value latched here is the previous completed frame.
+                    if (!proxy) { EnsureByteRecorder(); m_LatchedBytes = s_FrameAllocBytes.LastValue; }
+                }
                 m_Ticks = m_Enabled ? Stopwatch.GetTimestamp() : 0;
             }
             public void Dispose()
@@ -81,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (!m_Enabled) return;
                 m_Allocations.Stop();
                 long count = m_Allocations.Count == 0 ? 0 : m_Allocations.GetSample(0).Count;
-                long bytes = count == 0 ? 0 : -1;
+                long bytes = m_LatchedBytes;
                 long ticks = Stopwatch.GetTimestamp() - m_Ticks;
                 if (m_Proxy) { proxyBytes = bytes; proxyAllocations = count; proxyTicks = ticks; }
                 else { frameBytes = bytes; frameAllocations = count; frameTicks = ticks; ++sequence; }

@@ -50,8 +50,8 @@ namespace InfinityTech.Rendering.Pipeline
             motionTextureDsc.clearColor = Color.clear;
             RGTextureHandle motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
-            m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
-            RGDrawListHandle motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
+            renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
+            RGDrawListHandle motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Motion);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

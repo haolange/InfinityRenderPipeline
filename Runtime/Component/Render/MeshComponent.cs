@@ -5,58 +5,37 @@ using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.MeshPipeline;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace InfinityTech.Component
 {
     /// <summary>
-    /// Mesh proxy state machine: property change → snapshot diff → structural/lightweight path →
-    /// MeshScene transaction → world Static/Dynamic list membership → PassBin invalidation.
-    /// MarkDirty uses a shared dirty queue (not the Dynamic world list), so Dynamic→Static still syncs.
+    /// Content-side proxy of one mesh entity. The entity's LOD chain comes from its <see cref="MeshAsset"/>, and every
+    /// submesh of every LOD level is one element carrying its level. Elements draw with the component's materials,
+    /// indexed by the asset's material slots. Property edits mark the component dirty; once per frame the render context
+    /// syncs every dirty component inside one <see cref="MeshWorldUpdate"/>. A component whose asset or materials cannot
+    /// be drawn is reported with its context and not drawn; it does not roll back the other components.
     /// </summary>
     [ExecuteAlways]
 #if UNITY_EDITOR
-    [CanEditMultipleObjects]
+    [UnityEditor.CanEditMultipleObjects]
 #endif
     [AddComponentMenu("InfinityRenderer/Mesh Component")]
     public partial class MeshComponent : EntityComponent
     {
-        private struct MeshComponentSnapshot
+        struct MaterialSnapshot
         {
-            public bool valid;
-            public bool visible;
-            public ulong sceneCullingMask;
-            public int unityLayer;
-            public EStateType movebility;
-            public ulong meshAssetId;
-            public int subMeshCount;
-            public uint geometryRevision;
-            public ulong[] materialInstanceIds;
-            public int[] materialRenderQueues;
-            public int[] materialSurfaceRoutes;
-            public int[] materialTranslucentStages;
-            public uint[] materialVersions;
-            public ERenderingLayer renderingLayer;
-            public int renderPriority;
-            public ECastShadowMethod castShadow;
-            public bool receiveShadow;
-            public bool affectIndirect;
-            public EMotionType motionVector;
+            public ulong id;
+            public MeshMaterialState state;
         }
 
         [Header("State")]
-        [SerializeField] private EStateType movebility = EStateType.Static;
+        [SerializeField] private EMeshMobility mobility = EMeshMobility.Static;
 
         [Header("Mesh")]
-        [SerializeField] private Mesh meshAsset;
+        [SerializeField] private MeshAsset asset;
 
         [Header("Material")]
         [SerializeField] private Material[] materials;
-#if UNITY_EDITOR
-        private Material[] m_LastMaterials;
-#endif
 
         [Header("Lighting")]
         [SerializeField] private ECastShadowMethod castShadow = ECastShadowMethod.Off;
@@ -69,18 +48,34 @@ namespace InfinityTech.Component
         [SerializeField] private int renderPriority = 0;
         [SerializeField] private EMotionType motionVector = EMotionType.Object;
 
+        /// <summary>What this component published to one world. Arrays are replaced, never edited in place.</summary>
+        struct SyncState
+        {
+            public int worldId;
+            public MeshEntityId entity;
+            public MeshElementId[] elements;
+            public MaterialSnapshot[] materials;
+            public MeshAsset asset;
+            /// <summary>Submesh count per LOD level, shared with the geometry state that never edits it in place.</summary>
+            public int[] subMeshCounts;
+            public uint geometryRevision;
+            public Bounds localBounds;
+            public EMeshMobility mobility;
+            public MeshEntityDesc desc;
+            public int priority;
+        }
 
-        private MeshInstanceId m_InstanceId;
-        private TransformId m_TransformId;
-        private MeshDrawId[] m_DrawIds;
-        private FAABB m_BoundBox;
-        private FSphere m_BoundSphere;
-        private MeshComponentSnapshot m_Snapshot;
-        private bool m_DirtyEnqueued;
-        private uint m_RegistrationEpoch;
-        private uint m_GeometryRevision;
-        private float4x4 m_LocalToWorldMatrix => transform.localToWorldMatrix;
-        private ulong SceneCullingMask
+        // m_State matches the committed world; m_Next is staged while the frame transaction is open.
+        SyncState m_State;
+        SyncState m_Next;
+        bool m_Staged;
+        FAABB m_BoundBox;
+        bool m_DirtyEnqueued;
+        uint m_RegistrationEpoch;
+
+        internal MeshEntityId entityId => m_State.entity;
+
+        ulong SceneCullingMask
         {
             get
             {
@@ -95,34 +90,9 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             uint epoch = ++m_RegistrationEpoch;
-            RefreshGeometryReference();
             s_Registered.Add(this);
-
-            UpdateBounds();
+            RefreshGeometryReference();
             FGraphics.RegisterMesh(this, epoch);
-        }
-
-        protected override void OnTransformChange()
-        {
-            UpdateBounds();
-            MarkTransformDirty();
-        }
-
-        protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
-        {
-        }
-
-        protected virtual void OnStaticMeshChange()
-        {
-        }
-
-        protected override void EventPlay()
-        {
-        }
-
-        protected override void EventTick()
-        {
-
         }
 
         protected override void UnRegister()
@@ -130,97 +100,236 @@ namespace InfinityTech.Component
             ++m_RegistrationEpoch;
             s_Registered.Remove(this);
             ReleaseGeometryReference();
-            MeshInstanceId instanceId = m_InstanceId;
-            EStateType mobility = dynamicIndex >= 0 ? EStateType.Dynamic : EStateType.Static;
-            MeshComponent self = this;
-
-            // Clear local handles immediately so UnRegister is idempotent across OnDisable/OnDestroy.
-            m_InstanceId = MeshInstanceId.Invalid;
-            m_TransformId = TransformId.Invalid;
-            m_DrawIds = null;
-            m_Snapshot = default;
+            SyncState published = m_State;
+            // Clear local state immediately so UnRegister is idempotent across OnDisable and OnDestroy.
+            ResetSyncState();
             m_DirtyEnqueued = false;
-
-            FGraphics.UnregisterMesh(self, instanceId, mobility);
+            transformPending = false;
+            FGraphics.UnregisterMesh(this, published.entity, published.worldId);
         }
 
         public void MarkDirty()
         {
-            if (m_DirtyEnqueued)
-            {
-                return;
-            }
-
+            if (m_DirtyEnqueued) return;
             m_DirtyEnqueued = true;
             RenderContext.EnqueueDirtyMesh(this);
         }
 
-        public void SyncFromSnapshot(RenderContext renderContext)
+        void ResetSyncState()
+        {
+            m_State = default;
+            m_Next = default;
+            m_Staged = false;
+        }
+
+        bool IsPublishedIn(MeshWorld world, in SyncState state) => state.worldId == world.worldId && world.IsAlive(state.entity);
+
+        /// <summary>
+        /// Stages this component's current state in the frame's transaction. The render context publishes the staged
+        /// state after the transaction commits and abandons it when the transaction rolls back.
+        /// </summary>
+        internal void Sync(MeshWorld world, in MeshWorldUpdate update)
         {
             m_DirtyEnqueued = false;
             RefreshGeometryReference();
-
-            if (!isActiveAndEnabled)
+            SyncState current = m_Staged ? m_Next : m_State;
+            bool alive = IsPublishedIn(world, current);
+            bool drawable = isActiveAndEnabled && asset != null && materials != null && m_Geometry != null;
+            if (drawable && !TryValidate(out string error))
             {
-                if (m_InstanceId.IsValid)
+                Debug.LogError($"MeshComponent '{name}' is not drawn: {error}", this);
+                drawable = false;
+            }
+            if (!drawable)
+            {
+                if (alive) update.RemoveEntity(current.entity);
+                Stage(default);
+                return;
+            }
+
+            MeshEntityDesc desc = BuildDesc();
+            GeometryState geometry = m_Geometry;
+            if (!alive || !ReferenceEquals(current.asset, asset) || !SameCounts(current.subMeshCounts, geometry.subMeshCounts) || current.geometryRevision != geometry.revision)
+            {
+                if (alive) update.RemoveEntity(current.entity);
+                Stage(Create(world, update, desc));
+                return;
+            }
+
+            SyncState next = current;
+            if (!desc.Equals(current.desc))
+            {
+                update.SetEntityDesc(current.entity, desc);
+                next.desc = desc;
+            }
+            if (mobility != current.mobility)
+            {
+                update.SetEntityMobility(current.entity, mobility == EMeshMobility.Dynamic ? transform : null, current.localBounds);
+                next.mobility = mobility;
+            }
+            for (int i = 0; i < current.elements.Length; ++i)
+            {
+                MaterialSnapshot material = ReadMaterial(geometry.elementSlot[i]);
+                if (material.id != current.materials[i].id || !material.state.Equals(current.materials[i].state))
                 {
-                    UnRegisterFromMeshScene(renderContext);
+                    if (ReferenceEquals(next.materials, current.materials)) next.materials = (MaterialSnapshot[])current.materials.Clone();
+                    update.SetElementMaterial(current.elements[i], material.id, material.state);
+                    next.materials[i] = material;
                 }
-
-                ReleaseGeometryReference();
-                m_Snapshot = default;
-                return;
+                if (renderPriority != current.priority) update.SetElementPriority(current.elements[i], renderPriority);
             }
+            next.priority = renderPriority;
+            Stage(next);
+        }
 
-            if (meshAsset == null || materials == null)
+        void Stage(in SyncState next)
+        {
+            m_Next = next;
+            m_Staged = true;
+        }
+
+        internal void PublishSync()
+        {
+            if (!m_Staged) return;
+            m_State = m_Next;
+            m_Next = default;
+            m_Staged = false;
+        }
+
+        internal void AbandonSync()
+        {
+            m_Next = default;
+            m_Staged = false;
+        }
+
+        SyncState Create(MeshWorld world, in MeshWorldUpdate update, in MeshEntityDesc desc)
+        {
+            GeometryState geometry = m_Geometry;
+            float4x4 localToWorld = transform.localToWorldMatrix;
+            m_BoundBox = Geometry.CaculateWorldBound(geometry.bounds, localToWorld);
+            int elementCount = geometry.elementLod.Length;
+            var state = new SyncState
             {
-                if (m_InstanceId.IsValid)
+                worldId = world.worldId,
+                entity = update.CreateEntity(localToWorld, m_BoundBox, desc, asset.BuildLodChain()),
+                elements = new MeshElementId[elementCount],
+                materials = new MaterialSnapshot[elementCount],
+                asset = asset,
+                subMeshCounts = geometry.subMeshCounts,
+                geometryRevision = geometry.revision,
+                localBounds = geometry.bounds,
+                mobility = mobility,
+                desc = desc,
+                priority = renderPriority
+            };
+            for (int i = 0; i < elementCount; ++i)
+            {
+                int lod = geometry.elementLod[i];
+                MaterialSnapshot material = ReadMaterial(geometry.elementSlot[i]);
+                state.elements[i] = update.AddElement(state.entity, geometry.meshIds[lod], geometry.elementSubmesh[i], lod, material.id, material.state, renderPriority);
+                state.materials[i] = material;
+            }
+            if (mobility == EMeshMobility.Dynamic) update.SetEntityMobility(state.entity, transform, state.localBounds);
+            return state;
+        }
+
+        static bool SameCounts(int[] a, int[] b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; ++i)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
+
+        /// <summary>The component's material at <paramref name="slot"/>; a missing slot or a null material is no material.</summary>
+        MaterialSnapshot ReadMaterial(int slot)
+        {
+            Material material = slot >= 0 && slot < materials.Length ? materials[slot] : null;
+            if (material == null) return default;
+            MaterialRouteUtility.ReadMeshRoute(material, out int route, out int stage, out int queue, out Shader shader);
+            return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage, UnityEntityId.ToUInt64(shader)) };
+        }
+
+        /// <summary>
+        /// The asset must be valid and its live meshes must match the cached geometry, and every material that a drawn
+        /// slot selects must route through Infinity surface routing, read entity data through the mesh instancing interface
+        /// and declare each pass its route enables.
+        /// </summary>
+        bool TryValidate(out string error)
+        {
+            error = null;
+            try { asset.ThrowIfInvalid(); }
+            catch (System.InvalidOperationException exception)
+            {
+                error = exception.Message;
+                return false;
+            }
+            GeometryState geometry = m_Geometry;
+            System.ReadOnlySpan<Mesh> meshes = asset.Meshes;
+            if (meshes.Length != geometry.meshes.Length)
+            {
+                error = $"MeshAsset '{asset.name}' changed its LOD levels without a notification; call MeshComponent.NotifyGeometryChanged.";
+                return false;
+            }
+            for (int i = 0; i < meshes.Length; ++i)
+            {
+                if (!ReferenceEquals(meshes[i], geometry.meshes[i]) || meshes[i].subMeshCount != geometry.subMeshCounts[i])
                 {
-                    UnRegisterFromMeshScene(renderContext);
+                    error = $"mesh '{meshes[i].name}' (LOD {i} of MeshAsset '{asset.name}') changed in place; call MeshComponent.NotifyGeometryChanged.";
+                    return false;
                 }
-
-                m_Snapshot = default;
-                return;
             }
-
-            if (!m_InstanceId.IsValid || !m_Snapshot.valid || HasStructuralDiff())
+            foreach (int slot in geometry.drawnSlots)
             {
-                // Bounds must be current before CreateInstance writes FAABB into MeshScene.
-                UpdateBounds();
-
-                bool hadInstance = m_InstanceId.IsValid;
-                EStateType previousMobility = m_Snapshot.valid ? m_Snapshot.movebility : movebility;
-
-                RegisterToMeshScene(renderContext);
-                SyncWorldListAfterStructural(renderContext, hadInstance, previousMobility);
-                return;
+                Material material = slot < materials.Length ? materials[slot] : null;
+                if (material == null) continue;
+                if (!MeshPassShaderUtility.SupportsMeshInstancing(material.shader))
+                {
+                    error = $"shader '{material.shader.name}' of material '{material.name}' does not declare InfinityMeshInstancing.";
+                    return false;
+                }
+                int route, stage;
+                try { MaterialRouteUtility.ReadMeshRoute(material, out route, out stage, out _, out Shader _); }
+                catch (System.InvalidOperationException exception)
+                {
+                    error = exception.Message;
+                    return false;
+                }
+                foreach (MeshPassDesc pass in MeshPassPresets.all)
+                {
+                    if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode)) continue;
+                    if (MeshPassShaderUtility.FindPassIndex(material, pass.lightMode) < 0)
+                    {
+                        error = $"material '{material.name}' routes to '{pass.lightMode}', which shader '{material.shader.name}' does not declare.";
+                        return false;
+                    }
+                }
             }
+            return true;
+        }
 
-            if (!HasLightweightDiff())
+        MeshEntityDesc BuildDesc()
+        {
+            EMeshEntityFlags flags = EMeshEntityFlags.None;
+            if (visible) flags |= EMeshEntityFlags.Visible;
+            if (receiveShadow) flags |= EMeshEntityFlags.ReceiveShadow;
+            if (castShadow != ECastShadowMethod.Off) flags |= EMeshEntityFlags.CastShadow;
+            if (affectIndirectLighting) flags |= EMeshEntityFlags.AffectIndirect;
+            if (motionVector == EMotionType.Object) flags |= EMeshEntityFlags.ObjectMotion;
+            return new MeshEntityDesc
             {
-                return;
-            }
-
-            ApplyLightweightUpdates(renderContext);
-            CaptureSnapshot();
+                layerMask = 1 << gameObject.layer,
+                sceneCullingMask = SceneCullingMask,
+                renderingLayerMask = (uint)renderingLayer,
+                flags = flags
+            };
         }
 
 #if UNITY_EDITOR
-        private void DrawBound()
-        {
-            #if UNITY_EDITOR
-            Geometry.DrawBound(m_BoundBox, Color.blue);
-
-            UnityEditor.Handles.color = Color.yellow;
-            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.up, m_BoundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.back, m_BoundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.right, m_BoundSphere.radius);
-            #endif
-        }
-
         void OnDrawGizmosSelected()
         {
-            DrawBound();
+            Geometry.DrawBound(m_BoundBox, Color.blue);
         }
 
         void OnValidate()
@@ -228,483 +337,7 @@ namespace InfinityTech.Component
             if (!isActiveAndEnabled || !gameObject.scene.IsValid()) return;
             // Inspector edits are an explicit resource notification.
             NotifyGeometryChanged();
-            MarkTransformDirty();
-            MarkDirty();
         }
 #endif
-
-        private void AddWorldMesh(RenderContext renderContext, in EStateType stateType)
-        {
-            if(stateType == EStateType.Static)
-            {
-                renderContext.AddWorldStaticMesh(this);
-            }
-
-            if (stateType == EStateType.Dynamic)
-            {
-                renderContext.AddWorldDynamicMesh(this);
-            }
-        }
-
-        private static void RemoveWorldMesh(RenderContext renderContext, in EStateType stateType, MeshComponent meshComponent)
-        {
-            // No Unity fake-null check: destroyed components must still leave world lists by reference.
-            if (stateType == EStateType.Static)
-            {
-                renderContext.RemoveWorldStaticMesh(meshComponent);
-            }
-
-            if (stateType == EStateType.Dynamic)
-            {
-                renderContext.RemoveWorldDynamicMesh(meshComponent);
-            }
-        }
-
-        private void SyncWorldListAfterStructural(RenderContext renderContext, bool hadInstance, EStateType previousMobility)
-        {
-            // Prefer live world-list membership; fall back to snapshot mobility.
-            // UnRegister already RemoveWorldMesh — do not double-remove there.
-            EStateType? membership = TryGetWorldListMembership(renderContext);
-            EStateType oldMobility = membership ?? previousMobility;
-
-            if (oldMobility == movebility)
-            {
-                // First MeshScene registration when not yet on a world list (OnRegister may have pre-added).
-                if (!hadInstance && membership == null)
-                {
-                    AddWorldMesh(renderContext, movebility);
-                }
-
-                return;
-            }
-
-            if (membership != null)
-            {
-                RemoveWorldMesh(renderContext, membership.Value, this);
-            }
-            else if (hadInstance)
-            {
-                RemoveWorldMesh(renderContext, previousMobility, this);
-            }
-
-            AddWorldMesh(renderContext, movebility);
-            OnStateTypeChange(oldMobility);
-        }
-
-        private EStateType? TryGetWorldListMembership(RenderContext renderContext)
-        {
-            if (dynamicIndex >= 0)
-            {
-                return EStateType.Dynamic;
-            }
-
-            if (staticIndex >= 0)
-            {
-                return EStateType.Static;
-            }
-
-            return null;
-        }
-
-        public void UpdateBounds()
-        {
-            if (!meshAsset) { return; }
-
-            cachedTransform = transform;
-            RefreshGeometryReference();
-            localBounds = m_Geometry.bounds;
-            m_BoundBox = Geometry.CaculateWorldBound(localBounds, m_LocalToWorldMatrix);
-            m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
-        }
-
-#if UNITY_EDITOR
-        public void UpdateMaterial()
-        {
-            if(materials.Length != 0)
-            {
-                m_LastMaterials = new Material[materials.Length];
-                for (int i = 0; i < m_LastMaterials.Length; ++i)
-                {
-                    m_LastMaterials[i] = materials[i];
-                }
-            }
-
-            materials = new Material[meshAsset.subMeshCount];
-            for (int i = 0; i < materials.Length; ++i)
-            {
-                if(i < m_LastMaterials.Length)
-                {
-                    materials[i] = m_LastMaterials[i];
-                } else {
-                    materials[i] = Resources.Load<Material>("Materials/M_DefaultLit");
-                }
-            }
-        }
-#endif
-
-        public static void RemoveInstanceById(RenderContext renderContext, MeshInstanceId instanceId)
-        {
-            if (renderContext == null || !instanceId.IsValid)
-            {
-                return;
-            }
-
-            MeshScene scene = renderContext.GetMeshScene();
-            using (MeshSceneUpdate update = scene.BeginUpdate())
-            {
-                update.RemoveInstance(instanceId);
-                update.Commit();
-            }
-        }
-
-        public void RegisterToMeshScene(RenderContext renderContext)
-        {
-            if (meshAsset == null || materials == null)
-            {
-                if (m_InstanceId.IsValid)
-                {
-                    UnRegisterFromMeshScene(renderContext);
-                }
-
-                m_Snapshot = default;
-                return;
-            }
-
-            MeshScene scene = renderContext.GetMeshScene();
-            if (m_InstanceId.IsValid)
-            {
-                UnRegisterFromMeshScene(renderContext);
-            }
-
-            EMeshInstanceFlags flags = BuildInstanceFlags();
-
-            using (MeshSceneUpdate update = scene.BeginUpdate())
-            {
-                m_TransformId = update.CreateTransform(m_LocalToWorldMatrix);
-                m_InstanceId = update.CreateInstance(
-                    m_TransformId,
-                    m_BoundBox,
-                    gameObject.layer >= 0 ? (1 << gameObject.layer) : ~0,
-                    (uint)renderingLayer,
-                    flags,
-                    motionVector,
-                    castShadow,
-                    EGeometrySourceKind.IndexedMesh,
-                    sceneCullingMask: SceneCullingMask);
-
-                int subMeshCount = m_Geometry.subMeshes;
-                m_DrawIds = new MeshDrawId[subMeshCount];
-                ulong meshUnityId = m_Geometry.identity;
-
-
-                for (int i = 0; i < subMeshCount; ++i)
-                {
-                    Material material = (materials != null && i < materials.Length && materials[i] != null)
-                        ? materials[i]
-                        : null;
-                    if (material == null)
-                    {
-                        m_DrawIds[i] = MeshDrawId.Invalid;
-                        continue;
-                    }
-
-                    EPassEligibility eligibility = BuildPassEligibility(material);
-                    MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out int renderQueue, out _);
-                    int priority = renderPriority + renderQueue;
-                    uint staticFlags = movebility == EStateType.Static ? 1u : 0u;
-                    m_DrawIds[i] = update.CreateDraw(
-                        m_InstanceId,
-                        meshUnityId,
-                        i,
-                        UnityEntityId.ToUInt64(material),
-                        eligibility,
-                        renderQueue,
-                        priority,
-                        EGeometrySourceKind.IndexedMesh,
-                        m_GeometryRevision,
-                        staticFlags);
-                }
-
-                update.Commit();
-            }
-
-            CaptureSnapshot();
-        }
-
-        public void UnRegisterFromMeshScene(RenderContext renderContext)
-        {
-            if (!m_InstanceId.IsValid)
-            {
-                m_TransformId = TransformId.Invalid;
-                m_DrawIds = null;
-                m_Snapshot = default;
-                return;
-            }
-
-            MeshInstanceId instanceId = m_InstanceId;
-            m_InstanceId = MeshInstanceId.Invalid;
-            m_TransformId = TransformId.Invalid;
-            m_DrawIds = null;
-            m_Snapshot = default;
-
-            RemoveInstanceById(renderContext, instanceId);
-        }
-
-        private void ApplyLightweightUpdates(RenderContext renderContext)
-        {
-            if (!m_InstanceId.IsValid)
-            {
-                return;
-            }
-
-            EMeshInstanceFlags flags = BuildInstanceFlags();
-            uint renderingLayerMask = (uint)renderingLayer;
-
-            MeshScene scene = renderContext.GetMeshScene();
-            using (MeshSceneUpdate update = scene.BeginUpdate())
-            {
-                update.SetInstanceFlags(m_InstanceId, flags);
-                update.SetInstanceSceneCullingMask(m_InstanceId, SceneCullingMask);
-                update.SetInstanceLayerMask(m_InstanceId, 1 << gameObject.layer);
-                update.SetInstanceRendering(m_InstanceId, renderingLayerMask, motionVector, castShadow);
-
-                if (m_DrawIds != null)
-                {
-                    for (int i = 0; i < m_DrawIds.Length; ++i)
-                    {
-                        MeshDrawId drawId = m_DrawIds[i];
-                        if (!drawId.IsValid)
-                        {
-                            continue;
-                        }
-
-                        Material material = (materials != null && i < materials.Length) ? materials[i] : null;
-                        int renderQueue = 0;
-                        EPassEligibility eligibility = BuildPassEligibility(material);
-                        if (material != null)
-                        {
-                            MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out renderQueue, out _);
-                            // Updates draw.renderQueue and MaterialData revision (same id, new queue).
-                            update.SetMaterial(drawId, UnityEntityId.ToUInt64(material), renderQueue);
-                        }
-
-                        update.SetDrawPriority(drawId, renderPriority + renderQueue);
-                        update.SetDrawEligibility(drawId, eligibility);
-                    }
-                }
-
-                update.Commit();
-            }
-        }
-
-        private EMeshInstanceFlags BuildInstanceFlags()
-        {
-            EMeshInstanceFlags flags = EMeshInstanceFlags.None;
-            if (visible) flags |= EMeshInstanceFlags.Visible;
-            if (receiveShadow) flags |= EMeshInstanceFlags.ReceiveShadow;
-            if (castShadow != ECastShadowMethod.Off) flags |= EMeshInstanceFlags.CastShadow;
-            if (affectIndirectLighting) flags |= EMeshInstanceFlags.AffectIndirect;
-            return flags;
-        }
-
-        private EPassEligibility BuildPassEligibility(Material material)
-        {
-            int surfaceRoute = 0;
-            int translucentStage = 0;
-            ReadMaterialRoute(material, out surfaceRoute, out translucentStage);
-
-            EPassEligibility eligibility = EPassEligibility.None;
-            if (translucentStage > 0)
-            {
-                eligibility = EPassEligibility.Transparent;
-            }
-            else if (surfaceRoute == 1)
-            {
-                eligibility = EPassEligibility.Depth | EPassEligibility.GBuffer | EPassEligibility.Forward;
-            }
-            else
-            {
-                eligibility = EPassEligibility.Depth | EPassEligibility.GBuffer;
-            }
-
-            if (translucentStage == 0 && motionVector == EMotionType.Object)
-            {
-                eligibility |= EPassEligibility.Motion;
-            }
-
-            if (translucentStage == 0 && castShadow != ECastShadowMethod.Off)
-            {
-                eligibility |= EPassEligibility.Shadow;
-            }
-
-            return eligibility;
-        }
-
-        private static void ReadMaterialRoute(Material material, out int surfaceRoute, out int translucentStage)
-        {
-            surfaceRoute = 0;
-            translucentStage = 0;
-            if (material == null)
-            {
-                return;
-            }
-
-            MaterialRouteUtility.ReadMeshRoute(material, out surfaceRoute, out translucentStage, out _, out _);
-        }
-
-        private bool HasStructuralDiff()
-        {
-            ulong meshId = m_Geometry != null ? m_Geometry.identity : 0;
-            int subMeshCount = m_Geometry != null ? m_Geometry.subMeshes : 0;
-            uint geometryRevision = m_GeometryRevision;
-            if (!m_Snapshot.valid
-                || m_Snapshot.movebility != movebility
-                || m_Snapshot.meshAssetId != meshId
-                || m_Snapshot.subMeshCount != subMeshCount
-                || m_Snapshot.geometryRevision != geometryRevision)
-            {
-                return true;
-            }
-
-            int materialCount = materials != null ? materials.Length : 0;
-            int snapshotCount = m_Snapshot.materialInstanceIds != null ? m_Snapshot.materialInstanceIds.Length : 0;
-            if (materialCount != snapshotCount)
-            {
-                return true;
-            }
-
-            for (int i = 0; i < materialCount; ++i)
-            {
-                ulong materialId = UnityEntityId.ToUInt64(materials[i]);
-                if (m_Snapshot.materialInstanceIds[i] != materialId)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool HasLightweightDiff()
-        {
-            if (!m_Snapshot.valid
-                || m_Snapshot.visible != visible
-                || m_Snapshot.unityLayer != gameObject.layer
-                || m_Snapshot.sceneCullingMask != SceneCullingMask
-                || m_Snapshot.renderingLayer != renderingLayer
-                || m_Snapshot.renderPriority != renderPriority
-                || m_Snapshot.castShadow != castShadow
-                || m_Snapshot.receiveShadow != receiveShadow
-                || m_Snapshot.affectIndirect != affectIndirectLighting
-                || m_Snapshot.motionVector != motionVector)
-            {
-                return true;
-            }
-
-            int materialCount = materials != null ? materials.Length : 0;
-            int queueCount = m_Snapshot.materialRenderQueues != null ? m_Snapshot.materialRenderQueues.Length : 0;
-            int routeCount = m_Snapshot.materialSurfaceRoutes != null ? m_Snapshot.materialSurfaceRoutes.Length : 0;
-            int stageCount = m_Snapshot.materialTranslucentStages != null ? m_Snapshot.materialTranslucentStages.Length : 0;
-            if (materialCount != queueCount || materialCount != routeCount || materialCount != stageCount)
-            {
-                return true;
-            }
-
-            for (int i = 0; i < materialCount; ++i)
-            {
-                Material material = materials[i];
-                int renderQueue = 0; uint version = 0;
-                if (material != null) MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out renderQueue, out version);
-                ReadMaterialRoute(material, out int surfaceRoute, out int translucentStage);
-                if (m_Snapshot.materialVersions[i] != version || m_Snapshot.materialRenderQueues[i] != renderQueue
-                    || m_Snapshot.materialSurfaceRoutes[i] != surfaceRoute
-                    || m_Snapshot.materialTranslucentStages[i] != translucentStage)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private void CaptureSnapshot()
-        {
-            int materialCount = materials != null ? materials.Length : 0;
-            ulong[] materialIds = m_Snapshot.materialInstanceIds;
-            if (materialIds == null || materialIds.Length != materialCount) materialIds = new ulong[materialCount];
-            int[] materialQueues = m_Snapshot.materialRenderQueues;
-            if (materialQueues == null || materialQueues.Length != materialCount) materialQueues = new int[materialCount];
-            int[] materialRoutes = m_Snapshot.materialSurfaceRoutes;
-            if (materialRoutes == null || materialRoutes.Length != materialCount) materialRoutes = new int[materialCount];
-            int[] materialStages = m_Snapshot.materialTranslucentStages;
-            if (materialStages == null || materialStages.Length != materialCount) materialStages = new int[materialCount];
-            uint[] versions = m_Snapshot.materialVersions;
-            if (versions == null || versions.Length != materialCount) versions = new uint[materialCount];
-            for (int i = 0; i < materialCount; ++i)
-            {
-                if (materials[i] != null)
-                {
-                    materialIds[i] = UnityEntityId.ToUInt64(materials[i]);
-                    MaterialRouteUtility.ReadMeshRoute(materials[i], out _, out _, out materialQueues[i], out versions[i]);
-                    ReadMaterialRoute(materials[i], out materialRoutes[i], out materialStages[i]);
-                }
-                else
-                {
-                    materialIds[i] = 0;
-                    materialQueues[i] = 0;
-                    materialRoutes[i] = 0;
-                    materialStages[i] = 0;
-                }
-            }
-
-
-            m_Snapshot = new MeshComponentSnapshot
-            {
-                valid = m_InstanceId.IsValid,
-                visible = visible,
-                sceneCullingMask = SceneCullingMask,
-                unityLayer = gameObject.layer,
-                movebility = movebility,
-                meshAssetId = m_Geometry != null ? m_Geometry.identity : 0,
-                subMeshCount = m_Geometry != null ? m_Geometry.subMeshes : 0,
-                geometryRevision = m_GeometryRevision,
-                materialInstanceIds = materialIds,
-                materialRenderQueues = materialQueues,
-                materialSurfaceRoutes = materialRoutes,
-                materialTranslucentStages = materialStages,
-                materialVersions = versions,
-                renderingLayer = renderingLayer,
-                renderPriority = renderPriority,
-                castShadow = castShadow,
-                receiveShadow = receiveShadow,
-                affectIndirect = affectIndirectLighting,
-                motionVector = motionVector
-            };
-        }
-
-        public void SetCustomPrimitiveData(int offset, float data)
-        {
-        }
-
-        public void SetCustomPrimitiveData(int offset, float2 data)
-        {
-            SetCustomPrimitiveData(offset, data.x);
-            SetCustomPrimitiveData(offset + 1, data.y);
-        }
-
-        public void SetCustomPrimitiveData(int offset, float3 data)
-        {
-            SetCustomPrimitiveData(offset, data.x);
-            SetCustomPrimitiveData(offset + 1, data.y);
-            SetCustomPrimitiveData(offset + 2, data.z);
-        }
-
-        public void SetCustomPrimitiveData(int offset, float4 data)
-        {
-            SetCustomPrimitiveData(offset, data.x);
-            SetCustomPrimitiveData(offset + 1, data.y);
-            SetCustomPrimitiveData(offset + 2, data.z);
-            SetCustomPrimitiveData(offset + 3, data.w);
-        }
     }
 }

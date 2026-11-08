@@ -17,8 +17,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var final = first; final.visibilityPhase = EMeshVisibilityPhase.Final;
             try
             {
-                Assert.AreNotEqual(MeshGpuVisibilityCache.MakeKey(first, true), MeshGpuVisibilityCache.MakeKey(next, true));
-                Assert.AreEqual(MeshGpuVisibilityCache.MakeKey(first), MeshGpuVisibilityCache.MakeKey(next));
+                Assert.AreNotEqual(new MeshVisibilityKey(first, true), new MeshVisibilityKey(next, true));
+                Assert.AreEqual(new MeshVisibilityKey(first, false), new MeshVisibilityKey(next, false));
                 var a = storage.GetBufferHandle(first, 16); var b = storage.GetBufferHandle(next, 16);
                 Assert.AreSame(a.buffer, b.buffer);
                 Assert.AreNotSame(a.buffer, storage.GetBufferHandle(final, 16).buffer);

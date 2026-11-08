@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
 
@@ -16,21 +17,21 @@ namespace InfinityTech.Rendering.Pipeline
         internal struct MeshTask
         {
             internal MeshComponent component;
-            internal MeshInstanceId instance;
-            internal EStateType mobility;
+            internal MeshEntityId entity;
+            internal int worldId;
             internal uint epoch;
             internal bool register;
         }
         internal static readonly List<MeshTask> MeshTasks = new List<MeshTask>(256);
         internal static void RegisterMesh(MeshComponent component, uint epoch) => MeshTasks.Add(new MeshTask { component = component, epoch = epoch, register = true });
-        internal static void UnregisterMesh(MeshComponent component, MeshInstanceId instance, EStateType mobility) => MeshTasks.Add(new MeshTask { component = component, instance = instance, mobility = mobility });
+        internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity, int worldId) => MeshTasks.Add(new MeshTask { component = component, entity = entity, worldId = worldId });
 
         internal static List<FGraphicsTask> GraphicsTasks = new List<FGraphicsTask>(256);
 
         internal static void ProcessMeshTask(in MeshTask task, RenderContext context)
         {
-            if (task.register) { if (task.component) task.component.CompleteRegistration(context, task.epoch); }
-            else MeshComponent.CompleteUnregistration(context, task.component, task.instance, task.mobility);
+            if (task.register) { if (task.component) task.component.CompleteRegistration(task.epoch); }
+            else context.EnqueueEntityRemoval(task.entity, task.worldId);
         }
 
         public static void AddTask(FGraphicsTask graphicsTask)
@@ -65,28 +66,29 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class RenderContext : IDisposable
     {
         private static readonly List<MeshComponent> s_DirtyMeshList = new List<MeshComponent>(256);
+        private static readonly List<MeshComponent> s_TransformUpdates = new List<MeshComponent>(256);
+        private readonly List<MeshEntityId> m_PendingRemovals = new List<MeshEntityId>(64);
 
         private List<TerrainComponent> m_TerrainList;
-        private List<MeshComponent> m_StaticMeshList;
-        private List<MeshComponent> m_DynamicMeshList;
         private int m_WorldDecalCount;
         private bool m_WorldDecalsInitialized;
         private Dictionary<ulong, InfinityAdditionalLightData> m_LightList;
 
         internal LightContext lightContext;
-        private MeshScene m_MeshScene;
+        private readonly MeshWorld m_MeshWorld;
         internal ScriptableRenderContext scriptableRenderContext;
 
-        public RenderContext()
+        public RenderContext(ResourcePool resourcePool, ComputeShader meshDrawShader)
         {
             m_LightList = new Dictionary<ulong, InfinityAdditionalLightData>(64);
             m_TerrainList = new List<TerrainComponent>(32);
-            m_StaticMeshList = new List<MeshComponent>(8192);
-            m_DynamicMeshList = new List<MeshComponent>(8192);
 
             lightContext = new LightContext();
-            m_MeshScene = new MeshScene();
+            m_MeshWorld = new MeshWorld(resourcePool, meshDrawShader);
+            MeshComponent.ResyncAll();
         }
+
+        public MeshWorld meshWorld => m_MeshWorld;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void EnqueueDirtyMesh(MeshComponent meshComponent)
@@ -99,24 +101,64 @@ namespace InfinityTech.Rendering.Pipeline
             s_DirtyMeshList.Add(meshComponent);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrainDirtyMeshes()
-        {
-            if (s_DirtyMeshList.Count == 0)
-            {
-                return;
-            }
+        internal static void EnqueueMeshTransform(MeshComponent mesh) => s_TransformUpdates.Add(mesh);
 
-            for (int i = 0; i < s_DirtyMeshList.Count; ++i)
+        /// <summary>Entities of another world (an earlier pipeline) are not this world's to remove.</summary>
+        internal void EnqueueEntityRemoval(MeshEntityId entity, int worldId)
+        {
+            if (entity.IsValid && worldId == m_MeshWorld.worldId) m_PendingRemovals.Add(entity);
+        }
+
+        /// <summary>
+        /// One structural transaction per frame: pending removals, then every dirty component. Components publish their
+        /// staged state only after the commit; on failure the world rolls back, the components abandon their staged state,
+        /// and the queues stay for the next frame while the original exception propagates.
+        /// </summary>
+        internal void DrainDirtyMeshes()
+        {
+            if (s_DirtyMeshList.Count == 0 && m_PendingRemovals.Count == 0) return;
+            bool committed = false;
+            try
             {
-                MeshComponent meshComponent = s_DirtyMeshList[i];
-                if (meshComponent)
+                using (MeshWorldUpdate update = m_MeshWorld.BeginUpdate())
                 {
-                    meshComponent.SyncFromSnapshot(this);
+                    foreach (MeshEntityId entity in m_PendingRemovals)
+                        if (m_MeshWorld.IsAlive(entity)) update.RemoveEntity(entity);
+                    foreach (MeshComponent meshComponent in s_DirtyMeshList)
+                        if (meshComponent) meshComponent.Sync(m_MeshWorld, update);
+                    update.Commit();
+                    committed = true;
                 }
             }
+            finally
+            {
+                foreach (MeshComponent meshComponent in s_DirtyMeshList)
+                {
+                    if (!meshComponent) continue;
+                    if (committed) meshComponent.PublishSync();
+                    else meshComponent.AbandonSync();
+                }
+                if (committed)
+                {
+                    m_PendingRemovals.Clear();
+                    s_DirtyMeshList.Clear();
+                }
+            }
+        }
 
-            s_DirtyMeshList.Clear();
+        /// <summary>Explicit static pose notifications, written after the structural transaction.</summary>
+        internal void ApplyMeshTransforms()
+        {
+            using var measurement = new PipelineFrameMeasurement.Section(1);
+            foreach (MeshComponent mesh in s_TransformUpdates)
+                if (mesh) mesh.ApplyStaticPose(m_MeshWorld);
+            s_TransformUpdates.Clear();
+        }
+
+        internal void UpdateDynamicMeshPoses()
+        {
+            using var measurement = new PipelineFrameMeasurement.Section(0);
+            m_MeshWorld.UpdateDynamicPoses();
         }
 
         #region WorldLight
@@ -171,93 +213,6 @@ namespace InfinityTech.Rendering.Pipeline
         }
         #endregion //WorldTerrain
 
-        #region WorldPrimitive
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldStaticMesh(MeshComponent meshComponent)
-        {
-            if (meshComponent.staticIndex >= 0) return;
-            meshComponent.staticIndex = m_StaticMeshList.Count;
-            m_StaticMeshList.Add(meshComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InvokeWorldStaticMeshUpdate()
-        {
-            if(m_StaticMeshList.Count == 0) { return; }
-
-            for (int i = 0; i < m_StaticMeshList.Count; ++i)
-            {
-                m_StaticMeshList[i].NotifyInstanceChanged();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldStaticMesh(MeshComponent meshComponent)
-        {
-            int index = meshComponent.staticIndex;
-            if (index < 0) return;
-            int last = m_StaticMeshList.Count - 1;
-            m_StaticMeshList[index] = m_StaticMeshList[last];
-            m_StaticMeshList[index].staticIndex = index;
-            m_StaticMeshList.RemoveAt(last);
-            meshComponent.staticIndex = -1;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<MeshComponent> GetWorldStaticMesh()
-        {
-            return m_StaticMeshList;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearWorldStaticMesh()
-        {
-            foreach (var mesh in m_StaticMeshList) mesh.staticIndex = -1;
-            m_StaticMeshList.Clear();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldDynamicMesh(MeshComponent meshComponent)
-        {
-            if (meshComponent.dynamicIndex >= 0) return;
-            meshComponent.dynamicIndex = m_DynamicMeshList.Count;
-            m_DynamicMeshList.Add(meshComponent);
-            AddDynamicTransform(meshComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InvokeWorldDynamicMeshUpdate()
-        {
-            UpdateDynamicTransforms();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldDynamicMesh(MeshComponent meshComponent)
-        {
-            int index = meshComponent.dynamicIndex;
-            if (index < 0) return;
-            int last = m_DynamicMeshList.Count - 1;
-            m_DynamicMeshList[index] = m_DynamicMeshList[last];
-            m_DynamicMeshList[index].dynamicIndex = index;
-            m_DynamicMeshList.RemoveAt(last);
-            RemoveDynamicTransform(index, last);
-            meshComponent.dynamicIndex = -1;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<MeshComponent> GetWorldDynamicPrimitive()
-        {
-            return m_DynamicMeshList;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearWorldDynamicMesh()
-        {
-            foreach (var mesh in m_DynamicMeshList) mesh.dynamicIndex = -1;
-            m_DynamicMeshList.Clear();
-            if (m_DynamicTransforms.isCreated) m_DynamicTransforms.SetTransforms(System.Array.Empty<Transform>());
-        }
-        #endregion //WorldPrimitive
 
         #region WorldDecal
         public int WorldDecalCount => m_WorldDecalCount;
@@ -287,27 +242,20 @@ namespace InfinityTech.Rendering.Pipeline
         }
         #endregion //WorldDecal
 
-        #region MeshScene
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public MeshScene GetMeshScene()
-        {
-            return m_MeshScene;
-        }
-        #endregion //MeshScene
 
         public void Dispose()
         {
-            DisposeTransformBatch();
             ClearWorldLight();
             ClearWorldTerrains();
-            ClearWorldStaticMesh();
-            ClearWorldDynamicMesh();
+            foreach (MeshComponent mesh in s_TransformUpdates) if (mesh) mesh.transformPending = false;
+            s_TransformUpdates.Clear();
             s_DirtyMeshList.Clear();
+            m_PendingRemovals.Clear();
 
             FGraphics.ClearTasks();
 
             lightContext.Dispose();
-            m_MeshScene.Dispose();
+            m_MeshWorld.Dispose();
         }
     }
 }

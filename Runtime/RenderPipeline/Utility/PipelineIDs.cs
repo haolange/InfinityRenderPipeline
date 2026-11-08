@@ -198,11 +198,17 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey ExposureEVBuffer = new RGResourceKey("_ExposureEVTexture");
         public static readonly int MainTexture = Shader.PropertyToID("_MainTex");
         public static readonly int ScaleBias = Shader.PropertyToID("_ScaleBais");
-        public static readonly int InstanceIndexOffset = Shader.PropertyToID("instanceIndexOffset");
-        public static readonly int InstanceIndexBuffer = Shader.PropertyToID("instanceIndexBuffer");
-        public static readonly int TransformBuffer = Shader.PropertyToID("transformBuffer");
-        public static readonly int PreviousTransformBuffer = Shader.PropertyToID("previousTransformBuffer");
-        public static readonly int RenderingLayerBuffer = Shader.PropertyToID("renderingLayerBuffer");
+        // Mesh entity interface (GPUScene.hlsl).
+        public static readonly int InstanceOffset = Shader.PropertyToID("InstanceOffset");
+        public static readonly int InstanceToEntity = Shader.PropertyToID("InstanceToEntity");
+        public static readonly int InstanceFade = Shader.PropertyToID("InstanceFade");
+        public static readonly int EntityTransforms = Shader.PropertyToID("EntityTransforms");
+        public static readonly int EntityGenerations = Shader.PropertyToID("EntityGenerations");
+        public static readonly int EntityRenderingLayers = Shader.PropertyToID("EntityRenderingLayers");
+        public static readonly int PreviousEntityTransforms = Shader.PropertyToID("PreviousEntityTransforms");
+        public static readonly int PreviousEntityGenerations = Shader.PropertyToID("PreviousEntityGenerations");
+        public static readonly int PreviousEntityCount = Shader.PropertyToID("PreviousEntityCount");
+        public static readonly int PreviousEntityValid = Shader.PropertyToID("PreviousEntityValid");
     }
 
     public static class InfinityPassIDs

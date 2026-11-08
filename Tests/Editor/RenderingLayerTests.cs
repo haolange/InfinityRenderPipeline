@@ -3,9 +3,8 @@ using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Component;
-using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -16,59 +15,56 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(2u)]
         [TestCase(128u)]
         [TestCase(255u)]
-        public void TransformIndexedLayer_RoundTripsToGpuAndRollsBack(uint mask)
+        public void EntityIndexedLayer_RoundTripsToGpuAndRollsBack(uint mask)
         {
-            var scene = new MeshScene(16);
-            var pool = new ResourcePool();
-            var residency = new GpuScene(pool, scene);
-            try
+            using (var fixture = new MeshWorldFixture())
             {
-                TransformId transform;
-                MeshInstanceId instance;
-                using (MeshSceneUpdate update = scene.BeginUpdate())
+                MeshWorld world = fixture.world;
+                MeshEntityId entity;
+                using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    transform = update.CreateTransform(float4x4.identity);
-                    instance = update.CreateInstance(transform, default(FBound), ~0, mask,
-                        EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Dynamic);
+                    entity = MeshTestUtility.CreateEntity(update, float3.zero, renderingLayerMask: mask);
                     update.Commit();
                 }
-                Assert.AreEqual(mask, scene.GetTransformRenderingLayer((int)transform.Index));
-                residency.Update();
-                var actual = new uint[1];
-                residency.RenderingLayerBuffer.buffer.GetData(actual, 0, (int)transform.Index, 1);
-                Assert.AreEqual(mask, actual[0]);
-                using (MeshSceneUpdate update = scene.BeginUpdate())
-                    update.SetInstanceRendering(instance, mask ^ 0xFFu, EMotionType.Object, ECastShadowMethod.Dynamic);
-                Assert.AreEqual(mask, scene.GetTransformRenderingLayer((int)transform.Index));
-                residency.Update();
-                residency.RenderingLayerBuffer.buffer.GetData(actual, 0, (int)transform.Index, 1);
-                Assert.AreEqual(mask, actual[0]);
-                using (MeshSceneUpdate update = scene.BeginUpdate())
+                Assert.IsTrue(world.TryGetEntity(entity, out MeshEntity record));
+                Assert.AreEqual(mask, record.desc.renderingLayerMask);
+                world.UpdateResidency();
+                Assert.AreEqual(mask, ReadLayer(world, entity));
+
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                    update.SetEntityDesc(entity, MeshTestUtility.Desc(renderingLayerMask: mask ^ 0xFFu));
+                Assert.IsTrue(world.TryGetEntity(entity, out record));
+                Assert.AreEqual(mask, record.desc.renderingLayerMask);
+                world.UpdateResidency();
+                Assert.AreEqual(mask, ReadLayer(world, entity));
+
+                using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    update.RemoveInstance(instance);
+                    update.RemoveEntity(entity);
                     update.Commit();
                 }
-                residency.Update();
-                residency.RenderingLayerBuffer.buffer.GetData(actual, 0, (int)transform.Index, 1);
-                Assert.AreEqual(0, actual[0]);
-                using (MeshSceneUpdate update = scene.BeginUpdate())
+                world.UpdateResidency();
+                Assert.AreEqual(0u, ReadLayer(world, entity), "A dead entity slot uploads no layer.");
+
+                MeshEntityId reused;
+                using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    TransformId reused = update.CreateTransform(float4x4.identity);
-                    Assert.AreEqual(transform.Index, reused.Index);
-                    update.CreateInstance(reused, default(FBound), ~0, 0x80,
-                        EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Dynamic);
+                    reused = MeshTestUtility.CreateEntity(update, float3.zero, renderingLayerMask: 0x80);
                     update.Commit();
                 }
-                residency.Update();
-                residency.RenderingLayerBuffer.buffer.GetData(actual, 0, (int)transform.Index, 1);
-                Assert.AreEqual(0x80, actual[0]);
+                Assert.AreEqual(entity.Index, reused.Index);
+                world.UpdateResidency();
+                Assert.AreEqual(0x80u, ReadLayer(world, reused));
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                    Assert.Throws<ArgumentOutOfRangeException>(() => update.SetEntityDesc(reused, MeshTestUtility.Desc(renderingLayerMask: 0x100)));
             }
-            finally
-            {
-                residency.Dispose();
-                pool.Dispose();
-                scene.Dispose();
-            }
+        }
+
+        static uint ReadLayer(MeshWorld world, MeshEntityId entity)
+        {
+            var actual = new uint[1];
+            world.gpu.renderingLayers.buffer.GetData(actual, 0, (int)entity.Index, 1);
+            return actual[0];
         }
 
         [TestCase(256u)]

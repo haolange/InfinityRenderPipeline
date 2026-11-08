@@ -5,6 +5,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -95,33 +96,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void PayloadReuseAndGrowth_DoNotReleaseARecordedOldBuffer()
         {
-            var pool = new ResourcePool();
-            var graph = new RGBuilder("RecordedPayload", pool);
-            var payload = MeshDrawGPUBackend.RentPayload();
-            MeshDrawGpuPayload next = null;
-            try
+            using (var fixture = new MeshWorldFixture())
             {
-                payload.EnsureCapacity(pool, 1, 1);
-                var original = payload.argsBuffer;
-                var descriptor = new BufferDescriptor(original.count, 4, ComputeBufferType.IndirectArguments);
-                graph.ImportBuffer(new BufferHandle(-1, descriptor, original));
-                MeshDrawGPUBackend.RetirePayload(payload); payload = null;
-                MeshDrawGPUBackend.FlushRetiredPayloads();
-                next = MeshDrawGPUBackend.RentPayload();
-                next.EnsureCapacity(pool, 128, 1024);
-                Assert.IsTrue(original.IsValid(), "Payload growth must not physically release commands recorded before Submit.");
-                Assert.AreNotSame(original, next.argsBuffer);
-                graph.ClearRecordedGraph();
-                var reused = pool.GetBuffer(descriptor);
-                Assert.AreSame(original, reused.buffer, "Cancelled recording releases the original allocation for safe reuse.");
-                pool.ReleaseBuffer(reused);
-            }
-            finally
-            {
-                graph.Dispose();
-                if (payload != null) MeshDrawGPUBackend.ReturnPayload(payload);
-                if (next != null) MeshDrawGPUBackend.ReturnPayload(next);
-                pool.Dispose();
+                MeshTestUtility.RequireGpuIndirect(fixture.world);
+                MeshGpuDrawBackend backend = fixture.world.gpuBackend;
+                var graph = new RGBuilder("RecordedPayload", fixture.pool);
+                MeshGpuDrawPayload payload = backend.RentPayload(1, 1);
+                MeshGpuDrawPayload next = null;
+                try
+                {
+                    BufferHandle original = payload.indirectArgs;
+                    graph.ImportBuffer(original);
+                    backend.RetirePayload(payload);
+                    payload = null;
+                    backend.FlushRetired(default);
+                    next = backend.RentPayload(128, 1024);
+                    Assert.IsTrue(original.buffer.IsValid(), "Payload growth must not physically release commands recorded before Submit.");
+                    Assert.AreNotSame(original.buffer, next.indirectArgs.buffer);
+                    graph.ClearRecordedGraph();
+                    BufferHandle reused = fixture.pool.GetBuffer(original.descriptor);
+                    Assert.AreSame(original.buffer, reused.buffer, "Cancelled recording releases the original allocation for safe reuse.");
+                    fixture.pool.ReleaseBuffer(reused);
+                }
+                finally
+                {
+                    graph.Dispose();
+                    backend.RetirePayload(payload);
+                    backend.RetirePayload(next);
+                    backend.FlushRetired(default);
+                }
             }
         }
 

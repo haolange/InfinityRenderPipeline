@@ -8,9 +8,12 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
-    internal interface IRGCompileExtension
+    // One instance per builder. Contribute runs once per compile, after the first liveness pass and before inserted passes are
+    // placed; Clear runs whenever the recorded graph is dropped, with or without execution.
+    internal interface IRGGraphExtension
     {
         void Contribute(RGBuilder builder);
+        void Clear();
     }
 
     sealed class RGProfileScope
@@ -100,7 +103,7 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!m_ExtensionContributed)
             {
                 m_RecordingCompilerPasses = true;
-                m_CompileExtension?.Contribute(this);
+                extension?.Contribute(this);
                 m_RecordingCompilerPasses = false;
                 PlaceInsertedPasses();
                 m_ExtensionContributed = true;
@@ -434,15 +437,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (m_PassList[i].insertedByCompiler) inserted++;
             if (inserted == 0) return;
 
-            var anchored = new List<IRGPass>(m_PassList.Count - inserted);
-            var pending = new List<IRGPass>(inserted);
+            var anchored = m_PlaceAnchored; anchored.Clear();
+            var pending = m_PlacePending; pending.Clear();
             for (int i = 0; i < m_PassList.Count; ++i)
             {
                 if (m_PassList[i].insertedByCompiler) pending.Add(m_PassList[i]);
                 else anchored.Add(m_PassList[i]);
             }
 
-            var placed = new List<IRGPass>(m_PassList.Count);
+            var placed = m_PlacePlaced; placed.Clear();
             int anchor = 0;
             while (anchor < anchored.Count || pending.Count > 0)
             {
@@ -466,6 +469,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_PassList.Clear();
             m_PassList.AddRange(placed);
             for (int i = 0; i < m_PassList.Count; ++i) m_PassList[i].index = i;
+            anchored.Clear(); pending.Clear(); placed.Clear();
         }
 
         bool TryAttachmentSize(in RGTextureHandle texture, out int width, out int height, out int samples)

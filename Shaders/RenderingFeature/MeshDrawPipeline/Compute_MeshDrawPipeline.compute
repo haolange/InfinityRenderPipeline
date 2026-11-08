@@ -1,13 +1,11 @@
-// Mesh Drawing Pipeline GPU backend kernels.
-// Platform fallback (CPU side):
-// - No compute → CpuDirect
-// - Compute without indirect → CpuDirect procedural
-// - Indirect → one Compact over CandidateTable + BuildIndirectArgs + DrawMeshInstancedIndirect
-// Never read back visible counts on the submitting frame.
+// Mesh Drawing Pipeline kernels.
+// - Transform versions: every backend builds immutable per-entity transform tables from dirty-slot patches.
+// - Culling: one uint per entity slot and view (frustum, or two-stage Hi-Z occlusion in MeshOcclusion.hlsl).
+// - GPU indirect draw lists: ClearCounts, Compact over the pass's candidate table (one entry per element slot),
+//   BuildIndirectArgs, then one DrawMeshInstancedIndirect per live command. Visible counts are never read back.
 //
-// Index semantics:
-// - CandidateTable / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
-// - ShadingIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
+// Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
+// (per pass cache), instance (position in InstanceToEntity).
 
 #pragma kernel InitializeTransformVersion
 #pragma kernel CopyTransformVersion
@@ -20,33 +18,37 @@
 #pragma kernel Compact
 #pragma kernel BuildIndirectArgs
 
-uint _InstanceCount;
+#define MESH_NO_COMMAND 0xFFFFFFFFu
+#define MESH_COMMAND_MASK 0x00FFFFFFu
+#define MESH_LOD_SHIFT 24u
+#define MESH_ENTITY_VISIBLE 4u
+#define MESH_META_STRIDE 5u
+#define MESH_ARGS_STRIDE 5u
+#include "../../ShaderLibrary/MeshLod.hlsl"
+
+uint _EntityCount;
 uint _CommandCount;
 uint _CandidateCount;
-uint _CommandBegin;
-uint _CandidateOffset;
-uint _CandidateSpan;
+uint _DitherLod;
 float4 _FrustumPlanes[6];
 
-StructuredBuffer<float4> _InstanceBoundsCenter;
-StructuredBuffer<float4> _InstanceBoundsExtent;
-StructuredBuffer<uint> _InstanceToTransform;
-StructuredBuffer<uint> _InstanceFlags;
-StructuredBuffer<uint> _InstanceLayerMask;
-StructuredBuffer<uint2> _InstanceSceneCullingMask;
+StructuredBuffer<float4> _EntityBoundsCenter;
+StructuredBuffer<float4> _EntityBoundsExtent;
+StructuredBuffer<uint> _EntityFlags;
+StructuredBuffer<uint> _EntityLayerMask;
+StructuredBuffer<uint2> _EntitySceneCullingMask;
+StructuredBuffer<uint> _EntityRenderingLayer;
 uint _ViewSceneCullingMaskLow;
 uint _ViewSceneCullingMaskHigh;
-StructuredBuffer<uint> _InstanceRenderingLayer;
 uint _ViewLayerMask;
 uint _ViewRenderingLayerMask;
 uint _FilterRenderingLayers;
-// EMeshInstanceFlags that cull an instance from this view (e.g. ShadowmaskStatic for Shadowmask light views).
-uint _ViewExcludeFlags;
 RWStructuredBuffer<uint> _Visibility;
 
 StructuredBuffer<uint> _CommandMeta;
 StructuredBuffer<uint2> _CandidateTable;
-RWStructuredBuffer<uint> _ShadingIndices;
+RWStructuredBuffer<uint> _InstanceToEntity;
+RWStructuredBuffer<float> _InstanceFade;
 RWStructuredBuffer<uint> _VisibleCounts;
 RWStructuredBuffer<uint> _IndirectArgs;
 
@@ -57,9 +59,8 @@ bool FrustumCullAABB(float3 center, float3 extent)
     for (int i = 0; i < 6; ++i)
     {
         float4 plane = _FrustumPlanes[i];
-        float3 n = plane.xyz;
-        float distance = dot(n, center) + plane.w;
-        float radius = dot(extent, abs(n));
+        float distance = dot(plane.xyz, center) + plane.w;
+        float radius = dot(extent, abs(plane.xyz));
         if (distance + radius < 0.0f)
         {
             culled = true;
@@ -69,115 +70,115 @@ bool FrustumCullAABB(float3 center, float3 extent)
     return culled;
 }
 
-bool MeshFrustumVisible(uint instanceIndex)
+// Frustum, flags and masks; visible entities get their packed LOD visibility (0 when no level draws).
+bool MeshFrustumVisible(uint entity)
 {
-    uint flags = _InstanceFlags[instanceIndex];
     bool visible = false;
-    bool matches = (flags & 4u) != 0u && (flags & _ViewExcludeFlags) == 0u
-        && (_InstanceLayerMask[instanceIndex] & _ViewLayerMask) != 0u;
+    bool matches = (_EntityFlags[entity] & MESH_ENTITY_VISIBLE) != 0u && (_EntityLayerMask[entity] & _ViewLayerMask) != 0u;
     if (matches && _FilterRenderingLayers != 0u)
-        matches = (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) != 0u;
+        matches = (_EntityRenderingLayer[entity] & _ViewRenderingLayerMask) != 0u;
     if (matches)
     {
-        uint2 sceneMask = _InstanceSceneCullingMask[instanceIndex];
+        uint2 sceneMask = _EntitySceneCullingMask[entity];
         matches = any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh));
     }
     if (matches)
     {
-        float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
-        float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
-        visible = !FrustumCullAABB(center, extent);
+        visible = !FrustumCullAABB(_EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
     }
     return visible;
+}
+
+uint MeshCullVisibility(uint entity)
+{
+    uint packed = 0u;
+    if (MeshFrustumVisible(entity)) packed = MeshPackLodVisibility(entity, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
+    return packed;
 }
 
 [numthreads(64, 1, 1)]
 void CullFrustum(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _InstanceCount) _Visibility[id.x] = MeshFrustumVisible(id.x) ? 1u : 0u;
+    if (id.x < _EntityCount) _Visibility[id.x] = MeshCullVisibility(id.x);
 }
 #include "MeshOcclusion.hlsl"
 
 [numthreads(64, 1, 1)]
 void ClearCounts(uint3 id : SV_DispatchThreadID)
 {
-    uint commandIndex = _CommandBegin + id.x;
-    if (id.x >= _CommandCount)
+    if (id.x >= _CommandCount) return;
+    [unroll]
+    for (uint range = 0u; range < 2u; ++range)
     {
-        return;
+        _VisibleCounts[id.x * 2u + range] = 0u;
+        uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
+        _IndirectArgs[argsBase + 0u] = 0u;
+        _IndirectArgs[argsBase + 1u] = 0u;
+        _IndirectArgs[argsBase + 2u] = 0u;
+        _IndirectArgs[argsBase + 3u] = 0u;
+        _IndirectArgs[argsBase + 4u] = 0u;
     }
-
-    _VisibleCounts[commandIndex] = 0u;
-    uint argsBase = commandIndex * 5u;
-    _IndirectArgs[argsBase + 0u] = 0u;
-    _IndirectArgs[argsBase + 1u] = 0u;
-    _IndirectArgs[argsBase + 2u] = 0u;
-    _IndirectArgs[argsBase + 3u] = 0u;
-    _IndirectArgs[argsBase + 4u] = 0u;
 }
 
+// One thread per element slot of the pass cache. A visible member of the selected LOD appends its entity to its command's
+// stable range (range 0). Inside a cross-fade band of a dithering pass the outgoing level appends +f and the next level -f
+// to the fading range (range 1); mirrors MeshDrawGatherJob.LodFactor.
 [numthreads(64, 1, 1)]
 void Compact(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _CandidateSpan)
-    {
-        return;
-    }
+    if (id.x >= _CandidateCount) return;
+    uint2 candidate = _CandidateTable[id.x];
+    if (candidate.y == MESH_NO_COMMAND) return;
+    uint entity = candidate.x;
+    uint command = candidate.y & MESH_COMMAND_MASK;
+    uint elementLod = candidate.y >> MESH_LOD_SHIFT;
+    if (command >= _CommandCount) return;
+    uint packed = _Visibility[entity];
+    if (packed == 0u) return;
 
-    uint candidateIndex = _CandidateOffset + id.x;
-    if (candidateIndex >= _CandidateCount)
+    uint level = (packed >> 8) & 0xFFu;
+    uint fadeBits = packed >> 16;
+    bool fading = _DitherLod != 0u && fadeBits != MESH_LOD_STABLE;
+    float fade = fadeBits / 65534.0;
+    uint range = 2u;
+    float factor = 0.0;
+    if (elementLod == level)
     {
-        return;
+        if (!fading) range = 0u;
+        else if (fadeBits > 0u) { range = 1u; factor = fade; }
     }
-
-    uint2 candidate = _CandidateTable[candidateIndex];
-    uint instanceIndex = candidate.x;
-    uint commandId = candidate.y;
-    if (instanceIndex >= _InstanceCount || commandId < _CommandBegin)
+    else if (fading && elementLod == level + 1u)
     {
-        return;
+        range = 1u;
+        factor = -max(fade, 1e-6);
     }
-
-    uint localCommand = commandId - _CommandBegin;
-    if (localCommand >= _CommandCount)
-    {
-        return;
-    }
-
-    if (_Visibility[instanceIndex] == 0u)
-    {
-        return;
-    }
+    if (range == 2u) return;
 
     uint slot;
-    InterlockedAdd(_VisibleCounts[commandId], 1u, slot);
-    uint baseOffset = _CommandMeta[commandId * 4u + 3u];
-    _ShadingIndices[baseOffset + slot] = _InstanceToTransform[instanceIndex];
+    InterlockedAdd(_VisibleCounts[command * 2u + range], 1u, slot);
+    uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
+    _InstanceToEntity[instance] = entity;
+    _InstanceFade[instance] = factor;
 }
 
 [numthreads(64, 1, 1)]
 void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
 {
-    uint commandIndex = _CommandBegin + id.x;
-    if (id.x >= _CommandCount)
+    if (id.x >= _CommandCount) return;
+    uint metaBase = id.x * MESH_META_STRIDE;
+    [unroll]
+    for (uint range = 0u; range < 2u; ++range)
     {
-        return;
+        uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
+        _IndirectArgs[argsBase + 0u] = _CommandMeta[metaBase + 0u];
+        _IndirectArgs[argsBase + 1u] = _VisibleCounts[id.x * 2u + range];
+        _IndirectArgs[argsBase + 2u] = _CommandMeta[metaBase + 1u];
+        _IndirectArgs[argsBase + 3u] = _CommandMeta[metaBase + 2u];
+        _IndirectArgs[argsBase + 4u] = 0u;
     }
-
-    uint metaBase = commandIndex * 4u;
-    uint indexCount = _CommandMeta[metaBase + 0u];
-    uint startIndex = _CommandMeta[metaBase + 1u];
-    uint baseVertex = _CommandMeta[metaBase + 2u];
-    uint instanceCount = _VisibleCounts[commandIndex];
-    uint argsBase = commandIndex * 5u;
-    _IndirectArgs[argsBase + 0u] = indexCount;
-    _IndirectArgs[argsBase + 1u] = instanceCount;
-    _IndirectArgs[argsBase + 2u] = startIndex;
-    _IndirectArgs[argsBase + 3u] = baseVertex;
-    _IndirectArgs[argsBase + 4u] = 0u;
 }
 
-// Immutable scene transform versions. Only dirty 64-slot pages cross the CPU/GPU boundary.
+// Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.
 struct FMeshTransformPatch
 {
     float4x4 objectToWorld;

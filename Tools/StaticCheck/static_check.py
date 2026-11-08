@@ -12,6 +12,12 @@ Checks
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
+  graphdependency  Runtime/RendererCore/RenderGraph never references the mesh pipeline
+  meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
+  meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
+  meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
+  findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
+  lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -258,6 +264,163 @@ def check_unity_boundary(repo, out):
             out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
 
 
+def check_graph_dependency(repo, out):
+    # The render graph is extended by the mesh pipeline through IRGGraphExtension; it must not depend on it.
+    # Both share an assembly, so any MeshPipeline token (full, namespace-relative, alias or using static) is the dependency.
+    root = os.path.join(repo, 'Runtime/RendererCore/RenderGraph')
+    for p in all_files(root, {'.cs'}):
+        if re.search(r'\bMeshPipeline\b', without_comments(read(p))):
+            out.append(('ERROR', 'graphdependency', os.path.relpath(p, repo) + ': RenderGraph must not reference InfinityTech.Rendering.MeshPipeline'))
+
+
+MESH_DIR = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline'
+MESH_SHADERS = ('Shaders/ShaderLibrary/GPUScene.hlsl',
+                'Shaders/ShaderLibrary/MeshLod.hlsl',
+                'Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute',
+                'Shaders/RenderingFeature/MeshDrawPipeline/MeshOcclusion.hlsl')
+MESH_ID_SOURCES = ('Runtime/RenderPipeline/Utility/PipelineIDs.cs',)
+HLSL_GLOBAL = re.compile(r'^(?:RW)?(?:StructuredBuffer|Texture2D)<[^>]+>\s+([\w\s,]+);|^(?:uint|int|float|float2|float3|float4|float4x4)\s+([\w\s,\[\]0-9]+);', re.M)
+PROPERTY_ID = re.compile(r'PropertyToID\("(\w+)"\)')
+
+
+def hlsl_globals(text):
+    names = set()
+    for match in HLSL_GLOBAL.finditer(text):
+        for name in (match.group(1) or match.group(2)).split(','):
+            name = re.sub(r'\[.*\]', '', name).strip()
+            if name: names.add(name)
+    return names
+
+
+def check_mesh_bindings(repo, out):
+    # Every global of the mesh shaders is bound from C#, and every mesh property ID names a mesh shader global.
+    shader_names = set()
+    for rel in MESH_SHADERS:
+        path = os.path.join(repo, rel)
+        if os.path.exists(path): shader_names |= hlsl_globals(without_comments(read(path)))
+    if not shader_names: return
+    mesh_ids, runtime_ids = set(), set()
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        ids = set(PROPERTY_ID.findall(without_comments(read(p))))
+        runtime_ids |= ids
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        if rel.startswith(MESH_DIR): mesh_ids |= ids
+    for rel in MESH_ID_SOURCES:
+        path = os.path.join(repo, rel)
+        if os.path.exists(path):
+            text = without_comments(read(path))
+            section = text[text.find('Mesh entity interface'):] if 'Mesh entity interface' in text else ''
+            mesh_ids |= set(PROPERTY_ID.findall(section[:section.find('\n\n')] if section else ''))
+    for name in sorted(shader_names - runtime_ids):
+        out.append(('ERROR', 'meshbindings', f'mesh shader global {name} has no C# PropertyToID binding'))
+    for name in sorted(mesh_ids - shader_names):
+        out.append(('ERROR', 'meshbindings', f'mesh property ID "{name}" names no mesh shader global'))
+
+
+def method_body(text, signature):
+    start = text.find(signature)
+    if start < 0: return None
+    brace = text.find('{', start)
+    depth, i = 0, brace
+    while i < len(text):
+        if text[i] == '{': depth += 1
+        elif text[i] == '}':
+            depth -= 1
+            if depth == 0: return text[brace:i + 1]
+        i += 1
+    return None
+
+
+def check_mesh_submit(repo, out):
+    # The raster consumer of a draw list only draws; preparation belongs to the upload and compute producers.
+    for rel in ('Backend/MeshCpuDrawBackend.cs', 'Backend/MeshGpuDrawBackend.cs'):
+        path = os.path.join(repo, MESH_DIR, rel)
+        if not os.path.exists(path): continue
+        body = method_body(without_comments(read(path)), 'internal void Submit(')
+        if body is None:
+            out.append(('ERROR', 'meshsubmit', f'{rel}: no Submit method'))
+            continue
+        for token in ('DispatchCompute(', 'SetBufferData(', 'SetData(', 'GetBuffer(', 'RentPayload(', 'AllocateInstances('):
+            if token in body: out.append(('ERROR', 'meshsubmit', f'{rel}: Submit calls {token.rstrip("(")}'))
+        if 'MeshDrawProfiling.Draw(viewKind' not in body:
+            out.append(('ERROR', 'meshsubmit', f'{rel}: Submit does not open the MeshDrawProfiling draw marker'))
+    extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
+    if os.path.exists(extension):
+        text = without_comments(read(extension))
+        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.compaction', 'InsertDrawListPreparation'):
+            if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
+
+
+MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
+                   'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
+MESH_PASS_FORBIDDEN = ('EMeshBackendPolicy', 'MeshVisibilityHandle', 'scriptableRenderContext.CreateRendererList',
+                       'scriptableRenderContext.CreateShadowRendererList')
+
+
+def check_mesh_passes(repo, out):
+    for rel in MESH_PASS_FILES:
+        path = os.path.join(repo, 'Runtime/RenderPipeline/Pass', rel)
+        if not os.path.exists(path): continue
+        text = without_comments(read(path))
+        for token in MESH_PASS_FORBIDDEN:
+            if token in text: out.append(('ERROR', 'meshpasses', f'{rel} references {token}'))
+
+
+SERIALIZED_FIELD = re.compile(r'(?:\[[^\]]*\bSerializeField\b[^\]]*\][^;{}]*?|public\s+)(?:readonly\s+)?[\w<>\[\],\s.?]+?\s(\w+)\s*(?:=[^;]*)?;')
+
+
+def serialized_fields(repo, type_name, cache, seen=None):
+    if type_name in cache: return cache[type_name]
+    seen = seen or set()
+    if type_name in seen: return set()
+    seen.add(type_name)
+    fields, found = set(), False
+    declaration = re.compile(r'\b(?:class|struct)\s+' + re.escape(type_name) + r'\b(?:\s*<[^>]*>)?\s*(?::\s*([\w.<>,\s]+?))?\s*(?:where|\{)')
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        text = without_comments(read(p))
+        for match in declaration.finditer(text):
+            found = True
+            body = method_body(text[match.start():], '{') or ''
+            fields |= set(SERIALIZED_FIELD.findall(body))
+            if match.group(1):
+                base = match.group(1).split(',')[0].strip().split('.')[-1].split('<')[0]
+                fields |= serialized_fields(repo, base, cache, seen) or set()
+    cache[type_name] = fields if found else None
+    return cache[type_name]
+
+
+def check_find_property(repo, out):
+    cache = {}
+    editor_type = re.compile(r'\[CustomEditor\(typeof\((\w+)\)')
+    find = re.compile(r'serializedObject\.FindProperty\("([\w]+)"\)')
+    for p in all_files(os.path.join(repo, 'Editor'), {'.cs'}):
+        text = without_comments(read(p))
+        target = editor_type.search(text)
+        if not target: continue
+        fields = serialized_fields(repo, target.group(1), cache)
+        if fields is None: continue
+        for name in find.findall(text):
+            if name not in fields:
+                out.append(('ERROR', 'findproperty', f'{os.path.relpath(p, repo)}: FindProperty("{name}") is not a serialized field of {target.group(1)}'))
+
+
+DITHERED_MESH_PASSES = ('RasterShadowPass', 'RasterDepthPass', 'RasterGBufferPass', 'RasterForwardPass', 'RasterMotionPass')
+
+
+def check_lod_dither(repo, out):
+    # Opaque mesh passes cross-fade LOD transitions; translucent passes draw the stable level only.
+    for p in all_files(os.path.join(repo, 'Shaders'), {'.shader'}):
+        text = read(p)
+        if not re.search(r'"InfinityMeshInstancing"\s*=\s*"True"', text): continue
+        for light in DITHERED_MESH_PASSES:
+            start = text.find('"LightMode" = "%s"' % light)
+            if start < 0: continue
+            end = text.find('ENDHLSL', start)
+            block = text[start:end if end > 0 else len(text)]
+            if 'multi_compile _ INFINITY_LOD_DITHER' not in block or 'LODDitheringTransition' not in block:
+                out.append(('ERROR', 'lodither', f'{os.path.relpath(p, repo)}: {light} does not cross-fade with INFINITY_LOD_DITHER'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -265,7 +428,9 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary)):
+                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
+                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

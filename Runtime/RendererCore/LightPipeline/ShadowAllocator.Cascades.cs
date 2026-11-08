@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        // One fit for native and MeshScene casters. A Unity-native-only fit can omit custom casters even when
+        // One fit for native and mesh-world casters. A Unity-native-only fit can omit custom casters even when
         // Unity reports a valid split, so native validity is never used as a second matrix authority.
         internal void FitCascade(Camera camera, Light light, Bounds casters, float near, float far, int resolution, int guardTexels,
             out Matrix4x4 view, out Matrix4x4 projection, out ShadowSplitData split)

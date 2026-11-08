@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEditor.ProjectWindowCallback;
@@ -20,31 +21,28 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
         [MenuItem("Assets/AssetActions/Primitive/BuildMeshAssetFromPrefab", priority = 32)]
         public static void BuildMeshAssetFromPrefab(MenuCommand menuCommand)
         {
-            Object activeObject = Selection.activeObject;
-            if (activeObject.GetType() != typeof(GameObject))
+            if (!(Selection.activeObject is GameObject prefab))
             {
-                Debug.LogWarning("select asset is not Prefab");
+                Debug.LogWarning("The selected asset is not a prefab.");
                 return;
             }
 
-            GameObject prefab = (GameObject)activeObject;
-            // A MeshAsset is built either from a LODGroup or from a MeshFilter + MeshRenderer pair.
-            bool buildOK = prefab.GetComponent<LODGroup>() != null
-                || (prefab.GetComponent<MeshFilter>() != null && prefab.GetComponent<MeshRenderer>() != null);
-
-            if (buildOK)
+            MeshAsset meshAsset = ScriptableObject.CreateInstance<MeshAsset>();
+            try
             {
-                MeshAsset meshAsset = ScriptableObject.CreateInstance<MeshAsset>();
-                meshAsset.target = prefab;
-                MeshAsset.BuildMeshAsset(prefab, meshAsset);
-
-                CreateMeshAsset meshAssetFactory = ScriptableObject.CreateInstance<CreateMeshAsset>();
-                meshAssetFactory.meshAsset = meshAsset;
-
-                ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, meshAssetFactory, "SM_" + prefab.name + ".asset", null, null);
-            } else {
-                Debug.LogWarning("The selected prefab needs a LODGroup, or a MeshFilter with a MeshRenderer.");
+                MeshAssetBuilder.BuildFromPrefab(prefab, meshAsset);
             }
+            catch (InvalidOperationException error)
+            {
+                UnityEngine.Object.DestroyImmediate(meshAsset);
+                Debug.LogError(error.Message, prefab);
+                return;
+            }
+
+            CreateMeshAsset meshAssetFactory = ScriptableObject.CreateInstance<CreateMeshAsset>();
+            meshAssetFactory.meshAsset = meshAsset;
+
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, meshAssetFactory, "SM_" + prefab.name + ".asset", null, null);
         }
 
         #endregion //MeshAsset

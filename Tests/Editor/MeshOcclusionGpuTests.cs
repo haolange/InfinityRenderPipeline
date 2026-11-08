@@ -4,6 +4,8 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -16,10 +18,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true, true)]
         public void PredictionAndRecovery_PreserveConservativeVisibility(bool padded, bool currentHole)
         {
+            MeshTestUtility.RequireComputeReadback();
             bool reversed = SystemInfo.usesReversedZBuffer;
             float behind = reversed ? .2f : .8f, front = reversed ? .9f : .1f;
-            var asset = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute");
-            Assert.IsNotNull(asset);
+            var asset = MeshTestUtility.LoadMeshDrawShader();
             var shader = UnityEngine.Object.Instantiate(asset);
             var allocations = new List<ComputeBuffer>();
             var previous = Furthest(padded, false, false);
@@ -28,21 +30,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var centers = new Vector4[Count]; var extents = new Vector4[Count];
                 var flags = new uint[Count]; var layers = new uint[Count]; var rendering = new uint[Count];
-                var scenes = new Vector2Int[Count]; var indices = new uint[Count]; var generations = new uint[Count];
+                var scenes = new Vector2Int[Count]; var generations = new uint[Count];
                 var previousGenerations = new uint[Count]; var matrices = new Matrix4x4[Count]; var oldMatrices = new Matrix4x4[Count];
                 for (int i = 0; i < Count; ++i)
                 {
                     centers[i] = new Vector4(0, 0, behind, 0); extents[i] = new Vector4(.05f, .05f, .02f, 0);
-                    flags[i] = 4; layers[i] = rendering[i] = 1; scenes[i] = new Vector2Int(-1, -1); indices[i] = (uint)i;
+                    flags[i] = 4; layers[i] = rendering[i] = 1; scenes[i] = new Vector2Int(-1, -1);
                     generations[i] = previousGenerations[i] = 1; matrices[i] = oldMatrices[i] = Matrix4x4.identity;
                 }
                 centers[1].z = front;
                 centers[2].z = reversed ? .99f : .01f; extents[2].z = .03f; // Crossing the near plane stays visible.
                 centers[3].x = .99f; // Partially outside the image stays visible.
                 matrices[4] = Matrix4x4.Translate(Vector3.right * .25f); // Moving objects do not rely on historical bounds.
-                generations[5] = 2; // Reused slot.
+                generations[5] = 3; // Reused slot.
                 flags[6] = 0; layers[7] = 0;
-                indices[8] = Count; // Invalid historical range must not be indexed.
+                previousGenerations[8] = 0; // A slot absent from the previous version has no history.
                 centers[9].x = .94f; extents[9].x = .025f; // Last logical quad adjacent to poisoned padding.
                 centers[10].z = reversed ? .7f : .3f; extents[10] = Vector4.zero; // Co-planar bounds must not self-occlude.
                 var first = Buffer(new uint[Count], 4); var deferred = Buffer(new uint[Count], 4);
@@ -50,23 +52,29 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var boundCenters = Buffer(centers, 16); var boundExtents = Buffer(extents, 16);
                 var boundFlags = Buffer(flags, 4); var boundLayers = Buffer(layers, 4);
                 var boundRendering = Buffer(rendering, 4); var boundScenes = Buffer(scenes, 8);
+                // A small positive bound: with a missing or zero LOD scale every such entity would be LOD-culled. Entity 1 keeps
+                // a zero bound (always stable) and entity 10 has zero extent, so its screen size is 0.
+                var chainValues = new MeshLodChain[Count];
+                for (int i = 0; i < Count; ++i) chainValues[i] = i == 1 || i == 10 ? MeshLodChain.Single : MeshLodChain.Create(new[] { 1e-3f }, 0.2f);
+                var chains = Buffer(chainValues, System.Runtime.InteropServices.Marshal.SizeOf<MeshLodChain>());
                 int noHistory = shader.FindKernel("CullFirstNoHistory"), history = shader.FindKernel("CullFirstWithHistory"), recovery = shader.FindKernel("CullOcclusionRecovery");
                 foreach (int kernel in new[] { noHistory, history })
                 {
-                    shader.SetBuffer(kernel, "_InstanceBoundsCenter", boundCenters); shader.SetBuffer(kernel, "_InstanceBoundsExtent", boundExtents);
-                    shader.SetBuffer(kernel, "_InstanceFlags", boundFlags); shader.SetBuffer(kernel, "_InstanceLayerMask", boundLayers);
-                    shader.SetBuffer(kernel, "_InstanceRenderingLayer", boundRendering); shader.SetBuffer(kernel, "_InstanceSceneCullingMask", boundScenes);
+                    shader.SetBuffer(kernel, "_EntityBoundsCenter", boundCenters); shader.SetBuffer(kernel, "_EntityBoundsExtent", boundExtents);
+                    shader.SetBuffer(kernel, "_EntityFlags", boundFlags); shader.SetBuffer(kernel, "_EntityLayerMask", boundLayers);
+                    shader.SetBuffer(kernel, "_EntityRenderingLayer", boundRendering); shader.SetBuffer(kernel, "_EntitySceneCullingMask", boundScenes);
                     shader.SetBuffer(kernel, "_Visibility", first); shader.SetBuffer(kernel, "_DeferredVisibility", deferred); shader.SetBuffer(kernel, "_FinalVisibility", final);
                 }
-                shader.SetInt("_InstanceCount", Count); shader.SetInt("_ViewLayerMask", 1);
-                shader.SetInt("_FilterRenderingLayers", 0); shader.SetInt("_ViewRenderingLayerMask", 1); shader.SetInt("_ViewExcludeFlags", 0);
+                foreach (int kernel in new[] { noHistory, history, recovery }) MeshTestUtility.BindLod(shader, kernel, chains, MeshTestUtility.Lod);
+                shader.SetInt("_EntityCount", Count); shader.SetInt("_ViewLayerMask", 1);
+                shader.SetInt("_FilterRenderingLayers", 0); shader.SetInt("_ViewRenderingLayerMask", 1);
                 shader.SetInt("_ViewSceneCullingMaskLow", -1); shader.SetInt("_ViewSceneCullingMaskHigh", -1);
                 shader.SetVectorArray("_FrustumPlanes", new[] {new Vector4(1,0,0,1),new Vector4(-1,0,0,1),new Vector4(0,1,0,1),new Vector4(0,-1,0,1),new Vector4(0,0,1,0),new Vector4(0,0,-1,1)});
                 // Intentionally no history texture, matrix or generation bindings for this kernel.
                 shader.Dispatch(noHistory, 1, 1, 1);
-                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Read(first));
+                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Visible(first));
+                Assert.AreEqual(1u | (65535u << 16), Read(first)[1], "A zero-bound chain packs level 0 as stable.");
                 CollectionAssert.AreEqual(new uint[Count], Read(deferred));
-                shader.SetBuffer(history, "_InstanceToTransform", Buffer(indices, 4));
                 shader.SetBuffer(history, "_MeshCullCurrentTransforms", Buffer(matrices, 64));
                 shader.SetBuffer(history, "_MeshCullPreviousTransforms", Buffer(oldMatrices, 64));
                 shader.SetBuffer(history, "_MeshCullCurrentGenerations", Buffer(generations, 4));
@@ -77,30 +85,30 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetInt("_MeshCullMipCount", PyramidMipBatch.MipCount((Width + 1) / 2, (Height + 1) / 2));
                 shader.SetTexture(history, "_MeshCullFurthest", previous);
                 shader.Dispatch(history, 1, 1, 1);
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Read(first));
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Visible(first));
                 CollectionAssert.AreEqual(new uint[] {1,0,0,0,0,0,0,0,0,1,0}, Read(deferred));
-                shader.SetBuffer(recovery, "_InstanceBoundsCenter", boundCenters); shader.SetBuffer(recovery, "_InstanceBoundsExtent", boundExtents);
+                shader.SetBuffer(recovery, "_EntityBoundsCenter", boundCenters); shader.SetBuffer(recovery, "_EntityBoundsExtent", boundExtents);
                 shader.SetBuffer(recovery, "_OcclusionDeferred", deferred); shader.SetBuffer(recovery, "_RecoveredVisibility", recovered);
                 shader.SetBuffer(recovery, "_FinalVisibility", final); shader.SetTexture(recovery, "_MeshCullFurthest", current);
                 shader.Dispatch(recovery, 1, 1, 1);
                 var expectedRecovered = new uint[Count]; expectedRecovered[0] = 1;
                 expectedRecovered[9] = currentHole ? 0u : 1u;
-                CollectionAssert.AreEqual(expectedRecovered, Read(recovered));
+                CollectionAssert.AreEqual(expectedRecovered, Visible(recovered));
                 var expectedFinal = new uint[] {1,1,1,1,1,1,0,0,1,currentHole ? 0u : 1u,1};
-                CollectionAssert.AreEqual(expectedFinal, Read(final));
+                CollectionAssert.AreEqual(expectedFinal, Visible(final));
                 // A projection wholly behind the camera cannot prove occlusion.
                 foreach (float w in new[] { -1f, 0f })
                 {
                     var invalidProjection = Matrix4x4.identity; invalidProjection.m33 = w;
                     shader.SetMatrix("_MeshCullProjection", invalidProjection);
                     shader.Dispatch(history, 1, 1, 1);
-                    CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Read(first));
+                    CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Visible(first));
                     CollectionAssert.AreEqual(new uint[Count], Read(deferred));
                 }
                 shader.SetMatrix("_MeshCullProjection", Matrix4x4.identity);
                 shader.SetInt("_MeshCullMipCount", 0);
                 shader.Dispatch(history, 1, 1, 1);
-                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Read(first));
+                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Visible(first));
                 CollectionAssert.AreEqual(new uint[Count], Read(deferred));
                 shader.SetInt("_MeshCullMipCount", PyramidMipBatch.MipCount((Width + 1) / 2, (Height + 1) / 2));
                 // Cancellation in a translated VP must not turn a co-planar surface into an occlusion proof.
@@ -108,9 +116,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 boundCenters.SetData(centers);
                 var shifted = Matrix4x4.identity; shifted.m03 = shifted.m13 = shifted.m23 = -2048;
                 shader.SetMatrix("_MeshCullProjection", shifted);
+                var shiftedLod = new MeshLodProjection { origin = new Unity.Mathematics.float3(2048, 2048, 2048), scale = 1, bias = 1 };
+                foreach (int kernel in new[] { noHistory, history, recovery }) MeshTestUtility.BindLod(shader, kernel, chains, shiftedLod);
                 shader.SetVectorArray("_FrustumPlanes", new[] {new Vector4(1,0,0,-2047),new Vector4(-1,0,0,2049),new Vector4(0,1,0,-2047),new Vector4(0,-1,0,2049),new Vector4(0,0,1,-2048),new Vector4(0,0,-1,2049)});
                 shader.Dispatch(history, 1, 1, 1);
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Read(first));
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Visible(first));
                 CollectionAssert.AreEqual(new uint[] {1,0,0,0,0,0,0,0,0,1,0}, Read(deferred));
 
                 ComputeBuffer Buffer(Array values, int stride)
@@ -124,6 +134,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 UnityEngine.Object.DestroyImmediate(previous); UnityEngine.Object.DestroyImmediate(current); UnityEngine.Object.DestroyImmediate(shader);
             }
         }
+        static uint[] Visible(ComputeBuffer buffer) => MeshTestUtility.VisibleBits(Read(buffer));
         static uint[] Read(ComputeBuffer buffer)
         {
             var read = AsyncGPUReadback.Request(buffer); read.WaitForCompletion(); Assert.IsFalse(read.hasError);

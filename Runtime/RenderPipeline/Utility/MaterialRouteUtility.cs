@@ -10,27 +10,44 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class MeshRoute
         {
             internal int route, stage, queue;
-            internal uint passMask;
-            internal uint version = 1;
+            internal Shader shader;
         }
-        static readonly string[] s_MeshPasses = { "RasterDepthPass", "RasterGBufferPass", "RasterForwardPass", "RasterShadowPass", "RasterMotionPass", "RasterTranslucentDepthPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" };
-        static uint PassMask(Material material)
+        static readonly string[] s_RoutedPasses = { "RasterGBufferPass", "RasterForwardPass", "RasterDepthPass", "RasterShadowPass", "ShadowCaster", "RasterMotionPass",
+            "RasterTranslucentDepthPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" };
+
+        /// <summary>
+        /// The one authority for which passes a surface route and translucent stage draw. Pass state on the material and
+        /// mesh-pass membership both derive from it.
+        /// </summary>
+        public static bool RouteEnablesPass(int route, int stage, string lightMode)
         {
-            uint mask = 0;
-            for (int i = 0; i < s_MeshPasses.Length; ++i) if (material.GetShaderPassEnabled(s_MeshPasses[i])) mask |= 1u << i;
-            return mask;
+            bool opaque = stage == 0;
+            switch (lightMode)
+            {
+                case "RasterGBufferPass": return opaque;
+                case "RasterForwardPass": return opaque && route == 1;
+                case "RasterDepthPass":
+                case "RasterShadowPass":
+                case "ShadowCaster":
+                case "RasterMotionPass": return opaque;
+                case "RasterTranslucentDepthPass": return !opaque;
+                case "RasterTranslucentT0Pass": return stage == 1;
+                case "RasterTranslucentT1Pass": return stage == 2;
+                case "RasterTranslucentT2Pass": return stage == 3;
+                default: throw new ArgumentOutOfRangeException(nameof(lightMode), lightMode, "Not a routed pass.");
+            }
         }
         static readonly ConditionalWeakTable<Material, MeshRoute>.CreateValueCallback s_CreateMeshRoute = CaptureMeshRoute;
         static readonly ConditionalWeakTable<Material, MeshRoute> s_MeshRoutes = new ConditionalWeakTable<Material, MeshRoute>();
         static MeshRoute CaptureMeshRoute(Material material)
         {
             Read(material, out int route, out int stage);
-            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, passMask = PassMask(material) };
+            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, shader = material.shader };
         }
-        internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out uint version)
+        internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out Shader shader)
         {
             var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
-            route = state.route; stage = state.stage; queue = state.queue; version = state.version;
+            route = state.route; stage = state.stage; queue = state.queue; shader = state.shader;
         }
 
         static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
@@ -67,16 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
             bool opaque = stage == 0;
             // Both opaque routes provide surface data for AO, ray tracing and motion consumers.
             // Forward pixels are tagged so Deferred never shades them.
-            SetPass(material, "RasterGBufferPass", opaque);
-            SetPass(material, "RasterForwardPass", opaque && route == 1);
-            SetPass(material, "RasterDepthPass", opaque);
-            SetPass(material, "RasterShadowPass", opaque);
-            SetPass(material, "ShadowCaster", opaque);
-            SetPass(material, "RasterMotionPass", opaque);
-            SetPass(material, "RasterTranslucentDepthPass", !opaque);
-            SetPass(material, "RasterTranslucentT0Pass", stage == 1);
-            SetPass(material, "RasterTranslucentT1Pass", stage == 2);
-            SetPass(material, "RasterTranslucentT2Pass", stage == 3);
+            foreach (string pass in s_RoutedPasses) SetPass(material, pass, RouteEnablesPass(route, stage, pass));
 
             string renderType = opaque ? "Opaque" : "Transparent";
             if (material.GetTag("RenderType", false) != renderType)
@@ -93,10 +101,10 @@ namespace InfinityTech.Rendering.Pipeline
             if (material == null) throw new ArgumentNullException(nameof(material));
             var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
             Read(material, out int route, out int stage);
-            int queue = material.renderQueue; uint mask = PassMask(material);
-            if (state.route == route && state.stage == stage && state.queue == queue && state.passMask == mask) return;
-            state.route = route; state.stage = stage; state.queue = queue; state.passMask = mask;
-            unchecked { ++state.version; }
+            int queue = material.renderQueue;
+            Shader shader = material.shader;
+            if (state.route == route && state.stage == stage && state.queue == queue && state.shader == shader) return;
+            state.route = route; state.stage = stage; state.queue = queue; state.shader = shader;
             InfinityTech.Component.MeshComponent.InvalidateMaterialRouting(material);
         }
 

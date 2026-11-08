@@ -1,235 +1,239 @@
+using System;
 using NUnit.Framework;
-using UnityEditor;
 using Unity.Mathematics;
-using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.GPUResource;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
-using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.GPUResource;
+using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
 {
     public class MeshViewTests
     {
         [Test]
-        public void CpuCameraCullingPreservesExplicitCullingMatrix()
+        public void FromCamera_KeysTheViewByCameraIdentity_AndShadowViewsKeepTheirLight()
         {
-            var go = new GameObject("MeshViewTests.CustomCulling");
+            var go = new GameObject("MeshViewTests.Camera") { hideFlags = HideFlags.DontSave };
             try
             {
-                var camera = go.AddComponent<Camera>();
-                camera.cullingMatrix = Matrix4x4.Ortho(-3, 7, -2, 5, .2f, 90)
-                    * Matrix4x4.Translate(new Vector3(11, -4, 8));
-                var expected = GeometryUtility.CalculateFrustumPlanes(camera.cullingMatrix);
-                using var scene = new MeshScene(16);
-                var result = MeshVisibilityUtility.CullInstances(scene, camera, true);
-                try
-                {
-                    for (int i = 0; i < 6; ++i) Assert.AreEqual((FPlane)expected[i], result.frustum[i]);
-                }
-                finally { result.Release(); }
+                Camera camera = go.AddComponent<Camera>();
+                camera.cullingMask = 0x5;
+                Assert.IsTrue(camera.TryGetCullingParameters(out ScriptableCullingParameters culling));
+                MeshView first = MeshView.FromCamera(camera, ref culling);
+                MeshView second = MeshView.FromCamera(camera, ref culling);
+                Assert.AreEqual(UnityEntityId.ToUInt64(camera), first.viewKey);
+                Assert.AreEqual(first.viewKey, second.viewKey);
+                Assert.AreEqual(EMeshViewKind.Main, first.kind);
+                Assert.AreEqual(0x5, first.layerMask);
+                Assert.IsFalse(first.FilterRenderingLayers, "Camera views do not apply light rendering layers.");
+                Assert.AreEqual(Math.Min(MeshView.MaxPlanes, culling.cullingPlaneCount), first.planeCount);
+
+                ulong lightKey = first.viewKey ^ 0x1111ul;
+                MeshView cascade = MeshView.FromShadow(EMeshViewKind.CascadeShadow, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 3, ulong.MaxValue, MeshTestUtility.Lod);
+                Assert.AreEqual(lightKey, cascade.viewKey);
+                Assert.AreEqual(3, cascade.subviewIndex);
+                Assert.AreEqual(2u, cascade.renderingLayerMask);
+                Assert.IsTrue(cascade.FilterRenderingLayers);
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    MeshView.FromShadow(EMeshViewKind.Main, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 0, ulong.MaxValue, MeshTestUtility.Lod));
             }
             finally { Object.DestroyImmediate(go); }
         }
 
         [Test]
-        public void SameCameraSameFrame_ViewKeysMatch()
+        public void VisibilityKey_SeparatesEveryCullingInput_ExceptPlanesWithinACameraRender()
         {
-            var go = new GameObject("MeshViewTests.Camera");
-            try
-            {
-                Camera camera = go.AddComponent<Camera>();
-                Assert.IsTrue(camera.TryGetCullingParameters(out ScriptableCullingParameters culling));
-                MeshView first = MeshView.FromCamera(camera, ref culling);
-                MeshView second = MeshView.FromCamera(camera, ref culling);
-                Assert.AreEqual(first.viewKey, second.viewKey);
-                Assert.AreEqual(UnityEntityId.ToUInt64(camera), first.viewKey);
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-            }
-        }
+            Plane[] planes = MeshTestUtility.BoxPlanes();
+            ulong light = (768ul << 32) | 42ul;
+            MeshView cascade0 = MeshView.FromShadow(EMeshViewKind.CascadeShadow, light, planes, float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
+            MeshVisibilityKey Key(in MeshView view, bool request = false) => new MeshVisibilityKey(view, request);
 
-        [Test]
-        public void CascadeAndLocal_ViewKeysDifferFromMainCamera()
-        {
-            var go = new GameObject("MeshViewTests.Camera");
-            try
-            {
-                Camera camera = go.AddComponent<Camera>();
-                Assert.IsTrue(camera.TryGetCullingParameters(out ScriptableCullingParameters culling));
-                MeshView main = MeshView.FromCamera(camera, ref culling);
-                Plane[] planes = main.CopyPlanes();
-                ulong lightKey = main.viewKey ^ 0x1111ul;
-                MeshView cascade = MeshView.FromCascadeShadow(lightKey, planes, main.viewPosition, ~0, (uint)ERenderingLayer.Everything, 0);
-                MeshView local = MeshView.FromLocalShadow(lightKey, planes, main.viewPosition, ~0, (uint)ERenderingLayer.Everything, 0);
-                Assert.AreNotEqual(main.viewKey, cascade.viewKey);
-                Assert.AreNotEqual(main.viewKey, local.viewKey);
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-            }
-        }
+            MeshView slice1 = cascade0; slice1.subviewIndex = 1;
+            MeshView local = cascade0; local.kind = EMeshViewKind.LocalShadow;
+            MeshView replacedLight = cascade0; replacedLight.viewKey = (769ul << 32) | 42ul;
+            MeshView rendering = cascade0; rendering.renderingLayerMask = 2u;
+            MeshView layer = cascade0; layer.layerMask = 1;
+            MeshView emptyScene = cascade0; emptyScene.sceneCullingMask = 0;
+            foreach (MeshView different in new[] { slice1, local, replacedLight, rendering, layer, emptyScene })
+                Assert.AreNotEqual(Key(cascade0), Key(different));
 
-        [Test]
-        public void KindMapsToFixedPolicyId()
-        {
-            Assert.AreEqual(MeshVisibilityShare.PolicyMainFrustum, Kind(EMeshViewKind.Main).PolicyId);
-            Assert.AreEqual(MeshVisibilityShare.PolicyMainFrustum, Kind(EMeshViewKind.SceneView).PolicyId);
-            Assert.AreEqual(MeshVisibilityShare.PolicyMainFrustum, Kind(EMeshViewKind.Preview).PolicyId);
-            Assert.AreEqual(MeshVisibilityShare.PolicyCascadeShadow, Kind(EMeshViewKind.CascadeShadow).PolicyId);
-            Assert.AreEqual(MeshVisibilityShare.PolicyLocalShadow, Kind(EMeshViewKind.LocalShadow).PolicyId);
-            Assert.IsFalse(Kind(EMeshViewKind.Main).FilterRenderingLayers);
-            Assert.IsTrue(Kind(EMeshViewKind.CascadeShadow).FilterRenderingLayers);
-            Assert.IsTrue(Kind(EMeshViewKind.LocalShadow).FilterRenderingLayers);
-        }
+            MeshView moved = cascade0;
+            moved.SetPlane(0, new Plane(Vector3.right, 20f));
+            moved.viewPosition = new float3(1, 2, 3);
+            Assert.AreEqual(Key(cascade0), Key(moved), "Planes are fixed within one camera render and are not part of the identity.");
 
-        [Test]
-        public void ManualView_DefaultSceneScopeMatchesExplicitAllAndPreservesExplicitEmpty()
-        {
-            var view = new MeshView { viewKey = 91, kind = EMeshViewKind.Main, layerMask = ~0,
-                renderingLayerMask = 1, enableVisibility = true, planeCount = 6 };
-            Assert.AreEqual(ulong.MaxValue, view.sceneCullingMask);
-            Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Matrix4x4.Ortho(-10, 10, -10, 10, -10, 10));
-            for (int i = 0; i < 6; i++) view.SetPlane(i, planes[i]);
-            var explicitAll = view; explicitAll.sceneCullingMask = ulong.MaxValue;
-            var empty = view; empty.sceneCullingMask = 0;
-            Assert.AreEqual(new MeshGpuVisibilityKey(view), new MeshGpuVisibilityKey(explicitAll));
-            Assert.AreNotEqual(new MeshGpuVisibilityKey(view), new MeshGpuVisibilityKey(empty));
+            MeshView main = MeshTestUtility.CameraView(7);
+            MeshView sceneView = main; sceneView.kind = EMeshViewKind.SceneView;
+            Assert.AreEqual(Key(main), Key(sceneView), "Camera kinds share one culling policy.");
+            MeshView zeroInitialized = new MeshView { viewKey = 7 };
+            MeshView explicitAll = zeroInitialized; explicitAll.sceneCullingMask = ulong.MaxValue;
+            Assert.AreEqual(Key(zeroInitialized), Key(explicitAll), "A zero-initialized view is unrestricted in scene eligibility.");
             foreach (ulong mask in new[] { 0ul, 1ul, 1ul << 63, 0x8000000000000001ul, ulong.MaxValue })
             {
-                var roundTrip = view; roundTrip.sceneCullingMask = mask;
+                MeshView roundTrip = main; roundTrip.sceneCullingMask = mask;
                 Assert.AreEqual(mask, roundTrip.sceneCullingMask);
             }
-            using (var scene = new MeshScene(16))
-            using (var share = new MeshVisibilityShare())
+
+            MeshView firstPhase = main; firstPhase.visibilityPhase = EMeshVisibilityPhase.First;
+            Assert.AreNotEqual(Key(main), Key(firstPhase));
+            MeshView history = firstPhase; history.visibilityHistory = 9;
+            Assert.AreEqual(Key(firstPhase), Key(history), "Storage identity ignores the occlusion history.");
+            Assert.AreNotEqual(Key(firstPhase, true), Key(history, true), "Request identity includes the occlusion history.");
+        }
+
+        [Test]
+        public void CpuVisibility_AppliesFlagsMasksAndFrustum_AndInternsPerCameraRender()
+        {
+            using (var fixture = new MeshWorldFixture())
             {
-                using (var update = scene.BeginUpdate())
+                MeshWorld world = fixture.world;
+                var ids = new MeshEntityId[8];
+                using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    update.CreateInstance(update.CreateTransform(float4x4.identity), new FBound(float3.zero, new float3(1)),
-                        ~0, 1, EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off, sceneCullingMask: 1ul << 63);
+                    ids[0] = MeshTestUtility.CreateEntity(update, new float3(3, 0, 0));
+                    ids[1] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0), EMeshEntityFlags.None);
+                    ids[2] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0), layerMask: 2);
+                    ids[3] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0), sceneCullingMask: 1ul << 63);
+                    ids[4] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0), renderingLayerMask: 2);
+                    ids[5] = MeshTestUtility.CreateEntity(update, new float3(40, 0, 0));
+                    ids[6] = MeshTestUtility.CreateEntity(update, new float3(10.4f, 0, 0));
+                    ids[7] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0));
                     update.Commit();
                 }
-                share.BeginFrame(scene.VisibilityRevision);
-                var original = share.Acquire(scene, view);
-                var all = share.Acquire(scene, explicitAll);
-                var none = share.Acquire(scene, empty);
-                Assert.AreEqual(original, all, "Default and explicit-all CPU cache identity must agree.");
-                Assert.AreEqual(1, share.GetResult(original).instanceVisibility[0]);
-                Assert.AreEqual(0, share.GetResult(none).instanceVisibility[0]);
-                share.Release(original); share.Release(all); share.Release(none);
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    update.RemoveEntity(ids[7]);
+                    update.Commit();
+                }
+
+                MeshView camera = MeshTestUtility.CameraView(11);
+                camera.layerMask = 1;
+                camera.sceneCullingMask = 1;
+                byte[] cameraVisible = MeshTestUtility.CullOnCpu(world, camera, out float[] depth);
+                // Visible flag, layer and scene masks apply; camera views ignore rendering layers; bounds touching a plane stay visible.
+                CollectionAssert.AreEqual(new byte[] { 1, 0, 0, 0, 1, 0, 1, 0 }, cameraVisible);
+                Assert.AreEqual(3f, depth[(int)ids[0].Index], 1e-5f, "Depth is the distance from the view position.");
+
+                MeshView shadow = MeshView.FromShadow(EMeshViewKind.LocalShadow, 12, MeshTestUtility.BoxPlanes(), float3.zero, 1, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
+                CollectionAssert.AreEqual(new byte[] { 1, 0, 0, 1, 0, 0, 1, 0 }, MeshTestUtility.CullOnCpu(world, shadow, out _),
+                    "Shadow views apply the light's rendering layers.");
+
+                world.stats.visibilityProductions = 0;
+                MeshVisibilityShare share = world.visibilityShare;
+                MeshVisibilityHandle first = share.Acquire(world, camera);
+                MeshView replanned = camera;
+                replanned.SetPlane(0, new Plane(Vector3.right, 1f));
+                MeshVisibilityHandle shared = share.Acquire(world, replanned);
+                Assert.AreEqual(first.slot, shared.slot);
+                Assert.AreEqual(first.generation, shared.generation);
+                Assert.AreEqual(1, world.stats.visibilityProductions);
+                share.BeginCamera();
+                MeshVisibilityHandle next = share.Acquire(world, camera);
+                Assert.AreEqual(2, world.stats.visibilityProductions, "A later camera render never reuses an earlier result.");
+                Assert.IsTrue(share.Get(first).isValid, "Earlier results stay alive for their holders.");
+                share.Release(first);
+                share.Release(shared);
+                share.Release(next);
+                Assert.AreEqual(0, share.liveCount);
             }
         }
 
         [Test]
-        public void SceneMasks_IsolateOverlappingInstancesOnCpuAndGpuAndSurviveRollback()
+        public void ResidentGpuVisibility_IsKeptAcrossCameraMotion()
         {
-            Assert.IsTrue(SystemInfo.supportsComputeShaders, "The scene-mask GPU contract requires compute.");
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute");
-            Assert.IsNotNull(shader);
-            int kernel = shader.FindKernel("CullFrustum");
-            using (var scene = new MeshScene(16))
-            using (var share = new MeshVisibilityShare())
-            {
-                var pool = new ResourcePool();
-                var gpu = new GpuScene(pool, scene);
-                var output = new ComputeBuffer(2, sizeof(uint));
-                try
-                {
-                    MeshInstanceId low, high;
-                    using (var update = scene.BeginUpdate())
-                    {
-                        var bounds = new FBound(float3.zero, new float3(1));
-                        low = update.CreateInstance(update.CreateTransform(float4x4.identity), bounds, ~0, 1,
-                            EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off, sceneCullingMask: 1);
-                        high = update.CreateInstance(update.CreateTransform(float4x4.identity), bounds, ~0, 1,
-                            EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off, sceneCullingMask: 1ul << 63);
-                        update.Commit();
-                    }
-                    Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Matrix4x4.Ortho(-10, 10, -10, 10, -10, 10));
-                    gpu.Update();
-                    foreach (ulong mask in new[] { 1ul, 1ul << 63, 0ul, 1ul | (1ul << 63) })
-                        AssertSceneVisibility(scene, gpu, shader, kernel, output, planes, mask,
-                            (mask & 1) != 0 ? 1u : 0u, (mask & (1ul << 63)) != 0 ? 1u : 0u);
-
-                    int revision = scene.VisibilityRevision;
-                    scene.ClearBoundsDirtyRange();
-                    scene.ClearTransformDirtyRange();
-                    using (var update = scene.BeginUpdate())
-                    {
-                        update.SetInstanceSceneCullingMask(low, 1ul << 63);
-                        Assert.Greater(scene.VisibilityRevision, revision);
-                        Assert.IsTrue(scene.HasBoundsDirtyRange);
-                    }
-                    Assert.AreEqual(revision, scene.VisibilityRevision);
-                    Assert.IsFalse(scene.HasBoundsDirtyRange);
-                    Assert.IsTrue(scene.TryGetInstance(low, out var restored));
-                    Assert.AreEqual(1ul, restored.sceneCullingMask);
-                    AssertSceneVisibility(scene, gpu, shader, kernel, output, planes, 1, 1, 0);
-
-                    var view = new MeshView { viewKey = 31, layerMask = ~0, sceneCullingMask = 1,
-                        renderingLayerMask = 1, enableVisibility = true, planeCount = 6 };
-                    for (int i = 0; i < 6; i++) view.SetPlane(i, planes[i]);
-                    share.BeginFrame(scene.VisibilityRevision);
-                    var first = share.Acquire(scene, view);
-                    var other = view; other.sceneCullingMask = 1ul << 63;
-                    var second = share.Acquire(scene, other);
-                    Assert.AreNotEqual(first, second);
-                    Assert.AreNotEqual(new MeshGpuVisibilityKey(view), new MeshGpuVisibilityKey(other));
-                    share.Release(first); share.Release(second);
-                    using (var update = scene.BeginUpdate())
-                    {
-                        update.SetInstanceSceneCullingMask(low, 1ul << 63);
-                        update.Commit();
-                    }
-                    gpu.Update();
-                    AssertSceneVisibility(scene, gpu, shader, kernel, output, planes, 1, 0, 0);
-                    AssertSceneVisibility(scene, gpu, shader, kernel, output, planes, 1ul << 63, 1, 1);
-                }
-                finally { output.Dispose(); gpu.Dispose(); pool.Dispose(); }
-            }
-        }
-
-        static void AssertSceneVisibility(MeshScene scene, GpuScene gpu, ComputeShader shader, int kernel,
-            ComputeBuffer output, Plane[] planes, ulong mask, uint first, uint second)
-        {
-            var cpu = MeshVisibilityUtility.CullInstances(scene, planes, true, sceneCullingMask: mask);
+            var pool = new ResourcePool();
+            var cache = new MeshGpuVisibilityCache(pool);
             try
             {
-                Assert.AreEqual(first, cpu.instanceVisibility[0]);
-                Assert.AreEqual(second, cpu.instanceVisibility[1]);
+                MeshView view = MeshTestUtility.CameraView(51);
+                BufferHandle first = cache.GetBufferHandle(view, 64);
+                for (int frame = 1; frame <= 4; ++frame)
+                {
+                    // The LOD projection moves with the camera every frame; LOD bias edits change it too.
+                    view.lodProjection.origin = new float3(frame, 0, 0);
+                    view.lodProjection.bias = 1 + frame * 0.25f;
+                    Assert.AreSame(first.buffer, cache.GetBufferHandle(view, 64).buffer, $"frame {frame}");
+                }
+                Assert.AreEqual(1, cache.allocatedViewCount);
+                MeshView other = MeshTestUtility.CameraView(52);
+                Assert.AreNotSame(first.buffer, cache.GetBufferHandle(other, 64).buffer, "Another view keeps its own buffer.");
+                Assert.AreEqual(2, cache.allocatedViewCount);
             }
-            finally { cpu.Release(); }
-            var vectors = new Vector4[6];
-            for (int i = 0; i < 6; i++) vectors[i] = new Vector4(planes[i].normal.x, planes[i].normal.y, planes[i].normal.z, planes[i].distance);
-            shader.SetVectorArray("_FrustumPlanes", vectors);
-            shader.SetInt("_InstanceCount", 2);
-            shader.SetInt("_ViewLayerMask", ~0);
-            shader.SetInt("_ViewRenderingLayerMask", 1);
-            shader.SetInt("_FilterRenderingLayers", 0);
-            shader.SetInt("_ViewExcludeFlags", 0);
-            shader.SetInt("_ViewSceneCullingMaskLow", unchecked((int)mask));
-            shader.SetInt("_ViewSceneCullingMaskHigh", unchecked((int)(mask >> 32)));
-            shader.SetBuffer(kernel, "_InstanceBoundsCenter", gpu.BoundsCenterBuffer.buffer);
-            shader.SetBuffer(kernel, "_InstanceBoundsExtent", gpu.BoundsExtentBuffer.buffer);
-            shader.SetBuffer(kernel, "_InstanceFlags", gpu.InstanceFlagsBuffer.buffer);
-            shader.SetBuffer(kernel, "_InstanceLayerMask", gpu.InstanceLayerMaskBuffer.buffer);
-            shader.SetBuffer(kernel, "_InstanceSceneCullingMask", gpu.InstanceSceneCullingMaskBuffer.buffer);
-            shader.SetBuffer(kernel, "_InstanceRenderingLayer", gpu.InstanceRenderingLayerBuffer.buffer);
-            shader.SetBuffer(kernel, "_Visibility", output);
-            shader.Dispatch(kernel, 1, 1, 1);
-            var actual = new uint[2];
-            output.GetData(actual);
-            CollectionAssert.AreEqual(new[] { first, second }, actual, "GPU scene mask " + mask.ToString("X16"));
+            finally
+            {
+                cache.Dispose();
+                pool.Dispose();
+            }
         }
 
-        static MeshView Kind(EMeshViewKind kind)
+        [Test]
+        public void GpuFrustumCulling_AgreesWithCpuCulling()
         {
-            return new MeshView { kind = kind };
+            MeshTestUtility.RequireComputeReadback();
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshWorld world = fixture.world;
+                MeshTestUtility.RequireGpuIndirect(world);
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    MeshTestUtility.CreateEntity(update, new float3(3, 0, 0));
+                    MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.None);
+                    MeshTestUtility.CreateEntity(update, float3.zero, layerMask: 2);
+                    MeshTestUtility.CreateEntity(update, float3.zero, sceneCullingMask: 1ul << 63);
+                    MeshTestUtility.CreateEntity(update, float3.zero, sceneCullingMask: 1ul);
+                    MeshTestUtility.CreateEntity(update, float3.zero, renderingLayerMask: 2);
+                    MeshTestUtility.CreateEntity(update, new float3(40, 0, 0));
+                    MeshTestUtility.CreateEntity(update, new float3(10.4f, 0, -10.4f));
+                    update.Commit();
+                }
+                world.UpdateResidency();
+                MeshWorldGpu gpu = world.gpu;
+                ComputeShader shader = Object.Instantiate(fixture.shader);
+                var output = new ComputeBuffer(world.entityHighWater, sizeof(uint));
+                try
+                {
+                    int kernel = shader.FindKernel("CullFrustum");
+                    MeshView camera = MeshTestUtility.CameraView(21);
+                    MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 22, MeshTestUtility.BoxPlanes(), float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
+                    foreach (ulong sceneMask in new[] { ulong.MaxValue, 1ul, 1ul << 63, 0ul })
+                    {
+                        foreach (MeshView source in new[] { camera, shadow })
+                        {
+                            MeshView view = source;
+                            view.sceneCullingMask = sceneMask;
+                            uint[] cpu = MeshTestUtility.PackedCullOnCpu(world, view);
+                            var planes = new Vector4[MeshView.MaxPlanes];
+                            view.CopyFrustumPlanes(planes);
+                            shader.SetVectorArray("_FrustumPlanes", planes);
+                            shader.SetInt("_EntityCount", world.entityHighWater);
+                            shader.SetInt("_ViewLayerMask", view.layerMask);
+                            shader.SetInt("_ViewSceneCullingMaskLow", unchecked((int)view.sceneCullingMask));
+                            shader.SetInt("_ViewSceneCullingMaskHigh", unchecked((int)(view.sceneCullingMask >> 32)));
+                            shader.SetInt("_ViewRenderingLayerMask", (int)view.renderingLayerMask);
+                            shader.SetInt("_FilterRenderingLayers", view.FilterRenderingLayers ? 1 : 0);
+                            shader.SetBuffer(kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
+                            shader.SetBuffer(kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
+                            shader.SetBuffer(kernel, "_EntityFlags", gpu.flags.buffer);
+                            shader.SetBuffer(kernel, "_EntityLayerMask", gpu.layerMask.buffer);
+                            shader.SetBuffer(kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
+                            shader.SetBuffer(kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
+                            MeshTestUtility.BindLod(shader, kernel, gpu.lodChains.buffer, view.lodProjection);
+                            shader.SetBuffer(kernel, "_Visibility", output);
+                            shader.Dispatch(kernel, (world.entityHighWater + 63) / 64, 1, 1);
+                            var actual = new uint[world.entityHighWater];
+                            output.GetData(actual);
+                            for (int i = 0; i < actual.Length; ++i)
+                                Assert.AreEqual(cpu[i], actual[i], $"{view.kind} scene mask {sceneMask:X16}, entity {i}");
+                        }
+                    }
+                }
+                finally
+                {
+                    output.Release();
+                    Object.DestroyImmediate(shader);
+                }
+            }
         }
     }
 }

@@ -65,7 +65,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<RGResourceHandle>[] resourceWriteLists;
         public List<RGResourceHandle>[] temporalResourceList;
         public List<RGResourceHandle> sampledResources;
-        public List<RGDrawListHandle> usedDrawLists;
+        // Extension-defined ids a pass consumes (mesh draw-list indices). The core only stores and clears them.
+        internal readonly List<int> extensionUses = new List<int>(4);
         public List<RGRendererListHandle> usedRendererLists;
 
         public IRGPass()
@@ -79,7 +80,6 @@ namespace InfinityTech.Rendering.RenderGraph
             resourceWriteLists = new List<RGResourceHandle>[resourceTypeCount];
             temporalResourceList = new List<RGResourceHandle>[resourceTypeCount];
             sampledResources = new List<RGResourceHandle>(4);
-            usedDrawLists = new List<RGDrawListHandle>(4);
             usedRendererLists = new List<RGRendererListHandle>(4);
 
             for (int i = 0; i < resourceTypeCount; ++i)
@@ -160,7 +160,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 temporalResourceList[i].Clear();
             }
             sampledResources.Clear();
-            usedDrawLists.Clear();
+            extensionUses.Clear();
             if (usedRendererLists == null)
                 usedRendererLists = new List<RGRendererListHandle>(4);
             else
@@ -268,7 +268,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.drawLists, graphContext.rendererLists));
+            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.rendererLists, graphContext.extension));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -445,17 +445,21 @@ namespace InfinityTech.Rendering.RenderGraph
         bool m_Disposed;
         IRGPass m_Pass;
         RGResourceFactory m_Resources;
-        RGDrawListContext m_DrawLists;
         RGRendererListContext m_RendererLists;
+        IRGGraphExtension m_Extension;
 
-        internal RGRasterPassHandle(IRGPass pass, RGResourceFactory resources, RGDrawListContext drawLists, RGRendererListContext rendererLists)
+        internal RGRasterPassHandle(IRGPass pass, RGResourceFactory resources, RGRendererListContext rendererLists, IRGGraphExtension extension)
         {
             m_Disposed = false;
             m_Pass = pass;
             m_Resources = resources;
-            m_DrawLists = drawLists;
             m_RendererLists = rendererLists;
+            m_Extension = extension;
         }
+
+        // Graph extensions record their consumer edges on the pass they extend and accept only their own builder's handles.
+        internal IRGPass pass => m_Pass;
+        internal IRGGraphExtension extension => m_Extension;
 
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_Pass.queueObserver = observer;
         public void EnablePassCulling(bool value) => m_Pass.enablePassCulling = value;
@@ -479,19 +483,6 @@ namespace InfinityTech.Rendering.RenderGraph
             RGPassGuard.RequireTexture(m_Resources, input, nameof(SetDepthStencilAttachment));
             m_Pass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
             return input;
-        }
-
-        public RGDrawListHandle UseDrawList(in RGDrawListHandle draws)
-        {
-            if (m_DrawLists != null && m_DrawLists.IsLive(draws))
-            {
-                m_Pass.usedDrawLists.Add(draws);
-                RGDrawListRecord record = m_DrawLists.GetRecordCopy(draws.index);
-                if (record.gpuVisibilityBuffer.IsValid())
-                    m_Pass.AddResourceRead(record.gpuVisibilityBuffer.handle);
-                return draws;
-            }
-            return RGDrawListHandle.Invalid;
         }
 
         public RGRendererListHandle UseRendererList(in RGRendererListHandle list)

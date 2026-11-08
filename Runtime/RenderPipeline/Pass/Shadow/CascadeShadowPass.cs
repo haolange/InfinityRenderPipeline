@@ -90,8 +90,6 @@ namespace InfinityTech.Rendering.Pipeline
             if (lightIndex >= 0)
             {
                 Light shadowLight = cullingResults.visibleLights[lightIndex].light;
-                ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
-                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
                 bool hasNativeCasters = cullingResults.GetShadowCasterBounds(lightIndex, out _);
 
@@ -103,18 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    var cascadePlanes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
-                    for (int plane = 0; plane < cascadePlanes.Length; plane++)
-                        cascadePlanes[plane] = slice.splitData.GetCullingPlane(plane);
-                    MeshView cascadeView = MeshView.FromCascadeShadow(
-                        lightInstanceId,
-                        cascadePlanes,
-                        camera.transform.position,
-                        shadowLight.cullingMask,
-                        shadowRenderingLayerMask,
-                        cascade,
-                        sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
-                    cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
+                    cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(CascadeShadowView(shadowLight, slice, cascade, camera), MeshPassPresets.Shadow);
 
                     if (!hasNativeCasters) continue;
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);

@@ -4,6 +4,7 @@ using System.Linq;
 using Unity.Pipeline.Commands;
 using UnityEditor;
 using UnityEngine;
+using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
@@ -110,21 +111,25 @@ namespace InfinityTech.Rendering.Editor
             EditorApplication.UnlockReloadAssemblies();
         }
 
-        [CliCommand("infinity_mesh_state", "Read current MeshScene instance/draw data for the selected Editor without altering it.")]
+        [CliCommand("infinity_mesh_state", "Read current MeshWorld entity, element and pass-cache data for the selected Editor without altering it.")]
         public static object MeshState()
         {
             var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
             if (pipeline == null) throw new InvalidOperationException("Infinity is not the active pipeline.");
-            var scene = pipeline.renderContext.GetMeshScene();
-            var instances = scene.GetInstances();
-            var data = new System.Collections.Generic.List<object>();
-            for (int i = 0; i < scene.InstanceHighWater; i++)
+            MeshWorld world = pipeline.renderContext.meshWorld;
+            var entities = new System.Collections.Generic.List<object>();
+            for (int i = 0; i < world.entityHighWater; i++)
             {
-                var instance = instances[i];
-                data.Add(new { slot = i, transform = instance.transform.Index, bounds = instance.worldBounds.ToString(),
-                    layer = instance.layerMask, flags = instance.flags.ToString(), draws = instance.drawCount });
+                if (!world.IsEntitySlotLive(i)) continue;
+                MeshEntity entity = world.entities[i];
+                entities.Add(new { slot = i, bounds = world.entityBounds[i].ToString(), layer = entity.desc.layerMask,
+                    flags = entity.desc.flags.ToString(), elements = entity.elementCount });
             }
-            return new { count = scene.LogicalInstanceCount, draws = scene.DrawCount, instances = data };
+            var passes = new System.Collections.Generic.List<object>();
+            foreach (MeshPassCache cache in world.passCaches)
+                passes.Add(new { pass = cache.desc.ToString(), members = cache.memberCount, commands = cache.commandCount });
+            return new { entityCount = world.entityCount, elementCount = world.elementCount, dynamicCount = world.dynamicEntityCount,
+                entities, passes };
         }
 
         [CliCommand("infinity_scene_view_dock", "Restore an explicitly selected floating SceneView beside the sole Game tab; does not save assets.")]

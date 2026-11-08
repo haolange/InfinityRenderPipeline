@@ -1,6 +1,6 @@
 # Infinity Render Pipeline
 
-Infinity Render Pipeline (InfinityRP) is a Scriptable Render Pipeline for Unity 6000.6. It targets compute-capable platforms and is built on Core RP, Shader Graph and VFX Graph 17.6. The package owns its render graph, physical resource pool, mesh scene and light records. Unity remains the owner of native renderer culling, renderer lists, lightmaps and per-object lighting data.
+Infinity Render Pipeline (InfinityRP) is a Scriptable Render Pipeline for Unity 6000.6. It targets compute-capable platforms and is built on Core RP, Shader Graph and VFX Graph 17.6. The package owns its render graph, physical resource pool, mesh world and light records. Unity remains the owner of native renderer culling, renderer lists, lightmaps and per-object lighting data.
 
 `package.json` reports version 0.4.0. The unreleased changelog describes later source. This file describes the source as it is. It does not claim image or performance acceptance. Per-feature verification is [Docs/FeatureStatus.md](Docs/FeatureStatus.md).
 
@@ -16,7 +16,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 
 | Document | Role |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Implementation: frame order, graph, mesh scene, lighting, history and output |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Implementation: frame order, graph, mesh drawing pipeline, lighting, history and output |
 | [AGENTS.md](AGENTS.md) | Normative rules for contributors and coding agents |
 | [Documentation~/index.md](Documentation~/index.md) | Authoring: settings, lights, materials, volumes, Editor windows |
 | [Docs/FeatureStatus.md](Docs/FeatureStatus.md) | What has been recorded, tested, image-checked and measured |
@@ -46,13 +46,13 @@ Not recorded: depth of field, motion blur, MSAA, dynamic resolution, XR, and har
 
 ## Mesh content
 
-Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` bit mask (`Everything = 0xFF`), not an integer layer index. One live instance owns one `TransformId`. In steady state `MeshScene.MatrixDuplicateRatio` is 1.
+Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` bit mask (`Everything = 0xFF`), not an integer layer index. One component is one mesh entity; its entity slot is its transform slot.
 
-Configure instances through `MeshAsset`, `Mobility`, the typed properties and `SetMaterials`. `Materials` is read-only. Dynamic world matrices, including parent motion, are read automatically. After an in-place mesh edit call `NotifyGeometryChanged`. After a static pose or external instance edit call `NotifyInstanceChanged`. After a route or stage edit call `MaterialRouteUtility.ApplyPassState`. After a direct queue or pass edit call `NotifyMaterialRoutingChanged`. Ordinary material uniforms do not rebuild draw structure.
+A component draws a `MeshAsset`: one mesh per LOD level with its screen size, material slots and fade width. Every submesh of every level is one element; the component's materials, indexed by material slot, draw them. Levels switch at `LODGroup` screen sizes and cross-fade with dithering in opaque passes. Authoring is in [Mesh content](Documentation~/mesh.md). The Mesh Component inspector creates a one-level asset from a Mesh. Configure instances through `MeshAsset`, `Mobility`, the typed properties and `SetMaterials`. `Materials` is read-only. Dynamic world matrices, including parent motion, are read automatically. After an in-place mesh edit call `NotifyGeometryChanged(Mesh)`, and after a script edit of a MeshAsset call `NotifyGeometryChanged(MeshAsset)`; inspector edits notify automatically. After a static pose or external entity edit call `NotifyEntityChanged`. After a route or stage edit call `MaterialRouteUtility.ApplyPassState`. After a direct queue or pass edit call `NotifyMaterialRoutingChanged`. Ordinary material uniforms do not rebuild draw structure.
 
-The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when instancing, compute and the four mesh-draw kernels are available, and CPU procedural drawing otherwise. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the scene and the transform-version history.
+The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when instancing, compute and the four mesh-draw kernels are available, and CPU procedural drawing otherwise. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the mesh world and the transform-version history.
 
-Instanced materials bind `transformBuffer`, `previousTransformBuffer`, `instanceIndexBuffer` and `instanceIndexOffset`. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
+Mesh shaders declare the SubShader tag `InfinityMeshInstancing = True` and read `InstanceToEntity`, `InstanceOffset`, `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` through `GPUScene.hlsl`; opaque passes also read `MeshInstanceFade` and declare `multi_compile _ INFINITY_LOD_DITHER` for the LOD cross-fade. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
 
 ## Native renderer content
 
