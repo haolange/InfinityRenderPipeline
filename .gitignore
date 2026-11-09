@@ -43,3 +43,10 @@ Runtime/Scripting.meta
 
 # Task-generated intermediate data (AGENTS.md: never committed)
 intermediate/
+
+# Agent tool directories. The refresh rule lives in AGENTS.md.
+.cursor/
+.codex/
+.claude/
+.qoder/
+.workbuddy/
