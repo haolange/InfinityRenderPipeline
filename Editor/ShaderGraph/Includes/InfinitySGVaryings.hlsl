@@ -5,7 +5,7 @@
 // Matrix_ViewFlipYProj for shadow casters (the shadow passes set it to the light matrix) and for motion.
 
 #if SHADERPASS == SHADERPASS_SHADOWS
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowCaster.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ShadowCaster.hlsl"
 #endif
 
 #if SHADERPASS == SHADERPASS_META

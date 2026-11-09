@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     [Serializable, VolumeComponentMenu("Post-processing/Vignette")]
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]

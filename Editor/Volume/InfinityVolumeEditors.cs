@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
@@ -54,15 +54,34 @@ namespace InfinityTech.Rendering.Editor
             PropertyField(m_Temp, new GUIContent("Temperature"));
             PropertyField(m_Tint);
             EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
-            PropertyField(m_Sat); PropertyField(m_Contrast); PropertyField(m_Gamma); PropertyField(m_Gain); PropertyField(m_Offset);
+            PropertyField(m_Sat);
+            PropertyField(m_Contrast);
+            PropertyField(m_Gamma);
+            PropertyField(m_Gain);
+            PropertyField(m_Offset);
             EditorGUILayout.LabelField("Shadows", EditorStyles.boldLabel);
-            PropertyField(m_SatS); PropertyField(m_ContrastS); PropertyField(m_GammaS); PropertyField(m_GainS); PropertyField(m_OffsetS); PropertyField(m_ShadowsMax);
+            PropertyField(m_SatS);
+            PropertyField(m_ContrastS);
+            PropertyField(m_GammaS);
+            PropertyField(m_GainS);
+            PropertyField(m_OffsetS);
+            PropertyField(m_ShadowsMax);
             EditorGUILayout.LabelField("Midtones", EditorStyles.boldLabel);
-            PropertyField(m_SatM); PropertyField(m_ContrastM); PropertyField(m_GammaM); PropertyField(m_GainM); PropertyField(m_OffsetM);
+            PropertyField(m_SatM);
+            PropertyField(m_ContrastM);
+            PropertyField(m_GammaM);
+            PropertyField(m_GainM);
+            PropertyField(m_OffsetM);
             EditorGUILayout.LabelField("Highlights", EditorStyles.boldLabel);
-            PropertyField(m_SatH); PropertyField(m_ContrastH); PropertyField(m_GammaH); PropertyField(m_GainH); PropertyField(m_OffsetH);
-            PropertyField(m_HighlightsMin); PropertyField(m_HighlightsMax);
-            PropertyField(m_Blue); PropertyField(m_Expand);
+            PropertyField(m_SatH);
+            PropertyField(m_ContrastH);
+            PropertyField(m_GammaH);
+            PropertyField(m_GainH);
+            PropertyField(m_OffsetH);
+            PropertyField(m_HighlightsMin);
+            PropertyField(m_HighlightsMax);
+            PropertyField(m_Blue);
+            PropertyField(m_Expand);
         }
     }
 
@@ -90,7 +109,11 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.HelpBox("None disables tonemapping. A scene Volume that does not override the mode inherits the default profile, which is ACES.", MessageType.Info);
                 return;
             }
-            PropertyField(m_Slope); PropertyField(m_Toe); PropertyField(m_Shoulder); PropertyField(m_Black); PropertyField(m_White);
+            PropertyField(m_Slope);
+            PropertyField(m_Toe);
+            PropertyField(m_Shoulder);
+            PropertyField(m_Black);
+            PropertyField(m_White);
         }
     }
 
@@ -115,7 +138,9 @@ namespace InfinityTech.Rendering.Editor
             PropertyField(m_Ev);
             if (((Exposure)target).mode.value == EExposureMode.Auto)
             {
-                PropertyField(m_Adapt); PropertyField(m_Low); PropertyField(m_High);
+                PropertyField(m_Adapt);
+                PropertyField(m_Low);
+                PropertyField(m_High);
             }
         }
     }
@@ -256,7 +281,10 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_TraceBehind); PropertyField(m_TowardRay); PropertyField(m_MaxRoughness); PropertyField(m_Fade);
+            PropertyField(m_TraceBehind);
+            PropertyField(m_TowardRay);
+            PropertyField(m_MaxRoughness);
+            PropertyField(m_Fade);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_HalfResolution, l => Preset(l).halfResolution);
@@ -278,11 +306,18 @@ namespace InfinityTech.Rendering.Editor
         {
             SSRSettings preset = Preset(level);
             Set(m_HalfResolution, preset.halfResolution);
-            Set(m_MirrorRoughness, preset.mirrorRoughness); Set(m_LinearRoughness, preset.linearRoughness);
-            Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps); Set(m_BinarySteps, preset.binarySteps);
-            Set(m_ResolveSamples, preset.resolveSamples); Set(m_Samples, preset.samples); Set(m_ResolveRadius, preset.resolveRadius);
-            Set(m_BrdfBias, preset.brdfBias); Set(m_TemporalWeight, preset.temporalWeight);
-            Set(m_TemporalScale, preset.temporalClampScale); Set(m_SpatialPasses, preset.spatialPasses);
+            Set(m_MirrorRoughness, preset.mirrorRoughness);
+            Set(m_LinearRoughness, preset.linearRoughness);
+            Set(m_HiZSteps, preset.hiZSteps);
+            Set(m_LinearSteps, preset.linearSteps);
+            Set(m_BinarySteps, preset.binarySteps);
+            Set(m_ResolveSamples, preset.resolveSamples);
+            Set(m_Samples, preset.samples);
+            Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_BrdfBias, preset.brdfBias);
+            Set(m_TemporalWeight, preset.temporalWeight);
+            Set(m_TemporalScale, preset.temporalClampScale);
+            Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 
@@ -307,7 +342,9 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_TraceBehind); PropertyField(m_TowardRay); PropertyField(m_Intensity);
+            PropertyField(m_TraceBehind);
+            PropertyField(m_TowardRay);
+            PropertyField(m_Intensity);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
@@ -321,7 +358,8 @@ namespace InfinityTech.Rendering.Editor
             SSGISettings preset = Preset(level);
             Set(m_HiZSteps, preset.hiZSteps);
             Set(m_Samples, preset.samples);
-            Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
+            Set(m_TemporalWeight, preset.temporalWeight);
+            Set(m_TemporalScale, preset.temporalClampScale);
         }
     }
 
@@ -346,7 +384,9 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Power); PropertyField(m_Radius); PropertyField(m_Intensity);
+            PropertyField(m_Power);
+            PropertyField(m_Radius);
+            PropertyField(m_Intensity);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_Rays, l => Preset(l).numRays);
@@ -359,8 +399,11 @@ namespace InfinityTech.Rendering.Editor
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
             GTAOSettings preset = Preset(level);
-            Set(m_Rays, preset.numRays); Set(m_Steps, preset.numSteps); Set(m_Sharpness, preset.sharpness);
-            Set(m_TemporalScale, preset.temporalScale); Set(m_TemporalWeight, preset.temporalWeight);
+            Set(m_Rays, preset.numRays);
+            Set(m_Steps, preset.numSteps);
+            Set(m_Sharpness, preset.sharpness);
+            Set(m_TemporalScale, preset.temporalScale);
+            Set(m_TemporalWeight, preset.temporalWeight);
         }
     }
 
@@ -386,8 +429,13 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Density); PropertyField(m_Height); PropertyField(m_Falloff); PropertyField(m_Albedo);
-            PropertyField(m_Aniso); PropertyField(m_Ambient); PropertyField(m_Distance);
+            PropertyField(m_Density);
+            PropertyField(m_Height);
+            PropertyField(m_Falloff);
+            PropertyField(m_Albedo);
+            PropertyField(m_Aniso);
+            PropertyField(m_Ambient);
+            PropertyField(m_Distance);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_Slices, l => Preset(l).depthSlices);
@@ -397,7 +445,8 @@ namespace InfinityTech.Rendering.Editor
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
             VolumetricFogSettings preset = Preset(level);
-            Set(m_Slices, preset.depthSlices); Set(m_Temporal, preset.temporalWeight);
+            Set(m_Slices, preset.depthSlices);
+            Set(m_Temporal, preset.temporalWeight);
         }
     }
 
@@ -426,8 +475,15 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Bottom); PropertyField(m_Thickness); PropertyField(m_Density); PropertyField(m_Shape); PropertyField(m_Erosion);
-            PropertyField(m_Aniso); PropertyField(m_Silver); PropertyField(m_Spread); PropertyField(m_Ambient);
+            PropertyField(m_Bottom);
+            PropertyField(m_Thickness);
+            PropertyField(m_Density);
+            PropertyField(m_Shape);
+            PropertyField(m_Erosion);
+            PropertyField(m_Aniso);
+            PropertyField(m_Silver);
+            PropertyField(m_Spread);
+            PropertyField(m_Ambient);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_Primary, l => Preset(l).numPrimarySteps);
@@ -438,7 +494,9 @@ namespace InfinityTech.Rendering.Editor
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
             VolumetricCloudSettings preset = Preset(level);
-            Set(m_Primary, preset.numPrimarySteps); Set(m_Light, preset.numLightSteps); Set(m_Temporal, preset.temporalWeight);
+            Set(m_Primary, preset.numPrimarySteps);
+            Set(m_Light, preset.numLightSteps);
+            Set(m_Temporal, preset.temporalWeight);
         }
     }
 
@@ -461,7 +519,10 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Distance); PropertyField(m_Thickness); PropertyField(m_Intensity); PropertyField(m_Fade);
+            PropertyField(m_Distance);
+            PropertyField(m_Thickness);
+            PropertyField(m_Intensity);
+            PropertyField(m_Fade);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_Steps, l => Preset(l).numSteps);
@@ -471,7 +532,8 @@ namespace InfinityTech.Rendering.Editor
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
             ContactShadowSettings preset = Preset(level);
-            Set(m_Steps, preset.numSteps); Set(m_SunSteps, preset.sunNumSteps);
+            Set(m_Steps, preset.numSteps);
+            Set(m_SunSteps, preset.sunNumSteps);
         }
     }
 }

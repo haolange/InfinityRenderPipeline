@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -120,7 +120,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1f)]
         public void BloomScatter_ControlsWidthWithoutMultiplyingConstantEnergy(float scatter)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute");
+            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_PostProcessing.compute");
             Assert.IsNotNull(shader);
             var source = new Texture2D(2, 2, TextureFormat.RGBAFloat, false, true);
             var target = new RenderTexture(11, 11, 0, RenderTextureFormat.ARGBFloat) { enableRandomWrite = true };
@@ -229,7 +229,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ProductionLut_NeutralDiagonalIsFiniteMonotonicAndNeutral(GraphicsFormat format)
         {
             Assert.IsTrue(SystemInfo.supportsComputeShaders && SystemInfo.supportsAsyncGPUReadback);
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/ColorGrading/Compute_CombineLUTs.compute");
+            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_CombineLUTs.compute");
             Assert.IsNotNull(shader);
             var profile = DefaultVolumeProfileFactory.CreateInMemory();
             var target = new RenderTexture(new RenderTextureDescriptor(32, 32)

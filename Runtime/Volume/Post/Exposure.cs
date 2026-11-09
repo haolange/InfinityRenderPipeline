@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     public enum EExposureMode
     {

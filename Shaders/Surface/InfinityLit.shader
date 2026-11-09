@@ -55,21 +55,21 @@
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-            #include "../ShaderLibrary/ShadowCaster.hlsl"
+            #include "../Library/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 			#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -119,20 +119,20 @@
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-            #include "../ShaderLibrary/ShadowCaster.hlsl"
+            #include "../Library/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -177,7 +177,7 @@
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -185,12 +185,12 @@
             #pragma instancing_options renderinglayer
 			#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -237,7 +237,7 @@
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -250,24 +250,26 @@
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/Lightmap.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/DBuffer.hlsl"
-			#include "../ShaderLibrary/BSDF.hlsl"
-			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/Lightmap.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/DBuffer.hlsl"
+			#include "../Library/BSDF.hlsl"
+			#include "../Library/ImageBasedLighting.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
+			Texture2D _NormalTexture;
+			SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -359,7 +361,7 @@
 
 			HLSLPROGRAM
             #pragma multi_compile _ INFINITY_SSS_OUTPUT
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -368,7 +370,7 @@
 #if defined(INFINITY_FORWARD_AO)
             Texture2D<float> SRV_ForwardOcclusion;
 #endif
-            #include "../ShaderLibrary/SurfaceLighting.hlsl"
+            #include "../Library/SurfaceLighting.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 			#pragma enable_debug_symbols
@@ -377,25 +379,27 @@
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/BSDF.hlsl"
-			#include "../ShaderLibrary/Lightmap.hlsl"
-			#include "../ShaderLibrary/Lighting.hlsl"
-			#include "../ShaderLibrary/ShadingModel.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/BSDF.hlsl"
+			#include "../Library/Lightmap.hlsl"
+			#include "../Library/Lighting.hlsl"
+			#include "../Library/ShadingModel.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ImageBasedLighting.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
+			Texture2D _NormalTexture;
+			SamplerState sampler_NormalTexture;
 
 
 			struct Attributes
@@ -471,7 +475,8 @@
                     * EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
                 #if defined(INFINITY_FORWARD_AO)
                 float ao = SRV_ForwardOcclusion.Load(int3(In.vertexCS.xy, 0));
-                diffuse *= ao; specular *= ao;
+                diffuse *= ao;
+                specular *= ao;
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
@@ -499,7 +504,7 @@
             }
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -507,12 +512,12 @@
             #pragma instancing_options renderinglayer
 			#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -562,18 +567,18 @@
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
+            #include "../Library/NativeMotion.hlsl"
 
 			struct Attributes
 			{
@@ -615,9 +620,9 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -626,13 +631,14 @@
 			#pragma multi_compile _ _VOLUMETRIC_FOG
 			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -705,9 +711,9 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -715,13 +721,14 @@
             #pragma instancing_options renderinglayer
 			#pragma multi_compile _ _REFRACTION_PYRAMID
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -798,22 +805,23 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+            #include "../Library/NativeMotion.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -880,15 +888,15 @@
 			Cull Off
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
 
 			CBUFFER_START(UnityMetaPass)
 				bool4 unity_MetaVertexControl;
@@ -898,7 +906,8 @@
 			float unity_OneOverOutputBoost;
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct MetaInput
 			{

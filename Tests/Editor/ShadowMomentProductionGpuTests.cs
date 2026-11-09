@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 var source = AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                    "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute");
+                    "Packages/com.infinity.render-pipeline/Shaders/Pass/Shadow/Compute_ShadowMoment.compute");
                 Assert.IsNotNull(source); shader = Object.Instantiate(source);
                 depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
                 var pixels = new float[128 * 128];
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                    "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute"));
+                    "Packages/com.infinity.render-pipeline/Shaders/Pass/Shadow/Compute_ShadowMoment.compute"));
                 source = new Texture2D(size, size, TextureFormat.RGBAHalf, false, true);
                 ushort[] pixels = new ushort[size * size * 4];
                 for (int y = 0; y < size; y++)
@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 producer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                    "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute"));
+                    "Packages/com.infinity.render-pipeline/Shaders/Pass/Shadow/Compute_ShadowMoment.compute"));
                 consumer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                     "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowMomentContract.compute"));
                 depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
@@ -248,7 +248,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 producer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                    "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute"));
+                    "Packages/com.infinity.render-pipeline/Shaders/Pass/Shadow/Compute_ShadowMoment.compute"));
                 consumer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                     "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowMomentContract.compute"));
                 depth = new Texture2D(2, 2, TextureFormat.RFloat, false, true);

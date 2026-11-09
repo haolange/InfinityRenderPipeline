@@ -7,21 +7,21 @@ import io
 from pathlib import Path
 import subprocess
 
-OUTPUT = "Docs/UnityBoundaryInventory.csv"
+OUTPUT = "Docs~/Project/Audit/UnityBoundaryInventory.csv"
 
 
 def classify(path):
-    if path.startswith(("Docs/History/", "Documentation~/Evidence/")):
+    if path.startswith(("Docs~/Record/History/", "Docs~/Record/Evidence/")):
         return "historical", "Immutable evidence; links checked by static gate"
     if path.endswith(".meta"):
         return "Unity importer", "GUID/import configuration; static meta gate"
     if path.startswith("Runtime/Resources/"):
         return "Unity asset / GlobalSettings", "ResourcePath container and importer; no automatic asset rewrite"
-    if path.startswith(("Runtime/RendererCore/", "Runtime/RenderingFeature/")):
+    if path.startswith(("Runtime/Core/", "Runtime/RenderGraph/", "Runtime/GPUResource/", "Runtime/Lighting/", "Runtime/Atmosphere/")):
         return "Infinity", "Owned algorithms/data; Unity resources and command APIs at explicit boundaries"
-    if path.startswith("Runtime/Component/Render/MeshComponent"):
-        return "Infinity", "Independent custom instance; no Renderer/Lightmap/CPU Probe ownership"
-    if path.startswith("Runtime/RenderPipeline/RayTracing/"):
+    if path.startswith("Runtime/Mesh/"):
+        return "Infinity", "Owned mesh world and MeshComponent; no Renderer/Lightmap/CPU Probe ownership"
+    if path.startswith("Runtime/RayTracing/"):
         return "Infinity URT adapter", "Public URT instance API; separate native/custom identities"
     if path.startswith("Runtime/"):
         return "Unity / Infinity adapter", "SRP camera/culling/Volume/lighting lifecycle; owned pass algorithms"
@@ -61,7 +61,7 @@ def render(repo):
         if digest == "removed":
             inspection = "consumer closure checked"
         writer.writerow((path, owner, boundary, inspection, disposition,
-                         "Docs/UnityIntegrationAudit.md; Docs/FeatureStatus.md", digest))
+                         "Docs~/Project/Audit/UnityIntegrationAudit.md; Docs~/Project/Status/FeatureStatus.md", digest))
     return stream.getvalue()
 
 

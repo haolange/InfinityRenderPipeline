@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
                 Assert.Ignore("Compute/readback required.");
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/PyramidColor/Compute_PyramidColor.compute"));
+                "Packages/com.infinity.render-pipeline/Shaders/Pass/Translucent/Compute_PyramidColor.compute"));
             int sw=padded?width+7:width, sh=padded?height+5:height;
             int bw=Math.Max(1,width/2), bh=Math.Max(1,height/2);
             int pw=padded?(bw+63)/64*64:bw, ph=padded?(bh+63)/64*64:bh;

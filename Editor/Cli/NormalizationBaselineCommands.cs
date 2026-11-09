@@ -43,8 +43,8 @@ namespace InfinityTech.Rendering.Editor.Cli
                     lines.AppendLine(component.GetType().Name + ".active=" + component.active + ",IsActive=" + GraphicsUtility.VolumeComponentActive(component));
                 }
 
-                profile.TryGet(out InfinityTech.Rendering.PostProcess.FilmTonemap film);
-                profile.TryGet(out InfinityTech.Rendering.PostProcess.ColorGrading grading);
+                profile.TryGet(out InfinityTech.Rendering.Volume.FilmTonemap film);
+                profile.TryGet(out InfinityTech.Rendering.Volume.ColorGrading grading);
                 string lutKey = string.Join("|",
                     film != null ? film.mode.value.ToString() : "nofilm",
                     film != null ? film.slope.value.ToString("R") : "0",

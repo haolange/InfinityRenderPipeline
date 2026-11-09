@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using UnityEngine;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests

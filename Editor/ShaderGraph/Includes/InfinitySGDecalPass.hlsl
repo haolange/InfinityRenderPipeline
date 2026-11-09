@@ -2,7 +2,7 @@
 #define INFINITY_SG_DECAL_PASS
 // DBufferPass of InfinityDecal: the fragment reconstructs the opaque surface behind the decal box and evaluates the
 // graph there (position, uv0 = object xz + 0.5, the projector's frame; projection along -Y).
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/DecalProjection.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/DecalProjection.hlsl"
 #if !defined(REQUIRE_DEPTH_TEXTURE)
 Texture2D _DepthTexture;
 #endif

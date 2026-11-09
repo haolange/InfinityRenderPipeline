@@ -47,14 +47,20 @@ namespace InfinityTech.Rendering.Editor
                 (r, prop, dep) =>
                 {
                     var light = prop?.serializedObject.targetObject as Light;
-                    if (light) EditorGUI.LabelField(r, light.type.ToString());
+                    if (light)
+                    {
+                        EditorGUI.LabelField(r, light.type.ToString());
+                    }
                 });
             columns[3] = new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom,
                 new GUIContent("Shape", "Read-only effective Infinity shape."), "m_Type", 120, (r, prop, dep) =>
                 {
                     var light = prop?.serializedObject.targetObject as Light;
                     // Scene close can repaint a table row after its native Light has been destroyed.
-                    if (!light) return;
+                    if (!light)
+                    {
+                        return;
+                    }
                     LightSourceShape shape = light.TryGetComponent<InfinityAdditionalLightData>(out var data)
                         ? data.shape : LightShapeUtility.FromUnityLight(light);
                     EditorGUI.LabelField(r, DescribeShape(shape));
@@ -89,7 +95,10 @@ namespace InfinityTech.Rendering.Editor
             switch (shape.type)
             {
                 case EInfinityLightType.Point:
-                    if (shape.sourceLength > 0) return shape.sourceRadius > 0 ? "Tube" : "Line";
+                    if (shape.sourceLength > 0)
+                    {
+                        return shape.sourceRadius > 0 ? "Tube" : "Line";
+                    }
                     return shape.sourceRadius > 0 ? "Sphere" : "Point";
                 case EInfinityLightType.Spot:
                     return shape.spotShape + " Spot";

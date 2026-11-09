@@ -15,9 +15,9 @@ import sys
 
 
 ASSET_SUFFIXES = {".asset", ".mat", ".unity", ".prefab", ".cs", ".asmdef", ".asmref"}
-PACKAGE_INPUTS = ("package.json", "AGENTS.md", "Documentation~/editor.md",
-                  "Docs/FullRendering-Delivery-Report.md",
-                  "Editor/Tools/Validation/InfinityValidationMenus.cs")
+PACKAGE_INPUTS = ("package.json", "AGENTS.md", "Docs~/Manual/editor.md",
+                  "Docs~/Record/History/FullRendering-Delivery-Report.md",
+                  "Editor/Validation/InfinityValidationMenus.cs")
 
 
 def git(root, *args):

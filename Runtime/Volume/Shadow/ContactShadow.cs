@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     // Screen-space traced shadows from the depth buffer for the sun and for local lights with Contact Shadows enabled
     // (up to 24 local lights per camera).

@@ -1,6 +1,6 @@
 #pragma kernel DecodeGBufferContract
 
-#include "../../../Shaders/ShaderLibrary/GBufferPack.hlsl"
+#include "../../../Shaders/Library/GBufferPack.hlsl"
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;

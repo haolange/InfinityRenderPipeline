@@ -1,12 +1,12 @@
 # InfinityRP contributor and agent specification
 
-This document is normative for changes to `com.infinity.render-pipeline`. [ARCHITECTURE.md](ARCHITECTURE.md) describes the implementation. [Docs/FeatureStatus.md](Docs/FeatureStatus.md) records verification. [Documentation~/index.md](Documentation~/index.md) is the authoring manual. [Docs/History/](Docs/History) is immutable evidence.
+This document is normative for changes to `com.infinity.render-pipeline`. [ARCHITECTURE.md](ARCHITECTURE.md) describes the implementation. [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) records verification. [Docs~/Manual/index.md](Docs~/Manual/index.md) is the authoring manual. [Docs~/Record/History/](Docs~/Record/History) is immutable evidence.
 
 A silent fallback is not a fix. Console output with no errors has hidden ownership, order and lifetime defects, including a depth clear that left the Game view empty.
 
 ## 1. Work
 
-Track active work in the conversation task list. Do not create a root task ledger. Completed verification belongs in `Docs/FeatureStatus.md`.
+Track active work in the conversation task list. Do not create a root task ledger. Completed verification belongs in `Docs~/Project/Status/FeatureStatus.md`.
 
 ### From request to change
 
@@ -24,7 +24,7 @@ Deliver the requested scope in the same interaction: decide, change, verify, and
 
 Stop only when continuing could lose data, break an API, ABI or serialized schema, force a wide or irreversible change, move a security or permission boundary, or change user-visible behavior that cannot be rolled back, or when the evidence supports no safe default. Ask in those cases. For every other ambiguity, state the default, why it was chosen, the risk and the rollback, then finish the reversible work.
 
-Do not create a git branch unless the user explicitly asks, or the session is already a worktree. `Docs/History` does not authorize a push or new work. Player builds and packaging require explicit user authorization.
+Do not create a git branch unless the user explicitly asks, or the session is already a worktree. `Docs~/Record/History` does not authorize a push or new work. Player builds and packaging require explicit user authorization.
 
 ### Verification
 
@@ -73,7 +73,9 @@ Editor load and script reload never migrate, rebuild, delete or save user assets
 
 Names say what a type holds or does. Do not borrow a type prefix from another engine. On a collision, choose a more descriptive name; never add a prefix or a number. No generation version in a name, a file or a document title. `Version` and `Revision` name a data snapshot. Acronyms stay uppercase in type and method names, and a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name, and an ordinal does not stand in for meaning. Mesh drawing is `MeshDrawListDesc` then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`: the list holds `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. `Draw` alone is a verb, never a noun prefix.
 
-Extend `InfinityRenderPipeline` only through partial files under `Runtime/RenderPipeline/Pass/<domain>/`. Volume components live in `Runtime/Volume/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Prefer `#region` in Editor inspectors and avoid it on hot runtime paths. One primary type per file unless a pass or feature group is clearer together.
+Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. Volume components live in `Runtime/Volume/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. One primary type per file unless a pass or feature group is clearer together.
+
+Layout is [Docs~/Project/Style](Docs~/Project/Style). Read Page for section shape, Type for a declaration, Flow for a method body, and Data for fields, pass data, shader IDs, and GPU records. Read Editor as well when the file is under `Editor/`. Read Shaders when the file is a shader. A `#region` marks a C# section long enough to be a block, in runtime code and in inspectors. Indent its body one level and repeat the name on `#endregion`. A region is removed before compilation and is not a hot-path cost. A hot path still forbids an extra abstraction or allocation.
 
 Assembly names are `Unity.RenderPipelines.Infinity.*`. Old identities appear only in temporary migration tooling and in immutable history, never as a compatibility shim.
 
@@ -196,9 +198,9 @@ Guard a degenerate normalization before a reciprocal length. Bind required resou
 - `MeshComponent` never discovers or changes a renderer and stores no lightmap or CPU per-instance probe data. Its material may sample Adaptive Probe Volumes in world space. Atmosphere and realtime lights remain pipeline inputs.
 - Unified Ray Tracing's public explicit-instance API is wrapped by an isolated adapter. Native renderer identity and custom draw generation are distinct. A mesh resource is not an instance identity. Native scene changes do not wait for mesh-scene revisions. The persistent-scene scope is transient and is released with the adapter.
 - Additional-data components own only Infinity extensions. They are added with Undo by `ObjectFactory.componentWasAdded` and by the Infinity inspectors. Do not expose a public field that the user assigns to a camera or light. Editor load, reload and scene save do not migrate or regenerate hidden data. Terrain sector regeneration is an explicit inspector action with Undo and prefab tracking.
-- The file inventory is `Docs/UnityIntegrationAudit.md` and `Docs/UnityBoundaryInventory.csv`. Inventory hashes describe inspected bytes, not runtime verification.
+- The file inventory is `Docs~/Project/Audit/UnityIntegrationAudit.md` and `Docs~/Project/Audit/UnityBoundaryInventory.csv`. Inventory hashes describe inspected bytes, not runtime verification.
 
-Runtime resources live only in Global Settings `IRenderPipelineResources` containers with `[ResourcePath]`. The pipeline asset never references runtime shaders. Its material fields are optional overrides for objects created from the GameObject menu. A missing required resource fails at record or setup. `ResolveDefaultVolumeProfile` throws when the Global Settings slot is empty. There is no `Resources.Load` fallback. Player shader stripping lives in `Editor/ShaderStripper/`.
+Runtime resources live only in Global Settings `IRenderPipelineResources` containers with `[ResourcePath]`. The pipeline asset never references runtime shaders. Its material fields are optional overrides for objects created from the GameObject menu. A missing required resource fails at record or setup. `ResolveDefaultVolumeProfile` throws when the Global Settings slot is empty. There is no `Resources.Load` fallback. Player shader stripping lives in `Editor/Material/`.
 
 `SupportedRenderingFeatures.active.rendersUIOverlay` is true. Screen-space overlay uses `CreateUIOverlayRendererList` and `DrawRendererList` for a Game camera with no target texture: on the hardware-sRGB target after direct output, or on `DisplayColorBuffer` before encoding when a linear intermediate is required. Scene view never draws that list. Screen-space camera and world-space canvases use the translucent renderer list.
 
@@ -243,7 +245,7 @@ A Game view that is not redrawing produces identical screenshots. Require Play m
 
 ## 13. Defects that must stay visible
 
-Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs/FeatureStatus.md`.
+Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs~/Project/Status/FeatureStatus.md`.
 
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is undiagnosed.
 - Translucent MeshComponent content and native translucent renderers are sorted in two lists. Each list is strictly back to front; between them there is no distance order.

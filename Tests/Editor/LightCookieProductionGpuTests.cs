@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
                 Assert.Ignore("Compute and async readback required.");
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/LightCookie/Compute_LightCookie.compute"));
+                "Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_LightCookie.compute"));
             var color = new Color(.125f, .25f, .5f, .75f);
             var pixels = new Color[16]; System.Array.Fill(pixels, color);
             var source = new Texture2D(4, 4, TextureFormat.RGBAFloat, false, true);

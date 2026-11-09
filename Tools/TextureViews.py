@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.RenderGraph
 '''
     cs += ''.join('            { Shader.PropertyToID("'+n+'"), Shader.PropertyToID("'+n+'_InfinityView") },\n' for n in names)
     cs += '        };\n    }\n}\n'
-    return {ROOT/'Shaders/ShaderLibrary/TextureViews.generated.hlsl':hlsl,ROOT/'Runtime/RendererCore/RenderGraph/TextureViewBindings.generated.cs':cs}
+    return {ROOT/'Shaders/Library/TextureViews.generated.hlsl':hlsl,ROOT/'Runtime/RenderGraph/TextureViewBindings.generated.cs':cs}
 
 def main():
     failed = False

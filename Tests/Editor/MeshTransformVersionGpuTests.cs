@@ -98,7 +98,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public IEnumerator ImmutableVersions_ShareUpload_PreserveSparseViews_RejectReusedSlots()
         {
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback) Assert.Ignore("GPU fixture unavailable.");
-            var build = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute");
+            var build = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Mesh/Compute_MeshDrawPipeline.compute");
             var sample = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/MeshTransformVersionTests.compute");
             if (build == null) Assert.Ignore("Compute_MeshDrawPipeline is not available.");
             Assert.IsNotNull(sample);

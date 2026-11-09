@@ -23,16 +23,16 @@ Shader "InfinityPipeline/InfinityDecal"
 			Blend 2 SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/DecalProjection.hlsl"
+			#include "../Library/DecalProjection.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float _Roughness;
@@ -40,7 +40,8 @@ Shader "InfinityPipeline/InfinityDecal"
 				float _Occlusion;
 				float4 _BaseColor;
 			CBUFFER_END
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 			Texture2D _DepthTexture;
 
 			struct Attributes

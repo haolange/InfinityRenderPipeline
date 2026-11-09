@@ -312,7 +312,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public IEnumerator ExecuteFilter(float roughness)
             {
                 m_FilterShader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                    "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/CubeFilter/Compute_CubeFilter.compute"));
+                    "Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_CubeFilter.compute"));
                 var descriptor = new RenderTextureDescriptor(8, 8,
                     UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat, 0)
                 {

@@ -5,18 +5,18 @@
 #pragma kernel TraceContract
 #pragma kernel ContactShadowContract
 
-#include "../../../Shaders/ShaderLibrary/Common.hlsl"
-#include "../../../Shaders/ShaderLibrary/ScreenSpaceDepth.hlsl"
-#include "../../../Shaders/ShaderLibrary/ScreenSpaceReprojection.hlsl"
-#include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
-#include "../../../Shaders/ShaderLibrary/GBufferPack.hlsl"
+#include "../../../Shaders/Library/Common.hlsl"
+#include "../../../Shaders/Library/ScreenSpaceDepth.hlsl"
+#include "../../../Shaders/Library/ScreenSpaceReprojection.hlsl"
+#include "../../../Shaders/Library/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../Shaders/Library/GBufferPack.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D SRV_GBufferB, SRV_GBufferC;
 float4 SSGI_Resolution;
 float4x4 Matrix_InvProj, Matrix_InvViewProj;
-#include "../../../Shaders/ShaderLibrary/ScreenSpaceIndirectSurface.hlsl"
-#include "../../../Shaders/ShaderLibrary/Lighting/LightShapes.hlsl"
+#include "../../../Shaders/Library/ScreenSpaceIndirectSurface.hlsl"
+#include "../../../Shaders/Library/Lighting/LightShapes.hlsl"
 
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;

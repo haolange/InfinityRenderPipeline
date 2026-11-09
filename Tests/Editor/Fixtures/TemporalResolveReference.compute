@@ -2,8 +2,8 @@
 #pragma kernel MainDebug TAA_WRITE_DIAGNOSTICS
 #pragma kernel Sharpen TAA_SHARPEN
 
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Common.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ScreenSpaceDepth.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ScreenSpaceDepth.hlsl"
 
 float4 TAA_Resolution;
 float4 TAA_JitterUV; // current xy, previous zw, in sampled framebuffer UV.

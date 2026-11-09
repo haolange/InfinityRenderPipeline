@@ -1,0 +1,178 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+#pragma kernel BloomDownsample
+#pragma kernel BloomUpsample
+#pragma kernel ExposureClear
+#pragma kernel ExposureHistogram
+#pragma kernel ExposureReduce
+
+#include "../../Library/Common.hlsl"
+#include "../../Library/ColorUtility.hlsl"
+
+float4 PP_Resolution;
+float PP_BloomThreshold;
+float PP_BloomScatter;
+float PP_ExposureMultiplier;
+float PP_AutoExposure;
+
+Texture2D<float4> SRV_SceneColorTexture;
+Texture2D<float> SRV_ExposureEV;
+
+Texture2D<float4> SRV_BloomSource;
+RWTexture2D<float4> UAV_BloomTarget;
+float4 BloomMipSize;
+float PP_BloomPrefilter;
+
+
+RWStructuredBuffer<uint> UAV_ExposureHistogram;
+Texture2D<float> SRV_ExposureHistoryEV;
+RWTexture2D<float> UAV_ExposureEV;
+float4 PP_ExposureHistogramRange;
+float PP_ExposureLowPercentile;
+float PP_ExposureHighPercentile;
+float PP_ExposureAdapt;
+int PP_ExposureReset;
+
+float CurrentExposureMultiplier()
+{
+    float multiplier = PP_ExposureMultiplier;
+    if (PP_AutoExposure > 0.5)
+    {
+        multiplier *= exp2(SRV_ExposureEV[uint2(0, 0)]);
+    }
+
+    return multiplier;
+}
+
+[numthreads(8, 8, 1)]
+void BloomDownsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)BloomMipSize.xy))
+        return;
+
+    float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
+    float2 texelSize = BloomMipSize.zw;
+
+    float3 a = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2, -2) * texelSize,0).rgb;
+    float3 b = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0, -2) * texelSize,0).rgb;
+    float3 c = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2, -2) * texelSize,0).rgb;
+    float3 d = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1, -1) * texelSize,0).rgb;
+    float3 e = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1, -1) * texelSize,0).rgb;
+    float3 f = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2,  0) * texelSize,0).rgb;
+    float3 g = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv,0).rgb;
+    float3 h = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2,  0) * texelSize,0).rgb;
+    float3 i = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  1) * texelSize,0).rgb;
+    float3 j = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  1) * texelSize,0).rgb;
+    float3 k = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2,  2) * texelSize,0).rgb;
+    float3 l = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0,  2) * texelSize,0).rgb;
+    float3 m = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2,  2) * texelSize,0).rgb;
+
+    float3 result = 0;
+    result += (d + e + i + j) * 0.5 * 0.25;
+    result += (a + b + f + g) * 0.125 * 0.25;
+    result += (b + c + g + h) * 0.125 * 0.25;
+    result += (f + g + k + l) * 0.125 * 0.25;
+    result += (g + h + l + m) * 0.125 * 0.25;
+
+    if (PP_BloomPrefilter > 0.5)
+    {
+        result *= CurrentExposureMultiplier();
+        const float knee = 0.5;
+        float brightness = Rec709Luminance(result);
+        float soft = clamp(brightness - PP_BloomThreshold + knee, 0, 2.0 * knee);
+        soft = soft * soft * rcp(4.0 * knee + 1e-4);
+        float contribution = max(soft, brightness - PP_BloomThreshold) * rcp(max(brightness, 1e-4));
+        result *= contribution;
+    }
+
+    UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
+}
+
+[numthreads(8, 8, 1)]
+void BloomUpsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)BloomMipSize.xy))
+        return;
+
+    float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
+    float2 texelSize = BloomMipSize.zw;
+
+    float3 result = 0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1, -1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0, -1) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1, -1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  0) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv,0).rgb * 4.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  0) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0,  1) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  1) * texelSize,0).rgb * 1.0;
+    result /= 16.0;
+    // Scatter selects the wider mip contribution without increasing constant-field energy.
+    result = lerp(UAV_BloomTarget[id.xy].rgb, result, PP_BloomScatter);
+
+    UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
+}
+
+[numthreads(64, 1, 1)]
+void ExposureClear(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < 256)
+    {
+        UAV_ExposureHistogram[id.x] = 0;
+    }
+}
+
+[numthreads(8, 8, 1)]
+void ExposureHistogram(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)PP_Resolution.xy))
+        return;
+
+    float3 sceneColor = SRV_SceneColorTexture[id.xy].rgb;
+    float luma = max(Rec709Luminance(sceneColor), 1e-6);
+    float logLum = log2(luma);
+    float t = saturate((logLum - PP_ExposureHistogramRange.x) * PP_ExposureHistogramRange.z);
+    uint bin = (uint)(t * 255.999);
+    InterlockedAdd(UAV_ExposureHistogram[bin], 1);
+}
+
+[numthreads(1, 1, 1)]
+void ExposureReduce(uint3 id : SV_DispatchThreadID)
+{
+    uint total = 0;
+    for (uint i = 0; i < 256; ++i)
+    {
+        total += UAV_ExposureHistogram[i];
+    }
+
+    float targetEV = 0.0;
+    if (total > 0)
+    {
+        uint lowCount = (uint)(total * PP_ExposureLowPercentile / 100.0);
+        uint highCount = (uint)(total * PP_ExposureHighPercentile / 100.0);
+        uint running = 0;
+        float weighted = 0.0;
+        float weight = 0.0;
+        for (uint bin = 0; bin < 256; ++bin)
+        {
+            uint count = UAV_ExposureHistogram[bin];
+            uint next = running + count;
+            if (next > lowCount && running < highCount)
+            {
+                uint usable = min(next, highCount) - max(running, lowCount);
+                float logCenter = lerp(PP_ExposureHistogramRange.x, PP_ExposureHistogramRange.y, (bin + 0.5) / 256.0);
+                weighted += logCenter * usable;
+                weight += usable;
+            }
+
+            running = next;
+        }
+
+        float avgLog = weight > 0.0 ? weighted / weight : 0.0;
+        targetEV = log2(0.18) - avgLog;
+    }
+
+    float prevEV = PP_ExposureReset != 0 ? targetEV : SRV_ExposureHistoryEV[uint2(0, 0)];
+    float ev = lerp(prevEV, targetEV, saturate(PP_ExposureAdapt));
+    UAV_ExposureEV[uint2(0, 0)] = ev;
+}

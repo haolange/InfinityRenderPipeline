@@ -1,18 +1,18 @@
 #ifndef _TerrainLitInclude
 #define _TerrainLitInclude
 
-#include "../ShaderLibrary/Common.hlsl"
-#include "../ShaderLibrary/Lighting.hlsl"
-#include "../ShaderLibrary/GBufferPack.hlsl"
-#include "../ShaderLibrary/DBuffer.hlsl"
-#include "../ShaderLibrary/ShaderVariables.hlsl"
+#include "../Library/Common.hlsl"
+#include "../Library/Lighting.hlsl"
+#include "../Library/GBufferPack.hlsl"
+#include "../Library/DBuffer.hlsl"
+#include "../Library/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
-#include "../ShaderLibrary/Lightmap.hlsl"
-#include "../ShaderLibrary/ShadowCaster.hlsl"
+#include "../Library/Lightmap.hlsl"
+#include "../Library/ShadowCaster.hlsl"
 
 #if defined(UNITY_INSTANCING_ENABLED) && defined(_TERRAIN_INSTANCED_PERPIXEL_NORMAL)
     #define ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -75,29 +75,36 @@ CBUFFER_START(_Terrain)
     #endif
 CBUFFER_END
 
-TEXTURE2D(_Control);    SAMPLER(sampler_Control);
-TEXTURE2D(_Splat0);     SAMPLER(sampler_Splat0);
+TEXTURE2D(_Control);
+SAMPLER(sampler_Control);
+TEXTURE2D(_Splat0);
+SAMPLER(sampler_Splat0);
 TEXTURE2D(_Splat1);
 TEXTURE2D(_Splat2);
 TEXTURE2D(_Splat3);
 
 #ifdef _NORMALMAP
-TEXTURE2D(_Normal0);     SAMPLER(sampler_Normal0);
+TEXTURE2D(_Normal0);
+SAMPLER(sampler_Normal0);
 TEXTURE2D(_Normal1);
 TEXTURE2D(_Normal2);
 TEXTURE2D(_Normal3);
 #endif
 
 #ifdef _MASKMAP
-TEXTURE2D(_Mask0);      SAMPLER(sampler_Mask0);
+TEXTURE2D(_Mask0);
+SAMPLER(sampler_Mask0);
 TEXTURE2D(_Mask1);
 TEXTURE2D(_Mask2);
 TEXTURE2D(_Mask3);
 #endif
 
-TEXTURE2D(_MainTex);       SAMPLER(sampler_MainTex);
-TEXTURE2D(_SpecGlossMap);  SAMPLER(sampler_SpecGlossMap);
-TEXTURE2D(_MetallicTex);   SAMPLER(sampler_MetallicTex);
+TEXTURE2D(_MainTex);
+SAMPLER(sampler_MainTex);
+TEXTURE2D(_SpecGlossMap);
+SAMPLER(sampler_SpecGlossMap);
+TEXTURE2D(_MetallicTex);
+SAMPLER(sampler_MetallicTex);
 
 #ifdef _ALPHATEST_ON
 
@@ -495,7 +502,10 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     LightingBuffer = 0;
     for(int i = 0; i < g_DirectionalLightCount; ++i)
     {
-        if ((g_LightRecordBuffer[i].lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
+        if ((g_LightRecordBuffer[i].lightLayer & asuint(unity_RenderingLayer.x)) == 0)
+        {
+            continue;
+        }
         half3 lighting = saturate(dot(DirectionalLightL(g_LightRecordBuffer[i]), inputData.normalWS.xyz));
         lighting *= 0.318 * mixedDiffuse.rgb * LightRadiance(g_LightRecordBuffer[i]);
         LightingBuffer.rgb += lighting;

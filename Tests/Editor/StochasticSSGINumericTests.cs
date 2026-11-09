@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class StochasticSSGINumericTests
     {
         const string k_Package = "Packages/com.infinity.render-pipeline/";
-        const string k_ShaderPath = k_Package + "Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute";
+        const string k_ShaderPath = k_Package + "Shaders/Pass/ScreenSpace/Compute_ScreenSpaceIndirectDiffuse.compute";
 
         static void RequireGpu()
         {

@@ -1,6 +1,6 @@
 #pragma kernel Pack
 #pragma kernel Decode
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ScreenSpaceSurfaceMetadata.hlsl"
 Texture2D<float4> Source;
 RWTexture2D<uint2> Packed;
 [numthreads(8,8,1)]

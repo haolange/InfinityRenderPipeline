@@ -2,7 +2,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CompositeShader_DoesNotMultiplyAOOnSSROrSSGI()
         {
-            string shaderPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceComposite/Compute_ScreenSpaceComposite.compute"));
+            string shaderPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Shaders/Pass/ScreenSpace/Compute_ScreenSpaceComposite.compute"));
             Assert.IsTrue(File.Exists(shaderPath), shaderPath);
             string source = File.ReadAllText(shaderPath);
             Assert.IsTrue(source.Contains("AO is applied once in DeferredShading on IBL"));
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CompositePass_DoesNotBindCOMPOSITE_AO()
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/ScreenSpace/ScreenSpaceCompositePass.cs"));
+            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/ScreenSpace/ScreenSpaceCompositePass.cs"));
             Assert.IsTrue(File.Exists(passPath), passPath);
             string source = File.ReadAllText(passPath);
             Assert.IsFalse(source.Contains("COMPOSITE_AO"));
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void DeferredShading_QueriesOcclusionOnlyWhenRegistered()
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Lighting/DeferredShadingPass.cs"));
+            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/Lighting/DeferredShadingPass.cs"));
             Assert.IsTrue(File.Exists(passPath), passPath);
             string source = File.ReadAllText(passPath);
             Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));

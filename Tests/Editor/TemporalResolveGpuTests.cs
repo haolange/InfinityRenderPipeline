@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class TemporalResolveGpuTests
     {
-        const string Path = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute";
+        const string Path = "Packages/com.infinity.render-pipeline/Shaders/Pass/Temporal/Compute_TemporalAntiAliasing.compute";
         sealed class Fixture : IDisposable
         {
             public readonly int width, height;
@@ -168,7 +168,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 double rawError=0,taaError=0;int observations=0;
                 for(int frame=0;frame<128;frame++)
                 {
-                    Vector2 jitter=frame==0?Vector2.zero:new Vector2(InfinityTech.Rendering.Feature.HaltonSequence.Get(frame%8+1,2)-.5f,InfinityTech.Rendering.Feature.HaltonSequence.Get(frame%8+1,3)-.5f)*.75f;
+                    Vector2 jitter=frame==0?Vector2.zero:new Vector2(InfinityTech.Rendering.Pipeline.HaltonSequence.Get(frame%8+1,2)-.5f,InfinityTech.Rendering.Pipeline.HaltonSequence.Get(frame%8+1,3)-.5f)*.75f;
                     var color=new Color[width*height];var metadata=new Color[width*height];var currentDepth=new Color[width*height];
                     for(int y=0;y<height;y++) for(int x=0;x<width;x++)
                     {

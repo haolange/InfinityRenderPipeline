@@ -16,8 +16,8 @@
 #define SHADERPASS_META 9
 #define SHADERPASS_DBUFFER 10
 
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Common.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
@@ -27,7 +27,7 @@
 float4 unity_OrthoParams;
 
 #include "Packages/com.unity.shadergraph/ShaderGraphLibrary/ShaderVariablesFunctions.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MotionVectors.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/MotionVectors.hlsl"
 
 // Infinity renders without dynamic resolution scaling of the screen parameters.
 float4 GetScaledScreenParams()

@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     // InfinityRP supports exactly two tonemapping modes. The film curve is the ACES filmic curve
     // (slope/toe/shoulder/clip parameters). The serialized value of ACES stays 1.

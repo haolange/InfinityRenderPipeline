@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class LightRecordLayoutTests
     {
-        const string RecordPath = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightRecord.hlsl";
+        const string RecordPath = "Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightRecord.hlsl";
 
         static List<(string type, string name)> ParseHlslStruct(string text, string structName)
         {

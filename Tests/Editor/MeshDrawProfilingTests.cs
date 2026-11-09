@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void Preparation_IsNotWrappedInTheConsumerSampler()
         {
-            string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RendererCore/PrimitivePipeline/MeshPipeline/Graph/MeshGraphExtension.cs");
+            string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/Mesh/Graph/MeshGraphExtension.cs");
             int start = source.IndexOf("void InsertDrawListPreparation", StringComparison.Ordinal);
             int end = source.IndexOf("RGBufferHandle[] RecordPreparation", StringComparison.Ordinal);
             Assert.GreaterOrEqual(start, 0);
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void RendererListSubmission_DoesNotAddAWrapperScope()
         {
-            string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RendererCore/RenderGraph/RGEncoder.cs");
+            string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RenderGraph/RGEncoder.cs");
             Assert.IsFalse(source.Contains("RasterRendererList"));
             Assert.IsTrue(source.Contains("m_CommandBuffer.DrawRendererList(rendererList);"));
             Assert.IsTrue(source.Contains("m_RendererLists?.Submit(m_CommandBuffer, rendererList);"));

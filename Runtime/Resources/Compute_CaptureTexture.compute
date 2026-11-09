@@ -9,7 +9,7 @@ void CaptureTexture(uint3 id : SV_DispatchThreadID)
 }
 
 #pragma kernel CaptureSurfaceMetadata
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ScreenSpaceSurfaceMetadata.hlsl"
 Texture2D<uint2> SRV_CaptureMetadata;
 [numthreads(8,8,1)]
 void CaptureSurfaceMetadata(uint3 id : SV_DispatchThreadID)

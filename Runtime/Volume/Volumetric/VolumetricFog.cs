@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     [Serializable, VolumeComponentMenu("Sky and Fog/Volumetric Fog")]
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]

@@ -9,14 +9,14 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void NativeViewMotionHistory_IsRetired()
         {
-            string path = Path.GetFullPath("Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Context/NativeViewMotionHistory.cs");
+            string path = Path.GetFullPath("Packages/com.infinity.render-pipeline/Runtime/Pipeline/Context/NativeViewMotionHistory.cs");
             Assert.IsFalse(File.Exists(path), path);
         }
 
         [Test]
         public void NativeMotion_UsesUnityPreviousMatrix_WithoutInstancedMpb()
         {
-            string path = Path.GetFullPath("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/NativeMotion.hlsl");
+            string path = Path.GetFullPath("Packages/com.infinity.render-pipeline/Shaders/Library/NativeMotion.hlsl");
             Assert.IsTrue(File.Exists(path), path);
             string source = File.ReadAllText(path);
             Assert.IsTrue(source.Contains("unity_MatrixPreviousM"));
@@ -30,19 +30,19 @@ namespace InfinityTech.Rendering.Tests
         public void MotionAndTranslucent_RequestUnityMotionVectors_WithoutNativeVertexUpload()
         {
             string motion = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Geometry/MotionPass.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/Geometry/MotionPass.cs"));
             Assert.IsTrue(motion.Contains("PerObjectData.MotionVectors"));
             Assert.IsFalse(motion.Contains("preferNativeMotionVectors"));
             Assert.IsFalse(motion.Contains("NativePreviousVertices"));
             Assert.IsFalse(motion.Contains("UploadNativeMotionVertices"));
 
             string translucent = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Translucent/TranslucentPass.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/Translucent/TranslucentPass.cs"));
             Assert.IsTrue(translucent.Contains("PerObjectData.MotionVectors"));
             Assert.IsFalse(translucent.Contains("NativePreviousVertices"));
 
             string pipeline = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/InfinityRenderPipeline.cs"));
             Assert.IsFalse(pipeline.Contains("SetPropertyBlock"));
             Assert.IsFalse(pipeline.Contains("nativeMotionHistory"));
 

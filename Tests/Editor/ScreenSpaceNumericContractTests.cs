@@ -106,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void RunOcclusion()
             {
-                ComputeShader shader = Load("Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute");
+                ComputeShader shader = Load("Shaders/Pass/ScreenSpace/Compute_GroundTruthOcclusion.compute");
                 int width = Mathf.Max(1, m_Width >> 1), height = Mathf.Max(1, m_Height >> 1);
                 SetMatrices(shader);
                 shader.SetVector("Resolution", Resolution(width, height));

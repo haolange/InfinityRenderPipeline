@@ -25,7 +25,7 @@ class StaticCheckTests(unittest.TestCase):
         target.write_text(text)
 
     def test_custom_mesh_native_ownership_is_rejected(self):
-        self.write('Runtime/Component/Render/MeshComponent.cs', 'var source = GetComponent<Renderer>();')
+        self.write('Runtime/Mesh/MeshComponent.cs', 'var source = GetComponent<Renderer>();')
         out = []
         static_check.check_unity_boundary(str(self.repo), out)
         self.assertEqual(1, len(out))
@@ -38,20 +38,20 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual([], out)
 
     def test_render_graph_must_not_reference_mesh_pipeline(self):
-        self.write('Runtime/RendererCore/RenderGraph/RGBuilder.cs', 'using InfinityTech.Rendering.MeshPipeline;\nclass RGBuilder {}')
-        self.write('Runtime/RendererCore/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nclass RGPass {}')
-        self.write('Runtime/RendererCore/RenderGraph/RGCompile.cs', 'namespace InfinityTech.Rendering.RenderGraph { class C { MeshPipeline.MeshView view; } }')
+        self.write('Runtime/RenderGraph/RGBuilder.cs', 'using InfinityTech.Rendering.MeshPipeline;\nclass RGBuilder {}')
+        self.write('Runtime/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nclass RGPass {}')
+        self.write('Runtime/RenderGraph/RGCompile.cs', 'namespace InfinityTech.Rendering.RenderGraph { class C { MeshPipeline.MeshView view; } }')
         out = []
         static_check.check_graph_dependency(str(self.repo), out)
         self.assertEqual(['RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
         self.assertTrue(all(o[1] == 'graphdependency' for o in out))
 
     def test_mesh_bindings_are_a_closed_set(self):
-        self.write('Shaders/ShaderLibrary/GPUScene.hlsl', 'uint InstanceOffset;\nStructuredBuffer<uint> InstanceToEntity;\n')
-        self.write('Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute', 'uint _EntityCount, _Unbound;\n')
-        self.write('Runtime/RendererCore/PrimitivePipeline/MeshPipeline/Backend/Gpu.cs',
+        self.write('Shaders/Library/GPUScene.hlsl', 'uint InstanceOffset;\nStructuredBuffer<uint> InstanceToEntity;\n')
+        self.write('Shaders/Mesh/Compute_MeshDrawPipeline.compute', 'uint _EntityCount, _Unbound;\n')
+        self.write('Runtime/Mesh/Backend/Gpu.cs',
                    'static int a = Shader.PropertyToID("_EntityCount"); static int b = Shader.PropertyToID("_Renamed");')
-        self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs',
+        self.write('Runtime/Pipeline/PipelineIDs.cs',
                    '// Mesh entity interface (GPUScene.hlsl).\nint x = Shader.PropertyToID("InstanceOffset"); int y = Shader.PropertyToID("InstanceToEntity");\n\nint z = 0;')
         out = []
         static_check.check_mesh_bindings(str(self.repo), out)
@@ -61,7 +61,7 @@ class StaticCheckTests(unittest.TestCase):
         self.assertIn('_Unbound', messages[1])
 
     def test_mesh_submit_only_draws(self):
-        root = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline/'
+        root = 'Runtime/Mesh/'
         self.write(root + 'Backend/MeshDrawCPUBackend.cs',
                    'class A { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
         self.write(root + 'Backend/MeshDrawGPUBackend.cs',
@@ -83,8 +83,8 @@ class StaticCheckTests(unittest.TestCase):
         self.assertIn('"movebility"', out[0][2])
 
     def test_mesh_pass_files_leave_backend_choice_to_the_world(self):
-        self.write('Runtime/RenderPipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshDrawBackendPolicy.GPUIndirect) {}')
-        self.write('Runtime/RenderPipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));')
+        self.write('Runtime/Pipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshDrawBackendPolicy.GPUIndirect) {}')
+        self.write('Runtime/Pipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));')
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshDrawBackendPolicy')], out)
@@ -122,7 +122,7 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual([('ERROR', 'meta', 'missing meta: ./Live.cs')], out)
 
     def test_commented_tags_are_ignored_but_live_unknown_tag_fails(self):
-        self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs',
+        self.write('Runtime/Pipeline/PipelineIDs.cs',
                    'new ShaderTagId("RasterGBufferPass"); // new ShaderTagId("UnknownPass");')
         self.write('Surface.shader', '''/* Tags { "LightMode" = "OldPass" } */
 // Tags { "LightMode" = "AnotherOldPass" }
@@ -135,7 +135,7 @@ Tags { "LightMode" = "UnknownPass" }
                           'Surface.shader: LightMode "UnknownPass" not in InfinityPassIDs')], out)
 
     def test_legacy_declared_lightmode_is_rejected(self):
-        self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs', 'new ShaderTagId("DepthPass");')
+        self.write('Runtime/Pipeline/PipelineIDs.cs', 'new ShaderTagId("DepthPass");')
         out = []
         static_check.check_lightmode(str(self.repo), out)
         self.assertTrue(any('RasterXXXPass' in item[2] for item in out))
@@ -231,7 +231,7 @@ Tags { "LightMode" = "UnknownPass" }
 
     def test_generationname_keeps_data_locals_history_and_semver(self):
         self.write('Shaders/ACES.hlsl', 'struct LegacyV2 { }\n')
-        self.write('Docs/History/Old.md', '# Pipeline v2\n')
+        self.write('Docs~/Record/History/Old.md', '# Pipeline v2\n')
         self.write('Runtime/Math.cs', 'float v0 = 1; float4 color; float uv0;\n')
         self.write('CHANGELOG.md', '## [0.5.0] - Unreleased\n## [0.4.0]\n# Kept v2 in a released section\n')
         self.write('Docs/Note.md', 'committed v1 then queued v2 is a data snapshot.\n')

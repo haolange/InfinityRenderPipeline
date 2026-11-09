@@ -7,7 +7,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class DebugViewModeTests
     {
-        const string ModesPath = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/DebugViewModes.hlsl";
+        const string ModesPath = "Packages/com.infinity.render-pipeline/Shaders/Library/DebugViewModes.hlsl";
 
         [Test]
         public void ShaderDefines_MatchEDebugView()

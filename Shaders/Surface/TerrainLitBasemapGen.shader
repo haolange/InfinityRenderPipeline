@@ -68,13 +68,23 @@ Shader "Hidden/InfinityPipeline/TerrainLitBasemapGen"
             float2 uv = (i.uvMainAndLM.xy * (_Control_TexelSize.zw - 1) + .5) * _Control_TexelSize.xy;
             half4 control = SAMPLE_TEXTURE2D(_Control, sampler_Control, uv);
             #if defined(_TERRAIN_BLEND_HEIGHT)
-            if (_NumLayersCount <= 4) HeightBasedSplatModify(control, masks);
+            if (_NumLayersCount <= 4)
+            {
+                HeightBasedSplatModify(control, masks);
+            }
             #endif
-            half weight; half4 smoothness; half3 normal = half3(0, 0, 1);
+            half weight;
+            half4 smoothness;
+            half3 normal = half3(0, 0, 1);
             SplatmapMix(i.uvMainAndLM, i.uvSplat01, i.uvSplat23, control, weight, diffuse, smoothness, normal);
             diffuse.a = dot(control, smoothness);
         }
-        half4 BasemapColor(Varyings i) : SV_Target { half4 diffuse; BasemapSurface(i, diffuse); return diffuse; }
+        half4 BasemapColor(Varyings i) : SV_Target
+        {
+            half4 diffuse;
+            BasemapSurface(i, diffuse);
+            return diffuse;
+        }
         ENDHLSL
         Pass
         {

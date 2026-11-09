@@ -1,0 +1,272 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+#pragma kernel BurleySubsurfaceCS
+#pragma kernel ComposeSubsurfaceCS
+
+#include "../../Library/Common.hlsl"
+#include "../../Library/GBufferPack.hlsl"
+#include "../../Library/Random.hlsl"
+#include "../../Library/ScreenSpaceDepth.hlsl"
+#include "../../Library/Montcalo.hlsl"
+
+float4 SSS_Resolution;
+int SSS_NumSamples;
+int SSS_ProfileCount;
+
+struct DiffusionProfileRecord
+{
+    float4 scatterAlbedoDistance;
+    float4 parameters;
+};
+
+StructuredBuffer<DiffusionProfileRecord> SRV_DiffusionProfiles;
+
+Texture2D<float4> SRV_LightingTexture;
+Texture2D<float> SRV_DepthTexture;
+Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
+RWTexture2D<float4> UAV_SubsurfaceTexture;
+Texture2D<float4> SRV_FilteredSubsurface;
+RWTexture2D<float4> UAV_SceneColor;
+
+float4x4 Matrix_InvProj;
+float4x4 Matrix_Proj;
+
+// Burley normalized diffusion profile
+// R(r) = A * s / (8 * pi) * (exp(-s*r) + exp(-s*r/3)) / r
+// where s = 1.9 - 3.4 * A^2 + A * (3.4 * A^2 - 1.9)
+// Simplified: using the separable fit from HDRP
+float3 EvaluateBurleyDiffusionProfile(float r, float3 scatteringDistance)
+{
+    float3 s = 1.0 / max(scatteringDistance, 0.0001);
+    float3 exp1 = exp(-s * r);
+    float3 exp2 = exp(-s * r / 3.0);
+    return s * (exp1 + exp2) / (8.0 * Pi * max(r, 0.0001));
+}
+
+// CDF-based importance sampling for Burley profile
+float SampleBurleyRadius(float u, float scatterDist)
+{
+    // Inverse CDF approximation for the combined exponential
+    float s = 1.0 / max(scatterDist, 0.0001);
+    // Mix of two exponentials: use the heavier tail (1/3 rate) for importance sampling
+    return -log(max(1.0 - u, 1e-6)) * 3.0 / s;
+}
+
+bool LoadSubsurface(uint2 pixel, out GBufferData surface, out float depth)
+{
+    depth = SRV_DepthTexture[pixel];
+    surface = (GBufferData)0;
+    bool valid = false;
+    if (!ScreenSpaceIsFarDepth(depth))
+    {
+        float4 packed = SRV_GBufferTextureC[pixel];
+        uint shadingModel = 0, flags = 0;
+        UnpackGBufferCChannelR(packed.r,shadingModel,flags);
+        surface.ShadingModel = shadingModel;
+        surface.Flags = flags;
+        surface.Normal = normalize(SRV_GBufferTextureB[pixel].xyz*2-1);
+        surface.SSSProfileIndex = (uint)(packed.g*255+0.5);
+        surface.Thickness = packed.b;
+        valid = (surface.Flags & GBUFFER_FLAG_VALID_SURFACE) != 0
+            && (surface.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE || (surface.Flags & GBUFFER_FLAG_SUBSURFACE) != 0)
+            && surface.Thickness > 0;
+    }
+    return valid;
+}
+
+float EyeDepth(float depth)
+{
+    float4 position = mul(Matrix_InvProj, float4(0,0,depth,1));
+    return abs(position.z / position.w);
+}
+
+uint2 SubsurfaceRepresentative(uint2 halfPixel)
+{
+    uint2 selected = min(halfPixel * 2, (uint2)SSS_Resolution.xy - 1);
+    float nearest = 1e30;
+    [unroll] for (uint y=0;y<2;++y)
+    [unroll] for (uint x=0;x<2;++x)
+    {
+        uint2 pixel = halfPixel * 2 + uint2(x,y);
+        if (any(pixel >= (uint2)SSS_Resolution.xy))
+        {
+            continue;
+        }
+        GBufferData surface;
+        float depth;
+        if (LoadSubsurface(pixel,surface,depth))
+        {
+            float distance = EyeDepth(depth);
+            if (distance < nearest)
+            {
+                nearest = distance;
+                selected = pixel;
+            }
+        }
+    }
+    return selected;
+}
+
+// Integrate the half texel's covered quad while keeping incompatible materials apart.
+float3 GatherDiffuse(uint2 halfPixel, GBufferData center, float centerDepth)
+{
+    float3 sum = 0;
+    float count = 0;
+    [unroll] for (uint y=0;y<2;++y)
+    [unroll] for (uint x=0;x<2;++x)
+    {
+        uint2 pixel = halfPixel*2+uint2(x,y);
+        if (any(pixel >= (uint2)SSS_Resolution.xy))
+        {
+            continue;
+        }
+        GBufferData surface;
+        float depth;
+        if (!LoadSubsurface(pixel,surface,depth) || surface.SSSProfileIndex != center.SSSProfileIndex || surface.ShadingModel != center.ShadingModel)
+        {
+            continue;
+        }
+        if (dot(surface.Normal,center.Normal) < 0.9 || abs(EyeDepth(depth)-centerDepth) > max(centerDepth*.02,1e-5))
+        {
+            continue;
+        }
+        sum += SRV_LightingTexture[pixel].rgb;
+        count += 1;
+    }
+    return count > 0 ? sum/count : 0;
+}
+
+void DiffusionParameters(GBufferData surface, out float distance, out float3 albedo, out float radius)
+{
+    DiffusionProfileRecord profile = SRV_DiffusionProfiles[min(surface.SSSProfileIndex,(uint)SSS_ProfileCount-1)];
+    albedo = profile.scatterAlbedoDistance.rgb;
+    distance = profile.scatterAlbedoDistance.w;
+    radius = profile.parameters.x;
+}
+
+[numthreads(8,8,1)]
+void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
+{
+    uint2 halfSize = ((uint2)SSS_Resolution.xy+1)/2;
+    if (any(id.xy >= halfSize))
+    {
+        return;
+    }
+    uint2 pixel = SubsurfaceRepresentative(id.xy);
+    GBufferData surface;
+    float depth;
+    if (!LoadSubsurface(pixel,surface,depth))
+    {
+        UAV_SubsurfaceTexture[id.xy] = 0;
+        return;
+    }
+    float3 center = GatherDiffuse(id.xy,surface,EyeDepth(depth));
+    float distance, radius;
+    float3 albedo;
+    DiffusionParameters(surface,distance,albedo,radius);
+    float eyeDepth = EyeDepth(depth);
+    // Perspective projection divides by eye distance; orthographic projection has w=1.
+    float projectionW = abs(Matrix_Proj[3][3]) > 0.5 ? 1 : eyeDepth;
+    float2 projectedScale = abs(float2(Matrix_Proj[0][0],Matrix_Proj[1][1])) * 0.5 / max(projectionW,1e-5);
+    float worldRadius = radius * distance;
+    if (worldRadius * projectedScale.x * SSS_Resolution.x < 1)
+    { UAV_SubsurfaceTexture[id.xy] = float4(center,1); return; }
+    float2 uv = (pixel+0.5)*SSS_Resolution.zw;
+    uint2 random = Rand3DPCG16(int3(pixel,0)).xy;
+    float3 sum = center, weights = 1;
+    [loop] for (int i=0;i<SSS_NumSamples;++i)
+    {
+        float2 sample = Hammersley16(i,SSS_NumSamples,random);
+        float r = SampleBurleyRadius(sample.x,distance);
+        if (r > worldRadius)
+        {
+            continue;
+        }
+        float angle = sample.y * Two_Pi;
+        float2 tapUV = uv + float2(cos(angle),sin(angle)) * r * projectedScale;
+        if (any(tapUV < 0) || any(tapUV >= 1))
+        {
+            continue;
+        }
+        uint2 tap = min((uint2)(tapUV*SSS_Resolution.xy),(uint2)SSS_Resolution.xy-1);
+        GBufferData neighbor;
+        float neighborDepth;
+        if (!LoadSubsurface(tap,neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel)
+        {
+            continue;
+        }
+        float normalWeight = saturate(dot(surface.Normal,neighbor.Normal));
+        if (normalWeight < 0.9 || abs(EyeDepth(neighborDepth)-eyeDepth) > max(worldRadius,1e-5))
+        {
+            continue;
+        }
+        // Compensate the sampled exponential radial PDF, including the polar Jacobian.
+        float pdf = exp(-r / max(3*distance,1e-5)) / max(3*distance,1e-5);
+        float3 weight = EvaluateBurleyDiffusionProfile(r,distance*albedo) * r / max(pdf,1e-10) * normalWeight;
+        sum += GatherDiffuse(tap/2,neighbor,EyeDepth(neighborDepth)) * weight;
+        weights += weight;
+    }
+    UAV_SubsurfaceTexture[id.xy] = float4(sum / weights,1);
+}
+
+[numthreads(8,8,1)]
+void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSS_Resolution.xy))
+    {
+        return;
+    }
+    GBufferData surface;
+    float depth;
+    if (!LoadSubsurface(id.xy,surface,depth))
+    {
+        return;
+    }
+    float distance, radius;
+    float3 albedo;
+    DiffusionParameters(surface,distance,albedo,radius);
+    float eye = EyeDepth(depth);
+    float w = abs(Matrix_Proj[3][3]) > 0.5 ? 1 : eye;
+    if (radius*distance*abs(Matrix_Proj[0][0])*0.5*SSS_Resolution.x/max(w,1e-5) < 1)
+    {
+        return;
+    }
+    uint2 halfSize = ((uint2)SSS_Resolution.xy+1)/2;
+    float2 grid = (id.xy+0.5)*0.5-0.5;
+    int2 origin = (int2)floor(grid);
+    float3 sum = 0;
+    float total = 0;
+    [unroll] for (int y=0;y<=1;++y)
+    [unroll] for (int x=0;x<=1;++x)
+    {
+        uint2 tap = (uint2)clamp(origin+int2(x,y),0,int2(halfSize)-1);
+        GBufferData neighbor;
+        float neighborDepth;
+        if (!LoadSubsurface(SubsurfaceRepresentative(tap),neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel)
+        {
+            continue;
+        }
+        float normalAgreement = dot(surface.Normal,neighbor.Normal);
+        float relativeDepth = abs(EyeDepth(neighborDepth)-eye)/max(eye,1e-5);
+        if (normalAgreement < 0.9 || relativeDepth > 0.02)
+        {
+            continue;
+        }
+        float4 filtered = SRV_FilteredSubsurface[tap];
+        if (filtered.a <= 0)
+        {
+            continue;
+        }
+        float2 delta = saturate(abs(float2(tap)-grid));
+        float weight = max(1e-3,(1-delta.x)*(1-delta.y))*pow(saturate(normalAgreement),32)*exp2(-relativeDepth*200);
+        sum += filtered.rgb*weight;
+        total += weight;
+    }
+    if (total > 0)
+    {
+        float3 original = SRV_LightingTexture[id.xy].rgb;
+        float4 color = UAV_SceneColor[id.xy];
+        color.rgb += (sum/total-original)*saturate(surface.Thickness);
+        UAV_SceneColor[id.xy] = float4(max(color.rgb,0),color.a);
+    }
+}

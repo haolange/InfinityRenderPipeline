@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void LodChain_MatchesHlslFieldForField()
         {
-            const string path = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MeshLOD.hlsl";
+            const string path = "Packages/com.infinity.render-pipeline/Shaders/Library/MeshLOD.hlsl";
             Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+MeshLODChain\s*\{(?<body>[^}]*)\}");
             Assert.IsTrue(body.Success, "MeshLODChain not found in " + path);
             MatchCollection hlsl = Regex.Matches(body.Groups["body"].Value, @"(\w+)\s+(\w+)\s*;");

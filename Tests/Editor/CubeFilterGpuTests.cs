@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // (CubemapFaceDirection layout = Unity face order +X, -X, +Y, -Y, +Z, -Z).
     public class CubeFilterGpuTests
     {
-        const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/CubeFilter/Compute_CubeFilter.compute";
+        const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_CubeFilter.compute";
         const int Size = 16;
 
         static void RequireGpu()

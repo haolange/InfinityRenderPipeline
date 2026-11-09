@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 {
     internal static class MeshTestUtility
     {
-        internal const string MeshDrawShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute";
+        internal const string MeshDrawShaderPath = "Packages/com.infinity.render-pipeline/Shaders/Mesh/Compute_MeshDrawPipeline.compute";
         internal const string InstancedShaderName = "InfinityPipeline/InfinityLit-Instanced";
 
         /// <summary>

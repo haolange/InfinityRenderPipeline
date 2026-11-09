@@ -1,9 +1,9 @@
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 #ifndef INFINITY_SG_TRANSLUCENT_PASS
 #define INFINITY_SG_TRANSLUCENT_PASS
 // Translucent stages of InfinityLit / InfinityUnlit: T0 fogged, T1 refracted through the color pyramid, T2 plain. All
 // write the reactive mask, motion and motion metadata like the hand-written shaders.
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TranslucentOutput.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TranslucentOutput.hlsl"
 struct InfinityTranslucentOutput
 {
     float4 color : SV_Target0;

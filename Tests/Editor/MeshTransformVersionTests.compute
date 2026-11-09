@@ -1,5 +1,5 @@
 #pragma kernel ReadPrevious
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/GPUScene.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/GPUScene.hlsl"
 RWStructuredBuffer<float4> Result;
 uint TestEntityIndex;
 [numthreads(1, 1, 1)]

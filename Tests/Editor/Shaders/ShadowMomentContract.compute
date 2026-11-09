@@ -1,4 +1,4 @@
-// Numeric contracts of Shaders/ShaderLibrary/ShadowMoments.hlsl (0.5.0 S9).
+// Numeric contracts of Shaders/Library/ShadowMoments.hlsl (0.5.0 S9).
 // Results[i] = (VSM visibility, EVSM visibility, 0, 0) for case i:
 //   0: receiver in front of a single occluder depth  -> 1
 //   1: receiver at the occluder depth                -> 1
@@ -7,7 +7,7 @@
 //   4: receiver between the two depths of the mix    -> strictly inside (0, 1) for EVSM
 #pragma kernel MomentVisibility
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-#include "../../../Shaders/ShaderLibrary/ShadowMoments.hlsl"
+#include "../../../Shaders/Library/ShadowMoments.hlsl"
 
 RWStructuredBuffer<float4> Results;
 

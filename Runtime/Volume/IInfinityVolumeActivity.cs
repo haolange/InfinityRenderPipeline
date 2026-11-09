@@ -1,4 +1,4 @@
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     public interface IInfinityVolumeActivity
     {

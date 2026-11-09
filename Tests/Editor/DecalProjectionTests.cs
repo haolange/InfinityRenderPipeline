@@ -4,7 +4,7 @@ using InfinityTech.Component;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
-    // DecalComponent angle-fade parameters as Shaders/ShaderLibrary/DecalProjection.hlsl evaluates them.
+    // DecalComponent angle-fade parameters as Shaders/Library/DecalProjection.hlsl evaluates them.
     public class DecalProjectionTests
     {
         static float Fade(Vector4 p, float angleDegrees) =>

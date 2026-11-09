@@ -1,7 +1,7 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
-using InfinityTech.Rendering.Feature;
+using InfinityTech.Rendering.Atmosphere;
 using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Tests

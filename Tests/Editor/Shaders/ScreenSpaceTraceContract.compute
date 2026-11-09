@@ -1,6 +1,6 @@
 #pragma kernel TracePair
 #pragma multi_compile_local _ SCREEN_TRACE_RELATIVE_THICKNESS
-#include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../Shaders/Library/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 
 Texture2D<float> SurfaceDepth;
 Texture2D<float> ClosestPyramid;

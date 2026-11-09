@@ -4,7 +4,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 using Unity.Mathematics;
 using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 

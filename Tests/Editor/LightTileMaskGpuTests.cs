@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // word with the CPU reference: bit b of word w is set when light w * 32 + b's rectangle covers the tile.
     public class LightTileMaskGpuTests
     {
-        const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute";
+        const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_LightTileMask.compute";
 
         [Test]
         public void GpuMasks_MatchCpuReference()

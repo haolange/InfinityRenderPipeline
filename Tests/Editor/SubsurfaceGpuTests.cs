@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RenderTexture.active = texture; GL.Clear(false, true, new Color(-77, -77, -77, -77)); RenderTexture.active = previous;
                     return texture;
                 }
-                var asset = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/BurleySubsurface/Compute_BurleySubsurface.compute");
+                var asset = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_BurleySubsurface.compute");
                 var shader = Own(Object.Instantiate(asset));
                 var projection = GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(60, (float)width / height, .1f, 100), false);
                 var clip = projection * new Vector4(0, 0, -5, 1);

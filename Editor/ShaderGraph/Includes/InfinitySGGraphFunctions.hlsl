@@ -1,4 +1,4 @@
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 #ifndef INFINITY_SG_GRAPH_FUNCTIONS
 #define INFINITY_SG_GRAPH_FUNCTIONS
 // Last pre-graph include: binds the Shader Graph scene / lighting nodes to Infinity resources where the pass has them,
@@ -9,7 +9,7 @@
 //   Reflection   the sky GGX prefilter in the Forward pass.
 
 #if defined(REQUIRE_OPAQUE_TEXTURE)
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TranslucentCommon.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TranslucentCommon.hlsl"
 float3 InfinitySampleSceneColor(float2 uv)
 {
     return InfinitySampleLevel(_ColorPyramidTexture,Global_bilinear_clamp_sampler,uv,0).rgb;

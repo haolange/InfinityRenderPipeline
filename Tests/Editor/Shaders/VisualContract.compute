@@ -3,10 +3,10 @@
 #pragma kernel EnergyContract
 #pragma kernel ReceiverPlaneContract
 #pragma kernel MeshNormalContract
-#include "../../../Shaders/ShaderLibrary/GPUScene.hlsl"
-#include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
-#include "../../../Shaders/ShaderLibrary/ShadowSampling.hlsl"
-#include "../../../Shaders/ShaderLibrary/IndirectComposition.hlsl"
+#include "../../../Shaders/Library/GPUScene.hlsl"
+#include "../../../Shaders/Library/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../Shaders/Library/ShadowSampling.hlsl"
+#include "../../../Shaders/Library/IndirectComposition.hlsl"
 Texture2D<float> SurfaceDepth;
 Texture2D<float> DepthPyramid;
 Texture2D<float> ShadowRamp;

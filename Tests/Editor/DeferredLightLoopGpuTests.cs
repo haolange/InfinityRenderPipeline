@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             RenderTexture previous = RenderTexture.active;
             try
             {
-                var source = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute");
+                var source = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_DeferredShading.compute");
                 Assert.IsNotNull(source);
                 var shader = UnityEngine.Object.Instantiate(source);
                 owned.Add(shader);
@@ -151,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetBuffer(kernel, "SRV_LightZBins", Buffer(new[] { packed }, 4));
                 shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", Buffer(new[] { Matrix4x4.identity }, 64));
                 // Replay fixtures bind the actual stage's inactive-resource layout, never a later shader payload.
-                bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl").Contains("struct LocalShadowSlice");
+                bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/Library/ShadowSampling.hlsl").Contains("struct LocalShadowSlice");
                 if (shadowSlices)
                 {
                     shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice { rect = Vector4.zero, depth = Vector4.zero, moments = Vector4.zero } }, 48));
@@ -159,12 +159,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetTexture(kernel, "SRV_LocalShadowMoments", black);
                 }
                 else shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { Vector4.zero }, 16));
-                if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightCookie.hlsl"))
+                if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))
                 {
                     shader.SetBuffer(kernel, "SRV_LightCookies", Buffer(new[] { Matrix4x4.zero }, 64));
                     shader.SetTexture(kernel, "SRV_LightCookieAtlas", black);
                 }
-                if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl"))
+                if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/ReflectionProbes.hlsl"))
                 {
                     var probe = new ProbeRecord { row0 = Vector4.zero, row1 = Vector4.zero, row2 = Vector4.zero,
                         extents = Vector4.zero, capture = Vector4.zero, projection = Vector4.zero, parameters = Vector4.zero };

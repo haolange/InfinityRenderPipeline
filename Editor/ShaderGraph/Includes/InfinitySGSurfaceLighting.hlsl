@@ -6,13 +6,13 @@
 #if defined(INFINITY_FORWARD_AO)
 Texture2D<float> SRV_ForwardOcclusion;
 #endif
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/SurfaceLighting.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/BSDF.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lightmap.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadingModel.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/GBufferPack.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ImageBasedLighting.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/SurfaceLighting.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/BSDF.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Lightmap.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Lighting.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ShadingModel.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/GBufferPack.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ImageBasedLighting.hlsl"
 StructuredBuffer<float4> _AtmosphereSkySH;
 Texture2DArray<float4> _AtmosphereGGXPrefilter;
 float _AtmosphereIBLMaxMip;

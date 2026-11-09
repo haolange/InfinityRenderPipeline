@@ -21,7 +21,7 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
             #pragma fragment Frag
 
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "../../../Shaders/ShaderLibrary/GBufferPack.hlsl"
+            #include "../../../Shaders/Library/GBufferPack.hlsl"
 
             int _FixtureId;
             float4 _Resolution;

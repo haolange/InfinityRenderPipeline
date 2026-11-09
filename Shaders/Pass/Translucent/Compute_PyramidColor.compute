@@ -1,0 +1,199 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+float4 _Size;
+float4 _DstSize;
+int _MipWriteCount;
+int _SrcScale;
+Texture2D<float4> _Source;
+RWTexture2D<float4> _Result;
+RWTexture2D<float4> _Result1;
+SamplerState sampler_LinearClamp;
+
+// 16x16 pixels with an 8x8 center that we will be blurring writing out. Each uint is two color
+// channels packed together.
+// The reason for separating channels is to reduce bank conflicts in the local data memory
+// controller. A large stride will cause more threads to collide on the same memory bank.
+groupshared uint gs_cacheR[128];
+groupshared uint gs_cacheG[128];
+groupshared uint gs_cacheB[128];
+groupshared uint gs_cacheA[128];
+
+float4 BlurPixels(float4 a, float4 b, float4 c, float4 d, float4 e, float4 f, float4 g, float4 h, float4 i)
+{
+    return 0.27343750 * (e    )
+         + 0.21875000 * (d + f)
+         + 0.10937500 * (c + g)
+         + 0.03125000 * (b + h)
+         + 0.00390625 * (a + i);
+}
+
+void Store2Pixels(uint index, float4 pixel1, float4 pixel2)
+{
+    gs_cacheR[index] = f32tof16(pixel1.r) | f32tof16(pixel2.r) << 16;
+    gs_cacheG[index] = f32tof16(pixel1.g) | f32tof16(pixel2.g) << 16;
+    gs_cacheB[index] = f32tof16(pixel1.b) | f32tof16(pixel2.b) << 16;
+    gs_cacheA[index] = f32tof16(pixel1.a) | f32tof16(pixel2.a) << 16;
+}
+
+void Load2Pixels(uint index, out float4 pixel1, out float4 pixel2)
+{
+    uint rr = gs_cacheR[index];
+    uint gg = gs_cacheG[index];
+    uint bb = gs_cacheB[index];
+    uint aa = gs_cacheA[index];
+    pixel1 = float4(f16tof32(rr      ), f16tof32(gg      ), f16tof32(bb      ), f16tof32(aa      ));
+    pixel2 = float4(f16tof32(rr >> 16), f16tof32(gg >> 16), f16tof32(bb >> 16), f16tof32(aa >> 16));
+}
+
+void Store1Pixel(uint index, float4 pixel)
+{
+    gs_cacheR[index] = asuint(pixel.r);
+    gs_cacheG[index] = asuint(pixel.g);
+    gs_cacheB[index] = asuint(pixel.b);
+    gs_cacheA[index] = asuint(pixel.a);
+}
+
+void Load1Pixel(uint index, out float4 pixel)
+{
+    pixel = asfloat(uint4(gs_cacheR[index], gs_cacheG[index], gs_cacheB[index], gs_cacheA[index]));
+}
+
+void BlurHorizontally(uint outIndex, uint leftMostIndex)
+{
+    float4 s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
+    Load2Pixels(leftMostIndex + 0, s0, s1);
+    Load2Pixels(leftMostIndex + 1, s2, s3);
+    Load2Pixels(leftMostIndex + 2, s4, s5);
+    Load2Pixels(leftMostIndex + 3, s6, s7);
+    Load2Pixels(leftMostIndex + 4, s8, s9);
+
+    Store1Pixel(outIndex    , BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8));
+    Store1Pixel(outIndex + 1, BlurPixels(s1, s2, s3, s4, s5, s6, s7, s8, s9));
+}
+
+float4 BlurVertically(uint topMostIndex)
+{
+    float4 s0, s1, s2, s3, s4, s5, s6, s7, s8;
+    Load1Pixel(topMostIndex     , s0);
+    Load1Pixel(topMostIndex +  8, s1);
+    Load1Pixel(topMostIndex + 16, s2);
+    Load1Pixel(topMostIndex + 24, s3);
+    Load1Pixel(topMostIndex + 32, s4);
+    Load1Pixel(topMostIndex + 40, s5);
+    Load1Pixel(topMostIndex + 48, s6);
+    Load1Pixel(topMostIndex + 56, s7);
+    Load1Pixel(topMostIndex + 64, s8);
+    return BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8);
+}
+
+#pragma kernel KMain
+
+#ifdef DISABLE_COMPUTE_SHADERS
+
+TRIVIAL_COMPUTE_KERNEL(KMain)
+
+#else
+
+[numthreads(8, 8, 1)]
+void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, uint2 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint groupShift = _SrcScale == 2 ? 4u : 3u;
+    int2 threadUL = (int2)(groupThreadId << 1) + (int2)(groupId << groupShift) - 4;
+
+    float2 offset = float2(threadUL);
+    float4 p00 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset                    + 0.5) * _Size.zw,0.0);
+    float4 p10 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(1.0, 0.0) + 0.5) * _Size.zw,0.0);
+    float4 p01 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(0.0, 1.0) + 0.5) * _Size.zw,0.0);
+    float4 p11 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(1.0, 1.0) + 0.5) * _Size.zw,0.0);
+
+    uint destIdx = groupThreadId.x + (groupThreadId.y << 4u);
+    Store2Pixels(destIdx     , p00, p10);
+    Store2Pixels(destIdx + 8u, p01, p11);
+
+    GroupMemoryBarrierWithGroupSync();
+
+    uint row = groupThreadId.y << 4u;
+    BlurHorizontally(row + (groupThreadId.x << 1u), row + groupThreadId.x + (groupThreadId.x & 4u));
+
+    GroupMemoryBarrierWithGroupSync();
+
+    float4 blurred = BlurVertically((groupThreadId.y << 3u) + groupThreadId.x);
+    if (_MipWriteCount > 0 && all(dispatchThreadId < (uint2)_DstSize.xy))
+    {
+        _Result[dispatchThreadId] = blurred;
+    }
+
+    uint packedIdx = groupThreadId.x + (groupThreadId.y << 3u);
+    Store1Pixel(packedIdx, blurred);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (_MipWriteCount > 1 && (groupThreadId.x & 1) == 0 && (groupThreadId.y & 1) == 0)
+    {
+        float4 a, b, c, d;
+        Load1Pixel(packedIdx, a);
+        Load1Pixel(packedIdx + 1, b);
+        Load1Pixel(packedIdx + 8, c);
+        Load1Pixel(packedIdx + 9, d);
+        if (all((dispatchThreadId >> 1) < ((uint2)_DstSize.xy >> 1)))
+        {
+            _Result1[dispatchThreadId >> 1] = 0.25 * (a + b + c + d);
+        }
+    }
+}
+
+#endif
+
+#pragma kernel TemporalColorMip
+Texture2D<float> _TemporalSurfaceDepth;
+int _TemporalSourceValid, _TemporalMipFirst, _TemporalSourceMip;
+float _TemporalFarDepth;
+
+[numthreads(8,8,1)]
+void TemporalColorMip(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_DstSize.xy))
+    {
+        return;
+    }
+    float3 sum = 0;
+    float coverage = 0;
+    uint samples = 0;
+    if (_TemporalSourceValid != 0)
+    {
+        uint2 begin = id.xy * 2;
+        uint2 end = min(begin + 2, (uint2)_Size.xy);
+        // The final cell owns a trailing odd texel; padding is never part of a footprint.
+        if (id.x + 1 == (uint)_DstSize.x)
+        {
+            end.x = (uint)_Size.x;
+        }
+        if (id.y + 1 == (uint)_DstSize.y)
+        {
+            end.y = (uint)_Size.y;
+        }
+        for (uint y = begin.y; y < end.y; ++y)
+        for (uint x = begin.x; x < end.x; ++x)
+        {
+            float4 value = _Source.Load(int3(x,y,_TemporalSourceMip));
+            float valid = saturate(value.a);
+            if (_TemporalMipFirst != 0)
+            {
+                float raw = _TemporalSurfaceDepth.Load(int3(x,y,0));
+                valid = value.a >= 1 && isfinite(raw) && raw >= 0 && raw <= 1 && raw != _TemporalFarDepth ? 1 : 0;
+            }
+            // The first level converts source sample age to coverage. Later levels
+            // already carry radiance premultiplied by coverage; never weight it twice.
+            if (valid > 0)
+            {
+                sum += _TemporalMipFirst != 0 ? value.rgb * valid : value.rgb;
+            }
+            coverage += valid;
+            samples++;
+        }
+    }
+    float4 result = 0;
+    if (coverage > 0)
+    {
+        result = float4(sum / samples, coverage / samples);
+    }
+    _Result[id.xy] = result;
+}

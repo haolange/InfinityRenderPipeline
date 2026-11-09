@@ -54,16 +54,16 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
-            #include "../ShaderLibrary/ShadowCaster.hlsl"
+            #include "../Library/ShadowCaster.hlsl"
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -120,16 +120,16 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
 			//#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -184,7 +184,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
@@ -194,15 +194,15 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			#pragma multi_compile _ _DBUFFER
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/Lightmap.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/DBuffer.hlsl"
-			#include "../ShaderLibrary/BSDF.hlsl"
-			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/Lightmap.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/DBuffer.hlsl"
+			#include "../Library/BSDF.hlsl"
+			#include "../Library/ImageBasedLighting.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
@@ -223,8 +223,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
-			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
+			Texture2D _NormalTexture;
+			SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -324,7 +326,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			HLSLPROGRAM
             #pragma multi_compile _ INFINITY_SSS_OUTPUT
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
@@ -334,19 +336,19 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #if defined(INFINITY_FORWARD_AO)
             Texture2D<float> SRV_ForwardOcclusion;
 #endif
-            #include "../ShaderLibrary/SurfaceLighting.hlsl"
+            #include "../Library/SurfaceLighting.hlsl"
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 			//#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/Lightmap.hlsl"
-			#include "../ShaderLibrary/Lighting.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShadingModel.hlsl"
-			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/Lightmap.hlsl"
+			#include "../Library/Lighting.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ShadingModel.hlsl"
+			#include "../Library/ImageBasedLighting.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
@@ -368,8 +370,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 _EmissionColor;
 			CBUFFER_END
 
-			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
+			Texture2D _NormalTexture;
+			SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -450,7 +454,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
                     * EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
                 #if defined(INFINITY_FORWARD_AO)
                 float ao = SRV_ForwardOcclusion.Load(int3(In.vertexCS.xy, 0));
-                diffuse *= ao; specular *= ao;
+                diffuse *= ao;
+                specular *= ao;
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
@@ -478,16 +483,16 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			}
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
 			//#pragma enable_debug_symbols
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -549,14 +554,14 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			struct Attributes
@@ -598,24 +603,25 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ _VOLUMETRIC_FOG
 			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
 			CBUFFER_END
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -686,25 +692,26 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ _REFRACTION_PYRAMID
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
 				float _Roughness;
 				float _RefractionStrength;
 			CBUFFER_END
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -779,22 +786,23 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             Blend 3 One Zero
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-			#include "../ShaderLibrary/TranslucentCommon.hlsl"
+			#include "../Library/GPUScene.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+			#include "../Library/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
 			CBUFFER_END
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -859,19 +867,19 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ColorMask 0
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-            #include "../ShaderLibrary/ShadowCaster.hlsl"
+            #include "../Library/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "../ShaderLibrary/NativeMotion.hlsl"
+            #include "../Library/NativeMotion.hlsl"
 			CBUFFER_START(UnityPerMaterial)
                 float _SurfaceRoute;
 				float _Roughness;
@@ -929,12 +937,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Cull Off
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
@@ -959,7 +967,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			float unity_OneOverOutputBoost;
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct MetaInput
 			{

@@ -1,6 +1,6 @@
 #pragma kernel SampleSource
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Common.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TemporalColorSource.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TemporalColorSource.hlsl"
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;
 float4 ContractMotion, ContractMetadata;

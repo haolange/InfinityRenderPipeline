@@ -1,10 +1,10 @@
 # Infinity Render Pipeline — Architecture
 
-This document describes the implementation in this package. When that implementation changes, revise the affected statement. Do not append iteration notes. Contributor obligations, including how this file stays short, are in [AGENTS.md](AGENTS.md). Authoring is in [Documentation~/index.md](Documentation~/index.md). Verification state is in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Archived plans and receipts under [Docs/History/](Docs/History) are evidence, not a specification.
+This document describes the implementation in this package. When that implementation changes, revise the affected statement. Do not append iteration notes. Contributor obligations, including how this file stays short, are in [AGENTS.md](AGENTS.md). Authoring is in [Docs~/Manual/index.md](Docs~/Manual/index.md). Verification state is in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Archived plans and receipts under [Docs~/Record/History/](Docs~/Record/History) are evidence, not a specification.
 
 ## 1. System
 
-InfinityRP is a Scriptable Render Pipeline. `InfinityRenderPipeline` derives from `RenderPipeline` and is split across partial files under `Runtime/RenderPipeline/`. A camera frame collects Unity culling results, builds an Infinity light context, records a render graph, executes that graph, and submits the scriptable render context.
+InfinityRP is a Scriptable Render Pipeline. `InfinityRenderPipeline` derives from `RenderPipeline` and is split across partial files under `Runtime/Pipeline/`. A camera frame collects Unity culling results, builds an Infinity light context, records a render graph, executes that graph, and submits the scriptable render context.
 
 Two geometry paths share the frame:
 
@@ -25,7 +25,7 @@ The package owns the render graph, the physical resource pool, image history, th
 | `Tests/Editor/` | `Unity.RenderPipelines.Infinity.Tests` | EditMode tests |
 | `Tools/` | None | Offline checks, texture-view generation, refresh and capture scripts |
 
-`Runtime/RenderPipeline/Pass/` groups the partial pipeline by domain: Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug. Volume components live in `Runtime/Volume/`. The atmosphere profile lives in `Runtime/RenderingFeature/AtmosphericalFog/` and is not a Volume component.
+Runtime code stays in one assembly and is grouped by owner: Core, Scene, Mesh, Terrain, Material, Lighting, Atmosphere, RayTracing, RenderGraph, GPUResource, Volume, Pipeline and Validation. `Runtime/Pipeline/Pass/` groups the partial pipeline by domain: Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug. Volume components live in `Runtime/Volume/` under `InfinityTech.Rendering.Volume`. The atmosphere profile lives in `Runtime/Atmosphere/` under `InfinityTech.Rendering.Atmosphere` and is not a Volume component. `AtmosphereParameter` and `AtmosphereCache` live beside it and stay in `InfinityTech.Rendering.Pipeline`. Shaders use `Shaders/Library`, `Shaders/Surface`, `Shaders/Utility`, `Shaders/Mesh`, `Shaders/RayTracing` and `Shaders/Pass` with the same pass domains. A shader's `InfinityPipeline/` name does not follow its file path.
 
 ## 3. Configuration
 
@@ -44,7 +44,7 @@ The pipeline constructor calls `VolumeManager.Initialize(defaultProfile, quality
 
 The Editor discovers Volume types by reflection. A Player builds its registry from the components present on the global default profile. Pipeline creation rejects an incomplete registry. Optional features record when `VolumeComponent.IsActive()` is true. `overrideState` marks a scene override. It does not enable a feature.
 
-`EQualityLevel` is Low, Medium, High, Ultra or Custom. `Resolve()` returns a settings struct. Custom reads the Volume parameters. Every other level reads the preset table in `Runtime/RenderPipeline/Quality/`. Passes consume the struct and do not branch on the quality level.
+`EQualityLevel` is Low, Medium, High, Ultra or Custom. `Resolve()` returns a settings struct. Custom reads the Volume parameters. Every other level reads the preset table in `Runtime/Pipeline/Quality/`. Passes consume the struct and do not branch on the quality level.
 
 ## 4. Camera frame
 
@@ -199,7 +199,7 @@ Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` f
 
 `_SurfaceRoute` is Deferred (0) or Forward (1). `_TranslucentStage` is None (0), T0 (1), T1 (2) or T2 (3). `MaterialRouteUtility.Read` rejects fractional, non-finite and out-of-range values. Subsurface requires opaque Deferred routing. `ApplyPassState` is the operation that writes renderer pass enables after a route or stage change. `ShaderGUI.ValidateMaterial` does not write serialized state.
 
-GBuffer layout and YCoCg checkerboard encoding live in `Shaders/ShaderLibrary/GBufferPack.hlsl`. `GBufferPass` allocates three `R8G8B8A8_UNorm` targets and a `R16G16B16A16_SFloat` lighting target. InfinityLit exposes base color, normal, roughness, reflectance, specular level, emission color, subsurface profile and thickness, refraction, iridescence and pixel depth offset. It does not expose metallic, mask, occlusion, detail, height or emission textures. Shader Graph Lit has a Metallic block; the runtime lit constant buffer uses reflectance.
+GBuffer layout and YCoCg checkerboard encoding live in `Shaders/Library/GBufferPack.hlsl`. `GBufferPass` allocates three `R8G8B8A8_UNorm` targets and a `R16G16B16A16_SFloat` lighting target. InfinityLit exposes base color, normal, roughness, reflectance, specular level, emission color, subsurface profile and thickness, refraction, iridescence and pixel depth offset. It does not expose metallic, mask, occlusion, detail, height or emission textures. Shader Graph Lit has a Metallic block; the runtime lit constant buffer uses reflectance.
 
 Surface shaders are `InfinityPipeline/InfinityLit`, `InfinityLit-Instanced`, `InfinityUnlit`, `InfinityDecal` and `TerrainLit`. Custom LightMode tags use the `Raster*Pass` names in `InfinityPassIDs`. Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay unchanged.
 
@@ -269,7 +269,7 @@ Screen-space overlay UI records for a Game camera with no target texture. On the
 
 ## 14. Editor and capture
 
-Editor windows, inspectors and debugger panels are specified in [Documentation~/editor.md](Documentation~/editor.md) and [Documentation~/rendering-debugger.md](Documentation~/rendering-debugger.md). They use Unity Editor IMGUI and Editor styles, plus one UI Toolkit drawer for the default Volume profile. The package does not define a visual design system.
+Editor windows, inspectors and debugger panels are specified in [Docs~/Manual/editor.md](Docs~/Manual/editor.md) and [Docs~/Manual/rendering-debugger.md](Docs~/Manual/rendering-debugger.md). They use Unity Editor IMGUI and Editor styles, plus one UI Toolkit drawer for the default Volume profile. The package does not define a visual design system.
 
 `RenderCaptureService` records normal-frame copies through graph transfers into session-owned staging. It does not replace `camera.targetTexture` and does not call `Camera.Render`. Capture selects an explicit Game camera, or the single active Game camera. Lighting is captured before scene-color ownership moves. Debug view and history are left unchanged.
 
@@ -277,7 +277,7 @@ Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`
 
 ## 15. Integration boundary
 
-The ownership audit is [Docs/UnityIntegrationAudit.md](Docs/UnityIntegrationAudit.md). The rules that follow are the architectural boundary.
+The ownership audit is [Docs~/Project/Audit/UnityIntegrationAudit.md](Docs~/Project/Audit/UnityIntegrationAudit.md). The rules that follow are the architectural boundary.
 
 Native renderer content uses Unity culling and renderer lists. Custom mesh content uses `MeshWorld`. Ray tracing adapts native geometry through the public explicit-instance API of Unified Ray Tracing. Native renderer identity and custom draw generation are different. A mesh asset is not an instance identity. Native scene changes do not wait for a mesh-world revision.
 
@@ -289,7 +289,7 @@ Custom VFX Graph outputs are unsupported. Particle systems use the translucent r
 
 ## 16. Limits present in the source
 
-These are properties of the current implementation, not a verification record. [Docs/FeatureStatus.md](Docs/FeatureStatus.md) states what has actually been executed.
+These are properties of the current implementation, not a verification record. [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) states what has actually been executed.
 
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render.
 - Rectangle and disk shadow tiles cover a 120° cone.

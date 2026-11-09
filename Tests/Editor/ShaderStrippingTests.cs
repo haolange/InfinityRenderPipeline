@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ActualComputeCallback_KeepsReferencedKernelAndPreflightChecksResources()
         {
             Assert.IsTrue(InfinityShaderStripper.IsInfinityActive);
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute");
+            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Mesh/Compute_MeshDrawPipeline.compute");
             Assert.IsNotNull(shader);
             var variants = new List<UnityEditor.Rendering.ShaderCompilerData> { default };
             new InfinityComputeShaderStripper().OnProcessComputeShader(shader, "MeshDrawPipeline", variants);

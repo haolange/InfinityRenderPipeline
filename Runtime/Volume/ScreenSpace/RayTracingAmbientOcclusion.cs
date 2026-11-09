@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Rendering.PostProcess
+namespace InfinityTech.Rendering.Volume
 {
     [Serializable, VolumeComponentMenu("Ray Tracing/Ray Traced Ambient Occlusion")]
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]

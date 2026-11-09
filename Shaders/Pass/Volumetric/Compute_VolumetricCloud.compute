@@ -1,0 +1,260 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+#pragma kernel VolumetricCloudCS
+
+#include "../../Library/Common.hlsl"
+#include "../../Library/Lighting.hlsl"
+#include "../../Library/ShadowSampling.hlsl"
+#include "../../Library/Lighting/LightCookie.hlsl"
+#include "../../Library/Random.hlsl"
+#include "../../Library/AtmosphereCommon.hlsl"
+#include "../../Library/CloudShell.hlsl"
+
+float4 VolCloud_Resolution;
+float VolCloud_CloudLayerBottom;
+float VolCloud_CloudLayerThickness;
+float VolCloud_DensityMultiplier;
+float VolCloud_ShapeFactor;
+float VolCloud_ErosionFactor;
+float VolCloud_Anisotropy;
+float VolCloud_SilverIntensity;
+float VolCloud_SilverSpread;
+float VolCloud_AmbientIntensity;
+int VolCloud_NumPrimarySteps;
+int VolCloud_NumLightSteps;
+float VolCloud_TemporalWeight;
+int VolCloud_FrameIndex;
+float VolCloud_PlanetRadius;
+float VolCloud_AtmosphereHeight;
+float4x4 Matrix_WorldToView;
+
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float4> SRV_TransmittanceLUT;
+Texture2D<float> SRV_CascadeShadowMap;
+Texture2D<float> SRV_LocalShadowMap;
+Texture2D<float4> SRV_HistoryVolumetricCloud;
+RWTexture2D<float4> UAV_VolumetricCloudTexture;
+
+float GetCloudLayerBottom()
+{
+    return VolCloud_CloudLayerBottom;
+}
+
+float GetNormalizedHeight(float3 worldPos)
+{
+    return CloudNormalizedHeight(worldPos, VolCloud_PlanetRadius,
+        GetCloudLayerBottom(), VolCloud_CloudLayerThickness);
+}
+
+float Hash31(float3 p)
+{
+    p = frac(p * 0.1031);
+    p += dot(p, p.yzx + 33.33);
+    return frac((p.x + p.y) * p.z);
+}
+
+float ValueNoise3D(float3 p)
+{
+    float3 i = floor(p);
+    float3 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float n000 = Hash31(i);
+    float n100 = Hash31(i + float3(1, 0, 0));
+    float n010 = Hash31(i + float3(0, 1, 0));
+    float n110 = Hash31(i + float3(1, 1, 0));
+    float n001 = Hash31(i + float3(0, 0, 1));
+    float n101 = Hash31(i + float3(1, 0, 1));
+    float n011 = Hash31(i + float3(0, 1, 1));
+    float n111 = Hash31(i + float3(1, 1, 1));
+    return lerp(
+        lerp(lerp(n000, n100, f.x), lerp(n010, n110, f.x), f.y),
+        lerp(lerp(n001, n101, f.x), lerp(n011, n111, f.x), f.y),
+        f.z
+    );
+}
+
+float FBM(float3 p, int octaves)
+{
+    float value = 0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    for (int i = 0; i < octaves; ++i)
+    {
+        value += amplitude * ValueNoise3D(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return value;
+}
+
+float SampleCloudDensity(float3 worldPos, float normalizedHeight, bool erode)
+{
+    float3 shapeCoord = worldPos * 0.0001 * VolCloud_ShapeFactor;
+    float baseShape = FBM(shapeCoord, 4);
+    float heightGradient = saturate(smoothstep(0.0, 0.1, normalizedHeight) * smoothstep(1.0, 0.6, normalizedHeight));
+    float density = saturate(baseShape * heightGradient - (1.0 - VolCloud_DensityMultiplier));
+    if (erode && density > 0)
+    {
+        float3 erosionCoord = worldPos * 0.0003;
+        float erosion = FBM(erosionCoord, 3);
+        density = saturate(density - erosion * VolCloud_ErosionFactor * (1.0 - normalizedHeight));
+    }
+    return density * VolCloud_DensityMultiplier;
+}
+
+float CloudPhase(float cosTheta)
+{
+    float g = VolCloud_Anisotropy;
+    float g2 = g * g;
+    float forward = (1.0 - g2) / (4.0 * Pi * pow(abs(1.0 + g2 - 2.0 * g * cosTheta), 1.5));
+    float silver = VolCloud_SilverIntensity * pow(saturate(cosTheta), VolCloud_SilverSpread);
+    return max(forward + silver, Inv_Pi * 0.25);
+}
+
+float LightMarch(float3 startPos, float3 lightDir, float lightDistance)
+{
+    float2 ground = CloudSphereIntersection(startPos - CloudPlanetCenter(VolCloud_PlanetRadius), lightDir, VolCloud_PlanetRadius);
+    float transmittance = 0;
+    if (!(ground.x >= 0 && ground.y > 0 && ground.x < lightDistance))
+    {
+        transmittance = 1;
+        float4 segments = CloudRaySegments(startPos, lightDir, VolCloud_PlanetRadius,
+            GetCloudLayerBottom(), VolCloud_CloudLayerThickness, lightDistance);
+        float rayLen = (segments.y - segments.x) + (segments.w - segments.z);
+        if (rayLen > 0)
+        {
+            float stepSize = rayLen / max(VolCloud_NumLightSteps, 1);
+            float totalDensity = 0;
+            [loop]
+            for (int i = 0; i < VolCloud_NumLightSteps; ++i)
+            {
+                float3 samplePos = startPos + lightDir * CloudRayDistance(segments, (i + 0.5) * stepSize);
+                float h = GetNormalizedHeight(samplePos);
+                if (h >= 0 && h <= 1)
+                {
+                    float density = SampleCloudDensity(samplePos, h, false);
+                    totalDensity += density * stepSize;
+                }
+            }
+            float beer = exp(-totalDensity * 0.04);
+            float powder = 1.0 - exp(-totalDensity * 0.08);
+            transmittance = beer * lerp(1.0, powder, 0.5);
+        }
+    }
+    return transmittance;
+}
+
+float3 EvaluateCloudLight(LightRecord light, float3 samplePos, float3 rayDir, float density, float normalizedHeight)
+{
+    float3 L;
+    float att = 1.0;
+    float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
+    float viewDepth = -viewPos.z;
+    float shadow;
+    if (IsDirectionalLight(light))
+    {
+        L = DirectionalLightL(light);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
+    }
+    else
+    {
+        L = LocalLightL(light, samplePos);
+        att = LocalLightAttenuation(light, samplePos);
+        shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
+    }
+
+    float lightDistance = IsDirectionalLight(light) ? 1e20 : length(light.positionRange.xyz - samplePos);
+    float lightEnergy = LightMarch(samplePos, L, lightDistance);
+    float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
+    float3 radialUp = normalize(samplePos - CloudPlanetCenter(VolCloud_PlanetRadius));
+    float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, dot(L, radialUp), VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
+    float phase = CloudPhase(dot(rayDir, L));
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
+    float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * sunTransmittance * lightEnergy * phase * shadow * att;
+    float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
+    return (radiance + ambient) * density;
+}
+
+[numthreads(8, 8, 1)]
+void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)VolCloud_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * VolCloud_Resolution.zw;
+    uint frameJitter = VolCloud_FrameIndex & 15;
+    float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
+
+    float3 ndcPos = GetNDCPos(screenUV, 0.5);
+    float4 worldPosH = mul(Matrix_InvViewProj, float4(ndcPos, 1.0));
+    float3 worldPos = worldPosH.xyz / worldPosH.w;
+    float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
+
+    float rawDepth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,screenUV,0);
+#if UNITY_REVERSED_Z
+    const bool reversedZ = true;
+#else
+    const bool reversedZ = false;
+#endif
+    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewProj,
+        _WorldSpaceCameraPos, rayDir, reversedZ);
+    float4 segments = CloudRaySegments(_WorldSpaceCameraPos, rayDir, VolCloud_PlanetRadius,
+        GetCloudLayerBottom(), VolCloud_CloudLayerThickness, sceneDist);
+    float totalLength = (segments.y - segments.x) + (segments.w - segments.z);
+    if (totalLength <= 0)
+    {
+        UAV_VolumetricCloudTexture[id.xy] = float4(0, 0, 0, 1);
+        return;
+    }
+
+    float stepSize = totalLength / max(VolCloud_NumPrimarySteps, 1);
+    float3 accumulatedLight = 0;
+    float transmittance = 1.0;
+
+    [loop]
+    for (int i = 0; i < VolCloud_NumPrimarySteps; ++i)
+    {
+        if (transmittance < 0.01)
+            break;
+
+        float t = CloudRayDistance(segments, (i + jitter) * stepSize);
+        float3 samplePos = _WorldSpaceCameraPos + rayDir * t;
+        float normalizedHeight = GetNormalizedHeight(samplePos);
+        if (normalizedHeight < 0 || normalizedHeight > 1)
+            continue;
+
+        float density = SampleCloudDensity(samplePos, normalizedHeight, true);
+        if (density <= 0)
+            continue;
+
+        float3 luminance = 0;
+        [loop]
+        for (int d = 0; d < g_DirectionalLightCount; ++d)
+        {
+            luminance += EvaluateCloudLight(g_LightRecordBuffer[d], samplePos, rayDir, density, normalizedHeight);
+        }
+
+        float3 sampleViewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
+        LightLoopState lightLoop;
+        BeginLightLoopUV(screenUV, -sampleViewPos.z, lightLoop);
+        uint recordIndex;
+        [loop]
+        while (NextLight(lightLoop, recordIndex))
+        {
+            luminance += EvaluateCloudLight(g_LightRecordBuffer[recordIndex], samplePos, rayDir, density, normalizedHeight);
+        }
+
+        float sampleExtinction = density * 0.04;
+        float sampleTransmittance = exp(-sampleExtinction * stepSize);
+        float3 scatter = luminance * (1.0 - sampleTransmittance) / max(sampleExtinction, 1e-6);
+        accumulatedLight += transmittance * scatter;
+        transmittance *= sampleTransmittance;
+    }
+
+    float4 current = float4(accumulatedLight, transmittance);
+    float4 history = InfinitySampleLevel(SRV_HistoryVolumetricCloud,Global_bilinear_clamp_sampler,screenUV,0);
+    float weight = saturate(VolCloud_TemporalWeight);
+    UAV_VolumetricCloudTexture[id.xy] = lerp(current, history, weight);
+}

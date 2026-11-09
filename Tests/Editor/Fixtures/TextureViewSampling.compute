@@ -1,5 +1,5 @@
 #pragma kernel SampleView
-#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Common.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
 Texture2D<float4> SRV_SceneColorTexture;
 StructuredBuffer<float4> SRV_ViewSamples;
 RWStructuredBuffer<float4> UAV_ViewResults;

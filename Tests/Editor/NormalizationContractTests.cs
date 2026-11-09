@@ -4,7 +4,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {

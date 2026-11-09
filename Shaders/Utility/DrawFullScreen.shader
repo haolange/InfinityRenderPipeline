@@ -10,7 +10,7 @@
 			ZTest Always ZWrite Off Blend Off Cull Off
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -55,21 +55,22 @@
 			ZTest Always ZWrite Off Blend Off Cull Off
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 
 			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-            #include "../ShaderLibrary/ScreenSpaceDepth.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+            #include "../Library/ScreenSpaceDepth.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			
 			float4 _ScaleBais;
-			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -112,16 +113,16 @@
 			}
 
 			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/Common.hlsl"
-			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariables.hlsl"
-            #include "../ShaderLibrary/MotionVectors.hlsl"
-            #include "../ShaderLibrary/ScreenSpaceDepth.hlsl"
+			#include "../Library/Common.hlsl"
+			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ShaderVariables.hlsl"
+            #include "../Library/MotionVectors.hlsl"
+            #include "../Library/ScreenSpaceDepth.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			Texture2D _MainTex;
@@ -157,7 +158,10 @@
                     float3 direction = Matrix_FlipYProj[3][3] != 0 ? float3(0, 0, -1) : normalize(view.xyz);
                     world = mul(Matrix_ViewToWorld, float4(direction, 0));
                 }
-                else world /= world.w;
+                else
+                {
+                    world /= world.w;
+                }
                 float4 current = mul(Matrix_ViewFlipYProj, world);
                 float4 previous = mul(Matrix_LastViewFlipYProj, world);
                 MotionOutput output;
@@ -176,7 +180,10 @@
                 }
                 output.velocity = SurfaceVelocity(current, previous);
                 output.metadata = SurfaceMotionMetadata(current, previous, depth);
-                if (sky) output.metadata = float4(depth, depth, previous.w > 0 ? 1 : 0, 0);
+                if (sky)
+                {
+                    output.metadata = float4(depth, depth, previous.w > 0 ? 1 : 0, 0);
+                }
                 return output;
             }
 
@@ -187,12 +194,12 @@
             Name "RasterFinalOutput"
             ZTest Always ZWrite Off Blend Off Cull Off
             HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
-            #include "../ShaderLibrary/Common.hlsl"
-            #include "../ShaderLibrary/OutputTransform.hlsl"
+            #include "../Library/Common.hlsl"
+            #include "../Library/OutputTransform.hlsl"
             float4 _ScaleBais;
             float4 _InfinityOutputTransfer;
             Texture2D<float4> _MainTex;
@@ -218,14 +225,14 @@
             Name "RasterPostCombine"
             ZTest Always ZWrite Off Blend Off Cull Off
             HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fragment _ INFINITY_POST_BLOOM
-            #include "../ShaderLibrary/Common.hlsl"
-            #include "../ShaderLibrary/PostCombine.hlsl"
-            #include "../ShaderLibrary/OutputTransform.hlsl"
+            #include "../Library/Common.hlsl"
+            #include "../Library/PostCombine.hlsl"
+            #include "../Library/OutputTransform.hlsl"
             float4 _ScaleBais;
             float4 _InfinityOutputTransfer;
             struct Attributes { float4 vertex : POSITION; };
@@ -249,11 +256,11 @@
             Name "RasterUpscaleDepth"
             ZTest Always ZWrite On ColorMask 0 Cull Off
             HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
-            #include "../ShaderLibrary/Common.hlsl"
+            #include "../Library/Common.hlsl"
             Texture2D<float> _InfinitySourceDepth;
             struct Attributes { float4 vertex : POSITION; };
             struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
@@ -275,7 +282,7 @@
             Name "RasterCopyShadowDepthTile"
             ZTest Always ZWrite On ColorMask 0 Cull Off
             HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag

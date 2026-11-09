@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int physicalWidth=padded?16:width,physicalHeight=padded?16:height;
             var owned=new List<Object>();
             var shader=Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute"));
+                "Packages/com.infinity.render-pipeline/Shaders/Pass/ScreenSpace/Compute_GroundTruthOcclusion.compute"));
             owned.Add(shader);
             Texture2D Input(string name,int w,int h,Color value)
             {
@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if(!SystemInfo.supportsComputeShaders||!SystemInfo.supportsAsyncGPUReadback)Assert.Ignore("Compute/readback required.");
             var owned=new List<Object>();
             var shader=Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute"));
+                "Packages/com.infinity.render-pipeline/Shaders/Pass/ScreenSpace/Compute_GroundTruthOcclusion.compute"));
             owned.Add(shader);
             int kernel=shader.FindKernel("OcclusionUpsample");
             void Input(string name,int width,int height,Color color)

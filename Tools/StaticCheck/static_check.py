@@ -12,7 +12,7 @@ Checks
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
-  graphdependency  Runtime/RendererCore/RenderGraph never references the mesh pipeline
+  graphdependency  Runtime/RenderGraph never references the mesh pipeline
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
   meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
@@ -28,6 +28,10 @@ def walk(repo):
     for dp, dns, fns in os.walk(repo):
         dns[:] = [d for d in dns if d not in IGNORED_DIRS and not d.endswith('~') and not d.startswith('.')]
         yield dp, dns, fns
+
+def display_path(*parts):
+    return os.path.join(*parts).replace('\\', '/')
+
 
 def check_meta(repo, out):
     guids = {}
@@ -47,7 +51,7 @@ def check_meta(repo, out):
             if n.endswith('.meta'):
                 asset = n[:-5]
                 if asset not in names:
-                    out.append(('ERROR', 'meta', f'orphan meta: {os.path.join(rel, n)}'))
+                    out.append(('ERROR', 'meta', f'orphan meta: {display_path(rel, n)}'))
                 try:
                     m = re.search(r'^guid:\s*([0-9a-f]{32})', read(os.path.join(dp, n)), re.M)
                 except IsADirectoryError:
@@ -55,7 +59,7 @@ def check_meta(repo, out):
                 if m:
                     g = m.group(1)
                     if g in guids:
-                        out.append(('ERROR', 'meta', f'duplicate guid {g}: {guids[g]} and {os.path.join(rel, n)}'))
+                        out.append(('ERROR', 'meta', f'duplicate guid {g}: {guids[g].replace(chr(92), "/")} and {display_path(rel, n)}'))
                     guids[g] = os.path.join(rel, n)
                 continue
             if rel == '.' and n in ('Tools', 'README.md', 'LICENSE', 'package.json', 'CHANGELOG.md') and False:
@@ -63,7 +67,7 @@ def check_meta(repo, out):
             if n + '.meta' in ignored and rel == '.':
                 continue
             if n + '.meta' not in names:
-                out.append(('ERROR', 'meta', f'missing meta: {os.path.join(rel, n)}'))
+                out.append(('ERROR', 'meta', f'missing meta: {display_path(rel, n)}'))
     return guids
 
 def read(p):
@@ -99,7 +103,7 @@ def check_respath(repo, out):
                 out.append(('ERROR', 'respath', f'{os.path.relpath(p, repo)}: missing resource {m.group(1)}'))
 
 def check_lightmode(repo, out):
-    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', without_comments(read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs')))))
+    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', without_comments(read(os.path.join(repo, 'Runtime/Pipeline/PipelineIDs.cs')))))
     for tag in declared:
         if not tag.startswith('Raster') or not tag.endswith('Pass'):
             out.append(('ERROR', 'lightmode', f'Infinity LightMode must use RasterXXXPass: {tag}'))
@@ -142,7 +146,9 @@ def load_historical_links(repo, receipt, out):
 def check_links(repo, out, historical_links=None):
     historical_links = historical_links or {}
     for dp, _, fns in os.walk(repo):
-        if '/.git' in dp or os.sep + os.path.join('Docs', 'History') in dp: continue  # History is immutable evidence
+        relative = os.path.relpath(dp, repo).replace('\\', '/')
+        if relative == '.git' or relative.startswith(('.git/', 'Docs~/Record/History', 'Docs~/Record/Evidence')):
+            continue
         for f in fns:
             if f.startswith('.') or not f.endswith('.md'): continue
             p = os.path.join(dp, f)
@@ -230,7 +236,7 @@ def check_sgstrings(repo, out):
                     found = True; break
             if not found:
                 out.append(('ERROR', 'sgstrings', f'{rel(p)}: type {m.group(1)} not found in {root}'))
-    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs'))))
+    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', read(os.path.join(repo, 'Runtime/Pipeline/PipelineIDs.cs'))))
     passes = os.path.join(d, 'InfinityPasses.cs')
     if os.path.exists(passes):
         for m in re.finditer(r'const string k\w+ = "(\w+)";', read(passes)):
@@ -249,7 +255,7 @@ def check_texture_views(repo, out):
 
 
 def check_unity_boundary(repo, out):
-    mesh_root = os.path.join(repo, 'Runtime/Component/Render')
+    mesh_root = os.path.join(repo, 'Runtime/Mesh')
     for p in all_files(mesh_root, {'.cs'}):
         if not os.path.basename(p).startswith('MeshComponent'):
             continue
@@ -260,25 +266,25 @@ def check_unity_boundary(repo, out):
     if os.path.exists(surface) and re.search(r'INFINITY_MESH_(?:LIGHTMAP|DIRECTIONAL|SHADOWMASK)|meshBakedLightingBuffer|meshProbeLightingBuffer', read(surface)):
         out.append(('ERROR', 'unityboundary', 'custom Mesh contains per-instance baked/probe bindings'))
     for name in ('MeshBakedLighting.cs', 'MeshProbeLighting.cs'):
-        if os.path.exists(os.path.join(repo, 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline', name)):
+        if os.path.exists(os.path.join(repo, 'Runtime/Mesh', name)):
             out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
 
 
 def check_graph_dependency(repo, out):
     # The render graph is extended by the mesh pipeline through IRGGraphExtension; it must not depend on it.
     # Both share an assembly, so any MeshPipeline token (full, namespace-relative, alias or using static) is the dependency.
-    root = os.path.join(repo, 'Runtime/RendererCore/RenderGraph')
+    root = os.path.join(repo, 'Runtime/RenderGraph')
     for p in all_files(root, {'.cs'}):
         if re.search(r'\bMeshPipeline\b', without_comments(read(p))):
             out.append(('ERROR', 'graphdependency', os.path.relpath(p, repo) + ': RenderGraph must not reference InfinityTech.Rendering.MeshPipeline'))
 
 
-MESH_DIR = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline'
-MESH_SHADERS = ('Shaders/ShaderLibrary/GPUScene.hlsl',
-                'Shaders/ShaderLibrary/MeshLOD.hlsl',
-                'Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute',
-                'Shaders/RenderingFeature/MeshDrawPipeline/MeshOcclusion.hlsl')
-MESH_ID_SOURCES = ('Runtime/RenderPipeline/Utility/PipelineIDs.cs',)
+MESH_DIR = 'Runtime/Mesh'
+MESH_SHADERS = ('Shaders/Library/GPUScene.hlsl',
+                'Shaders/Library/MeshLOD.hlsl',
+                'Shaders/Mesh/Compute_MeshDrawPipeline.compute',
+                'Shaders/Mesh/MeshOcclusion.hlsl')
+MESH_ID_SOURCES = ('Runtime/Pipeline/PipelineIDs.cs',)
 HLSL_GLOBAL = re.compile(r'^(?:RW)?(?:StructuredBuffer|Texture2D)<[^>]+>\s+([\w\s,]+);|^(?:uint|int|float|float2|float3|float4|float4x4)\s+([\w\s,\[\]0-9]+);', re.M)
 PROPERTY_ID = re.compile(r'PropertyToID\("(\w+)"\)')
 
@@ -359,7 +365,7 @@ MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'MeshVisibilityHandle', 'script
 
 def check_mesh_passes(repo, out):
     for rel in MESH_PASS_FILES:
-        path = os.path.join(repo, 'Runtime/RenderPipeline/Pass', rel)
+        path = os.path.join(repo, 'Runtime/Pipeline/Pass', rel)
         if not os.path.exists(path): continue
         text = without_comments(read(path))
         for token in MESH_PASS_FORBIDDEN:
@@ -414,7 +420,8 @@ GEN_DOC = re.compile(r'(?i)^(?:#{1,6}\s+.*|\|.*)\bv\d+\b')
 
 
 def generation_skipped(rel):
-    return rel.startswith('Docs/History/') or rel.startswith('Documentation~/Evidence/') or rel.endswith('ACES.hlsl')
+    rel = rel.replace('\\', '/')
+    return rel.startswith(('Docs~/Record/History/', 'Docs~/Record/Evidence/')) or rel.endswith('ACES.hlsl')
 
 
 def changelog_unreleased(text):

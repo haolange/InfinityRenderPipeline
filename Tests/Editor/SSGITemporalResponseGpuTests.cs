@@ -218,7 +218,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         sealed class Run : IDisposable
         {
             public const int Width = 13, Height = 11;
-            const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute";
+            const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/Pass/ScreenSpace/Compute_ScreenSpaceIndirectDiffuse.compute";
             static readonly HashSet<Run> s_InFlight = new HashSet<Run>();
             readonly List<Object> m_Objects = new List<Object>();
             readonly CommandBuffer m_Commands = new CommandBuffer();

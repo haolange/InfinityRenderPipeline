@@ -6,7 +6,7 @@
 - Keep URT native/custom instances distinct and refresh native input independently of mesh world revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
 - Target development refresh/capture tools by explicit project/process. Refresh invokes public AssetDatabase through Unity CLI, with no cross-session UI fallback; temporary native capture compiler caches are cleaned on exit.
 
-Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
+Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
 - Screen-space reflection rejects a history sample whose confidence is below half the current resolve, and does not let a kept history go darker than this frame's hit color. The blend weight stays this frame's edge fade. A dead history was covering that hit at the history weight and drawing the floor black in the SSR buffer.
@@ -28,7 +28,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
 - Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
 - Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Each view selects levels in the same CPU job or GPU kernel as culling; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
-- `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data; see [Upgrade 0.4 to 0.5](Documentation~/upgrade-0.4-to-0.5.md).
+- `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data; see [Upgrade 0.4 to 0.5](Docs~/Manual/upgrade-0.4-to-0.5.md).
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
 - SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
 - HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
@@ -56,11 +56,11 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
   dispatch, half-resolution tracing, VNDF sampling with the blue-noise Sobol textures, ray-reuse resolve with
   filtered importance sampling, virtual-point temporal reprojection with per-pixel history age, optional a-trous pass,
   quality presets and four SSR debug views.
-- Shared screen-space denoise library `Shaders/ShaderLibrary/ScreenSpaceDenoise/`.
+- Shared screen-space denoise library `Shaders/Library/ScreenSpaceDenoise/`.
 - Light shapes in Unreal form on `InfinityAdditionalLightData` (directional sun angle; point sphere / line / tube; cone,
   pyramid and box spots; rect with barn doors; disk) with the native Light fields derived on edit, a lightmapper
   delegate that bakes the same shapes, per-light shadow filter selection and Maximum Distance culling with fade.
-- Light record (`Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
+- Light record (`Shaders/Library/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
 - Clustered light list: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
   one shared light loop (`Lighting/LightLoop.hlsl`) for Deferred, Forward, fog and clouds. Forward now uses the list
   instead of looping every local light. Contact shadows follow the sun record instead of record 0.
@@ -283,7 +283,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Reflection probe captures and preview cameras rendered the active Rendering Debugger view (a baked probe kept it).
 
 ### Changed
-- Source layout: render passes live in `Runtime/RenderPipeline/Pass/<domain>/` and Volume components in
+- Source layout: render passes live in `Runtime/Pipeline/Pass/<domain>/` and Volume components in
   `Runtime/Volume/<domain>/` (moved with their `.meta`; GUIDs, class names and namespaces are unchanged).
 - `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
 - The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
@@ -318,7 +318,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - GlobalSettings now uses the 17.6 `RenderPipelineGlobalSettings<TSettings, TPipeline>` order and owns resource containers through `settingsList`.
 - `InfinityUnlit` plus optional default-material override slots on the RP Asset for Create-menu objects.
 - RTAO Volume records UnifiedRayTracing visibility when the backend and accel are ready; otherwise it does not record (no HiZ stand-in).
-- Shader stripper (`Editor/ShaderStripper/`): `IPreprocessBuildWithReport` + Infinity `IPreprocessShaders` / `IPreprocessComputeShaders`. Strips shaders whose SubShaders are all tagged for another render pipeline (URP/HDRP package shaders). Infinity compute variants are counted, not stripped.
+- Shader stripper (`Editor/Material/`): `IPreprocessBuildWithReport` + Infinity `IPreprocessShaders` / `IPreprocessComputeShaders`. Strips shaders whose SubShaders are all tagged for another render pipeline (URP/HDRP package shaders). Infinity compute variants are counted, not stripped.
 - `Documentation~/` getting-started set.
 
 ### Changed

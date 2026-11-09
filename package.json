@@ -4,7 +4,7 @@
   "version": "0.4.0",
   "unity": "6000.6",
   "displayName": "Infinity RP",
-  "documentationUrl": "Documentation~/index.md",
+  "documentationUrl": "Docs~/Manual/index.md",
   "dependencies": {
     "com.unity.burst": "1.8.29",
     "com.unity.shadergraph": "17.6.0",

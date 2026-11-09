@@ -23,7 +23,7 @@ Shader "InfinityPipeline/InfinityUnlit"
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
-            #include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../Library/ShaderVariables.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -75,11 +75,11 @@ Shader "InfinityPipeline/InfinityUnlit"
 
             HLSLPROGRAM
             #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
-            #include "../ShaderLibrary/TranslucentOutput.hlsl"
+            #include "../Library/TranslucentOutput.hlsl"
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
-            #include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../Library/ShaderVariables.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 

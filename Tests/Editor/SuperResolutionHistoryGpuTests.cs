@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int inputCapacityWidth = padded ? 32 : inputWidth, inputCapacityHeight = padded ? 16 : inputHeight;
             var owned = new List<Object>();
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
-                "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute"));
+                "Packages/com.infinity.render-pipeline/Shaders/Pass/Temporal/Compute_SuperResolution.compute"));
             owned.Add(shader);
             Texture2D Texture(int w, int h, Func<int,int,Color> pixel)
             {

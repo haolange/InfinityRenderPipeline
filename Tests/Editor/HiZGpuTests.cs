@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1638, 1778, false, false)]
         public void EveryMipMatchesQuadExtrema_AndIgnoresPadding(int width, int height, bool padded, bool farOnly)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/PyramidDepth/Compute_PyramidDepth.compute");
+            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Geometry/Compute_PyramidDepth.compute");
             Assert.IsNotNull(shader);
             int bw = (width + 1) / 2, bh = (height + 1) / 2;
             int sw = padded ? width + 13 : width, sh = padded ? height + 9 : height;

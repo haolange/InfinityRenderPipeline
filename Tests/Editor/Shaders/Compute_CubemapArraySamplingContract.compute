@@ -1,8 +1,8 @@
 #pragma kernel Compare
-#include "../../../Shaders/ShaderLibrary/Common.hlsl"
-#include "../../../Shaders/ShaderLibrary/Montcalo.hlsl"
-#include "../../../Shaders/ShaderLibrary/ImageBasedLighting.hlsl"
-#include "../../../Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl"
+#include "../../../Shaders/Library/Common.hlsl"
+#include "../../../Shaders/Library/Montcalo.hlsl"
+#include "../../../Shaders/Library/ImageBasedLighting.hlsl"
+#include "../../../Shaders/Library/Lighting/ReflectionProbes.hlsl"
 Texture2DArray<float4> TestArray;
 TextureCube<float4> TestCube;
 StructuredBuffer<float4> Samples;

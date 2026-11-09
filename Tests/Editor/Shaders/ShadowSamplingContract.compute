@@ -1,5 +1,5 @@
 #pragma kernel SlopedPlane
-#include "../../../Shaders/ShaderLibrary/ShadowSampling.hlsl"
+#include "../../../Shaders/Library/ShadowSampling.hlsl"
 Texture2D<float> TestDepth;
 RWStructuredBuffer<float4> Results;
 float4 TestRect;

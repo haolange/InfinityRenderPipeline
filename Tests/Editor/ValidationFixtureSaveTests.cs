@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using InfinityTech.Rendering.Editor.Validation;
-using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Volume;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {

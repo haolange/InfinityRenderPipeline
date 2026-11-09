@@ -1,0 +1,76 @@
+#pragma kernel ScreenSpaceComposite
+#pragma multi_compile_local _ INFINITY_SSS_OUTPUT
+#pragma multi_compile_local _ COMPOSITE_SSR
+#pragma multi_compile_local _ COMPOSITE_SSGI
+
+#include "../../Library/Common.hlsl"
+#include "../../Library/ScreenSpaceDepth.hlsl"
+#include "../../Library/IndirectComposition.hlsl"
+#include "../../Library/GBufferPack.hlsl"
+#include "../../Library/BSDF.hlsl"
+#include "../../Library/ImageBasedLighting.hlsl"
+
+// AO is applied once in DeferredShading on IBL; SSR/SSGI sample already-lit color and must not be multiplied again.
+
+float4 Composite_Resolution;
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+Texture2D SRV_LightingTexture;
+Texture2D<float4> SRV_IndirectDiffuse, SRV_IndirectSpecular;
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
+Texture2D<float> SRV_DepthTexture;
+#if defined(COMPOSITE_SSR)
+Texture2D<float4> SRV_SSRTexture;
+#endif
+#if defined(COMPOSITE_SSGI)
+Texture2D<float4> SRV_SSGITexture;
+#endif
+RWTexture2D<float4> UAV_SceneColor;
+#if defined(INFINITY_SSS_OUTPUT)
+RWTexture2D<float4> UAV_ScatterDiffuse;
+#endif
+
+[numthreads(16, 16, 1)]
+void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)Composite_Resolution.x || id.y >= (uint)Composite_Resolution.y)
+    {
+        return;
+    }
+
+    uint2 pixelCoord = id.xy;
+    float3 lighting = SRV_LightingTexture[pixelCoord].rgb;
+    float rawDepth = SRV_DepthTexture[pixelCoord];
+    if (ScreenSpaceIsFarDepth(rawDepth))
+    {
+        UAV_SceneColor[pixelCoord] = float4(lighting, 1);
+        return;
+    }
+
+    GBufferData gbufferData;
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
+    MicrofaceContext microfaceCtx = InitMicrofaceContext(gbufferData.Specular, gbufferData.Roughness, gbufferData.Reflactance, gbufferData.Albedo);
+
+#if defined(COMPOSITE_SSGI)
+    float4 ssgiColor = SRV_SSGITexture[pixelCoord];
+    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectDiffuse[pixelCoord].rgb, microfaceCtx.AlbedoColor * ssgiColor.rgb, ssgiColor.a);
+#if defined(INFINITY_SSS_OUTPUT)
+    float3 scatter = UAV_ScatterDiffuse[pixelCoord].rgb;
+    UAV_ScatterDiffuse[pixelCoord] = float4(ReplaceIndirectContribution(scatter, SRV_IndirectDiffuse[pixelCoord].rgb, microfaceCtx.AlbedoColor * ssgiColor.rgb, ssgiColor.a), 1);
+#endif
+#endif
+
+#if defined(COMPOSITE_SSR)
+    float2 screenUV = (pixelCoord + 0.5) * Composite_Resolution.zw;
+    float3 ndcPos = GetNDCPos(screenUV, rawDepth);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+    float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+    float4 ssrColor = SRV_SSRTexture[pixelCoord];
+    float3 indirectSpecular = ssrColor.rgb;
+    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectSpecular[pixelCoord].rgb, EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(gbufferData.Normal, viewDir))).rgb * indirectSpecular, ssrColor.a);
+#endif
+
+    UAV_SceneColor[pixelCoord] = float4(max(0, lighting), 1);
+}

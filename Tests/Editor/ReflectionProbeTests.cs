@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // Reflection probe list: record layout, blending priority and the slot state of the probe atlas. No cube is filtered.
     public class ReflectionProbeTests
     {
-        const string ProbePath = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl";
+        const string ProbePath = "Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/ReflectionProbes.hlsl";
 
         [Test]
         public void ProbeRecord_MatchesHlslFieldForField()

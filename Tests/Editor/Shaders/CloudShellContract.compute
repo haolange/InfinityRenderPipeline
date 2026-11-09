@@ -1,6 +1,6 @@
 #pragma kernel CloudShellContract
 #pragma kernel CloudDepthContract
-#include "../../../Shaders/ShaderLibrary/CloudShell.hlsl"
+#include "../../../Shaders/Library/CloudShell.hlsl"
 
 StructuredBuffer<float4> Cases;
 RWStructuredBuffer<float4> Results;
