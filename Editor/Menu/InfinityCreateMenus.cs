@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Editor
         static void CreateGlobalVolume(MenuCommand command)
         {
             GameObject go = Place(new GameObject("Global Volume"), command);
-            Volume volume = go.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume volume = go.AddComponent<UnityEngine.Rendering.Volume>();
             volume.isGlobal = true;
             Finish(go, "Create Global Volume");
         }
@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Editor
             BoxCollider box = go.AddComponent<BoxCollider>();
             box.isTrigger = true;
             box.size = new Vector3(10, 10, 10);
-            Volume volume = go.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume volume = go.AddComponent<UnityEngine.Rendering.Volume>();
             volume.isGlobal = false;
             volume.blendDistance = 1.0f;
             Finish(go, "Create Local Volume");

@@ -21,13 +21,17 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int visibilityProductions;
         public int gpuCullDispatches;
         public int compactDispatches;
+        public int compactKernelDispatches;
         public long uploadedBytes;
+        internal Camera camera;
 
-        internal void BeginCamera()
+        internal void BeginCamera(Camera camera)
         {
+            this.camera = camera;
             visibilityProductions = 0;
             gpuCullDispatches = 0;
             compactDispatches = 0;
+            compactKernelDispatches = 0;
         }
     }
 

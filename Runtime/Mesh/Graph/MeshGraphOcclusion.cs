@@ -166,7 +166,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 commands.SetComputeVectorParam(shader, MeshOcclusionBindings.Extent, new Vector4(data.extent.x, data.extent.y, 0, 0));
                 commands.SetComputeIntParam(shader, MeshOcclusionBindings.Mips, data.mipCount);
             }
-            commands.DispatchCompute(shader, kernel, math.max(1, (data.inputs.entityCount + 63) / 64), 1, 1);
+            string sample = data.recovery ? "OcclusionRecovery" : "OcclusionPrediction";
+            commands.BeginSample(sample);
+            try
+            {
+                commands.DispatchCompute(shader, kernel, math.max(1, (data.inputs.entityCount + 63) / 64), 1, 1);
+            }
+            finally
+            {
+                commands.EndSample(sample);
+            }
             data.world.stats.gpuCullDispatches++;
         }
     }

@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             VolumeProfile m_Clone;
             ColorGrading m_CloneGrading;
             GameObject m_Object;
-            Volume m_Volume;
+            UnityEngine.Rendering.Volume m_Volume;
             string m_Run;
             float m_OriginalTint;
             int m_Width, m_Height, m_Phase, m_Frames, m_LastFrame = -1, m_LastCameraEnd = -1;
@@ -161,9 +161,9 @@ namespace InfinityTech.Rendering.Editor.Validation
                     throw new InvalidOperationException("MainCamera volume mask is empty.");
                 }
 
-                Volume sourceVolume = null;
+                UnityEngine.Rendering.Volume sourceVolume = null;
                 float highestPriority = float.MinValue;
-                foreach (Volume volume in VolumeManager.instance.GetVolumes(mask))
+                foreach (UnityEngine.Rendering.Volume volume in VolumeManager.instance.GetVolumes(mask))
                 {
                     if (!volume.isActiveAndEnabled || !volume.gameObject.activeInHierarchy || volume.weight <= 0)
                     {
@@ -202,7 +202,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                         throw new InvalidOperationException("Source observation requires the exact migrated neutral profile.");
                     if (sourceVolume.HasInstantiatedProfile())
                         throw new InvalidOperationException("Source-only observation requires the persistent shared profile directly.");
-                    foreach (Volume volume in VolumeManager.instance.GetVolumes(mask))
+                    foreach (UnityEngine.Rendering.Volume volume in VolumeManager.instance.GetVolumes(mask))
                         if (volume != null && ((volume.hideFlags | volume.gameObject.hideFlags) & HideFlags.DontSave) != 0)
                             throw new InvalidOperationException("A temporary Volume would invalidate source-only observation.");
                 }
@@ -259,7 +259,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 m_Object = new GameObject("InfinityRP Temporary Tint A-B") { hideFlags = HideFlags.HideAndDontSave, layer = layer };
                 m_Object.SetActive(false);
                 UnityEngine.Object.DontDestroyOnLoad(m_Object);
-                m_Volume = m_Object.AddComponent<Volume>();
+                m_Volume = m_Object.AddComponent<UnityEngine.Rendering.Volume>();
                 m_Volume.isGlobal = true;
                 m_Volume.priority = priority;
                 m_Volume.weight = 1;

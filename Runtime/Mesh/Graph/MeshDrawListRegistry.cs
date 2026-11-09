@@ -35,7 +35,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         Declared = 0,
         Live = 1,
         Scheduled = 2,
-        Released = 3
+        Released = 3,
+        Empty = 4
     }
 
     internal struct MeshDrawListRecord
@@ -67,6 +68,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         readonly MeshWorld m_World;
         readonly List<MeshDrawListRecord> m_Records = new List<MeshDrawListRecord>(16);
+        readonly List<string> m_DrawListSamples = new List<string>(16);
         readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
         // Start at 1 so default(RGMeshDrawListHandle) never matches a live graph.
         int m_GraphGeneration = 1;
@@ -96,6 +98,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             EMeshDrawBackendPolicy backend = m_World.SelectBackend(desc);
             tables.version.Retain();
             int index = m_Records.Count;
+            if (index == m_DrawListSamples.Count)
+            {
+                m_DrawListSamples.Add("DrawList" + index);
+            }
             m_Records.Add(new MeshDrawListRecord
             {
                 view = view,
@@ -130,7 +136,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             record.consumerPassIndices.Add(passIndex);
             if (record.state == EMeshDrawListState.Declared)
             {
-                record.state = EMeshDrawListState.Live;
+                record.cacheRevision = record.cache.revision;
+                record.state = record.cache.memberCount == 0 ? EMeshDrawListState.Empty : EMeshDrawListState.Live;
             }
             m_Records[drawListIndex] = record;
         }
@@ -153,6 +160,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 MeshDrawListRecord record = m_Records[i];
+                if (record.state == EMeshDrawListState.Empty)
+                {
+                    continue;
+                }
                 if (record.state != EMeshDrawListState.Live)
                 {
                     record.state = EMeshDrawListState.Released;
@@ -161,7 +172,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
 
                 MeshPassCache cache = record.cache;
-                record.cacheRevision = cache.revision;
+                RequireUnchanged(record);
                 if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
                 {
                     if (!record.gpuVisibility.IsValid())
@@ -174,11 +185,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 else
                 {
-                    // Stored before the next step can throw, so ReleaseAll releases what was acquired.
-                    record.visibility = m_World.visibilityShare.Acquire(m_World, record.view);
-                    m_Records[i] = record;
-                    record.build = MeshDrawListBuild.Schedule(cache, m_World, m_World.visibilityShare.Get(record.visibility));
-                    m_Records[i] = record;
+                    using (cache.cpuSchedule.Auto((int)record.view.kind, record.view.subviewIndex, i))
+                    {
+                        // Stored before the next step can throw, so ReleaseAll releases what was acquired.
+                        record.visibility = m_World.visibilityShare.Acquire(m_World, record.view);
+                        m_Records[i] = record;
+                        record.build = MeshDrawListBuild.Schedule(cache, m_World, m_World.visibilityShare.Get(record.visibility));
+                        m_Records[i] = record;
+                    }
                     m_World.cpuBackend.AllocateInstances(cache.memberCount, out record.cpuInstances, out record.cpuFades);
                 }
                 record.state = EMeshDrawListState.Scheduled;
@@ -203,7 +217,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             else
             {
-                m_World.cpuBackend.Upload(commands, ref record.build, record.cpuInstances, record.cpuFades);
+                m_World.cpuBackend.Upload(commands, record.cache, ref record.build, record.cpuInstances, record.cpuFades, record.view, index);
             }
             m_Records[index] = record;
         }
@@ -213,6 +227,29 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
             string slice = SliceSampleName(record.view);
+            string view = record.view.kind switch
+            {
+                EMeshViewKind.Main => "Main",
+                EMeshViewKind.SceneView => "SceneView",
+                EMeshViewKind.Preview => "Preview",
+                EMeshViewKind.CascadeShadow => "CascadeShadow",
+                EMeshViewKind.LocalShadow => "LocalShadow",
+                _ => "OtherView"
+            };
+            string phase = record.view.visibilityPhase switch
+            {
+                EMeshVisibilityPhase.Final => "Final",
+                EMeshVisibilityPhase.Prediction => "Prediction",
+                EMeshVisibilityPhase.Deferred => "Deferred",
+                EMeshVisibilityPhase.Recovered => "Recovery",
+                _ => "OtherPhase"
+            };
+            string pass = record.cache.desc.lightMode;
+            string list = m_DrawListSamples[index];
+            commands.BeginSample(view);
+            commands.BeginSample(pass);
+            commands.BeginSample(phase);
+            commands.BeginSample(list);
             if (slice != null)
             {
                 commands.BeginSample(slice);
@@ -228,6 +265,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     commands.EndSample(slice);
                 }
+                commands.EndSample(list);
+                commands.EndSample(phase);
+                commands.EndSample(pass);
+                commands.EndSample(view);
             }
         }
 
@@ -239,15 +280,19 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException("Draw received a draw list of another builder or an earlier graph.");
             }
             MeshDrawListRecord record = m_Records[draws.index];
-            if (record.state != EMeshDrawListState.Scheduled)
+            if (record.state != EMeshDrawListState.Scheduled && record.state != EMeshDrawListState.Empty)
             {
                 throw new InvalidOperationException("Draw received a draw list that its pass did not declare with UseMeshDrawList.");
             }
             RequireUnchanged(record);
+            if (record.state == EMeshDrawListState.Empty)
+            {
+                return;
+            }
             if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
                 m_World.gpuBackend.SubmitMeshDrawList(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);
             else
-                m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view.kind);
+                m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view.kind, record.view.subviewIndex, draws.index);
         }
 
         static string SliceSampleName(in MeshView view)

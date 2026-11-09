@@ -37,9 +37,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void Upload(CommandBuffer commands, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
+        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades, in MeshView view, int drawListIndex)
         {
-            build.job.Complete();
+            using (cache.cpuComplete.Auto((int)view.kind, view.subviewIndex, drawListIndex))
+            {
+                build.job.Complete();
+            }
             int count = build.instanceCount;
             if (count > instances.buffer.count)
             {
@@ -49,17 +52,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
-            commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
+            using (cache.cpuUpload.Auto((int)view.kind, view.subviewIndex, drawListIndex))
+            {
+                commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
+                commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
+            }
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
-            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind, int subviewIndex, int drawListIndex)
         {
             if (build.draws.Length == 0)
             {
                 return;
             }
+            using var cpuDraw = cache.cpuDraw.Auto((int)viewKind, subviewIndex, drawListIndex);
             string marker = MeshDrawProfiling.Draw(viewKind, false);
             commands.BeginSample(marker);
             bool dithering = false;

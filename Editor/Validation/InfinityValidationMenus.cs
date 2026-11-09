@@ -144,13 +144,13 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
             builder.AppendLine();
 
-            Volume[] registered = VolumeManager.instance.GetVolumes(~0);
+            UnityEngine.Rendering.Volume[] registered = VolumeManager.instance.GetVolumes(~0);
             builder.Append("registeredVolumes=").Append(registered != null ? registered.Length : 0).AppendLine();
             if (registered != null)
             {
                 for (int v = 0; v < registered.Length; ++v)
                 {
-                    Volume volume = registered[v];
+                    UnityEngine.Rendering.Volume volume = registered[v];
                     if (volume == null)
                     {
                         continue;

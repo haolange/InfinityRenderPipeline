@@ -1,0 +1,270 @@
+{
+    "status": "Completed",
+    "error": "",
+    "unity": "6000.6.0f1",
+    "api": "Metal",
+    "scene": "Assets/Scene/Spazon/Scene_Spazon.unity",
+    "camera": "MainCamera",
+    "requestedBackend": "Asset",
+    "request": {
+        "outputDirectory": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/owner-layout/20261109/final-0",
+        "camera": "MainCamera",
+        "meshBackend": "",
+        "count": 0,
+        "movingRatio": 1.0,
+        "translucentRatio": 0.0,
+        "castShadow": true,
+        "spacing": 1.5,
+        "warmupFrames": 32,
+        "moveCamera": false,
+        "cameraPathRadius": 3.0,
+        "windowsSeconds": [
+            5.0,
+            20.0,
+            60.0
+        ]
+    },
+    "spawned": 0,
+    "moving": 0,
+    "translucent": 0,
+    "restored": true,
+    "windows": [
+        {
+            "endSeconds": 5.0,
+            "frames": 50,
+            "frameMs": {
+                "p50": 11.282,
+                "p95": 13.4318,
+                "min": 7.0835,
+                "max": 15.9783,
+                "mean": 11.075174000000002
+            },
+            "proxyMs": {
+                "p50": 0.008700000000000001,
+                "p95": 0.012100000000000001,
+                "min": 0.0044,
+                "max": 0.012400000000000001,
+                "mean": 0.008692
+            },
+            "transformMs": {
+                "p50": 0.0013000000000000002,
+                "p95": 0.0019,
+                "min": 0.0005,
+                "max": 0.002,
+                "mean": 0.0012799999999999997
+            },
+            "applyMs": {
+                "p50": 0.0018000000000000002,
+                "p95": 0.0024000000000000002,
+                "min": 0.0008,
+                "max": 0.0026000000000000003,
+                "mean": 0.0017399999999999994
+            },
+            "frameAllocations": {
+                "p50": 807.0,
+                "p95": 807.0,
+                "min": 807.0,
+                "max": 807.0,
+                "mean": 807.0
+            },
+            "proxyAllocations": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "frameAllocBytes": {
+                "p50": 70355.0,
+                "p95": 107049.0,
+                "min": 70250.0,
+                "max": 107867.0,
+                "mean": 76805.6
+            },
+            "proxyAllocBytes": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "monoUsedBytes": 84271104,
+            "monoHeapBytes": 100859904,
+            "liveSetBytes": 76390400,
+            "totalAllocatedBytes": 482471497,
+            "totalReservedBytes": 1309966336,
+            "graphicsDriverBytes": 898545294,
+            "poolTextureAllocatedBytes": 372003728,
+            "poolTextureIdleBytes": 372003728,
+            "poolTextureRetiredBytes": 0,
+            "poolBufferAllocatedBytes": 42283884,
+            "poolBufferIdleBytes": 42271212,
+            "poolBufferRetiredBytes": 0,
+            "gcGen0": 197,
+            "gcGen1": 197,
+            "gcGen2": 197,
+            "meshEntities": 8,
+            "meshElements": 8,
+            "allocatedViewCount": 4,
+            "actualBackend": "GPUIndirect"
+        },
+        {
+            "endSeconds": 20.0,
+            "frames": 149,
+            "frameMs": {
+                "p50": 9.5268,
+                "p95": 13.085500000000001,
+                "min": 3.7371000000000003,
+                "max": 14.115400000000001,
+                "mean": 9.508895302013418
+            },
+            "proxyMs": {
+                "p50": 0.007,
+                "p95": 0.0119,
+                "min": 0.003,
+                "max": 0.0247,
+                "mean": 0.007441610738255034
+            },
+            "transformMs": {
+                "p50": 0.0009000000000000001,
+                "p95": 0.0017000000000000001,
+                "min": 0.00030000000000000003,
+                "max": 0.0023,
+                "mean": 0.0009832214765100678
+            },
+            "applyMs": {
+                "p50": 0.0014,
+                "p95": 0.0024000000000000002,
+                "min": 0.0005,
+                "max": 0.0032,
+                "mean": 0.0014288590604026859
+            },
+            "frameAllocations": {
+                "p50": 807.0,
+                "p95": 807.0,
+                "min": 807.0,
+                "max": 807.0,
+                "mean": 807.0
+            },
+            "proxyAllocations": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "frameAllocBytes": {
+                "p50": 70355.0,
+                "p95": 107154.0,
+                "min": 70250.0,
+                "max": 108038.0,
+                "mean": 76411.57718120805
+            },
+            "proxyAllocBytes": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "monoUsedBytes": 84836352,
+            "monoHeapBytes": 97222656,
+            "liveSetBytes": 76804096,
+            "totalAllocatedBytes": 482482542,
+            "totalReservedBytes": 1309966336,
+            "graphicsDriverBytes": 898545294,
+            "poolTextureAllocatedBytes": 372003728,
+            "poolTextureIdleBytes": 372003728,
+            "poolTextureRetiredBytes": 0,
+            "poolBufferAllocatedBytes": 42283884,
+            "poolBufferIdleBytes": 42271212,
+            "poolBufferRetiredBytes": 0,
+            "gcGen0": 199,
+            "gcGen1": 199,
+            "gcGen2": 199,
+            "meshEntities": 8,
+            "meshElements": 8,
+            "allocatedViewCount": 4,
+            "actualBackend": "GPUIndirect"
+        },
+        {
+            "endSeconds": 60.0,
+            "frames": 401,
+            "frameMs": {
+                "p50": 10.9036,
+                "p95": 13.5752,
+                "min": 3.3187,
+                "max": 22.3789,
+                "mean": 10.774517456359094
+            },
+            "proxyMs": {
+                "p50": 0.0088,
+                "p95": 0.015000000000000001,
+                "min": 0.0031000000000000003,
+                "max": 0.046700000000000005,
+                "mean": 0.00946458852867831
+            },
+            "transformMs": {
+                "p50": 0.0012000000000000001,
+                "p95": 0.0019,
+                "min": 0.0004,
+                "max": 0.0112,
+                "mean": 0.001285536159600999
+            },
+            "applyMs": {
+                "p50": 0.0018000000000000002,
+                "p95": 0.0025,
+                "min": 0.0005,
+                "max": 0.008700000000000001,
+                "mean": 0.0018044887780548577
+            },
+            "frameAllocations": {
+                "p50": 807.0,
+                "p95": 807.0,
+                "min": 807.0,
+                "max": 840.0,
+                "mean": 807.0822942643391
+            },
+            "proxyAllocations": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "frameAllocBytes": {
+                "p50": 70355.0,
+                "p95": 107137.0,
+                "min": 70250.0,
+                "max": 109257.0,
+                "mean": 76784.16458852869
+            },
+            "proxyAllocBytes": {
+                "p50": 0.0,
+                "p95": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "mean": 0.0
+            },
+            "monoUsedBytes": 80039936,
+            "monoHeapBytes": 96206848,
+            "liveSetBytes": 76050432,
+            "totalAllocatedBytes": 482511226,
+            "totalReservedBytes": 1309966336,
+            "graphicsDriverBytes": 898545678,
+            "poolTextureAllocatedBytes": 372003728,
+            "poolTextureIdleBytes": 372003728,
+            "poolTextureRetiredBytes": 0,
+            "poolBufferAllocatedBytes": 42284268,
+            "poolBufferIdleBytes": 42271596,
+            "poolBufferRetiredBytes": 0,
+            "gcGen0": 203,
+            "gcGen1": 203,
+            "gcGen2": 203,
+            "meshEntities": 8,
+            "meshElements": 8,
+            "allocatedViewCount": 4,
+            "actualBackend": "GPUIndirect"
+        }
+    ]
+}

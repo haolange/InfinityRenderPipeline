@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -240,12 +241,29 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                     update.Commit();
                 }
+                Material retiredMaterial = fixture.Material(0, 0);
+                MeshEntityId retired;
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    retired = MeshTestUtility.CreateEntity(update, float3.zero);
+                    update.AddElement(retired, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(retiredMaterial), MeshTestUtility.StateOf(retiredMaterial), 0);
+                    update.Commit();
+                }
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    update.RemoveEntity(retired);
+                    update.Commit();
+                }
                 world.UpdateResidency();
                 MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
                 Assert.IsTrue(cache.desc.ditherLODTransitions);
                 Assert.IsNotNull(cache.candidateBuffer.buffer, "Residency uploads the candidate table.");
                 int commandCount = cache.commandHighWater, candidateCount = cache.candidates.Length;
                 Assert.Greater(commandCount, 1);
+                int freeCommand = -1;
+                for (int command = 0; command < commandCount; ++command)
+                    if (cache.commands[command].refCount == 0) freeCommand = command;
+                Assert.GreaterOrEqual(freeCommand, 0, "The fixture contains a free command slot.");
 
                 MeshView view = MeshTestUtility.CameraView(31);
                 uint[] visibleWords = MeshTestUtility.PackedCullOnCpu(world, view);
@@ -275,7 +293,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 NativeArray<uint> meta = cache.GetCommandMeta();
                 var metaValues = new uint[commandCount * MeshPassCache.MetaStride];
                 for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = meta[i];
-                int instanceCapacity = math.max(1, 2 * cache.memberCount);
+                int instanceCapacity = math.max(1, 2 * (cache.memberCount + 1));
                 var buffers = new List<ComputeBuffer>();
                 try
                 {
@@ -287,33 +305,30 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         return buffer;
                     }
                     ComputeBuffer metaBuffer = Upload(metaValues, sizeof(uint));
-                    ComputeBuffer counts = Upload(new uint[commandCount * 2], sizeof(uint));
-                    ComputeBuffer args = Upload(new uint[commandCount * 2 * 5], sizeof(uint), ComputeBufferType.IndirectArguments);
+                    ComputeBuffer args = Upload(Enumerable.Repeat(uint.MaxValue, commandCount * 2 * 5).ToArray(), sizeof(uint), ComputeBufferType.IndirectArguments);
                     ComputeBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
                     ComputeBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
                     const int visibilityBase = 16;
-                    var placed = new uint[visibilityBase + visibleWords.Length];
+                    var placed = new uint[visibilityBase + visibleWords.Length + 1];
                     for (int i = 0; i < visibleWords.Length; ++i) placed[visibilityBase + i] = visibleWords[i];
                     ComputeBuffer visibility = Upload(placed, sizeof(uint));
-                    int clear = shader.FindKernel("ClearCounts"), compact = shader.FindKernel("Compact"), indirect = shader.FindKernel("BuildIndirectArgs");
-                    shader.SetInt("_CommandCount", commandCount);
-                    shader.SetInt("_CandidateCount", candidateCount);
-                    shader.SetInt("_DitherLod", 1);
-                    shader.SetInt("_VisibilityBase", visibilityBase);
-                    shader.SetBuffer(clear, "_VisibleCounts", counts);
-                    shader.SetBuffer(clear, "_IndirectArgs", args);
-                    shader.SetBuffer(compact, "_CandidateTable", cache.candidateBuffer.buffer);
-                    shader.SetBuffer(compact, "_Visibility", visibility);
-                    shader.SetBuffer(compact, "_CommandMeta", metaBuffer);
-                    shader.SetBuffer(compact, "_VisibleCounts", counts);
-                    shader.SetBuffer(compact, "_InstanceToEntity", instances);
-                    shader.SetBuffer(compact, "_InstanceFade", fades);
-                    shader.SetBuffer(indirect, "_CommandMeta", metaBuffer);
-                    shader.SetBuffer(indirect, "_VisibleCounts", counts);
-                    shader.SetBuffer(indirect, "_IndirectArgs", args);
-                    shader.Dispatch(clear, (commandCount + 63) / 64, 1, 1);
-                    shader.Dispatch(compact, (candidateCount + 63) / 64, 1, 1);
-                    shader.Dispatch(indirect, (commandCount + 63) / 64, 1, 1);
+                    int initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("Compact");
+                    using var commands = new CommandBuffer();
+                    commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
+                    commands.SetComputeIntParam(shader, "_CandidateCount", candidateCount);
+                    commands.SetComputeIntParam(shader, "_DitherLod", 1);
+                    commands.SetComputeIntParam(shader, "_VisibilityBase", visibilityBase);
+                    commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
+                    commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
+                    commands.SetComputeBufferParam(shader, compact, "_Visibility", visibility);
+                    commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
+                    commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
+                    commands.SetComputeBufferParam(shader, compact, "_InstanceFade", fades);
+                    commands.DispatchCompute(shader, initialize, (commandCount + 63) / 64, 1, 1);
+                    commands.DispatchCompute(shader, compact, (candidateCount + 63) / 64, 1, 1);
+                    Graphics.ExecuteCommandBuffer(commands);
 
                     var argValues = new uint[commandCount * 2 * 5];
                     var instanceValues = new uint[instanceCapacity];
@@ -323,7 +338,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     fades.GetData(fadeValues);
                     for (int command = 0; command < commandCount; ++command)
                     {
-                        if (cache.commands[command].refCount == 0) continue;
                         MeshDrawCommandBinding binding = cache.GetBinding(command);
                         for (int range = 0; range < 2; ++range)
                         {
@@ -335,6 +349,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             Assert.AreEqual((uint)expected.Count, argValues[argsBase + 1], label);
                             Assert.AreEqual(binding.indexStart, argValues[argsBase + 2], label);
                             Assert.AreEqual(binding.baseVertex, argValues[argsBase + 3], label);
+                            Assert.AreEqual(0u, argValues[argsBase + 4], label);
                             uint first = metaValues[command * MeshPassCache.MetaStride + 3 + range];
                             var gpu = new List<(uint entity, float fade)>();
                             for (int i = 0; i < expected.Count; ++i) gpu.Add((instanceValues[first + i], fadeValues[first + i]));
@@ -347,6 +362,62 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             }
                         }
                     }
+                    visibility.SetData(new uint[placed.Length]);
+                    Graphics.ExecuteCommandBuffer(commands);
+                    args.GetData(argValues);
+                    for (int command = 0; command < commandCount; ++command)
+                        for (int range = 0; range < 2; ++range)
+                        {
+                            int argsBase = (command * 2 + range) * 5;
+                            int metaBase = command * MeshPassCache.MetaStride;
+                            Assert.AreEqual(metaValues[metaBase], argValues[argsBase], "A zero-visible retry restores index count.");
+                            Assert.AreEqual(0u, argValues[argsBase + 1], "A zero-visible retry clears the old count.");
+                            Assert.AreEqual(metaValues[metaBase + 1], argValues[argsBase + 2], "A zero-visible retry restores start index.");
+                            Assert.AreEqual(metaValues[metaBase + 2], argValues[argsBase + 3], "A zero-visible retry restores base vertex.");
+                            Assert.AreEqual(0u, argValues[argsBase + 4], "A zero-visible retry restores start instance.");
+                        }
+
+                    commands.Clear();
+                    Material reusedMaterial = fixture.Material(0, 0);
+                    MeshEntityId reusedEntity;
+                    MeshElementId reusedElement;
+                    using (MeshWorldUpdate update = world.BeginUpdate())
+                    {
+                        reusedEntity = MeshTestUtility.CreateEntity(update, new float3(0.6f, 0, 0));
+                        reusedElement = update.AddElement(reusedEntity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(reusedMaterial), MeshTestUtility.StateOf(reusedMaterial), 0);
+                        update.Commit();
+                    }
+                    world.UpdateResidency();
+                    Assert.AreEqual(commandCount, cache.commandHighWater);
+                    Assert.AreEqual(freeCommand, (int)(cache.candidates[(int)reusedElement.Index].y & MeshPassCache.CommandMask));
+                    NativeArray<uint> reusedMeta = cache.GetCommandMeta();
+                    for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = reusedMeta[i];
+                    metaBuffer.SetData(metaValues);
+                    visibleWords = MeshTestUtility.PackedCullOnCpu(world, view);
+                    Array.Clear(placed, 0, placed.Length);
+                    Array.Copy(visibleWords, 0, placed, visibilityBase, visibleWords.Length);
+                    visibility.SetData(placed);
+                    commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
+                    commands.SetComputeIntParam(shader, "_CandidateCount", cache.candidates.Length);
+                    commands.SetComputeIntParam(shader, "_DitherLod", 1);
+                    commands.SetComputeIntParam(shader, "_VisibilityBase", visibilityBase);
+                    commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
+                    commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
+                    commands.SetComputeBufferParam(shader, compact, "_Visibility", visibility);
+                    commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
+                    commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
+                    commands.SetComputeBufferParam(shader, compact, "_InstanceFade", fades);
+                    commands.DispatchCompute(shader, initialize, (commandCount + 63) / 64, 1, 1);
+                    commands.DispatchCompute(shader, compact, (cache.candidates.Length + 63) / 64, 1, 1);
+                    Graphics.ExecuteCommandBuffer(commands);
+                    args.GetData(argValues);
+                    instances.GetData(instanceValues);
+                    int reusedArgs = freeCommand * 2 * 5;
+                    Assert.AreEqual(metaValues[freeCommand * MeshPassCache.MetaStride], argValues[reusedArgs]);
+                    Assert.AreEqual(1u, argValues[reusedArgs + 1], "The reused slot receives its new visible member.");
+                    Assert.AreEqual((uint)reusedEntity.Index, instanceValues[metaValues[freeCommand * MeshPassCache.MetaStride + 3]]);
                 }
                 finally
                 {

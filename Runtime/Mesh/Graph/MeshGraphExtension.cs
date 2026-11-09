@@ -198,7 +198,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         commands.SetBufferData(data.viewTable, data.views, 0, 0, data.viewCount);
                     }
-                    data.world.gpuBackend.DispatchCullFrustumBatch(commands, data.inputs, data.viewCount, data.stride, data.viewTable, data.visibility, data.world.stats);
+                    commands.BeginSample("FrustumBatch");
+                    try
+                    {
+                        data.world.gpuBackend.DispatchCullFrustumBatch(commands, data.inputs, data.viewCount, data.stride, data.viewTable, data.visibility, data.world.stats);
+                    }
+                    finally
+                    {
+                        commands.EndSample("FrustumBatch");
+                    }
                 });
             }
             return new GpuVisibilityBinding { handle = visibility, buffer = batch };
@@ -306,6 +314,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 foreach (int drawIndex in consumer.extensionUses)
                 {
                     MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
+                    if (record.state == EMeshDrawListState.Empty)
+                    {
+                        continue;
+                    }
                     MeshTransformVersion version = record.tables.version;
                     version.owner.Record(builder, version, world.meshDrawShader, m_ScheduledVersions);
                     consumer.AddResourceRead(builder.ImportBuffer(version.matrices).handle);
@@ -321,6 +333,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 foreach (int drawIndex in consumer.extensionUses)
                 {
+                    if (drawLists.GetRecordCopy(drawIndex).state == EMeshDrawListState.Empty)
+                    {
+                        continue;
+                    }
                     if (!prepared.TryGetValue(drawIndex, out RGBufferHandle[] outputs))
                     {
                         outputs = RecordPreparation(builder, drawIndex);
@@ -368,7 +384,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             RGBufferHandle instances = builder.ImportBuffer(record.payload.instanceToEntity);
             RGBufferHandle fades = builder.ImportBuffer(record.payload.instanceFade);
-            RGBufferHandle counts = builder.ImportBuffer(record.payload.visibleCounts);
             RGBufferHandle args = builder.ImportBuffer(record.payload.indirectArgs);
             RGBufferHandle candidates = builder.ImportBuffer(record.cache.candidateBuffer);
             using (RGComputePassHandle compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
@@ -378,7 +393,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 compact.ReadBuffer(record.gpuVisibility);
                 compact.WriteBuffer(instances);
                 compact.WriteBuffer(fades);
-                compact.WriteBuffer(counts);
                 compact.WriteBuffer(args);
                 ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
                 data.lists = drawLists;

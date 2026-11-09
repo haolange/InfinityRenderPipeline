@@ -93,10 +93,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (i < 4)
                 {
                     chain.screenSize0[i] = screenSizes[i];
-                    else
-                    {
-                        chain.screenSize1[i - 4] = screenSizes[i];
-                    }
+                }
+                else
+                {
+                    chain.screenSize1[i - 4] = screenSizes[i];
                 }
             chain.ThrowIfInvalid();
             return chain;

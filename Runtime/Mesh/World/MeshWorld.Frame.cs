@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_ActiveCamera = camera;
             m_PreviousTransforms.Clear();
-            stats.BeginCamera();
+            stats.BeginCamera(camera);
             var debug = InfinityDebugDisplaySettings.current.mesh;
             debug.entityCount = entityCount;
             debug.elementCount = elementCount;

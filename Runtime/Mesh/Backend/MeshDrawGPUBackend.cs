@@ -23,14 +23,13 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshGPUDrawPayload
     {
-        internal BufferHandle commandMeta, visibleCounts, indirectArgs, instanceToEntity, instanceFade;
-        internal ResourceReuseFence metaWait, countsWait, argsWait, instancesWait, fadeWait;
+        internal BufferHandle commandMeta, indirectArgs, instanceToEntity, instanceFade;
+        internal ResourceReuseFence metaWait, argsWait, instancesWait, fadeWait;
         internal int commandCapacity, instanceCapacity;
 
         internal void WaitForReuse(CommandBuffer commands)
         {
             metaWait.Wait(commands, false);
-            countsWait.Wait(commands, false);
             argsWait.Wait(commands, false);
             instancesWait.Wait(commands, false);
             fadeWait.Wait(commands, false);
@@ -38,8 +37,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// GPU indirect drawing: per draw list, one compute producer clears counts, compacts visible members of the pass's
-    /// candidate table into per-command stable and fading instance ranges and writes indirect arguments; the raster consumer
+    /// GPU indirect drawing: per draw list, one compute producer initializes arguments and compacts visible members of the
+    /// candidate table into per-command stable and fading instance ranges; the raster consumer
     /// issues one <c>DrawMeshInstancedIndirect</c> per live command and range. There is no batching and no CPU fallback.
     /// </summary>
     internal sealed class MeshDrawGPUBackend : IDisposable
@@ -67,7 +66,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly int ID_CommandMeta = Shader.PropertyToID("_CommandMeta");
         static readonly int ID_CandidateTable = Shader.PropertyToID("_CandidateTable");
         static readonly int ID_InstanceToEntity = Shader.PropertyToID("_InstanceToEntity");
-        static readonly int ID_VisibleCounts = Shader.PropertyToID("_VisibleCounts");
         static readonly int ID_IndirectArgs = Shader.PropertyToID("_IndirectArgs");
         static readonly int ID_InstanceFade = Shader.PropertyToID("_InstanceFade");
         static readonly int ID_DitherLod = Shader.PropertyToID("_DitherLod");
@@ -81,7 +79,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly int m_CullKernel = -1, m_ClearKernel = -1, m_CompactKernel = -1, m_ArgsKernel = -1;
+        readonly int m_CullKernel = -1, m_InitializeArgsKernel = -1, m_CompactKernel = -1;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
         readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
@@ -104,10 +102,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             m_CullKernel = Find(shader, "CullFrustum");
-            m_ClearKernel = Find(shader, "ClearCounts");
+            m_InitializeArgsKernel = Find(shader, "InitializeIndirectArgs");
             m_CompactKernel = Find(shader, "Compact");
-            m_ArgsKernel = Find(shader, "BuildIndirectArgs");
-            isSupported = m_CullKernel >= 0 && m_ClearKernel >= 0 && m_CompactKernel >= 0 && m_ArgsKernel >= 0;
+            isSupported = m_CullKernel >= 0 && m_InitializeArgsKernel >= 0 && m_CompactKernel >= 0;
         }
 
         static int Find(ComputeShader shader, string kernel) => shader.HasKernel(kernel) ? shader.FindKernel(kernel) : -1;
@@ -185,7 +182,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         #endregion
 
         #region Draw lists
-        /// <summary>Capacity for every command's stable and fading range: two counts and two argument records per command, two instances per member.</summary>
+        /// <summary>Capacity for every command's stable and fading range: two argument records per command, two instances per member.</summary>
         internal MeshGPUDrawPayload RentPayload(int commandCount, int memberCount)
         {
             RequireSupported();
@@ -195,7 +192,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 payload.commandMeta = m_Pool.GetBuffer(new BufferDescriptor(commands * MeshPassCache.MetaStride, sizeof(uint)) { name = "MeshDrawCommandMeta" }, true, false, out payload.metaWait);
-                payload.visibleCounts = m_Pool.GetBuffer(new BufferDescriptor(commands * 2, sizeof(uint)) { name = "MeshDrawVisibleCounts" }, true, false, out payload.countsWait);
                 payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
                 payload.instanceToEntity = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(uint)) { name = "MeshInstanceToEntity" }, true, false, out payload.instancesWait);
                 payload.instanceFade = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(float)) { name = "MeshInstanceFade" }, true, false, out payload.fadeWait);
@@ -233,22 +229,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_ClearKernel, ID_VisibleCounts, payload.visibleCounts.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_ClearKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.DispatchCompute(m_Shader, m_ClearKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
+            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
+            stats.compactKernelDispatches++;
 
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CandidateTable, cache.candidateBuffer.buffer);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_Visibility, visibility);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_VisibleCounts, payload.visibleCounts.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceToEntity, payload.instanceToEntity.buffer);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceFade, payload.instanceFade.buffer);
             commands.DispatchCompute(m_Shader, m_CompactKernel, math.max(1, (candidateCount + 63) / 64), 1, 1);
+            stats.compactKernelDispatches++;
 
-            commands.SetComputeBufferParam(m_Shader, m_ArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_ArgsKernel, ID_VisibleCounts, payload.visibleCounts.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_ArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.DispatchCompute(m_Shader, m_ArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
             stats.compactDispatches++;
         }
 
@@ -329,10 +323,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_Pool.ReleaseBuffer(payload.commandMeta, reuseFence);
             }
-            if (payload.visibleCounts.buffer != null)
-            {
-                m_Pool.ReleaseBuffer(payload.visibleCounts, reuseFence);
-            }
             if (payload.indirectArgs.buffer != null)
             {
                 m_Pool.ReleaseBuffer(payload.indirectArgs, reuseFence);
@@ -345,8 +335,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_Pool.ReleaseBuffer(payload.instanceFade, reuseFence);
             }
-            payload.commandMeta = payload.visibleCounts = payload.indirectArgs = payload.instanceToEntity = payload.instanceFade = default;
-            payload.metaWait = payload.countsWait = payload.argsWait = payload.instancesWait = payload.fadeWait = default;
+            payload.commandMeta = payload.indirectArgs = payload.instanceToEntity = payload.instanceFade = default;
+            payload.metaWait = payload.argsWait = payload.instancesWait = payload.fadeWait = default;
             payload.commandCapacity = payload.instanceCapacity = 0;
         }
 

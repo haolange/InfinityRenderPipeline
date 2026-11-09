@@ -1,0 +1,27 @@
+{
+  "shots": {
+    "5": {
+      "path": "/Volumes/InfinityTask/endpoint-gpuindirect-0-5.png",
+      "secondsFromRequest": 8.69,
+      "gameMean": 26.588,
+      "windows": 1
+    },
+    "20": {
+      "path": "/Volumes/InfinityTask/endpoint-gpuindirect-0-20.png",
+      "secondsFromRequest": 21.34,
+      "gameMean": 26.674,
+      "windows": 2
+    },
+    "60": {
+      "path": "gpu-scene-60.png",
+      "secondsFromRequest": 60.86,
+      "sampleSecondsAtSignal": 60.0386,
+      "afterSampleBeforeCleanup": true
+    }
+  },
+  "liveSetBytes": [
+    58974208,
+    59039744,
+    59027456
+  ]
+}

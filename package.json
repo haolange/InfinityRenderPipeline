@@ -9,6 +9,7 @@
     "com.unity.burst": "1.8.29",
     "com.unity.shadergraph": "17.6.0",
     "com.unity.mathematics": "1.4.0",
+    "com.unity.profiling.core": "1.0.3",
     "com.unity.visualeffectgraph": "17.6.0",
     "com.unity.render-pipelines.core": "17.6.0",
     "com.unity.test-framework": "1.7.0",

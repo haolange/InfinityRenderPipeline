@@ -195,8 +195,7 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     else if (DV_Mode == DEBUGVIEW_TAACONFIDENCE)
     {
         color = color.g.xxx;
-        // Final TAA history weight;
-        R is geometric coverage.
+        // Final TAA history weight; R is geometric coverage.
     }
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);

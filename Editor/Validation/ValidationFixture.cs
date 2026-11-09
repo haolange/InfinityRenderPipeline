@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 AssetDatabase.AddObjectToAsset(component, profile);
             }
             var go = new GameObject("Global Volume");
-            Volume volume = go.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume volume = go.AddComponent<UnityEngine.Rendering.Volume>();
             volume.isGlobal = true;
             volume.priority = 10;
             volume.sharedProfile = profile;

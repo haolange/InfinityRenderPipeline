@@ -1,0 +1,27 @@
+{
+  "shots": {
+    "5": {
+      "path": "/Volumes/InfinityTask/endpoint-cpudirect-0-5.png",
+      "secondsFromRequest": 8.69,
+      "gameMean": 26.502,
+      "windows": 1
+    },
+    "20": {
+      "path": "/Volumes/InfinityTask/endpoint-cpudirect-0-20.png",
+      "secondsFromRequest": 21.38,
+      "gameMean": 26.494,
+      "windows": 2
+    },
+    "60": {
+      "path": "cpu-scene-60.png",
+      "secondsFromRequest": 60.86,
+      "sampleSecondsAtSignal": 60.0447,
+      "afterSampleBeforeCleanup": true
+    }
+  },
+  "liveSetBytes": [
+    59101184,
+    59260928,
+    59564032
+  ]
+}

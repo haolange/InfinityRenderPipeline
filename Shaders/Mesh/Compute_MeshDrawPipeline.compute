@@ -1,8 +1,8 @@
 // Mesh Drawing Pipeline kernels.
 // - Transform versions: every backend builds immutable per-entity transform tables from dirty-slot patches.
 // - Culling: one uint per entity slot and view (frustum, or two-stage Hi-Z occlusion in MeshOcclusion.hlsl).
-// - GPU indirect draw lists: ClearCounts, Compact over the pass's candidate table (one entry per element slot),
-//   BuildIndirectArgs, then one DrawMeshInstancedIndirect per live command. Visible counts are never read back.
+// - GPU indirect draw lists: InitializeIndirectArgs, then Compact over the pass's candidate table (one entry per
+//   element slot), then one DrawMeshInstancedIndirect per live command. Visible counts are never read back.
 //
 // Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
 // (per pass cache), instance (position in InstanceToEntity).
@@ -14,9 +14,8 @@
 #pragma kernel CullFirstNoHistory
 #pragma kernel CullFirstWithHistory
 #pragma kernel CullOcclusionRecovery
-#pragma kernel ClearCounts
+#pragma kernel InitializeIndirectArgs
 #pragma kernel Compact
-#pragma kernel BuildIndirectArgs
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
 #define MESH_COMMAND_MASK 0x00FFFFFFu
@@ -79,7 +78,6 @@ StructuredBuffer<uint> _CommandMeta;
 StructuredBuffer<uint2> _CandidateTable;
 RWStructuredBuffer<uint> _InstanceToEntity;
 RWStructuredBuffer<float> _InstanceFade;
-RWStructuredBuffer<uint> _VisibleCounts;
 RWStructuredBuffer<uint> _IndirectArgs;
 
 bool FrustumCullAABB(float3 center, float3 extent)
@@ -177,18 +175,18 @@ void CullFrustum(uint3 id : SV_DispatchThreadID)
 #include "MeshOcclusion.hlsl"
 
 [numthreads(64, 1, 1)]
-void ClearCounts(uint3 id : SV_DispatchThreadID)
+void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _CommandCount) return;
+    uint metaBase = id.x * MESH_META_STRIDE;
     [unroll]
     for (uint range = 0u; range < 2u; ++range)
     {
-        _VisibleCounts[id.x * 2u + range] = 0u;
         uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
-        _IndirectArgs[argsBase + 0u] = 0u;
+        _IndirectArgs[argsBase + 0u] = _CommandMeta[metaBase + 0u];
         _IndirectArgs[argsBase + 1u] = 0u;
-        _IndirectArgs[argsBase + 2u] = 0u;
-        _IndirectArgs[argsBase + 3u] = 0u;
+        _IndirectArgs[argsBase + 2u] = _CommandMeta[metaBase + 1u];
+        _IndirectArgs[argsBase + 3u] = _CommandMeta[metaBase + 2u];
         _IndirectArgs[argsBase + 4u] = 0u;
     }
 }
@@ -228,27 +226,11 @@ void Compact(uint3 id : SV_DispatchThreadID)
     if (range == 2u) return;
 
     uint slot;
-    InterlockedAdd(_VisibleCounts[command * 2u + range], 1u, slot);
+    uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
+    InterlockedAdd(_IndirectArgs[argsBase + 1u], 1u, slot);
     uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
     _InstanceToEntity[instance] = entity;
     _InstanceFade[instance] = factor;
-}
-
-[numthreads(64, 1, 1)]
-void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= _CommandCount) return;
-    uint metaBase = id.x * MESH_META_STRIDE;
-    [unroll]
-    for (uint range = 0u; range < 2u; ++range)
-    {
-        uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
-        _IndirectArgs[argsBase + 0u] = _CommandMeta[metaBase + 0u];
-        _IndirectArgs[argsBase + 1u] = _VisibleCounts[id.x * 2u + range];
-        _IndirectArgs[argsBase + 2u] = _CommandMeta[metaBase + 1u];
-        _IndirectArgs[argsBase + 3u] = _CommandMeta[metaBase + 2u];
-        _IndirectArgs[argsBase + 4u] = 0u;
-    }
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

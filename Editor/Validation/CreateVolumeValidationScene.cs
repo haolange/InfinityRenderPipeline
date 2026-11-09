@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             GameObject globalVolumeGo = new GameObject("Global Volume");
             globalVolumeGo.layer = layerDefault;
-            Volume globalVolume = globalVolumeGo.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume globalVolume = globalVolumeGo.AddComponent<UnityEngine.Rendering.Volume>();
             globalVolume.isGlobal = true;
             globalVolume.priority = 0.0f;
             globalVolume.sharedProfile = globalProfile;
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             BoxCollider box = localVolumeGo.AddComponent<BoxCollider>();
             box.isTrigger = true;
             box.size = new Vector3(4.0f, 4.0f, 4.0f);
-            Volume localVolume = localVolumeGo.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume localVolume = localVolumeGo.AddComponent<UnityEngine.Rendering.Volume>();
             localVolume.isGlobal = false;
             localVolume.priority = 10.0f;
             localVolume.blendDistance = 2.0f;

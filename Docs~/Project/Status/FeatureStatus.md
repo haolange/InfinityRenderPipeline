@@ -1,5 +1,31 @@
 # Feature status
 
+### Mesh backend profiling and optimization — 2026-11-09/10 (macOS Metal)
+
+Unity 6000.6.0f1 on an isolated Example mirror compiled and rendered CPU Direct
+and GPU Indirect. Nonempty GPU lists use two dispatches; structurally empty
+lists schedule no mesh preparation. Frame labels identify view, pass, phase and
+list, and CPU markers separate schedule, Complete, upload and draw. Scene and 10,000
+moving-instance probes completed at 5, 20 and 60 seconds for both backends;
+`BoxMatix_MeshPipeline` rendered on both. A long-lived Editor showed a repeatable
+slowdown that returned near baseline after a restart, with cause unproven.
+
+TODO(UNVERIFIED): The 835/838 EditMode result includes two parent-baseline failures
+and one skip. Partial-submit GPU cancellation, GPU timing, native Metal capture,
+Player and other graphics APIs remain unverified. [Evidence, measurements and
+limits](../../Record/Evidence/MeshBackend-2026-11-09/Results.md).
+
+### Owner layout validation — 2026-11-09 (macOS Metal)
+
+TODO(UNVERIFIED): The owner-layout candidate compiles and renders in an isolated
+Unity 6000.6.0f1 Editor, but the EditMode gate has two reproducible failures and
+the Editor emitted `attempt to write a readonly database`. The suite reported
+819 passed, 12 failed and 1 skipped. Ten failures observed that database error;
+the remaining failures reproduce individually in mesh submission and the
+screen-space hierarchical-ray GPU contract. Both failures and the database
+error also reproduce on the parent commit in the same mirror and Editor.
+[Measurements and window captures](../../Record/Evidence/OwnerLayout-2026-11-09/Results.md).
+
 This is the only document that states how far each feature is verified. Other documents describe design and use;
 they link here instead of claiming "completed".
 

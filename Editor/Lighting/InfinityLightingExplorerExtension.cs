@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Editor
 
         static Object[] GetInfinityLights() => GetObjectsForLightingExplorer<InfinityAdditionalLightData>().Cast<Object>().ToArray();
         static Object[] GetInfinityProbes() => GetObjectsForLightingExplorer<InfinityAdditionalReflectionProbeData>().Cast<Object>().ToArray();
-        static Object[] GetVolumes() => GetObjectsForLightingExplorer<Volume>().Cast<Object>().ToArray();
+        static Object[] GetVolumes() => GetObjectsForLightingExplorer<UnityEngine.Rendering.Volume>().Cast<Object>().ToArray();
 
         static LightingExplorerTableColumn Column(LightingExplorerTableColumn.DataType type, string label, string property, int width) =>
             new LightingExplorerTableColumn(type, new GUIContent(label), property, width);

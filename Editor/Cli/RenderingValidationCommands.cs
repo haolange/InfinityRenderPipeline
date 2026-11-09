@@ -129,7 +129,10 @@ namespace InfinityTech.Rendering.Editor
             foreach (MeshPassCache cache in world.passCaches)
                 passes.Add(new { pass = cache.desc.ToString(), members = cache.memberCount, commands = cache.commandCount });
             return new { entityCount = world.entityCount, elementCount = world.elementCount, dynamicCount = world.dynamicEntityCount,
-                entities, passes };
+                lastRecordedCamera = world.stats.camera != null ? world.stats.camera.name : null,
+                lastCameraRecordedCompactionLists = world.stats.compactDispatches,
+                lastCameraRecordedCompactionDispatches = world.stats.compactKernelDispatches,
+                lastCameraRecordedCullDispatches = world.stats.gpuCullDispatches, entities, passes };
         }
 
         [CliCommand("infinity_scene_view_dock", "Restore an explicitly selected floating SceneView beside the sole Game tab; does not save assets.")]

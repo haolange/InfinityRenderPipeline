@@ -5,6 +5,7 @@
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Mathematics",
+        "Unity.Profiling.Core",
         "Unity.VisualEffectGraph.Runtime",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.UnifiedRayTracing.Runtime"

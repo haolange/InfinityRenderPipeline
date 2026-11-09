@@ -302,7 +302,17 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Dispose()
         {
-            job.Complete();
+            if (isCreated)
+            {
+                using (MeshDrawProfiling.cpuCleanup.Auto())
+                {
+                    job.Complete();
+                }
+            }
+            else
+            {
+                job.Complete();
+            }
             if (items.IsCreated)
             {
                 items.Dispose();

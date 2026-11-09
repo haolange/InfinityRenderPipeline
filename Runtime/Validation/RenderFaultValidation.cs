@@ -265,10 +265,10 @@ namespace InfinityTech.Rendering.Pipeline
             if (recovery)
             {
                 active.recoveryCapture = path;
-                else
-                {
-                    active.faultCapture = path;
-                }
+            }
+            else
+            {
+                active.faultCapture = path;
             }
             m_Recovery = recovery;
             active.status = recovery ? "Recovering" : "Warming";

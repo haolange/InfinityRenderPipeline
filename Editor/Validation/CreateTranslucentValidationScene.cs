@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             EditorUtility.SetDirty(profile);
 
             GameObject volumeGo = new GameObject("Global Volume");
-            Volume volume = volumeGo.AddComponent<Volume>();
+            UnityEngine.Rendering.Volume volume = volumeGo.AddComponent<UnityEngine.Rendering.Volume>();
             volume.isGlobal = true;
             volume.priority = 100.0f;
             volume.sharedProfile = profile;

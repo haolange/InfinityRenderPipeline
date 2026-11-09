@@ -20,11 +20,23 @@ namespace InfinityTech.Rendering.Editor
             public string type, name, objectName, shader, pass, lightMode, renderTarget, computeShader, computeKernel;
             public bool dataReady, isBackbuffer;
         }
+        [Serializable] sealed class KernelDispatchEvidence
+        {
+            public string kernel;
+            public int dispatches;
+        }
+        [Serializable] sealed class MeshCompactionEvidence
+        {
+            public string name;
+            public int dispatches;
+            public List<KernelDispatchEvidence> kernels;
+        }
         [Serializable] sealed class Evidence
         {
             public string status, error, cleanupError, persistenceError, unity, camera, cameraEntity, cameraSampler, scene;
             public int nativeCount, eventCount;
             public List<EventEvidence> events = new List<EventEvidence>();
+            public List<MeshCompactionEvidence> meshCompaction = new List<MeshCompactionEvidence>();
         }
         static Type s_Utility, s_DataType;
         static string s_Directory;
@@ -61,15 +73,30 @@ namespace InfinityTech.Rendering.Editor
             {
                 throw new ArgumentException("Frame tree requires a new evidence directory.");
             }
-            Directory.CreateDirectory(s_Directory);
             s_WasEnabled = FrameDebugger.enabled;
             s_WasPaused = EditorApplication.isPaused;
             s_ProfilerGuid = UnityEditorInternal.ProfilerDriver.connectedProfiler;
             s_PreviousLimit = Convert.ToInt32(s_Utility.GetProperty("limit", Static).GetValue(null));
             Camera camera = cameraName == null ? Validation.ValidationSceneUtility.RequireActiveGameCamera() : Camera.allCameras.Single(c => c.cameraType == CameraType.Game && c.isActiveAndEnabled && c.name == cameraName && c.gameObject.scene.name == sceneName);
+            var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipeline
+                ?? throw new InvalidOperationException("Frame tree requires an active Infinity render pipeline.");
+            var samplers = (Dictionary<int, ProfilingSampler>)typeof(Pipeline.InfinityRenderPipeline)
+                .GetField("m_CameraSamplers", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(pipeline);
+            MethodInfo getCameraId = typeof(Pipeline.InfinityRenderPipeline).GetMethod("GetCameraID", BindingFlags.NonPublic | BindingFlags.Instance);
+            string cameraSampler = CameraSamplerName(camera, pipeline, samplers, getCameraId);
+            if (Camera.allCameras.Concat(SceneView.GetAllSceneCameras()).Distinct().Any(c =>
+            {
+                if (c == camera || !c.isActiveAndEnabled)
+                    return false;
+                string other = CameraSamplerName(c, pipeline, samplers, getCameraId);
+                return other == cameraSampler || other.StartsWith(cameraSampler + "/", StringComparison.Ordinal)
+                    || cameraSampler.StartsWith(other + "/", StringComparison.Ordinal);
+            }))
+                throw new InvalidOperationException("Frame tree requires a unique camera profiler scope.");
+            Directory.CreateDirectory(s_Directory);
             s_Evidence = new Evidence { status = "WaitingForFrame", unity = Application.unityVersion,
                 camera = camera.name, cameraEntity = camera.GetEntityId().ToString(), scene = camera.gameObject.scene.name,
-                cameraSampler = camera.GetComponent<InfinityTech.Component.InfinityAdditionalCameraData>()?.viewProfiler?.name ?? camera.name };
+                cameraSampler = cameraSampler };
             s_Deadline = EditorApplication.timeSinceStartup + 30;
             s_EventIndex = 0;
             s_Selected = false;
@@ -201,6 +228,20 @@ namespace InfinityTech.Rendering.Editor
             }
             evidence.status = status;
             evidence.error = error?.ToString();
+            if (status == "Completed")
+            {
+                evidence.meshCompaction = evidence.events
+                    .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler)
+                        && e.name.Contains("/ComputeMeshCompaction/"))
+                    .GroupBy(e => e.name)
+                    .Select(group => new MeshCompactionEvidence
+                    {
+                        name = group.Key,
+                        dispatches = group.Count(),
+                        kernels = group.GroupBy(e => e.computeKernel)
+                            .Select(kernel => new KernelDispatchEvidence { kernel = kernel.Key, dispatches = kernel.Count() }).ToList()
+                    }).ToList();
+            }
             // Unsubscribe before restoration so a failed native call cannot leave an active session.
             EditorApplication.update -= Tick;
             AssemblyReloadEvents.beforeAssemblyReload -= Abort;
@@ -258,6 +299,14 @@ namespace InfinityTech.Rendering.Editor
         static void Save() => File.WriteAllText(Path.Combine(s_Directory, "frame-tree.json"), JsonUtility.ToJson(s_Evidence, true));
         static bool HasCameraScope(string path, string cameraScope) =>
             !string.IsNullOrEmpty(path) && (path == cameraScope || path.StartsWith(cameraScope + "/", StringComparison.Ordinal));
+        static string CameraSamplerName(Camera camera, Pipeline.InfinityRenderPipeline pipeline, Dictionary<int, ProfilingSampler> samplers, MethodInfo getCameraId)
+        {
+            ProfilingSampler custom = camera.GetComponent<InfinityTech.Component.InfinityAdditionalCameraData>()?.viewProfiler;
+            if (custom != null)
+                return custom.name;
+            int cameraId = (int)getCameraId.Invoke(pipeline, new object[] { camera });
+            return samplers.TryGetValue(cameraId, out ProfilingSampler sampler) ? sampler.name : camera.name;
+        }
         static MethodInfo RequireMethod(string name) => s_Utility.GetMethod(name, Static) ?? throw new MissingMethodException(s_Utility.FullName, name);
         static object Read(object data, string name) => (data.GetType().GetField(name, Instance) ?? throw new MissingFieldException(data.GetType().FullName, name)).GetValue(data);
         static void EnableViaWindow()

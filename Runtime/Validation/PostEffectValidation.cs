@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
         readonly double m_Started = Time.realtimeSinceStartupAsDouble;
         Camera m_Camera;
         GameObject m_Object;
-        Volume m_Volume;
+        UnityEngine.Rendering.Volume m_Volume;
         VolumeProfile m_Profile;
         Bloom m_Bloom;
         Vignette m_Vignette;
@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_Bloom = m_Profile.Add<Bloom>(true);
             m_Vignette = m_Profile.Add<Vignette>(true);
             m_Grain = m_Profile.Add<FilmGrain>(true);
-            m_Volume = m_Object.AddComponent<Volume>();
+            m_Volume = m_Object.AddComponent<UnityEngine.Rendering.Volume>();
             m_Volume.isGlobal = true;
             m_Volume.priority = float.MaxValue;
             m_Volume.weight = 1;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
@@ -15,6 +16,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static ProfilingSampler culling => s_Culling;
         internal static ProfilingSampler compaction => s_Compaction;
         internal static ProfilingSampler upload => s_Upload;
+
+        internal static readonly ProfilerMarker cpuCleanup = new ProfilerMarker("MeshCPU.CleanupComplete");
 
         static readonly Dictionary<int, string> s_CascadeSlices = new Dictionary<int, string>();
         static readonly Dictionary<int, string> s_LocalSlices = new Dictionary<int, string>();
