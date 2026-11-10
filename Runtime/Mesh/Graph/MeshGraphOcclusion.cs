@@ -166,7 +166,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 commands.SetComputeVectorParam(shader, MeshOcclusionBindings.Extent, new Vector4(data.extent.x, data.extent.y, 0, 0));
                 commands.SetComputeIntParam(shader, MeshOcclusionBindings.Mips, data.mipCount);
             }
-            string sample = data.recovery ? "OcclusionRecovery" : "OcclusionPrediction";
+            string sample = data.recovery ? "DepthRecovery" : "DepthPrediction";
             commands.BeginSample(sample);
             try
             {

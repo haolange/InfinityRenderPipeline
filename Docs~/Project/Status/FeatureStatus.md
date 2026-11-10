@@ -1,5 +1,11 @@
 # Feature status
 
+### Mesh preparation record order — 2026-11-11 (macOS Metal)
+
+Recorded order is the execution order. Nonempty lists upload and compact after their culling pass and before the raster block. Marker names and the one verified `Scene_Spazon` frame are in [the record](../../Record/Evidence/MeshPrepOrder-2026-11-11/Results.md).
+
+TODO(UNVERIFIED): continuous play, 5/20/60 second memory, and the residency readback. Player, iOS, D3D12 and Vulkan were not run. `HierarchicalRay_HitIsOneActualSurfaceTexel(True)` was not run and is not claimed.
+
 ### Mesh backend profiling and optimization — 2026-11-09/10 (macOS Metal)
 
 Unity 6000.6.0f1 on an isolated Example mirror compiled and rendered CPU Direct

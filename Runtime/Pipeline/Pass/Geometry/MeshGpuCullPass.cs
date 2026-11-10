@@ -66,5 +66,55 @@ namespace InfinityTech.Rendering.Pipeline
                 m_RGBuilder.RequestMeshGPUCulling(LocalShadowView(cullingResults.visibleLights[local.visibleLightIndex], local, camera));
             }
         }
+
+        RGMeshDrawListHandle MakeMeshList(in MeshView view, ShaderTagId pass)
+            => m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, pass));
+
+        void PrepareMeshLists(params RGMeshDrawListHandle[] handles)
+        {
+            for (int i = 0; i < handles.Length; ++i)
+            {
+                if (handles[i].IsValid)
+                    m_RGBuilder.PrepareMeshDrawList(handles[i]);
+            }
+        }
+
+        RGMeshDrawListHandle[] CreateCascadeMeshLists(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        {
+            int count = ShadowAllocator.CascadeCount;
+            var lists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(count);
+            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            if (allocator == null)
+                return lists;
+            int lightIndex = allocator.CascadeVisibleLightIndex;
+            if (lightIndex < 0 || lightIndex >= cullingResults.visibleLights.Length)
+                return lists;
+            Light shadowLight = cullingResults.visibleLights[lightIndex].light;
+            for (int cascade = 0; cascade < count; ++cascade)
+            {
+                CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                if (!slice.valid)
+                    continue;
+                lists[cascade] = MakeMeshList(CascadeShadowView(shadowLight, slice, cascade, camera), InfinityPassIDs.RasterShadowPass);
+            }
+            return lists;
+        }
+
+        RGMeshDrawListHandle[] CreateLocalMeshLists(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        {
+            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            int count = allocator == null ? 0 : allocator.LocalSliceCount;
+            var lists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(count < 1 ? 1 : count);
+            if (allocator == null)
+                return lists;
+            for (int slice = 0; slice < count; ++slice)
+            {
+                LocalShadowSlice local = allocator.LocalSlices[slice];
+                if (local.cachedSampling || !local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= cullingResults.visibleLights.Length)
+                    continue;
+                lists[slice] = MakeMeshList(LocalShadowView(cullingResults.visibleLights[local.visibleLightIndex], local, camera), InfinityPassIDs.RasterShadowPass);
+            }
+            return lists;
+        }
     }
 }

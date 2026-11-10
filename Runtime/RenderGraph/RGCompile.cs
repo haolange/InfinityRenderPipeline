@@ -8,8 +8,8 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
-    // One instance per builder. Contribute runs once per compile, after the first liveness pass and before inserted passes are
-    // placed; Clear runs whenever the recorded graph is dropped, with or without execution.
+    // One instance per builder. Contribute runs once per compile after liveness, and does not add or reorder passes.
+    // Clear runs whenever the recorded graph is dropped, with or without execution.
     internal interface IRGGraphExtension
     {
         void Contribute(RGBuilder builder);
@@ -126,15 +126,8 @@ namespace InfinityTech.Rendering.RenderGraph
             RunLiveness();
             if (!m_ExtensionContributed)
             {
-                m_RecordingCompilerPasses = true;
                 extension?.Contribute(this);
-                m_RecordingCompilerPasses = false;
-                // The first liveness ran before these reads existed, so a producer whose only consumer is the
-                // preparation just inserted was still marked unused. Placement must see it or compaction runs first.
-                RunLiveness();
-                PlaceInsertedPasses();
                 m_ExtensionContributed = true;
-                RunLiveness();
             }
             CompileRendererLists();
             UpdateResource();
@@ -464,123 +457,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             m_RendererListRecords.ReleaseUnused();
-        }
-
-        bool IsCulledPass(IRGPass pass)
-        {
-            if (pass.insertedByCompiler)
-            {
-                return false;
-            }
-            if (pass.index < 0 || pass.index >= m_PassCompileInfos.size)
-            {
-                return false;
-            }
-            return m_PassCompileInfos[pass.index].culled;
-        }
-
-        static bool Produces(IRGPass pass, in RGResourceHandle handle)
-        {
-            foreach (RGResourceHandle written in pass.resourceWriteLists[handle.iType])
-                if (written.index == handle.index && written.generation == handle.generation)
-                {
-                    return true;
-                }
-            foreach (RGResourceHandle temporal in pass.temporalResourceList[handle.iType])
-                if (temporal.index == handle.index && temporal.generation == handle.generation)
-                {
-                    return true;
-                }
-            return false;
-        }
-
-        bool DependenciesReady(IRGPass pass, List<IRGPass> placed)
-        {
-            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
-            {
-                foreach (RGResourceHandle handle in pass.resourceReadLists[type])
-                {
-                    for (int i = 0; i < m_PassList.Count; ++i)
-                    {
-                        IRGPass writer = m_PassList[i];
-                        if (writer == pass || IsCulledPass(writer) || !Produces(writer, handle))
-                        {
-                            continue;
-                        }
-                        if (!placed.Contains(writer))
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-
-        void PlaceInsertedPasses()
-        {
-            int inserted = 0;
-            for (int i = 0; i < m_PassList.Count; ++i)
-                if (m_PassList[i].insertedByCompiler)
-                {
-                    inserted++;
-                }
-            if (inserted == 0)
-            {
-                return;
-            }
-
-            var anchored = m_PlaceAnchored;
-            anchored.Clear();
-            var pending = m_PlacePending;
-            pending.Clear();
-            for (int i = 0; i < m_PassList.Count; ++i)
-            {
-                if (m_PassList[i].insertedByCompiler)
-                {
-                    pending.Add(m_PassList[i]);
-                }
-                else
-                {
-                    anchored.Add(m_PassList[i]);
-                }
-            }
-
-            var placed = m_PlacePlaced;
-            placed.Clear();
-            int anchor = 0;
-            while (anchor < anchored.Count || pending.Count > 0)
-            {
-                bool moved = false;
-                for (int i = 0; i < pending.Count;)
-                {
-                    if (!DependenciesReady(pending[i], placed))
-                    {
-                        ++i;
-                        continue;
-                    }
-                    placed.Add(pending[i]);
-                    pending.RemoveAt(i);
-                    moved = true;
-                }
-                if (anchor < anchored.Count)
-                {
-                    placed.Add(anchored[anchor++]);
-                    moved = true;
-                }
-                else if (!moved)
-                    throw new InvalidOperationException("A compiler-inserted pass depends on itself.");
-            }
-
-            m_PassList.Clear();
-            m_PassList.AddRange(placed);
-            for (int i = 0; i < m_PassList.Count; ++i)
-            {
-                m_PassList[i].index = i;
-            }
-            anchored.Clear();
-            pending.Clear();
-            placed.Clear();
         }
 
         bool TryAttachmentSize(in RGTextureHandle texture, out int width, out int height, out int samples)

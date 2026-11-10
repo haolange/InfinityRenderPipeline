@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererLists;
         }
 
-        void RasterCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults, RGMeshDrawListHandle[] cascadeMeshDrawLists)
         {
             int shadowMapResolution = pipelineAsset.cascadeShadowMapResolution;
             float shadowDistance = pipelineAsset.shadowDistance;
@@ -75,7 +75,6 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
-            RGMeshDrawListHandle[] cascadeMeshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
             RGRendererListHandle[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -83,7 +82,6 @@ namespace InfinityTech.Rendering.Pipeline
                 CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
-                cascadeMeshDrawLists[cascade] = RGMeshDrawListHandle.Invalid;
                 cascadeRendererLists[cascade] = RGRendererListHandle.Invalid;
             }
 
@@ -100,8 +98,6 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         continue;
                     }
-
-                    cascadeMeshDrawLists[cascade] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(CascadeShadowView(shadowLight, slice, cascade, camera), InfinityPassIDs.RasterShadowPass));
 
                     if (!hasNativeCasters)
                     {

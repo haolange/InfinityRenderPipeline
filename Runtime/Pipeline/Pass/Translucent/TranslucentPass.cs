@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle translucentDepth;
         }
 
-        void RasterTranslucentDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterTranslucentDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle depthMeshDrawList)
         {
             TextureDescriptor translucentDepthDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -64,7 +64,6 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
-            RGMeshDrawListHandle depthMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterTranslucentDepthPass));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
@@ -83,19 +82,19 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterTranslucentT0(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterTranslucentT0(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle meshDrawList)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, meshDrawList, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
-        void RasterTranslucentT1(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterTranslucentT1(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle meshDrawList)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, meshDrawList, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
-        void RasterTranslucentT2(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterTranslucentT2(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle meshDrawList)
         {
-            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, meshDrawList, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }
 
         // MeshComponent content is drawn back to front before the native renderer list in the same pass. The two lists are
@@ -105,6 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
             Camera camera,
             in MeshView view,
             in CullingResults cullingResults,
+            in RGMeshDrawListHandle meshDrawList,
             ShaderTagId lightMode,
             CustomSamplerId samplerId,
             bool bindFog,
@@ -159,7 +159,6 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
-            RGMeshDrawListHandle meshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, lightMode));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {

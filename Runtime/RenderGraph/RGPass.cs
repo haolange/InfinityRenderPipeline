@@ -45,7 +45,6 @@ namespace InfinityTech.Rendering.RenderGraph
         public ProfilingSampler customSampler;
         internal IRGPassQueueObserver queueObserver;
         internal bool importedWritesAreSideEffects = true;
-        internal bool insertedByCompiler;
 
         public int refCount
         {
@@ -199,7 +198,6 @@ namespace InfinityTech.Rendering.RenderGraph
             customSampler = null;
             queueObserver = null;
             importedWritesAreSideEffects = true;
-            insertedByCompiler = false;
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();

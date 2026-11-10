@@ -36,6 +36,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
         static void AddConsumer(RGBuilder graph, RGTextureHandle target, CustomSamplerId sampler, RGMeshDrawListHandle draws, bool keep)
         {
+            if (keep)
+                MeshGraphExtension.Of(graph).PrepareMeshDrawList(graph, draws);
             using (RGRasterPassHandle pass = graph.AddRasterPass<DrawPassData>(ProfilingSampler.Get(sampler)))
             {
                 pass.SetColorAttachment(target, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);

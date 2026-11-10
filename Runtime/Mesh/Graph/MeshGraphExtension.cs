@@ -13,6 +13,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshFrustumView[] views;
         public int viewCount;
         public int stride;
+        public string sampleName;
         public MeshCullInputs inputs;
         public RGBufferHandle visibility;
         public ComputeBuffer viewTable;
@@ -33,13 +34,22 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal readonly MeshWorld world;
         internal readonly MeshDrawListRegistry drawLists;
         readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
+        readonly Dictionary<int, BufferPair> m_TableReads = new Dictionary<int, BufferPair>();
         readonly Dictionary<MeshVisibilityKey, RGBufferHandle> m_GPUCullVisibility = new Dictionary<MeshVisibilityKey, RGBufferHandle>(8);
         readonly Dictionary<MeshVisibilityKey, GpuVisibilityBinding> m_OcclusionFinal = new Dictionary<MeshVisibilityKey, GpuVisibilityBinding>(4);
-        readonly List<MeshVisibilityKey> m_FrustumOrder = new List<MeshVisibilityKey>(8);
         readonly List<MeshView> m_FrustumSources = new List<MeshView>(8);
+        readonly List<MeshView> m_PendingFrustum = new List<MeshView>(8);
+        readonly HashSet<MeshVisibilityKey> m_PendingFrustumKeys = new HashSet<MeshVisibilityKey>();
+        GpuVisibilityBinding m_FrustumBinding;
         readonly Dictionary<MeshVisibilityKey, int> m_FrustumSlice = new Dictionary<MeshVisibilityKey, int>(8);
         MeshFrustumView[] m_FrustumRecords = System.Array.Empty<MeshFrustumView>();
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
+
+        struct BufferPair
+        {
+            public RGBufferHandle matrices, generations, layers, previousMatrices, previousGenerations;
+            public bool hasPrevious;
+        }
 
         struct GpuVisibilityBinding
         {
@@ -63,14 +73,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ScheduledVersions.Clear();
             m_GPUCullVisibility.Clear();
             m_OcclusionFinal.Clear();
+            m_PendingFrustum.Clear();
+            m_PendingFrustumKeys.Clear();
+            m_FrustumSlice.Clear();
+            m_FrustumBinding = default;
+            m_PreparedDrawLists.Clear();
+            m_TableReads.Clear();
             drawLists.ReleaseAll();
         }
 
         public void Contribute(RGBuilder builder)
         {
-            int recorded = builder.passCount;
             CompileMeshDrawLists(builder);
-            InsertDrawListPreparation(builder, recorded);
         }
 
         internal RGMeshDrawListHandle CreateMeshDrawList(RGBuilder builder, in MeshView view, in MeshPassDesc desc)
@@ -79,15 +93,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGMeshDrawListHandle draws = drawLists.Declare(view, desc);
             MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
             // Recording references keep the frozen tables alive for this graph.
-            builder.ImportBuffer(record.tables.renderingLayers);
-            builder.ImportBuffer(record.tables.version.matrices);
-            builder.ImportBuffer(record.tables.version.generations);
+            var tables = new BufferPair
+            {
+                matrices = builder.ImportBuffer(record.tables.version.matrices),
+                generations = builder.ImportBuffer(record.tables.version.generations),
+                layers = builder.ImportBuffer(record.tables.renderingLayers)
+            };
             MeshTransformVersion previous = record.motion.previous;
             if (previous != null)
             {
-                builder.ImportBuffer(previous.matrices);
-                builder.ImportBuffer(previous.generations);
+                tables.previousMatrices = builder.ImportBuffer(previous.matrices);
+                tables.previousGenerations = builder.ImportBuffer(previous.generations);
+                tables.hasPrevious = true;
             }
+            m_TableReads[draws.index] = tables;
             if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
             {
                 RequestMeshGPUCulling(builder, view, draws);
@@ -116,10 +135,44 @@ namespace InfinityTech.Rendering.MeshPipeline
             return inputs;
         }
 
-        /// <summary>Registers a view for compile-time culling. Occlusion coverage and frustum producers are resolved in <see cref="BindGpuCulling"/>.</summary>
         internal void RequestMeshGPUCulling(RGBuilder builder, in MeshView view, in RGMeshDrawListHandle draws)
         {
             view.lodProjection.ThrowIfInvalid();
+            if (OcclusionCovers(view))
+                return;
+            var key = new MeshVisibilityKey(view, true);
+            if (m_FrustumSlice.ContainsKey(key) || !m_PendingFrustumKeys.Add(key))
+                return;
+            m_PendingFrustum.Add(view);
+        }
+
+        bool OcclusionCovers(in MeshView view)
+        {
+            if (view.visibilityPhase == EMeshVisibilityPhase.Final && m_OcclusionFinal.ContainsKey(CoverageKey(view)))
+                return true;
+            return m_GPUCullVisibility.ContainsKey(new MeshVisibilityKey(view, true));
+        }
+
+        internal void FlushFrustumCulling(RGBuilder builder)
+        {
+            if (m_PendingFrustum.Count == 0)
+                return;
+            m_FrustumSources.Clear();
+            bool depth = false, shadows = false;
+            for (int i = 0; i < m_PendingFrustum.Count; ++i)
+            {
+                MeshView view = m_PendingFrustum[i];
+                var key = new MeshVisibilityKey(view, true);
+                m_FrustumSlice[key] = m_FrustumSources.Count;
+                m_FrustumSources.Add(view);
+                if (view.isShadow)
+                    shadows = true;
+                else
+                    depth = true;
+            }
+            m_FrustumBinding = RecordFrustumBatch(builder, m_FrustumSources.Count, MeshDrawProfiling.FrustumGroup(depth, shadows));
+            m_PendingFrustum.Clear();
+            m_PendingFrustumKeys.Clear();
         }
 
         static MeshVisibilityKey CoverageKey(in MeshView view)
@@ -163,7 +216,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return false;
         }
 
-        GpuVisibilityBinding RecordFrustumBatch(RGBuilder builder, int viewCount)
+        GpuVisibilityBinding RecordFrustumBatch(RGBuilder builder, int viewCount, string sampleName)
         {
             if (!world.gpuBackend.isSupported)
             {
@@ -185,9 +238,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 ref MeshFrustumBatchData data = ref pass.GetPassData<MeshFrustumBatchData>();
                 data.world = world;
-                data.views = m_FrustumRecords;
+                MeshFrustumView[] stored = builder.GetRecordingArray<MeshFrustumView>(viewCount);
+                System.Array.Copy(m_FrustumRecords, stored, viewCount);
+                data.views = stored;
                 data.viewCount = viewCount;
                 data.stride = stride;
+                data.sampleName = sampleName;
                 data.inputs = CullInputs(builder, pass);
                 data.visibility = pass.WriteBuffer(visibility);
                 data.viewTable = world.gpuVisibility.frustumViews.buffer;
@@ -198,14 +254,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         commands.SetBufferData(data.viewTable, data.views, 0, 0, data.viewCount);
                     }
-                    commands.BeginSample("FrustumBatch");
+                    commands.BeginSample(data.sampleName);
                     try
                     {
                         data.world.gpuBackend.DispatchCullFrustumBatch(commands, data.inputs, data.viewCount, data.stride, data.viewTable, data.visibility, data.world.stats);
                     }
                     finally
                     {
-                        commands.EndSample("FrustumBatch");
+                        commands.EndSample(data.sampleName);
                     }
                 });
             }
@@ -220,62 +276,79 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         void BindGpuCulling(RGBuilder builder)
         {
-            m_FrustumOrder.Clear();
-            m_FrustumSources.Clear();
-            m_FrustumSlice.Clear();
-            m_BoundFrustumStride = 0;
-            for (int i = 0; i < drawLists.Count; ++i)
-            {
-                MeshDrawListRecord record = drawLists.GetRecordCopy(i);
-                if (record.state != EMeshDrawListState.Live || record.backend != EMeshDrawBackendPolicy.GPUIndirect || OcclusionPhase(record, out _))
-                {
-                    continue;
-                }
-                var key = new MeshVisibilityKey(record.view, true);
-                if (m_FrustumSlice.ContainsKey(key))
-                {
-                    continue;
-                }
-                m_FrustumSlice.Add(key, m_FrustumOrder.Count);
-                m_FrustumOrder.Add(key);
-                m_FrustumSources.Add(record.view);
-            }
-            GpuVisibilityBinding batch = default;
-            if (m_FrustumOrder.Count > 0)
-            {
-                batch = RecordFrustumBatch(builder, m_FrustumOrder.Count);
-            }
             for (int i = 0; i < drawLists.Count; ++i)
             {
                 MeshDrawListRecord record = drawLists.GetRecordCopy(i);
                 if (record.state != EMeshDrawListState.Live || record.backend != EMeshDrawBackendPolicy.GPUIndirect)
-                {
                     continue;
-                }
+                if (!record.gpuVisibility.IsValid())
+                    throw new InvalidOperationException("A GPU draw list was not prepared after its culling pass.");
+                BindVisibilityRead(builder, record, record.gpuVisibility);
+            }
+        }
+
+        internal void PrepareMeshDrawList(RGBuilder builder, in RGMeshDrawListHandle draws)
+        {
+            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
+            record.cacheRevision = record.cache.revision;
+            if (record.cache.memberCount == 0)
+            {
+                record.state = EMeshDrawListState.Empty;
+                drawLists.SetRecord(draws.index, record);
+                return;
+            }
+            record.tables.version.owner.Record(builder, record.tables.version, world.meshDrawShader, m_ScheduledVersions);
+            if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
+            {
                 int visibilityBase = 0;
                 GpuVisibilityBinding binding;
-                if (OcclusionPhase(record, out binding))
+                if (!OcclusionPhase(record, out binding))
                 {
+                    RequestMeshGPUCulling(builder, record.view, draws);
+                    var key = new MeshVisibilityKey(record.view, true);
+                    if (!m_FrustumSlice.ContainsKey(key))
+                        FlushFrustumCulling(builder);
+                    visibilityBase = m_FrustumSlice[key] * m_BoundFrustumStride;
+                    binding = m_FrustumBinding;
                 }
-                else
-                {
-                    int slice = m_FrustumSlice[new MeshVisibilityKey(record.view, true)];
-                    binding = batch;
-                    visibilityBase = slice * m_BoundFrustumStride;
-                }
-                drawLists.BindGPUVisibility(i, binding.handle, binding.buffer, visibilityBase);
-                BindVisibilityRead(builder, record, binding.handle);
+                drawLists.BindGPUVisibility(draws.index, binding.handle, binding.buffer, visibilityBase);
+                record = drawLists.GetRecordCopy(draws.index);
+                record.cacheRevision = record.cache.revision;
+                drawLists.EnsureGpuPayload(ref record);
+            }
+            else if (record.cpuInstances.buffer == null)
+            {
+                world.cpuBackend.AllocateInstances(record.cache.memberCount, out record.cpuInstances, out record.cpuFades);
+            }
+            drawLists.SetRecord(draws.index, record);
+            if (!m_PreparedDrawLists.ContainsKey(draws.index))
+            {
+                m_PreparedDrawLists.Add(draws.index, RecordPreparation(builder, draws.index));
             }
         }
 
         // The pass records the draw-list index; compile reads it back to find live consumers.
-        internal static void UseMeshDrawList(MeshDrawListRegistry lists, IRGPass pass, in RGMeshDrawListHandle draws)
+        internal void UsePreparedList(IRGPass pass, in RGMeshDrawListHandle draws)
         {
             pass.extensionUses.Add(draws.index);
-            MeshDrawListRecord record = lists.GetRecordCopy(draws.index);
+            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
             if (record.gpuVisibility.IsValid())
-            {
                 pass.AddResourceRead(record.gpuVisibility.handle);
+            if (m_TableReads.TryGetValue(draws.index, out BufferPair tables))
+            {
+                pass.AddResourceRead(tables.matrices.handle);
+                pass.AddResourceRead(tables.generations.handle);
+                pass.AddResourceRead(tables.layers.handle);
+                if (tables.hasPrevious)
+                {
+                    pass.AddResourceRead(tables.previousMatrices.handle);
+                    pass.AddResourceRead(tables.previousGenerations.handle);
+                }
+            }
+            if (m_PreparedDrawLists.TryGetValue(draws.index, out RGBufferHandle[] outputs))
+            {
+                for (int i = 0; i < outputs.Length; ++i)
+                    pass.AddResourceRead(outputs[i].handle);
             }
         }
 
@@ -298,59 +371,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             drawLists.PrepareLive();
         }
 
-        // Upload and compaction are appended here and then moved to the earliest pass whose inputs exist,
-        // so they do not sit between adjacent raster passes.
-        void InsertDrawListPreparation(RGBuilder builder, int originalCount)
-        {
-            var prepared = m_PreparedDrawLists;
-            prepared.Clear();
-            for (int passIndex = 0; passIndex < originalCount; ++passIndex)
-            {
-                IRGPass consumer = builder.GetPass(passIndex);
-                if (builder.IsCulled(passIndex) || consumer.extensionUses.Count == 0)
-                {
-                    continue;
-                }
-                foreach (int drawIndex in consumer.extensionUses)
-                {
-                    MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
-                    if (record.state == EMeshDrawListState.Empty)
-                    {
-                        continue;
-                    }
-                    MeshTransformVersion version = record.tables.version;
-                    version.owner.Record(builder, version, world.meshDrawShader, m_ScheduledVersions);
-                    consumer.AddResourceRead(builder.ImportBuffer(version.matrices).handle);
-                    consumer.AddResourceRead(builder.ImportBuffer(version.generations).handle);
-                    consumer.AddResourceRead(builder.ImportBuffer(record.tables.renderingLayers).handle);
-                    MeshTransformVersion previous = record.motion.previous;
-                    if (previous == null)
-                    {
-                        continue;
-                    }
-                    consumer.AddResourceRead(builder.ImportBuffer(previous.matrices).handle);
-                    consumer.AddResourceRead(builder.ImportBuffer(previous.generations).handle);
-                }
-                foreach (int drawIndex in consumer.extensionUses)
-                {
-                    if (drawLists.GetRecordCopy(drawIndex).state == EMeshDrawListState.Empty)
-                    {
-                        continue;
-                    }
-                    if (!prepared.TryGetValue(drawIndex, out RGBufferHandle[] outputs))
-                    {
-                        outputs = RecordPreparation(builder, drawIndex);
-                        prepared.Add(drawIndex, outputs);
-                    }
-                    foreach (RGBufferHandle output in outputs)
-                    {
-                        consumer.AddResourceRead(output.handle);
-                    }
-                }
-            }
-            prepared.Clear();
-        }
-
         // One upload producer per live list and, for GPU indirect, one compute producer.
         RGBufferHandle[] RecordPreparation(RGBuilder builder, int drawIndex)
         {
@@ -360,6 +380,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle cpuFades = gpu ? default : builder.ImportBuffer(record.cpuFades);
             using (RGTransferPassHandle upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
             {
+                upload.KeepImportedWritesLocal();
                 upload.WriteBuffer(uploaded);
                 if (gpu && record.gpuVisibility.IsValid())
                 {
@@ -388,6 +409,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle candidates = builder.ImportBuffer(record.cache.candidateBuffer);
             using (RGComputePassHandle compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
             {
+                compact.KeepImportedWritesLocal();
                 compact.ReadBuffer(uploaded);
                 compact.ReadBuffer(candidates);
                 compact.ReadBuffer(record.gpuVisibility);
@@ -463,6 +485,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             extension.RequestMeshGPUCulling(builder, view, RGMeshDrawListHandle.Invalid);
         }
 
+        public static void FlushMeshFrustumCulling(this RGBuilder builder)
+            => MeshGraphExtension.Of(builder).FlushFrustumCulling(builder);
+
+        public static void PrepareMeshDrawList(this RGBuilder builder, in RGMeshDrawListHandle draws)
+            => MeshGraphExtension.Of(builder).PrepareMeshDrawList(builder, draws);
+
         /// <summary>Declares the pass as a consumer. A handle from another builder or an earlier graph fails here.</summary>
         public static RGMeshDrawListHandle UseMeshDrawList(this RGRasterPassHandle pass, in RGMeshDrawListHandle draws)
         {
@@ -474,7 +502,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new InvalidOperationException("The draw list belongs to another builder or an earlier graph.");
             }
-            MeshGraphExtension.UseMeshDrawList(owner.drawLists, pass.pass, draws);
+            owner.UsePreparedList(pass.pass, draws);
             return draws;
         }
 

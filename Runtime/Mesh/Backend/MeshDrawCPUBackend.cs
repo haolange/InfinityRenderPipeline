@@ -37,9 +37,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades, in MeshView view, int drawListIndex)
+        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades, in MeshView view)
         {
-            using (cache.cpuComplete.Auto((int)view.kind, view.subviewIndex, drawListIndex))
+            using (MeshDrawProfiling.Cpu("Complete", view, cache.desc.lightMode).Auto())
             {
                 build.job.Complete();
             }
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            using (cache.cpuUpload.Auto((int)view.kind, view.subviewIndex, drawListIndex))
+            using (MeshDrawProfiling.Cpu("Upload", view, cache.desc.lightMode).Auto())
             {
                 commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
                 commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
@@ -60,14 +60,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
-            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind, int subviewIndex, int drawListIndex)
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion, in MeshView view)
         {
             if (build.draws.Length == 0)
             {
                 return;
             }
-            using var cpuDraw = cache.cpuDraw.Auto((int)viewKind, subviewIndex, drawListIndex);
-            string marker = MeshDrawProfiling.Draw(viewKind, false);
+            using var cpuDraw = MeshDrawProfiling.Cpu("Draw", view, cache.desc.lightMode).Auto();
+            string marker = MeshDrawProfiling.Draw(view.kind, false);
             commands.BeginSample(marker);
             bool dithering = false;
             try

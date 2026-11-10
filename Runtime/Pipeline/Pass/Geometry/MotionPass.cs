@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle depthTexture;
         }
 
-        void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle motionMeshDrawList)
         {
             if (!ShouldRecordFeature(EFrameFeature.Motion))
             {
@@ -51,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
-            RGMeshDrawListHandle motionMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterMotionPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

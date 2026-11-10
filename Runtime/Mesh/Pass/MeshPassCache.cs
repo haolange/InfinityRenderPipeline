@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
-using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
@@ -72,7 +71,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public const int MetaStride = 5;
 
         public readonly MeshPassDesc desc;
-        internal readonly ProfilerMarker<int, int, int> cpuSchedule, cpuComplete, cpuUpload, cpuDraw;
         readonly uint m_RouteMask;
         NativeList<uint2> m_Candidates;
         NativeList<byte> m_CanFade;
@@ -126,10 +124,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new ArgumentException("queueMin exceeds queueMax.", nameof(desc));
             }
             this.desc = desc;
-            cpuSchedule = new ProfilerMarker<int, int, int>("MeshCPU.Schedule." + desc.lightMode, "ViewKind", "Slice", "DrawList");
-            cpuComplete = new ProfilerMarker<int, int, int>("MeshCPU.Complete." + desc.lightMode, "ViewKind", "Slice", "DrawList");
-            cpuUpload = new ProfilerMarker<int, int, int>("MeshCPU.Upload." + desc.lightMode, "ViewKind", "Slice", "DrawList");
-            cpuDraw = new ProfilerMarker<int, int, int>("MeshCPU.Draw." + desc.lightMode, "ViewKind", "Slice", "DrawList");
             for (int route = 0; route <= 1; ++route)
                 for (int stage = 0; stage <= 3; ++stage)
                     if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode))

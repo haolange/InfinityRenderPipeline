@@ -62,12 +62,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle forwardMeshDrawList)
         {
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-
-            RGMeshDrawListHandle forwardMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterForwardPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterForwardPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

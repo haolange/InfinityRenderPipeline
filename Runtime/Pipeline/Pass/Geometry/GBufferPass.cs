@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle dBufferC;
         }
 
-        void RasterGBuffer(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterGBuffer(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle gbufferMeshDrawList)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.GBuffer);
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -83,8 +83,6 @@ namespace InfinityTech.Rendering.Pipeline
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferB, out dBufferB)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
-
-            RGMeshDrawListHandle gbufferMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterGBufferPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

@@ -47,7 +47,10 @@ namespace InfinityTech.Rendering.Pipeline
             var early = ComputeEarlyFurthestHiZ();
             m_RGBuilder.RecordMeshOcclusionRecovery(lists, early,
                 m_ActiveFrameState.cameraUniform.matrix_ViewFlipYJitterProj, m_ActiveFrameState.dimensions.internalSize);
-            var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(lists.recovered, InfinityPassIDs.RasterDepthPass));
+        }
+
+        void RasterDepthRecovery(in RGMeshDrawListHandle draws)
+        {
             using (var pass = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery)))
             {
                 pass.SetDepthStencilAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer),

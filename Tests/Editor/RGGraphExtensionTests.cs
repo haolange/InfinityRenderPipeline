@@ -54,6 +54,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 Assert.IsTrue(extension.seen[0].culled);
                 Assert.IsFalse(extension.seen[1].culled);
                 CollectionAssert.AreEqual(new[] { 7 }, extension.seen[1].uses);
+                Assert.AreEqual("Unread", graph.GetPass(0).name);
+                Assert.AreEqual("Kept", graph.GetPass(1).name);
 
                 graph.ClearRecordedGraph();
                 Assert.AreEqual(1, extension.clears);

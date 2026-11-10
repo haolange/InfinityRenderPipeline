@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle rendererList;
         }
 
-        void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle depthMeshDrawList)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
             TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
@@ -30,7 +30,6 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
             RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGMeshDrawListHandle depthMeshDrawList = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterDepthPass));
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

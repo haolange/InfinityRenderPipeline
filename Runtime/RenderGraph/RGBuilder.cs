@@ -134,10 +134,7 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly List<RGNativePassGroup> m_NativeGroups = new List<RGNativePassGroup>(8);
         // Set by the owner of graph-level work that the core does not model, such as mesh draw lists.
         internal IRGGraphExtension extension;
-        bool m_RecordingCompilerPasses;
         bool m_ExtensionContributed;
-        internal bool RecordingCompilerPasses => m_RecordingCompilerPasses;
-        // Read by a graph extension inside Contribute, before inserted passes are placed.
         internal int passCount => m_PassList.Count;
         internal IRGPass GetPass(int index) => m_PassList[index];
         internal bool IsCulled(int passIndex) => m_PassCompileInfos[passIndex].culled;
@@ -156,7 +153,6 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
-        readonly List<IRGPass> m_PlaceAnchored = new List<IRGPass>(64), m_PlacePending = new List<IRGPass>(16), m_PlacePlaced = new List<IRGPass>(64);
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
@@ -507,10 +503,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void RegisterPass(IRGPass pass)
         {
-            if (m_RecordingCompilerPasses)
-            {
-                pass.insertedByCompiler = true;
-            }
             pass.index = m_PassList.Count;
             m_PassList.Add(pass);
             NoteProfiledPass(pass);
@@ -696,7 +688,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_NativeGroups[i].Clear();
             }
             m_ExtensionContributed = false;
-            m_RecordingCompilerPasses = false;
             try
             {
                 m_Resources.Clear();

@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults, RGMeshDrawListHandle[] preparedLists)
         {
             int shadowMapResolution = pipelineAsset.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
@@ -170,7 +170,13 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(visibleLight, local, camera), InfinityPassIDs.RasterShadowPass));
+                if (preparedLists != null && slice < preparedLists.Length && preparedLists[slice].IsValid)
+                    sliceMeshDrawLists[slice] = preparedLists[slice];
+                else
+                {
+                    sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(visibleLight, local, camera), InfinityPassIDs.RasterShadowPass));
+                    m_RGBuilder.PrepareMeshDrawList(sliceMeshDrawLists[slice]);
+                }
 
                 if (!cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {

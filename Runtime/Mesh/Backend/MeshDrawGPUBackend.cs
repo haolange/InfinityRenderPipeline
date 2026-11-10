@@ -221,7 +221,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
+        internal void InitializeIndirectArgs(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, MeshWorldStats stats)
+        {
+            RequireSupported();
+            commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
+            commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
+            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
+            stats.compactKernelDispatches++;
+        }
+
+        internal void CompactInstances(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
             ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
         {
             RequireSupported();
@@ -229,11 +240,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
-            stats.compactKernelDispatches++;
-
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CandidateTable, cache.candidateBuffer.buffer);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_Visibility, visibility);
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CommandMeta, payload.commandMeta.buffer);
@@ -242,8 +248,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceFade, payload.instanceFade.buffer);
             commands.DispatchCompute(m_Shader, m_CompactKernel, math.max(1, (candidateCount + 63) / 64), 1, 1);
             stats.compactKernelDispatches++;
-
             stats.compactDispatches++;
+        }
+
+        internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
+            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
+        {
+            InitializeIndirectArgs(commands, payload, cache, commandCount, stats);
+            CompactInstances(commands, payload, cache, commandCount, candidateCount, visibility, visibilityBase, stats);
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount,

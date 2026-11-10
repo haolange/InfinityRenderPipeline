@@ -455,16 +455,20 @@ namespace InfinityTech.Rendering.RenderGraph
                     }
                     if (!info.pass.hasExecuteAction)
                         throw new InvalidOperationException($"RenderPass {info.pass.name} was not provided with an execute function.");
-                    passes.Add(passIndex);
                     BeginSamples(info.beginSamples, graphContext.cmdBuffer);
                     bool passScoped = info.pass.customSampler != null;
                     ProfilingScope passScope = passScoped ? new ProfilingScope(graphContext.cmdBuffer, info.pass.customSampler) : default;
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo passFailure = null;
                     try
                     {
                         PrePassExecute(ref graphContext, info);
                         info.pass.Execute(ref graphContext);
                         PostPassExecute(ref graphContext, ref info);
                         RenderFaultValidation.AtPass(ERenderFaultPoint.BeforePassQueue, info.pass.name);
+                    }
+                    catch (Exception error)
+                    {
+                        passFailure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
                     }
                     finally
                     {
@@ -474,6 +478,22 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
                         EndSamples(info.endSamples, graphContext.cmdBuffer);
                     }
+                    if (passFailure != null)
+                    {
+                        // Passes that already finished stay queued. The failing pass has not been accepted.
+                        try
+                        {
+                            QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, passes, ref hasQueuedAsync, ref lastAsyncFence);
+                        }
+                        catch (Exception queueError)
+                        {
+                            m_QueueSubmissionFailed = true;
+                            FailSegment(passes);
+                            Debug.LogException(queueError);
+                        }
+                        passFailure.Throw();
+                    }
+                    passes.Add(passIndex);
                     var useFence = new InfinityTech.Rendering.GPUResource.ResourceReuseFence
                     {
                         hasGraphics = !info.enableAsyncCompute && info.needGraphicsFence,
@@ -484,63 +504,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     m_Resources.QueueAttempt(info.pass, info.enableAsyncCompute, useFence);
                 }
 
-                if (async)
-                {
-                    GraphicsFence completion = default;
-                    bool haveCompletion = false;
-                    for (int i = 0; i < passes.Count; ++i)
-                    {
-                        if (!m_PassCompileInfos[passes[i]].needGraphicsFence)
-                        {
-                            continue;
-                        }
-                        completion = m_PassCompileInfos[passes[i]].fence;
-                        haveCompletion = true;
-                    }
-                    if (!haveCompletion)
-                    {
-                        completion = asyncCommands.CreateAsyncGraphicsFence();
-                    }
-                    if (!hasQueuedAsync)
-                    {
-                        QueueGraphics(graphContext.renderContext, graphicsCommands);
-                        graphicsCommands.Clear();
-                    }
-                    try
-                    {
-                        QueueAsync(graphContext.renderContext, asyncCommands);
-                        lastAsyncFence = completion;
-                        hasQueuedAsync = true;
-                    }
-                    catch
-                    {
-                        FailSegment(passes);
-                        DrainAsync(graphContext.renderContext, ref lastAsyncFence, ref hasQueuedAsync);
-                        throw;
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        QueueGraphics(graphContext.renderContext, graphicsCommands);
-                    }
-                    catch
-                    {
-                        m_QueueSubmissionFailed = true;
-                        FailSegment(passes);
-                        throw;
-                    }
-                    graphicsCommands.Clear();
-                }
-
-                for (int i = 0; i < passes.Count; ++i)
-                    RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, m_PassCompileInfos[passes[i]].pass.name);
-                for (int i = 0; i < passes.Count; ++i)
-                {
-                    m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueued();
-                    ReleasePassResources(ref m_PassCompileInfos[passes[i]]);
-                }
+                QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, passes, ref hasQueuedAsync, ref lastAsyncFence);
             }
             finally
             {
@@ -550,6 +514,76 @@ namespace InfinityTech.Rendering.RenderGraph
                     CommandBufferPool.Release(asyncCommands);
                 }
                 graphContext.cmdBuffer = graphicsCommands;
+            }
+        }
+
+        void QueueAcceptedPasses(ref RGContext graphContext, CommandBuffer graphicsCommands, CommandBuffer asyncCommands, bool async, List<int> passes, ref bool hasQueuedAsync, ref GraphicsFence lastAsyncFence)
+        {
+            if (passes.Count == 0)
+            {
+                graphicsCommands.Clear();
+                if (asyncCommands != null)
+                {
+                    asyncCommands.Clear();
+                }
+                return;
+            }
+            if (async)
+            {
+                GraphicsFence completion = default;
+                bool haveCompletion = false;
+                for (int i = 0; i < passes.Count; ++i)
+                {
+                    if (!m_PassCompileInfos[passes[i]].needGraphicsFence)
+                    {
+                        continue;
+                    }
+                    completion = m_PassCompileInfos[passes[i]].fence;
+                    haveCompletion = true;
+                }
+                if (!haveCompletion)
+                {
+                    completion = asyncCommands.CreateAsyncGraphicsFence();
+                }
+                if (!hasQueuedAsync)
+                {
+                    QueueGraphics(graphContext.renderContext, graphicsCommands);
+                    graphicsCommands.Clear();
+                }
+                try
+                {
+                    QueueAsync(graphContext.renderContext, asyncCommands);
+                    lastAsyncFence = completion;
+                    hasQueuedAsync = true;
+                }
+                catch
+                {
+                    FailSegment(passes);
+                    DrainAsync(graphContext.renderContext, ref lastAsyncFence, ref hasQueuedAsync);
+                    throw;
+                }
+            }
+            else
+            {
+                try
+                {
+                    QueueGraphics(graphContext.renderContext, graphicsCommands);
+                }
+                catch
+                {
+                    m_QueueSubmissionFailed = true;
+                    FailSegment(passes);
+                    throw;
+                }
+                graphicsCommands.Clear();
+            }
+
+            for (int i = 0; i < passes.Count; ++i)
+                RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, m_PassCompileInfos[passes[i]].pass.name);
+            for (int i = 0; i < passes.Count; ++i)
+            {
+                m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueued();
+                ReleasePassResources(ref m_PassCompileInfos[passes[i]]);
             }
         }
 
