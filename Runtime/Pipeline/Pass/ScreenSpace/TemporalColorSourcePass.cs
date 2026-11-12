@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             var state = context.state;
-            bool sr = context.dimensions.superResolution;
+            bool sr = context.temporalResolve == ETemporalResolve.SuperResolution;
             int2 size = sr ? context.dimensions.displaySize : context.dimensions.internalSize;
             var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
             int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                     state.cameraUniform.previousJitterUV.y - currentJitter.y, 0, 0),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
                 valid = state.acceptedTemporalColor && state.acceptedTemporalColorIsSR == sr
-                    && !state.cameraUniform.historyReset && !colorCreated && !depthCreated
+                    && !context.resetsHistory && !colorCreated && !depthCreated
                     && state.historyCache.TextureGeneration(colorID) > 0 && state.historyCache.TextureGeneration(depthID) > 0
             };
             state.temporalColorView = source;

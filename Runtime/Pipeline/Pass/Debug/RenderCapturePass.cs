@@ -420,7 +420,7 @@ namespace InfinityTech.Rendering.Pipeline
                 source = ConvertCaptureMetadata(source, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(source);
             }
-            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.cameraUniform.historyReset);
+            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.resetsHistory);
             staging.evidence.sourceQueue = sourceQueue;
             // External contents predate this graph; their production frame is unknown to this capture.
             if (sourceQueue == "External")

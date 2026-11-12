@@ -132,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = fog.ambientIntensity;
                 passData.depthSlices = depthSlices;
                 passData.maxDistance = fog.maxDistance;
-                passData.temporalWeight = (context.cameraUniform.historyReset || historyCreated) ? 0.0f : fog.temporalWeight;
+                passData.temporalWeight = (context.resetsHistory || historyCreated) ? 0.0f : fog.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);

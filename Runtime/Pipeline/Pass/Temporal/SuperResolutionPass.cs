@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref SuperResolutionPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
                 passData.inputResolution = context.dimensions.internalSize;
-                passData.resetHistory = context.cameraUniform.historyReset || historyCreated
+                passData.resetHistory = context.resetsHistory || historyCreated
                     || context.historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
                 passData.jitter = context.cameraUniform.jitter;
                 passData.frameIndex = Time.frameCount;

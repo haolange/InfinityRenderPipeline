@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrow);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMeta);
-            bool historyValid = context.state.acceptedSSGI && !(context.cameraUniform.historyReset || historyRadianceCreated || historyNarrowCreated || historyMetaCreated)
+            bool historyValid = context.state.acceptedSSGI && !(context.resetsHistory || historyRadianceCreated || historyNarrowCreated || historyMetaCreated)
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIRadianceBuffer) > 0
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGINarrowBuffer) > 0
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIMetaBuffer) > 0;

@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
             var size = context.dimensions.internalSize;
             var history = context.historyCache;
             // A reset or a first frame has no Hi-Z to test. Those views join the one frustum dispatch.
-            if (context.cameraUniform.historyReset || motion.previous == null)
+            if (context.resetsHistory || motion.previous == null)
             {
                 return false;
             }

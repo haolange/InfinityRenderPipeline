@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(context.cameraUniform.matrix_FlipYJitterProj, context.cameraUniform.matrix_FlipYProj);
                 data.jitter = new Vector4(currentJitter.x, currentJitter.y, context.cameraUniform.previousJitterUV.x, context.cameraUniform.previousJitterUV.y);
-                data.historyValid = !context.cameraUniform.historyReset && !colorCreated && !depthCreated
+                data.historyValid = !context.resetsHistory && !colorCreated && !depthCreated
                     && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0
                     && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
                 data.diagnostics = diagnostics;

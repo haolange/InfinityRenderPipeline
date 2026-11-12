@@ -222,7 +222,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVariance);
-            bool historyValid = context.state.acceptedSSR && !(context.cameraUniform.historyReset || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
+            bool historyValid = context.state.acceptedSSR && !(context.resetsHistory || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0
                 && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRVarianceBuffer) > 0;

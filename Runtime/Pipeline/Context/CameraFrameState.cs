@@ -1,4 +1,5 @@
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -6,6 +7,34 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // Why a camera discards its history this frame. CameraFrameState.ResolveHistoryReset is the only writer.
+    internal enum EHistoryReset
+    {
+        None,
+        // Previews and probe faces never keep history.
+        NotTemporal,
+        // A capture or validation run holds the camera at frame zero. Only Editor and Development builds produce it.
+        Locked,
+        // The camera has no committed frame.
+        NewCamera,
+        // A game camera skipped at least one frame.
+        Unseen,
+        // The camera's previous frame failed and was rolled back.
+        RolledBack,
+        // Display size, internal size or super resolution changed.
+        Dimensions,
+        // The camera jumped or its projection changed.
+        CameraCut,
+    }
+
+    // The temporal resolve a camera records, decided once in PrepareCamera from its policy and dimensions.
+    internal enum ETemporalResolve
+    {
+        None,
+        TAA,
+        SuperResolution,
+    }
+
     internal class CameraFrameState : IDisposable
     {
         public int cameraId;
@@ -41,9 +70,44 @@ namespace InfinityTech.Rendering.Pipeline
             return cameraType != CameraType.SceneView && frameCount - lastSeenFrame > GameUnseenFramesToRecycle;
         }
 
-        internal static bool ShouldForceHistoryReset(bool newlyCreated, int lastSeenFrame, int frameCount, CameraType cameraType)
+        // Scene views repaint sparsely; only a game camera that missed a frame has stale history.
+        internal static bool SkippedFrame(int previousSeenFrame, int frameCount, CameraType cameraType)
         {
-            return newlyCreated || (cameraType != CameraType.SceneView && frameCount - lastSeenFrame > 1);
+            return cameraType != CameraType.SceneView && frameCount - previousSeenFrame > 1;
+        }
+
+        // The only writer of the history-reset decision. previousSeenFrame is lastSeenFrame before this render.
+        internal EHistoryReset ResolveHistoryReset(Camera camera, CameraRenderPolicy policy, bool newlyCreated, int previousSeenFrame, int frameCount,
+            in CameraDimensionDescriptor dimensions)
+        {
+            if (!policy.temporal)
+            {
+                return EHistoryReset.NotTemporal;
+            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (PipelineDiagnostics.LocksHistoryReset(camera))
+            {
+                return EHistoryReset.Locked;
+            }
+#endif
+            if (newlyCreated || !cameraUniform.hasCommittedView)
+            {
+                return EHistoryReset.NewCamera;
+            }
+            if (SkippedFrame(previousSeenFrame, frameCount, camera.cameraType))
+            {
+                return EHistoryReset.Unseen;
+            }
+            if (requiresHistoryReset)
+            {
+                return EHistoryReset.RolledBack;
+            }
+            if (math.any(preparedDimensions.displaySize != dimensions.displaySize) || math.any(preparedDimensions.internalSize != dimensions.internalSize)
+                || preparedDimensions.superResolution != dimensions.superResolution)
+            {
+                return EHistoryReset.Dimensions;
+            }
+            return cameraUniform.IsCut(camera) ? EHistoryReset.CameraCut : EHistoryReset.None;
         }
 
         public CameraFrameState(int cameraId, ResourcePool pool)

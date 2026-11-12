@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.intensity = ssao.intensity;
                 passData.sharpeness = ssao.sharpness;
                 passData.temporalScale = ssao.temporalScale;
-                bool resetHistory = context.cameraUniform.historyReset || historyAOCreated || historyDepthCreated;
+                bool resetHistory = context.resetsHistory || historyAOCreated || historyDepthCreated;
                 passData.temporalWeight = ssao.temporalWeight;
                 passData.historyValid = context.state.acceptedGTAO && !resetHistory && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionBuffer) > 0
                     && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionDepthBuffer) > 0;

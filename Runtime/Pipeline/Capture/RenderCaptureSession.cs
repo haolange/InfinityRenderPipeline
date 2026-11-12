@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_CaptureIndex++;
             if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || InfinityDebugDisplaySettings.current.debugView != EDebugView.None)
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
-            if (state.cameraUniform.historyReset)
+            if (setup.resetsHistory)
             {
                 m_Evidence.successfulFrames = 0;
             }
@@ -227,7 +227,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_Evidence.status = "Capturing";
                 m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = PipelineDiagnostics.motionPhase,
                     currentJitterUV = TemporalJitter.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj), previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
-                    entity = camera.GetEntityId().ToString(), historyReset = state.cameraUniform.historyReset,
+                    entity = camera.GetEntityId().ToString(), historyReset = setup.resetsHistory,
                     postProcessingEnabled = setup.postProcessingEnabled, sceneLightingEnabled = setup.sceneLightingEnabled,
                     internalWidth = setup.dimensions.internalSize.x, internalHeight = setup.dimensions.internalSize.y, presentViewport = setup.dimensions.outputViewport,
                     position = camera.transform.position, rotation = camera.transform.rotation, view = camera.worldToCameraMatrix,

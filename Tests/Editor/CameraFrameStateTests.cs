@@ -9,52 +9,88 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class CameraFrameStateTests
     {
+        static Unity.Mathematics.int2 Size(Camera camera) => new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight);
+
         [TestCase(CameraType.Preview)]
         [TestCase(CameraType.Reflection)]
-        public void CameraUniform_NonTemporalCamerasNeverJitterAcrossCommits(CameraType type)
+        public void HistoryReset_NonTemporalCamerasResetEveryFrameAndNeverJitter(CameraType type)
         {
+            var manager = VolumeManager.instance;
+            bool ownsInitialization = !manager.isInitialized;
+            if (ownsInitialization) manager.Initialize(null, null);
             var go = new GameObject("NonTemporalCameraHistory");
+            var pool = new ResourcePool();
+            CameraFrameState state = null;
             try
             {
                 var camera = go.AddComponent<Camera>();
                 camera.cameraType = type;
-                var data = new CameraUniform();
+                state = new CameraFrameState(1, pool);
+                var dimensions = new CameraDimensionDescriptor(Size(camera), 1.0f, false, new Rect(0, 0, 1, 1));
                 for (int frame = 0; frame < 16; frame++)
                 {
-                    data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
-                    Assert.AreEqual(frame == 0, data.historyReset);
-                    Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
-                    Assert.AreEqual(data.matrix_Proj, data.matrix_JitterProj);
-                    Assert.AreEqual(data.matrix_FlipYProj, data.matrix_FlipYJitterProj);
-                    data.Commit();
+                    EHistoryReset reset = state.ResolveHistoryReset(camera, CameraRenderPolicy.For(type), frame == 0, frame - 1, frame, dimensions);
+                    Assert.AreEqual(EHistoryReset.NotTemporal, reset);
+                    state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), reset);
+                    Assert.AreEqual(Unity.Mathematics.float2.zero, state.cameraUniform.jitter);
+                    Assert.AreEqual(state.cameraUniform.matrix_Proj, state.cameraUniform.matrix_JitterProj);
+                    Assert.AreEqual(state.cameraUniform.matrix_FlipYProj, state.cameraUniform.matrix_FlipYJitterProj);
+                    state.preparedDimensions = dimensions;
+                    state.cameraUniform.Commit();
                 }
             }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            finally
+            {
+                state?.Dispose();
+                pool.Dispose();
+                UnityEngine.Object.DestroyImmediate(go);
+                if (ownsInitialization) manager.Deinitialize();
+            }
         }
 
         [Test]
-        public void CameraUniform_GameJittersOnlyAfterSuccessfulHistoryAndResetsOnCut()
+        public void HistoryReset_ReasonsFollowCommitGapRollbackDimensionsAndCut()
         {
+            var manager = VolumeManager.instance;
+            bool ownsInitialization = !manager.isInitialized;
+            if (ownsInitialization) manager.Initialize(null, null);
             var go = new GameObject("TemporalCameraHistory");
+            var pool = new ResourcePool();
+            CameraFrameState state = null;
             try
             {
                 var camera = go.AddComponent<Camera>();
-                var data = new CameraUniform();
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
-                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
-                data.Commit();
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
-                Assert.IsFalse(data.historyReset);
-                Assert.AreNotEqual(Unity.Mathematics.float2.zero, data.jitter);
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360), true);
-                Assert.IsTrue(data.historyReset);
-                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
+                var policy = CameraRenderPolicy.For(CameraType.Game);
+                state = new CameraFrameState(2, pool);
+                var dimensions = new CameraDimensionDescriptor(Size(camera), 1.0f, false, new Rect(0, 0, 1, 1));
+                Assert.AreEqual(EHistoryReset.NewCamera, state.ResolveHistoryReset(camera, policy, true, 0, 1, dimensions));
+                Assert.AreEqual(EHistoryReset.NewCamera, state.ResolveHistoryReset(camera, policy, false, 1, 2, dimensions),
+                    "A preparation is not a committed frame.");
+                state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera);
+                state.preparedDimensions = dimensions;
+                state.cameraUniform.Commit();
+
+                Assert.AreEqual(EHistoryReset.None, state.ResolveHistoryReset(camera, policy, false, 2, 3, dimensions));
+                Assert.AreEqual(EHistoryReset.Unseen, state.ResolveHistoryReset(camera, policy, false, 2, 4, dimensions));
+                state.requiresHistoryReset = true;
+                Assert.AreEqual(EHistoryReset.RolledBack, state.ResolveHistoryReset(camera, policy, false, 2, 3, dimensions));
+                state.requiresHistoryReset = false;
+                var resized = new CameraDimensionDescriptor(Size(camera) + 2, 1.0f, false, new Rect(0, 0, 1, 1));
+                Assert.AreEqual(EHistoryReset.Dimensions, state.ResolveHistoryReset(camera, policy, false, 2, 3, resized));
+                camera.transform.position += new Vector3(10, 0, 0);
+                Assert.AreEqual(EHistoryReset.CameraCut, state.ResolveHistoryReset(camera, policy, false, 2, 3, dimensions));
             }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            finally
+            {
+                state?.Dispose();
+                pool.Dispose();
+                UnityEngine.Object.DestroyImmediate(go);
+                if (ownsInitialization) manager.Deinitialize();
+            }
         }
 
         [Test]
-        public void CameraUniform_ResetSeedsFinitePreviousProjectionWithoutCommittingHistory()
+        public void CameraUniform_JittersOnlyWithoutResetAndSeedsPreviousProjectionOnReset()
         {
             var go = new GameObject("FreshCameraHistory");
             try
@@ -62,17 +98,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var camera = go.AddComponent<Camera>();
                 camera.transform.SetPositionAndRotation(new Vector3(2, 4, -8), Quaternion.Euler(13, 27, 0));
                 var data = new CameraUniform();
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
-                Assert.IsTrue(data.historyReset);
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera);
+                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
                 Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
                 Assert.AreEqual(data.matrix_ViewFlipYJitterProj, data.matrix_LastViewFlipYJitterProj);
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
-                Assert.IsTrue(data.historyReset, "A preparation is not a successful history commit.");
+                Assert.IsFalse(data.hasCommittedView, "A preparation is not a committed frame.");
                 data.Commit();
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
-                Assert.IsFalse(data.historyReset);
-                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight), true);
-                Assert.IsTrue(data.historyReset);
+                Assert.IsTrue(data.hasCommittedView);
+                Assert.IsFalse(data.IsCut(camera));
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.None);
+                Assert.AreNotEqual(Unity.Mathematics.float2.zero, data.jitter);
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.CameraCut);
+                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
                 Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
@@ -115,7 +152,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.MarkSupported(EFrameFeature.Display);
             features.MarkProduced(EFrameFeature.Display);
 
-            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(requiresTemporalAntiAliasing: true));
+            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(ETemporalResolve.TAA));
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.DBuffer));
         }
 
@@ -126,7 +163,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.Request(EFrameFeature.Depth);
             features.MarkSupported(EFrameFeature.Depth);
             features.MarkProduced(EFrameFeature.Depth);
-            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(requiresTemporalAntiAliasing: true));
+            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(ETemporalResolve.TAA));
         }
 
         [Test]
@@ -197,12 +234,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ShouldForceHistoryReset_NewStateOrFrameGap()
+        public void SkippedFrame_OnlyGameCamerasWithAFrameGap()
         {
-            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: true, lastSeenFrame: 0, frameCount: 1, cameraType: CameraType.Game));
-            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 12, cameraType: CameraType.Game));
-            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 11, cameraType: CameraType.Game));
-            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 10, cameraType: CameraType.Game));
+            Assert.IsTrue(CameraFrameState.SkippedFrame(previousSeenFrame: 10, frameCount: 12, cameraType: CameraType.Game));
+            Assert.IsFalse(CameraFrameState.SkippedFrame(previousSeenFrame: 10, frameCount: 11, cameraType: CameraType.Game));
+            Assert.IsFalse(CameraFrameState.SkippedFrame(previousSeenFrame: 10, frameCount: 10, cameraType: CameraType.Game));
+            Assert.IsFalse(CameraFrameState.SkippedFrame(previousSeenFrame: 10, frameCount: 120, cameraType: CameraType.SceneView));
         }
 
         [Test]

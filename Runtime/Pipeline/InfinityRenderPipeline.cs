@@ -92,7 +92,6 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_LastViewFlipYProj;
         public Matrix4x4 matrix_LastViewJitterProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
-        public bool historyReset;
         public Vector2 previousJitterUV;
         private Vector3 m_PreparedPosition;
         private Quaternion m_PreparedRotation;
@@ -100,44 +99,39 @@ namespace InfinityTech.Rendering.Pipeline
         private int m_CommittedFrames;
         private bool m_HasPreparedView;
 
-        private bool m_HasLastView;
+        private bool m_HasCommittedView;
         private Vector3 m_LastCameraPosition;
         private Quaternion m_LastCameraRotation;
         private const float HistoryCutPosition = 2.0f;
         private const float HistoryCutAngle = 20.0f;
 
-        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, bool forceHistoryReset = false)
+        internal bool hasCommittedView => m_HasCommittedView;
+
+        // A jump beyond the cut thresholds or a projection change since the last committed frame.
+        internal bool IsCut(Camera camera)
         {
-            if (!m_HasLastView)
-            {
-                historyReset = true;
-            }
-            else
-            {
-                float positionDelta = Vector3.Distance(camera.transform.position, m_LastCameraPosition);
-                float angleDelta = Quaternion.Angle(camera.transform.rotation, m_LastCameraRotation);
-                historyReset = positionDelta > HistoryCutPosition || angleDelta > HistoryCutAngle || camera.projectionMatrix != m_LastProjection;
-            }
+            return Vector3.Distance(camera.transform.position, m_LastCameraPosition) > HistoryCutPosition
+                || Quaternion.Angle(camera.transform.rotation, m_LastCameraRotation) > HistoryCutAngle
+                || camera.projectionMatrix != m_LastProjection;
+        }
 
-            if (forceHistoryReset)
-            {
-                historyReset = true;
-            }
-
+        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, EHistoryReset historyReset)
+        {
+            bool resetHistory = historyReset != EHistoryReset.None;
             m_HasPreparedView = true;
             m_PreparedPosition = camera.transform.position;
             m_PreparedRotation = camera.transform.rotation;
             m_PreparedProjection = camera.projectionMatrix;
             frameIndex = m_CommittedFrames % 8;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (PipelineDiagnostics.LocksHistoryReset(camera)) frameIndex = 0;
+            if (historyReset == EHistoryReset.Locked) frameIndex = 0;
 #endif
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            bool applyJitter = CameraRenderPolicy.For(camera.cameraType).temporal && !historyReset;
-            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
+            // A non-temporal camera always resets, so it never jitters.
+            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: !resetHistory);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -150,7 +144,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
             matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
-            if (historyReset)
+            if (resetHistory)
             {
                 // No previous camera sample exists after a reset. Seed the upload without
                 // committing last-camera state; successful frame completion still owns that.
@@ -178,7 +172,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_LastProjection = m_PreparedProjection;
             previousJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
             m_CommittedFrames++;
-            m_HasLastView = true;
+            m_HasCommittedView = true;
         }
 
         public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize)
@@ -440,13 +434,13 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ScriptableRenderContext scriptableRenderContext = renderContext.scriptableRenderContext;
             camera.TryGetComponent(out InfinityAdditionalCameraData cameraData);
-            CameraFrameState state = BeginCameraState(camera, out bool forceHistoryReset);
+            CameraFrameState state = BeginCameraState(camera, out bool newlyCreated, out int previousSeenFrame);
             using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraData)))
             {
                 BeginCameraRendering(scriptableRenderContext, camera);
                 try
                 {
-                    CameraSetup setup = PrepareCamera(camera, cameras, cameraData, state, forceHistoryReset);
+                    CameraSetup setup = PrepareCamera(camera, cameras, cameraData, state, newlyCreated, previousSeenFrame);
                     CameraScene scene = CullCamera(setup, cmdBuffer);
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                     {
@@ -492,16 +486,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        // Marks the camera's cross-frame state as prepared this render and decides whether its history must reset.
-        CameraFrameState BeginCameraState(Camera camera, out bool forceHistoryReset)
+        // Marks the camera's cross-frame state as prepared this render. previousSeenFrame is its last render before this one.
+        CameraFrameState BeginCameraState(Camera camera, out bool newlyCreated, out int previousSeenFrame)
         {
-            CameraFrameState state = GetOrCreateCameraFrameState(GetCameraID(camera), out bool newlyCreated);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (PipelineDiagnostics.LocksHistoryReset(camera)) state.requiresHistoryReset = true;
-#endif
-            // Non-temporal cameras (previews, probe faces) reset every frame, which also zeroes jitter.
-            forceHistoryReset = !CameraRenderPolicy.For(camera.cameraType).temporal || state.requiresHistoryReset
-                || CameraFrameState.ShouldForceHistoryReset(newlyCreated, state.lastSeenFrame, Time.frameCount, camera.cameraType);
+            CameraFrameState state = GetOrCreateCameraFrameState(GetCameraID(camera), out newlyCreated);
+            previousSeenFrame = state.lastSeenFrame;
             state.lastSeenFrame = Time.frameCount;
             state.camera = camera;
             state.preparedThisRender = true;
@@ -512,18 +501,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Every decision of this camera's frame that does not need culling.
-        CameraSetup PrepareCamera(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, CameraFrameState state, bool forceHistoryReset)
+        CameraSetup PrepareCamera(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, CameraFrameState state,
+            bool newlyCreated, int previousSeenFrame)
         {
             CameraRenderPolicy policy = CameraRenderPolicy.For(camera.cameraType);
             ResolvedFrameSettings frameSettings = FrameSettingsUtility.Resolve(pipelineAsset.defaultFrameSettings, pipelineAsset.reflectionFrameSettings,
                 camera.cameraType == CameraType.Reflection, cameraData != null && cameraData.customFrameSettings,
                 cameraData != null ? cameraData.frameSettings : default);
             CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera, pipelineAsset, cameraData);
-            CameraDimensionDescriptor prepared = state.preparedDimensions;
-            if (math.any(prepared.displaySize != dimensions.displaySize) || math.any(prepared.internalSize != dimensions.internalSize) || prepared.superResolution != dimensions.superResolution)
-            {
-                forceHistoryReset = true;
-            }
+            EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, Time.frameCount, dimensions);
+            ETemporalResolve temporalResolve = !policy.temporal ? ETemporalResolve.None
+                : dimensions.superResolution ? ETemporalResolve.SuperResolution : ETemporalResolve.TAA;
             dimensions = dimensions.WithCapacity(state.internalCapacity.Prepare(dimensions.internalSize), state.displayCapacity.Prepare(dimensions.displaySize));
             state.preparedDimensions = dimensions;
             m_RGBuilder.SetTextureCapacity(dimensions.textureCapacity);
@@ -534,16 +522,16 @@ namespace InfinityTech.Rendering.Pipeline
 
             ResolveVolumeSelection(camera, cameras, cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask);
             VolumeManager.instance.Update(state.volumeStack, volumeTrigger, volumeLayerMask);
-            state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, forceHistoryReset);
+            state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
 
-            FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, dimensions);
+            FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, temporalResolve);
             // Declare camera outputs before Unity camera setup and culling.
             if (state.features.ShouldRecord(EFrameFeature.Motion))
             {
                 camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
             }
 
-            var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions,
+            var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
                 policy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera), !CoreUtils.IsSceneLightingDisabled(camera),
                 InfinityDebugDisplaySettings.current.ResolveDebugView(camera), ResolveOutputDecision(camera, state), featureSupport);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -826,16 +814,16 @@ namespace InfinityTech.Rendering.Pipeline
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)
             // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
-            if (context.policy.temporal && context.dimensions.superResolution)
+            if (context.temporalResolve == ETemporalResolve.SuperResolution)
             {
                 ComputeSuperResolution(context);
             }
-            else if (context.policy.temporal)
+            else if (context.temporalResolve == ETemporalResolve.TAA)
             {
                 ComputeAntiAliasing(context);
             }
             RecordCameraOutput(context);
-            context.features.EnsureRequiredProducers(context.policy.temporal && !context.dimensions.superResolution);
+            context.features.EnsureRequiredProducers(context.temporalResolve);
         }
 
         void BeginMeshCamera(Camera camera, EMeshDrawBackendPolicy assetPolicy)
@@ -1231,7 +1219,7 @@ namespace InfinityTech.Rendering.Pipeline
         // States what this camera wants to record. FeatureRegistry.Resolve decides what can record (kernels,
         // dependencies, camera policy), requests dependencies and keeps the reason for anything that cannot.
         FeatureSupportContext ConfigureFrameFeatures(CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
-            in CameraDimensionDescriptor dimensions)
+            ETemporalResolve temporalResolve)
         {
             FrameFeatureSet features = state.features;
             features.Reset();
@@ -1251,10 +1239,14 @@ namespace InfinityTech.Rendering.Pipeline
                 features.Request(EFrameFeature.DBuffer);
             }
 
-            // Without a temporal policy PostProcess reads FoggedSceneColor directly.
-            if (temporal)
+            // Without a temporal resolve PostProcess reads FoggedSceneColor directly.
+            if (temporalResolve == ETemporalResolve.SuperResolution)
             {
-                features.Request(dimensions.superResolution ? EFrameFeature.SuperResolution : EFrameFeature.TAA);
+                features.Request(EFrameFeature.SuperResolution);
+            }
+            else if (temporalResolve == ETemporalResolve.TAA)
+            {
+                features.Request(EFrameFeature.TAA);
             }
 
             if (VolumeComponentActive(stack.GetComponent<SubsurfaceScattering>())) features.Request(EFrameFeature.SubsurfaceScattering);

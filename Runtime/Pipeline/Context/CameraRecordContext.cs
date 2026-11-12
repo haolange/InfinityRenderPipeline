@@ -14,20 +14,26 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly CameraRenderPolicy policy;
         internal readonly ResolvedFrameSettings frameSettings;
         internal readonly CameraDimensionDescriptor dimensions;
+        internal readonly EHistoryReset historyReset;
+        internal readonly ETemporalResolve temporalResolve;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
         internal readonly EDebugView debugView;
         internal readonly OutputTransformDecision outputDecision;
         internal readonly FeatureSupportContext featureSupport;
 
-        internal CameraSetup(Camera camera, CameraFrameState state, CameraRenderPolicy policy,
-            in ResolvedFrameSettings frameSettings, in CameraDimensionDescriptor dimensions, bool postProcessingEnabled, bool sceneLightingEnabled,
-            EDebugView debugView, in OutputTransformDecision outputDecision, in FeatureSupportContext featureSupport)
+        internal bool resetsHistory => historyReset != EHistoryReset.None;
+
+        internal CameraSetup(Camera camera, CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
+            in CameraDimensionDescriptor dimensions, EHistoryReset historyReset, ETemporalResolve temporalResolve, bool postProcessingEnabled,
+            bool sceneLightingEnabled, EDebugView debugView, in OutputTransformDecision outputDecision, in FeatureSupportContext featureSupport)
         {
             this.camera = camera;
             this.state = state;
             this.policy = policy;
             this.frameSettings = frameSettings;
             this.dimensions = dimensions;
+            this.historyReset = historyReset;
+            this.temporalResolve = temporalResolve;
             this.postProcessingEnabled = postProcessingEnabled;
             this.sceneLightingEnabled = sceneLightingEnabled;
             this.debugView = debugView;
@@ -60,6 +66,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly CameraRenderPolicy policy;
         internal readonly ResolvedFrameSettings frameSettings;
         internal readonly CameraDimensionDescriptor dimensions;
+        internal readonly EHistoryReset historyReset;
+        internal readonly ETemporalResolve temporalResolve;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
         internal readonly EDebugView debugView;
         internal readonly OutputTransformDecision outputDecision;
@@ -69,6 +77,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly HistoryCache historyCache;
         internal readonly CameraUniform cameraUniform;
 
+        internal bool resetsHistory => historyReset != EHistoryReset.None;
+
         internal CameraRecordContext(in CameraSetup setup, in CameraScene scene)
         {
             camera = setup.camera;
@@ -76,6 +86,8 @@ namespace InfinityTech.Rendering.Pipeline
             policy = setup.policy;
             frameSettings = setup.frameSettings;
             dimensions = setup.dimensions;
+            historyReset = setup.historyReset;
+            temporalResolve = setup.temporalResolve;
             postProcessingEnabled = setup.postProcessingEnabled;
             sceneLightingEnabled = setup.sceneLightingEnabled;
             debugView = setup.debugView;

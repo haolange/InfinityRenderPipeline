@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = cloud.ambientIntensity;
                 passData.numPrimarySteps = cloud.numPrimarySteps;
                 passData.numLightSteps = cloud.numLightSteps;
-                passData.temporalWeight = (context.cameraUniform.historyReset || historyCreated) ? 0.0f : cloud.temporalWeight;
+                passData.temporalWeight = (context.resetsHistory || historyCreated) ? 0.0f : cloud.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
                 passData.nearPlane = context.camera.nearClipPlane;
