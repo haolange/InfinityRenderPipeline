@@ -72,7 +72,7 @@ Conventions are uniform choices, not principles; static checks enforce them.
 - Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only inside an approved migration (§5). Do not add a divergent spelling or an old-name alias.
 - Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Volume components live in `Runtime/Volume/<domain>/`. One primary type per file unless a pass or feature group is clearer together.
 - Layout follows [Docs~/Project/Style](Docs~/Project/Style) (Page, Type, Flow, Data, Editor, Shaders).
-- Assembly names are `Unity.RenderPipelines.Infinity.*`. Components prefer `[ExecuteAlways]` and `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private` and keep their serialized names (§5).
+- Assemblies are `Unity.RenderPipelines.Infinity.*`. Components use `[ExecuteAlways]`, `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private`, names kept (§5).
 - Shader names start with `InfinityPipeline/`; the tag is `RenderPipeline=InfinityRenderPipeline`; compute files are `Compute_<Feature>.compute`. Infinity LightModes and their pass names are `RasterXXXPass` and match `InfinityPassIDs`; other owned raster shader names use the Raster prefix; Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay. GPU work types are Raster (draw), Compute (dispatch), Copy (transfer), Upload (CPU upload). Pass names come from the pass `ProfilingSampler`.
 - Comments are English. A TODO is `// TODO: <action>`. No large blocks of commented-out code.
 

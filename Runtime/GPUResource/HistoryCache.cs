@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.GPUResource
     // Double-buffered history per id: one committed and one pending acquisition from the resource pool. A replaced or
     // discarded acquisition is retired and returned to the pool with the frame's reuse fence; the pool owns physical
     // lifetime, so history never allocates or destroys a resource itself.
-    public class HistoryCache
+    public class HistoryCache : IFrameTransaction
     {
         class TextureSlot
         {
@@ -260,11 +260,12 @@ namespace InfinityTech.Rendering.GPUResource
             }
         }
 
-        public void FlushRetired() => FlushRetired(default);
+        // A camera-owned history holds only that camera's writes, so a failed camera discards all of them.
+        public void CameraFailed(bool queueUncertain) => RollbackPending();
 
         // Returns every retired acquisition to the pool. The pool reuses or destroys it only after the fence and its own
         // recorded GPU uses complete.
-        internal void FlushRetired(ResourceReuseFence fence)
+        public void FlushRetired(ResourceReuseFence fence)
         {
             // An entry leaves the list before it is returned, so a failed return never repeats an earlier one.
             for (int i = m_RetiredTextures.Count - 1; i >= 0; --i)

@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.LightPipeline
     /// is submitted (CommitFrame). A frame that fails rolls the produced tiles back to invalid, so they re-render.
     /// Slots are reused least-recently-used when the atlas is full; a light that gets no slot renders every frame.
     /// </summary>
-    internal sealed class LocalShadowCache : IDisposable
+    internal sealed class LocalShadowCache : IFrameTransaction, IDisposable
     {
         public static readonly int AtlasID = Shader.PropertyToID("_CachedLocalShadowMapTexture");
 
@@ -363,6 +363,10 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // Production is marked when a pass is queued, and CommitFrame invalidates every recorded but unqueued tile, so a
+        // failed camera needs no action here.
+        public void CameraFailed(bool queueUncertain) { }
+
         // The frame failed: every tile written this frame is undefined.
         public void RollbackPending()
         {
@@ -429,7 +433,7 @@ namespace InfinityTech.Rendering.LightPipeline
             return slot;
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
+        public void FlushRetired(ResourceReuseFence fence) => m_History.FlushRetired(fence);
 
         public LocalShadowCache(ResourcePool pool)
         {

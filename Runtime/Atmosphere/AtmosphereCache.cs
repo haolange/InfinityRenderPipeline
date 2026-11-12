@@ -6,7 +6,7 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal sealed class AtmosphereSharedCache : IDisposable
+    internal sealed class AtmosphereSharedCache : IFrameTransaction, IDisposable
     {
         readonly HistoryCache m_History;
         AtmosphereParameter m_SharedKey;
@@ -137,7 +137,9 @@ namespace InfinityTech.Rendering.Pipeline
             m_IBLProducedThisFrame = false;
         }
 
-        public void DiscardUnproducedPending() => m_History.DiscardUnproducedPending();
+        // Writes land in pending ping-pong targets, never in committed ones, so dropping what no queued pass produced
+        // is safe even when the queue is uncertain; the other cameras' production stays pending.
+        public void CameraFailed(bool queueUncertain) => m_History.DiscardUnproducedPending();
 
         // The committed atmosphere cubemap (6-slice Texture2DArray, CubemapFaceDirection layout), if one was produced.
         public bool TryGetCubemap(out RenderTexture cubemap)
@@ -158,7 +160,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_IBLProducedThisFrame = false;
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default)
+        public void FlushRetired(ResourceReuseFence fence)
         {
             m_History.FlushRetired(fence);
         }
@@ -169,7 +171,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    internal sealed class AtmosphereViewCache : IDisposable
+    internal sealed class AtmosphereViewCache : IFrameTransaction, IDisposable
     {
         readonly HistoryCache m_History;
         AtmosphereViewKey m_Key;
@@ -241,13 +243,16 @@ namespace InfinityTech.Rendering.Pipeline
             m_ProducedThisFrame = false;
         }
 
+        // A camera-owned cache: a failed camera discards all of its pending writes.
+        public void CameraFailed(bool queueUncertain) => RollbackPending();
+
         public void RollbackPending()
         {
             m_History.RollbackPending();
             m_ProducedThisFrame = false;
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default)
+        public void FlushRetired(ResourceReuseFence fence)
         {
             m_History.FlushRetired(fence);
         }

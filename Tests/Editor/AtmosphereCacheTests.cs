@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shared.BeginFrame();
                 m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out _);
                 if (sharedProduced) m_Shared.MarkSharedProduced();
-                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, submitted, 50);
+                InfinityRenderPipeline.CompleteFrameTransaction(new IFrameTransaction[] { m_Shared }, states, submitted);
                 for (int i = 0; i < 2; i++)
                 {
                     bool success = submitted && (i == 0 ? firstSuccess : secondSuccess);
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 var states = new Dictionary<int, CameraFrameState> { { 92, inactive } };
-                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, false, 50);
+                InfinityRenderPipeline.CompleteFrameTransaction(new IFrameTransaction[] { m_Shared }, states, false);
                 Assert.IsFalse(inactive.requiresHistoryReset);
             }
             finally { inactive.Dispose(); if (ownsVolumes) VolumeManager.instance.Deinitialize(); }

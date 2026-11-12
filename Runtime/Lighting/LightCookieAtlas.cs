@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.LightPipeline
     /// committed with a submitted frame; a failed frame invalidates the blocks it wrote. Blocks of textures not used
     /// this frame are evicted least-recently-used when space runs out.
     /// </summary>
-    internal sealed class LightCookieAtlas : IDisposable
+    internal sealed class LightCookieAtlas : IFrameTransaction, IDisposable
     {
         public static readonly int AtlasID = Shader.PropertyToID("_LightCookieAtlasTexture");
         public const int MinBlockSize = 16;
@@ -339,6 +339,16 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // The atlas is written in place. After a queue failure an accepted upload may still write a slot, so its pending
+        // state stays for frame completion to invalidate; otherwise the failed camera's reservations return.
+        public void CameraFailed(bool queueUncertain)
+        {
+            if (!queueUncertain)
+            {
+                DiscardUnproducedPending();
+            }
+        }
+
         // Recording can consume the upload list before any pass reaches its queue. A failed camera must
         // return those reservations so another camera can upload the same texture version this frame.
         // Keep committed contents and accepted production: neither was changed by an unqueued upload.
@@ -421,7 +431,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
+        public void FlushRetired(ResourceReuseFence fence) => m_History.FlushRetired(fence);
 
         public LightCookieAtlas(ResourcePool pool)
         {

@@ -110,6 +110,9 @@ namespace InfinityTech.Rendering.Pipeline
             return cameraUniform.IsCut(camera) ? EHistoryReset.CameraCut : EHistoryReset.None;
         }
 
+        // Camera-owned frame transactions, driven in one order.
+        readonly IFrameTransaction[] m_Transactions;
+
         public CameraFrameState(int cameraId, ResourcePool pool)
         {
             this.cameraId = cameraId;
@@ -119,20 +122,54 @@ namespace InfinityTech.Rendering.Pipeline
             features = new FrameFeatureSet();
             atmosphereViewCache = new AtmosphereViewCache(pool);
             combineLutCache = new CombineLutCache(pool);
+            m_Transactions = new IFrameTransaction[] { historyCache, atmosphereViewCache, combineLutCache };
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
         }
 
+        internal void BeginFrame()
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].BeginFrame();
+            }
+        }
+
+        // This camera threw while recording or executing.
+        internal void CameraFailed(bool queueUncertain)
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].CameraFailed(queueUncertain);
+            }
+            EndFailedFrame();
+        }
+
+        // The frame's submission failed after this camera was prepared.
         internal void RollbackFrame()
         {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].RollbackPending();
+            }
+            EndFailedFrame();
+        }
+
+        void EndFailedFrame()
+        {
             preparedThisRender = false;
-            historyCache.RollbackPending();
             meshMotionHistory.Rollback();
-            atmosphereViewCache.RollbackPending();
-            combineLutCache.RollbackPending();
             executeSucceeded = false;
             requiresHistoryReset = true;
+        }
+
+        internal void FlushRetired(ResourceReuseFence fence)
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].FlushRetired(fence);
+            }
         }
 
         internal bool subsurfaceEnabled;
@@ -159,9 +196,10 @@ namespace InfinityTech.Rendering.Pipeline
             acceptedTemporalColorIsSR = features != null && features.IsProduced(EFrameFeature.SuperResolution);
             acceptedTemporalColor = acceptedTemporalColorIsSR || features != null && features.IsProduced(EFrameFeature.TAA);
             preparedThisRender = false;
-            historyCache.CommitFrame();
-            atmosphereViewCache.CommitFrame();
-            combineLutCache.CommitFrame();
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].CommitFrame();
+            }
             executeSucceeded = false;
             requiresHistoryReset = false;
         }

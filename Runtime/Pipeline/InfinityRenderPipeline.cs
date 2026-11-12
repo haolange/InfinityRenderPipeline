@@ -224,6 +224,8 @@ namespace InfinityTech.Rendering.Pipeline
         private ProbeVolumeIntegration m_ProbeVolumes;
         private ReflectionProbeAtlas m_ReflectionProbeAtlas;
         private ReflectionProbeProduction m_ReflectionProbeProduction;
+        // Pipeline-wide frame transactions, driven in one order by Render (camera-owned ones live in CameraFrameState).
+        IFrameTransaction[] m_FrameTransactions = Array.Empty<IFrameTransaction>();
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         const string RtaoAssetDisabled = "Ray tracing is disabled on the RP Asset.";
@@ -313,6 +315,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ProbeVolumes = new ProbeVolumeIntegration(m_Settings);
                 m_ReflectionProbeAtlas = new ReflectionProbeAtlas(m_ResourcePool);
                 m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas };
+                m_FrameTransactions = new IFrameTransaction[] { m_AtmosphereSharedCache, m_LocalShadowCache, m_LightCookieAtlas, m_ReflectionProbeAtlas };
             }
             catch (Exception constructionFailure)
             {
@@ -353,10 +356,10 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR
                     resources.ResolveShadersAfterImport();
 #endif
-                    m_AtmosphereSharedCache.BeginFrame();
-                    m_LocalShadowCache.BeginFrame();
-                    m_LightCookieAtlas.BeginFrame();
-                    m_ReflectionProbeAtlas.BeginFrame();
+                    for (int i = 0; i < m_FrameTransactions.Length; ++i)
+                    {
+                        m_FrameTransactions[i].BeginFrame();
+                    }
                     for (int i = 0; i < cameras.Count; ++i)
                     {
                         RenderCamera(cameras[i], cameras, cmdBuffer, ref firstCameraException);
@@ -382,9 +385,7 @@ namespace InfinityTech.Rendering.Pipeline
                     else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
                     InfinityRayTracingEnvironment.current?.CompleteFrame(frameValid);
-                    CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
-                    if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); m_ReflectionProbeAtlas.CommitFrame(); }
-                    else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); m_ReflectionProbeAtlas.RollbackPending(); }
+                    CompleteFrameTransaction(m_FrameTransactions, m_CameraStates, frameValid);
                     if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
                     {
                         FlushFrameRetirement(retiredReuseFence);
@@ -459,14 +460,12 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     PipelineDiagnostics.AfterCamera(camera, false, exception);
 #endif
-                    state.RollbackFrame();
-                    m_AtmosphereSharedCache.DiscardUnproducedPending();
-                    // A queue failure may follow an accepted write but precede OnQueued.
-                    // Keep its pending state so frame completion invalidates uncertain contents.
-                    if (!m_RGBuilder.HasQueueSubmissionFailure)
+                    // A queue failure may follow an accepted write but precede OnQueued; each owner decides what it keeps.
+                    bool queueUncertain = m_RGBuilder.HasQueueSubmissionFailure;
+                    state.CameraFailed(queueUncertain);
+                    for (int i = 0; i < m_FrameTransactions.Length; ++i)
                     {
-                        m_LightCookieAtlas.DiscardUnproducedPending();
-                        m_ReflectionProbeAtlas.DiscardUnproducedPending();
+                        m_FrameTransactions[i].CameraFailed(queueUncertain);
                     }
                     if (firstCameraException == null)
                     {
@@ -513,9 +512,7 @@ namespace InfinityTech.Rendering.Pipeline
             state.preparedDimensions = dimensions;
             m_RGBuilder.SetTextureCapacity(dimensions.textureCapacity);
             state.historyCache.SetTextureCapacity(dimensions.textureCapacity);
-            state.historyCache.BeginFrame();
-            state.atmosphereViewCache.BeginFrame();
-            state.combineLutCache.BeginFrame();
+            state.BeginFrame();
 
             ResolveVolumeSelection(camera, cameras, cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask);
             VolumeManager.instance.Update(state.volumeStack, volumeTrigger, volumeLayerMask);
@@ -852,11 +849,13 @@ namespace InfinityTech.Rendering.Pipeline
             return diagnosticOverride ?? debugOverride ?? assetPolicy;
         }
 
-        internal static void CompleteFrameTransaction(AtmosphereSharedCache shared, Dictionary<int, CameraFrameState> states,
-            bool submitted, int frame)
+        internal static void CompleteFrameTransaction(IFrameTransaction[] shared, Dictionary<int, CameraFrameState> states, bool submitted)
         {
-            if (submitted) shared.CommitFrame();
-            else shared.RollbackPending();
+            for (int i = 0; i < shared.Length; ++i)
+            {
+                if (submitted) shared[i].CommitFrame();
+                else shared[i].RollbackPending();
+            }
             foreach (CameraFrameState state in states.Values)
             {
                 if (submitted && state.executeSucceeded) state.CommitFrame();
@@ -868,15 +867,13 @@ namespace InfinityTech.Rendering.Pipeline
         {
             m_RGBuilder.FlushRetiredResources(reuseFence);
             renderContext.lightContext.FlushRetiredBuffers();
-            m_AtmosphereSharedCache.FlushRetired(reuseFence);
-            m_LocalShadowCache.FlushRetired(reuseFence);
-            m_LightCookieAtlas.FlushRetired(reuseFence);
-            m_ReflectionProbeAtlas.FlushRetired(reuseFence);
+            for (int i = 0; i < m_FrameTransactions.Length; ++i)
+            {
+                m_FrameTransactions[i].FlushRetired(reuseFence);
+            }
             foreach (CameraFrameState state in m_CameraStates.Values)
             {
-                state.historyCache.FlushRetired(reuseFence);
-                state.atmosphereViewCache.FlushRetired(reuseFence);
-                state.combineLutCache.FlushRetired(reuseFence);
+                state.FlushRetired(reuseFence);
             }
             renderContext.meshWorld.FlushRetired(reuseFence);
         }

@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.LightPipeline
     /// pass is queued and the frame is submitted; a failed frame invalidates what it wrote. Slots of probes not used
     /// this frame are reused least-recently-used.
     /// </summary>
-    internal sealed class ReflectionProbeAtlas : IDisposable
+    internal sealed class ReflectionProbeAtlas : IFrameTransaction, IDisposable
     {
         public static readonly int AtlasID = Shader.PropertyToID("_ReflectionProbeAtlasTexture");
 
@@ -317,6 +317,16 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // The atlas is written in place. After a queue failure an accepted upload may still write a slot, so its pending
+        // state stays for frame completion to invalidate; otherwise the failed camera's reservations return.
+        public void CameraFailed(bool queueUncertain)
+        {
+            if (!queueUncertain)
+            {
+                DiscardUnproducedPending();
+            }
+        }
+
         // Recording consumes uploads before queue acceptance. Return unproduced reservations
         // after a camera fails so the next camera can filter the same version this frame.
         public void DiscardUnproducedPending()
@@ -397,7 +407,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
+        public void FlushRetired(ResourceReuseFence fence) => m_History.FlushRetired(fence);
 
         public ReflectionProbeAtlas(ResourcePool pool)
         {

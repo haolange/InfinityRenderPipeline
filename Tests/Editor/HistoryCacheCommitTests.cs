@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             m_Cache.GetWriteTexture(11, large);
             Assert.AreEqual(1, m_Cache.RetiredQueuedCount);
             Assert.IsTrue(first.texture.rt.IsCreated());
-            m_Cache.FlushRetired();
+            m_Cache.FlushRetired(default);
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
         }
 
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             Assert.AreSame(original.buffer, m_Cache.GetBuffer(56, small).buffer);
             Assert.IsTrue(original.buffer.IsValid());
             Assert.IsTrue(pending.buffer.IsValid());
-            m_Cache.FlushRetired();
+            m_Cache.FlushRetired(default);
             Assert.IsTrue(m_Pool.BufferUsage(pending.buffer).returned, "Flush returns the discarded acquisition to the pool, which owns its lifetime.");
             Assert.IsFalse(m_Pool.BufferUsage(original.buffer).returned, "Committed history keeps its acquisition.");
             Assert.IsTrue(original.buffer.IsValid());
