@@ -33,6 +33,26 @@ namespace InfinityTech.Rendering.Pipeline
             }
             current?.Tick();
         }
+
+        static readonly Observer s_Observer = new Observer();
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Register() => PipelineDiagnostics.Register(s_Observer);
+
+        sealed class Observer : PipelineFrameObserver
+        {
+            internal override void BeginFrame(List<Camera> cameras) => Tick();
+
+            internal override bool TryOverrideBackend(Camera camera, out EMeshDrawBackendPolicy backend)
+            {
+                bool owns = current != null && current.OwnsCamera(camera);
+                backend = owns ? current.ActiveBackend : default;
+                return owns;
+            }
+        }
     }
 
     internal sealed class VisualLightingSession

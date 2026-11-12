@@ -38,6 +38,15 @@ namespace InfinityTech.Rendering.RenderGraph
         void OnQueueFailed();
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // Graph-wide diagnostics hook: told when each pass has recorded its commands and when its segment was queued.
+    internal interface IRGExecutionObserver
+    {
+        void PassRecorded(string passName);
+        void PassQueued(string passName);
+    }
+#endif
+
     internal abstract class IRGPass
     {
         public int index;

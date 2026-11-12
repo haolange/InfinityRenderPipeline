@@ -56,9 +56,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");
             m_PreviousCapture = RGDebugSession.captureEnabled; m_PreviousPause = RGDebugSession.paused; m_PreviousFocus = EditorWindow.focusedWindow; m_StateCaptured = true;
             m_World = world;
-            m_PreviousBackend = (EMeshDrawBackendPolicy?)typeof(MeshWorld).GetField("m_BackendOverride", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(m_World);
+            m_PreviousBackend = InfinityDebugDisplaySettings.current.mesh.backendOverride;
             m_InitialEntities = m_World.entityCount; m_InitialElements = m_World.elementCount;
-            m_World.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
+            InfinityDebugDisplaySettings.current.mesh.backendOverride = EMeshDrawBackendPolicy.GPUIndirect;
             m_PreviousScene = SceneManager.GetActiveScene();
             m_Root = new GameObject("InfinityVisibility.Integration") { hideFlags = HideFlags.DontSave };
             m_Target = new RenderTexture(128, 128, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat);
@@ -190,7 +190,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (m_Target != null) { m_Target.Release(); UnityEngine.Object.DestroyImmediate(m_Target); }
             if (m_NativeMaterial != null) UnityEngine.Object.DestroyImmediate(m_NativeMaterial);
             if (m_MeshMaterial != null) UnityEngine.Object.DestroyImmediate(m_MeshMaterial);
-            if (m_World != null) m_World.SetBackendOverride(m_PreviousBackend);
+            if (m_World != null) InfinityDebugDisplaySettings.current.mesh.backendOverride = m_PreviousBackend;
             RGDebugSession.captureEnabled = m_PreviousCapture; RGDebugSession.paused = m_PreviousPause;
             if (!m_PreviousCapture) RGDebugSession.Clear();
             if (m_PreviousScene.IsValid() && m_PreviousScene.isLoaded) SceneManager.SetActiveScene(m_PreviousScene);

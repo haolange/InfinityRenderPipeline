@@ -62,10 +62,34 @@ namespace InfinityTech.Rendering.Pipeline
             current?.BeginFrame(cameras);
         }
 
-        internal static void BeforeCamera(Camera camera, CameraFrameState state) => current?.BeforeCamera(camera, state);
-        internal static void CameraResult(Camera camera, bool success, Exception error = null) => current?.CameraResult(camera, success, error);
-        internal static void AtPass(ERenderFaultPoint point, string pass) => current?.AtPoint(point, pass);
-        internal static void AfterSubmit() => current?.AfterSubmit();
+        static readonly Observer s_Observer = new Observer();
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Register()
+        {
+            PipelineDiagnostics.Register(s_Observer);
+            RenderGraph.RGBuilder.executionObserver = s_Observer;
+        }
+
+        sealed class Observer : PipelineFrameObserver, RenderGraph.IRGExecutionObserver
+        {
+            internal override void BeginFrame(List<Camera> cameras) => Tick(cameras);
+            internal override void BeforeCamera(Camera camera, CameraFrameState state, InfinityRenderPipelineAsset asset) => current?.BeforeCamera(camera, state);
+            internal override void AfterCamera(Camera camera, bool executed, Exception error) => current?.CameraResult(camera, executed, error);
+            internal override void AfterNativeSubmit() => current?.AfterSubmit();
+
+            internal override void EndFrame(in PipelineFrameResult result)
+            {
+                current?.EndFrame(result.cameraStates, result.submitted, result.error, result.retiredResourceCount, result.retiredLightBufferCount,
+                    result.canRetireSubmittedResources);
+            }
+
+            public void PassRecorded(string passName) => current?.AtPoint(ERenderFaultPoint.BeforePassQueue, passName);
+            public void PassQueued(string passName) => current?.AtPoint(ERenderFaultPoint.AfterPassQueue, passName);
+        }
     }
 
     internal sealed class RenderFaultSession

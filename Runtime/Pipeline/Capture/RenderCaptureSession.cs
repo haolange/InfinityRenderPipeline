@@ -222,7 +222,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (m_CaptureThisFrame)
             {
                 m_Evidence.status = "Capturing";
-                m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = CameraMotionValidation.current?.CurrentPhase,
+                m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = PipelineDiagnostics.motionPhase,
                     currentJitterUV = InfinityRenderPipeline.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj), previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
                     entity = camera.GetEntityId().ToString(), historyReset = state.cameraUniform.historyReset,
                     postProcessingEnabled = state.postProcessingEnabled, sceneLightingEnabled = state.sceneLightingEnabled,

@@ -50,6 +50,19 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/A.cs: type Host has no reference outside its declaration',
                           'Runtime/A.cs: type Orphan has no reference outside its declaration'], sorted(o[2] for o in out))
 
+    def test_assembly_consumer_needs_internals_and_validation_stays_diagnostic(self):
+        self.write('Runtime/R.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Runtime", "references": []}')
+        self.write('Runtime/AssemblyInfo.cs', '[assembly: InternalsVisibleTo("Unity.RenderPipelines.Infinity.Validation")]')
+        self.write('Runtime/Validation/V.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Validation", "references": ["Unity.RenderPipelines.Infinity.Runtime"], "defineConstraints": ["UNITY_EDITOR || DEVELOPMENT_BUILD"]}')
+        out = []
+        static_check.check_assemblies(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/E.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Editor", "references": ["Unity.RenderPipelines.Infinity.Runtime"]}')
+        self.write('Runtime/Validation/V.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Validation", "references": ["Unity.RenderPipelines.Infinity.Runtime"]}')
+        static_check.check_assemblies(str(self.repo), out)
+        self.assertEqual(2, len(out))
+        self.assertEqual({'assemblies'}, {o[1] for o in out})
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

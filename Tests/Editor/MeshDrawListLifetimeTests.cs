@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         static RGBuilder CreateGraph(MeshWorldFixture fixture, string name, EMeshDrawBackendPolicy backend)
         {
             if (backend == EMeshDrawBackendPolicy.GPUIndirect) MeshTestUtility.RequireGPUIndirect(fixture.world);
-            fixture.world.SetBackendOverride(backend);
+            fixture.world.requestedBackend = backend;
             fixture.world.UpdateResidency();
             var graph = new RGBuilder(name, fixture.pool);
             graph.SetMeshWorld(fixture.world);
@@ -141,7 +141,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 try
                 {
                     // Even a GPU request records blended stages on the CPU backend, which sorts back to front.
-                    fixture.world.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
+                    fixture.world.requestedBackend = EMeshDrawBackendPolicy.GPUIndirect;
                     MeshView view = MeshTestUtility.CameraView(7);
                     Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterTranslucentT0Pass)),
                         "A stage that writes motion fails at record without the view's previous-transform producer.");

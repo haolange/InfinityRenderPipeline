@@ -9,6 +9,7 @@ namespace InfinityTech.Component
         public float amplitude = 1.5f;
         public float period = 4.0f;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         Vector3 m_Origin;
         bool m_HasOrigin;
 
@@ -34,5 +35,6 @@ namespace InfinityTech.Component
             float phase = (period > 1e-3f) ? (Time.time * (2.0f * Mathf.PI / period)) : 0.0f;
             transform.position = m_Origin + transform.right * (Mathf.Sin(phase) * amplitude);
         }
+#endif
     }
 }

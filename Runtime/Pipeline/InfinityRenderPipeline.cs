@@ -129,7 +129,9 @@ namespace InfinityTech.Rendering.Pipeline
             m_PreparedRotation = camera.transform.rotation;
             m_PreparedProjection = camera.projectionMatrix;
             frameIndex = m_CommittedFrames % 8;
-            if (RenderCaptureService.LockHistoryReset(camera)) frameIndex = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (PipelineDiagnostics.LocksHistoryReset(camera)) frameIndex = 0;
+#endif
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
@@ -330,6 +332,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, List<Camera> cameras)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            PipelineDiagnostics.BeginFrame(cameras);
+#endif
+            Exception firstCameraException = null;
+            bool submitted = false;
+            bool frameValid = false;
+
             // Begin FrameContext
             using (new PipelineFrameMeasurement.Scope(false))
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
@@ -338,11 +347,6 @@ namespace InfinityTech.Rendering.Pipeline
                 renderContext.scriptableRenderContext = scriptableRenderContext;
                 m_RGBuilder.RecoverUnjoinedAsync(renderContext, m_ResourcePool.requiresQueueDrain);
                 m_ResourcePool.QueueDrainAccepted();
-                RenderCaptureService.Tick();
-                RenderFaultValidation.Tick(cameras);
-                PostEffectValidation.Tick(cameras);
-                VisualLightingValidation.Tick();
-                CameraMotionValidation.Tick();
 
                 InvokeProxyUpdate();
                 renderContext.meshWorld.UpdateResidency();
@@ -350,9 +354,7 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
                 cmdBuffer.Clear();
 
-                Exception firstCameraException = null;
                 bool contextBegan = false;
-                bool submitted = false;
                 try
                 {
                     BeginContextRendering(scriptableRenderContext, cameras);
@@ -375,7 +377,9 @@ namespace InfinityTech.Rendering.Pipeline
                         CameraRenderPolicy renderPolicy = CameraRenderPolicy.For(camera.cameraType);
 
                         CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
-                        if (RenderCaptureService.LockHistoryReset(camera)) frameState.requiresHistoryReset = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (PipelineDiagnostics.LocksHistoryReset(camera)) frameState.requiresHistoryReset = true;
+#endif
                         int previousLastSeen = frameState.lastSeenFrame;
                         // Non-temporal cameras (previews, probe faces) reset every frame, which also zeroes jitter.
                         bool forceHistoryReset = !renderPolicy.temporal || frameState.requiresHistoryReset
@@ -419,8 +423,9 @@ namespace InfinityTech.Rendering.Pipeline
                             cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, forceHistoryReset);
                             m_CameraUniform = cameraUniform;
                             m_ActiveFrameState = frameState;
-                            RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
-                            RenderFaultValidation.BeforeCamera(camera, frameState);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            PipelineDiagnostics.BeforeCamera(camera, frameState, pipelineAsset);
+#endif
                             frameState.debugView = InfinityDebugDisplaySettings.current.ResolveDebugView(camera);
                             ConfigureFrameFeatures(frameState);
                             // Declare camera outputs before Unity camera setup and culling.
@@ -454,8 +459,7 @@ namespace InfinityTech.Rendering.Pipeline
                                         CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
-                                    renderContext.meshWorld.assetBackendPolicy = pipelineAsset.meshBackendPolicy;
-                                    renderContext.meshWorld.BeginCamera(camera);
+                                    BeginMeshCamera(camera, pipelineAsset.meshBackendPolicy);
                                     mainView = MeshView.FromCamera(camera, ref cullingParameters);
                                     frameState.meshViewKey = mainView.viewKey;
                                 }
@@ -712,14 +716,16 @@ namespace InfinityTech.Rendering.Pipeline
                                     m_RGBuilder.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
                                     m_RGBuilder.Execute(renderContext, cmdBuffer);
                                     frameState.executeSucceeded = true;
-                                    RenderCaptureService.current?.CameraExecuted(camera, frameState.executeSucceeded);
-                                    RenderFaultValidation.CameraResult(camera, true);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                                    PipelineDiagnostics.AfterCamera(camera, true, null);
+#endif
                                 }
                             }
                             catch (Exception exception)
                             {
-                                RenderCaptureService.current?.CameraExecuted(camera, false, exception);
-                                RenderFaultValidation.CameraResult(camera, false, exception);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                                PipelineDiagnostics.AfterCamera(camera, false, exception);
+#endif
                                 frameState.RollbackFrame();
                                 m_AtmosphereSharedCache.DiscardUnproducedPending();
                                 // A queue failure may follow an accepted write but precede OnQueued.
@@ -765,7 +771,7 @@ namespace InfinityTech.Rendering.Pipeline
                         hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
                     };
                 }
-                bool frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
+                frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
                     cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
 
                 try
@@ -778,9 +784,6 @@ namespace InfinityTech.Rendering.Pipeline
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
                     if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); m_ReflectionProbeAtlas.CommitFrame(); }
                     else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); m_ReflectionProbeAtlas.RollbackPending(); }
-                    if (!frameValid)
-                        RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
-                    if (submitted) RenderCaptureService.current?.AfterSubmit();
                     if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
                     {
                         FlushFrameRetirement(retiredReuseFence);
@@ -813,11 +816,42 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                RenderFaultValidation.current?.EndFrame(m_CameraStates, submitted, firstCameraException,
-                    m_RGBuilder.RetiredResourceCount, renderContext.lightContext.RetiredBufferCount, m_RGBuilder.CanRetireSubmittedResources);
-                if (firstCameraException != null)
-                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstCameraException).Throw();
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            PipelineDiagnostics.EndFrame(new PipelineFrameResult(m_CameraStates, frameValid, submitted, firstCameraException,
+                m_RGBuilder.RetiredResourceCount, renderContext.lightContext.RetiredBufferCount, m_RGBuilder.CanRetireSubmittedResources));
+#endif
+            if (firstCameraException != null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstCameraException).Throw();
+        }
+
+        void BeginMeshCamera(Camera camera, EMeshDrawBackendPolicy assetPolicy)
+        {
+            MeshWorld world = renderContext.meshWorld;
+            InfinityDebugDisplaySettingsMesh debug = InfinityDebugDisplaySettings.current.mesh;
+            EMeshDrawBackendPolicy? diagnosticOverride = null;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (PipelineDiagnostics.TryOverrideBackend(camera, out EMeshDrawBackendPolicy diagnosticBackend))
+                diagnosticOverride = diagnosticBackend;
+#endif
+            world.requestedBackend = ResolveMeshBackend(diagnosticOverride, debug.backendOverride, assetPolicy);
+            world.BeginCamera(camera);
+            debug.requestedBackend = world.requestedBackend;
+            debug.actualBackend = world.SelectBackend(MeshPassTable.Depth);
+            debug.backendReason = world.requestedBackend == EMeshDrawBackendPolicy.CPUDirect ? "Requested CPU Direct"
+                : world.gpuBackend.isSupported ? "Indirect drawing supported" : "Indirect drawing unsupported; CPU Direct";
+            debug.entityCount = world.entityCount;
+            debug.elementCount = world.elementCount;
+            debug.passCacheCount = world.stats.passCacheCount;
+            debug.commandCount = world.stats.commandCount;
+        }
+
+        /// <summary>A diagnostics override wins, then the Rendering Debugger, then the asset.</summary>
+        internal static EMeshDrawBackendPolicy ResolveMeshBackend(EMeshDrawBackendPolicy? diagnosticOverride, EMeshDrawBackendPolicy? debugOverride,
+            EMeshDrawBackendPolicy assetPolicy)
+        {
+            return diagnosticOverride ?? debugOverride ?? assetPolicy;
         }
 
         internal static void CompleteFrameTransaction(AtmosphereSharedCache shared, Dictionary<int, CameraFrameState> states,
@@ -1105,7 +1139,9 @@ namespace InfinityTech.Rendering.Pipeline
                 PipelineFrameMeasurement.Dispose();
                 Release(RestoreHdrTonemapping);
             }
-            if (ownsSharedResources) Release(() => RenderCaptureService.current?.Cancel("PipelineDisposed"));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (ownsSharedResources) Release(PipelineDiagnostics.PipelineDisposed);
+#endif
             Release(() => m_RGBuilder?.ClearRecordedGraph());
             if (m_CameraStates != null)
             {

@@ -16,9 +16,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         MeshGPUVisibilityCache m_GPUVisibility;
         readonly List<MeshPassCache> m_PassCaches = new List<MeshPassCache>(16);
         readonly Dictionary<ulong, MeshMotionBinding> m_PreviousTransforms = new Dictionary<ulong, MeshMotionBinding>(8);
-        Camera m_ActiveCamera;
-        EMeshDrawBackendPolicy? m_BackendOverride;
-        internal EMeshDrawBackendPolicy assetBackendPolicy;
+        // Backend the owner requests for the current camera: a diagnostics override, then the Rendering Debugger, then the asset.
+        internal EMeshDrawBackendPolicy requestedBackend;
 
         internal MeshWorldGPU gpu => m_Gpu;
         internal ResourcePool resourcePool => m_ResourcePool;
@@ -76,14 +75,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void BeginCamera(Camera camera)
         {
-            m_ActiveCamera = camera;
             m_PreviousTransforms.Clear();
             stats.BeginCamera(camera);
-            var debug = InfinityDebugDisplaySettings.current.mesh;
-            debug.entityCount = entityCount;
-            debug.elementCount = elementCount;
-            debug.passCacheCount = stats.passCacheCount;
-            debug.commandCount = stats.commandCount;
             m_VisibilityShare.BeginCamera();
         }
 
@@ -105,42 +98,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             return binding;
         }
 
-        public void SetBackendOverride(EMeshDrawBackendPolicy? policy) => m_BackendOverride = policy;
-
         /// <summary>
-        /// Backend for one draw list. Order: explicit camera or test override, then the Rendering Debugger, then the asset.
-        /// Auto and GPU Indirect follow device capability. A pass with <see cref="MeshPassDesc.cpuBackend"/> records on the CPU.
+        /// Backend for one draw list. Auto and GPU Indirect follow device capability. A pass with
+        /// <see cref="MeshPassDesc.cpuBackend"/> records on the CPU.
         /// </summary>
         internal EMeshDrawBackendPolicy SelectBackend(in MeshPassDesc desc)
         {
-            var debug = InfinityDebugDisplaySettings.current.mesh;
-            EMeshDrawBackendPolicy requested = m_BackendOverride ??
-                (m_ActiveCamera != null && RenderCaptureService.HasBackendOverride(m_ActiveCamera)
-                    ? RenderCaptureService.BackendFor(m_ActiveCamera) : debug.backendOverride ?? assetBackendPolicy);
-            EMeshDrawBackendPolicy actual;
-            if (requested == EMeshDrawBackendPolicy.CPUDirect)
-            {
-                actual = EMeshDrawBackendPolicy.CPUDirect;
-                debug.backendReason = "Requested CPU Direct";
-            }
-            else if (!m_GPUBackend.isSupported)
-            {
-                actual = EMeshDrawBackendPolicy.CPUDirect;
-                debug.backendReason = "Indirect drawing unsupported; CPU Direct";
-            }
-            else
-            {
-                actual = EMeshDrawBackendPolicy.GPUIndirect;
-                debug.backendReason = "Indirect drawing supported";
-            }
-            if (desc.cpuBackend && actual != EMeshDrawBackendPolicy.CPUDirect)
-            {
-                actual = EMeshDrawBackendPolicy.CPUDirect;
-                debug.backendReason = "This pass records on the CPU backend";
-            }
-            debug.requestedBackend = requested;
-            debug.actualBackend = actual;
-            return actual;
+            bool gpu = !desc.cpuBackend && requestedBackend != EMeshDrawBackendPolicy.CPUDirect && m_GPUBackend.isSupported;
+            return gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
         }
 
         internal BufferHandle GetGPUVisibilityBuffer(in MeshView view) => m_GPUVisibility.GetBufferHandle(view, entityHighWater);

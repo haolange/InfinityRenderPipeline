@@ -9,8 +9,6 @@ namespace InfinityTech.Component.Utility
         public bool enableInputCapture = true;
         public bool holdRightMouseCapture = false;
 
-        private bool m_inputCaptured;
-
 #if UNITY_EDITOR
         private static Texture2D ms_invisibleCursor = null;
 #endif
@@ -21,9 +19,6 @@ namespace InfinityTech.Component.Utility
         public float moveSpeed = 5f;
         public float sprintSpeed = 50f;
 
-        private float m_yaw;
-        private float m_pitch;
-
         // Frame rate
 
         public float FPSWait = 1000;
@@ -33,14 +28,15 @@ namespace InfinityTech.Component.Utility
         [SerializeField]
         private bool DisableFPSLimit = false;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private bool m_inputCaptured;
+        private float m_yaw;
+        private float m_pitch;
+
         private void Awake()
         {
             enabled = enableInputCapture;
             SetFPSFrame(DisableFPSLimit, -1);
-        }
-
-        private void OnGUI()
-        {
         }
 
         private void OnValidate()
@@ -143,5 +139,6 @@ namespace InfinityTech.Component.Utility
                 Application.targetFrameRate = 60;
             }
         }
+#endif
     }
 }

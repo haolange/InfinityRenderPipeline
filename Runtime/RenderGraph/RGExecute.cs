@@ -464,7 +464,9 @@ namespace InfinityTech.Rendering.RenderGraph
                         PrePassExecute(ref graphContext, info);
                         info.pass.Execute(ref graphContext);
                         PostPassExecute(ref graphContext, ref info);
-                        RenderFaultValidation.AtPass(ERenderFaultPoint.BeforePassQueue, info.pass.name);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        executionObserver?.PassRecorded(info.pass.name);
+#endif
                     }
                     catch (Exception error)
                     {
@@ -578,8 +580,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 graphicsCommands.Clear();
             }
 
-            for (int i = 0; i < passes.Count; ++i)
-                RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, m_PassCompileInfos[passes[i]].pass.name);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (executionObserver != null)
+            {
+                for (int i = 0; i < passes.Count; ++i)
+                {
+                    executionObserver.PassQueued(m_PassCompileInfos[passes[i]].pass.name);
+                }
+            }
+#endif
             for (int i = 0; i < passes.Count; ++i)
             {
                 m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueued();

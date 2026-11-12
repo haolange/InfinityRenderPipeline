@@ -152,6 +152,11 @@ namespace InfinityTech.Rendering.RenderGraph
             return destination;
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // Set by a diagnostics session; null otherwise.
+        internal static IRGExecutionObserver executionObserver;
+#endif
+
         List<IRGPass> m_PassList = new List<IRGPass>(64);
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;

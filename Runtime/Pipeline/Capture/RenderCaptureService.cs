@@ -23,17 +23,11 @@ namespace InfinityTech.Rendering.Pipeline
         internal static bool LockHistoryReset(Camera camera) =>
             current != null && !current.Finished && current.request.lockHistoryReset && current.request.Matches(camera);
 
-        internal static bool HasBackendOverride(Camera camera) =>
-            (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
-            || (current != null && !current.Finished && current.request.Matches(camera));
-
-        internal static MeshPipeline.EMeshDrawBackendPolicy BackendFor(Camera camera)
+        internal static bool TryOverrideBackend(Camera camera, out MeshPipeline.EMeshDrawBackendPolicy backend)
         {
-            if (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
-                return VisualLightingValidation.current.ActiveBackend;
-            if (current == null || current.Finished || !current.request.Matches(camera))
-                return MeshPipeline.EMeshDrawBackendPolicy.Auto;
-            return current.request.meshBackend;
+            bool owns = current != null && !current.Finished && current.request.Matches(camera);
+            backend = owns ? current.request.meshBackend : MeshPipeline.EMeshDrawBackendPolicy.Auto;
+            return owns;
         }
 
         internal static void Start(RenderCaptureRequest request)

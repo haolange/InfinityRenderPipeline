@@ -22,6 +22,7 @@ Checks
   docfacts         no sentence of 80 or more characters appears in both AGENTS.md and ARCHITECTURE.md
   legacyresidue    no [Obsolete], FormerlySerializedAs or Legacy/Deprecated/Compat/Migrate identifier in package code
   unusedtypes      every type declared in Runtime is referenced outside its declaration
+  assemblies       Infinity assemblies grant InternalsVisibleTo to each Infinity consumer; diagnostics exist only in Editor/Development builds
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -552,6 +553,31 @@ def check_unused_types(repo, out):
                 out.append(('ERROR', 'unusedtypes', f'{rel}: type {name} has no reference outside its declaration'))
 
 
+DIAGNOSTICS_CONSTRAINT = 'UNITY_EDITOR || DEVELOPMENT_BUILD'
+
+
+def check_assemblies(repo, out):
+    assemblies = {}
+    for p in all_files(repo, {'.asmdef'}):
+        data = json.loads(read(p))
+        if data.get('name', '').startswith('Unity.RenderPipelines.Infinity.'):
+            assemblies[data['name']] = (p, data)
+    grants = {}
+    for name, (p, _) in assemblies.items():
+        info = os.path.join(os.path.dirname(p), 'AssemblyInfo.cs')
+        grants[name] = set(re.findall(r'InternalsVisibleTo\("([^"]+)"\)', read(info))) if os.path.exists(info) else set()
+    for name, (p, data) in assemblies.items():
+        for reference in data.get('references', []):
+            if reference in assemblies and name not in grants[reference]:
+                out.append(('ERROR', 'assemblies', f'{reference} does not grant InternalsVisibleTo to its consumer {name}'))
+    validation = assemblies.get('Unity.RenderPipelines.Infinity.Validation')
+    if validation and DIAGNOSTICS_CONSTRAINT not in validation[1].get('defineConstraints', []):
+        out.append(('ERROR', 'assemblies', 'Unity.RenderPipelines.Infinity.Validation must be constrained to ' + DIAGNOSTICS_CONSTRAINT))
+    runtime = assemblies.get('Unity.RenderPipelines.Infinity.Runtime')
+    if runtime and 'Unity.RenderPipelines.Infinity.Validation' in runtime[1].get('references', []):
+        out.append(('ERROR', 'assemblies', 'Runtime must not reference the Validation assembly'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -564,7 +590,7 @@ def main():
                      ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
-                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types)):
+                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

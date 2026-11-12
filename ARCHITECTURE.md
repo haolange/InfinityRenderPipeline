@@ -26,12 +26,13 @@ The package owns the render graph, the physical resource pool, image history, th
 | `Runtime/` | `Unity.RenderPipelines.Infinity.Runtime` | Pipeline, passes, mesh and light pipelines, volumes, components |
 | `Editor/` | `Unity.RenderPipelines.Infinity.Editor` | Inspectors, menus, Shader Graph target, stripper, validation |
 | `Editor/Cli/` | `Unity.RenderPipelines.Infinity.Cli.Editor` | Command adapter, compiled only with `INFINITY_UNITY_CLI` |
+| `Runtime/Validation/` | `Unity.RenderPipelines.Infinity.Validation` | Validation scenarios, compiled only for Editor and Development builds |
 | `Editor/ShaderGraph/` | Compiled into `Unity.ShaderGraph.Editor` by one asmref | Shader Graph target only. It refers to Infinity by strings |
 | `Shaders/` | `Unity.RenderPipelines.Infinity.Shaders` | HLSL, surface shaders, compute shaders |
 | `Tests/Editor/` | `Unity.RenderPipelines.Infinity.Tests` | EditMode tests |
 | `Tools/` | None | Offline checks, texture-view generation, refresh and capture scripts |
 
-Runtime code stays in one assembly and is grouped by owner: Core, Scene, Mesh, Terrain, Material, Lighting, Atmosphere, RayTracing, RenderGraph, GPUResource, Volume, Pipeline and Validation. `Runtime/Pipeline/Pass/` groups the partial pipeline by domain: Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug. Volume components live in `Runtime/Volume/` under `InfinityTech.Rendering.Volume`. The atmosphere profile lives in `Runtime/Atmosphere/` under `InfinityTech.Rendering.Atmosphere` and is not a Volume component. `AtmosphereParameter` and `AtmosphereCache` live beside it and stay in `InfinityTech.Rendering.Pipeline`. Shaders use `Shaders/Library`, `Shaders/Surface`, `Shaders/Utility`, `Shaders/Mesh`, `Shaders/RayTracing` and `Shaders/Pass` with the same pass domains. A shader's `InfinityPipeline/` name does not follow its file path.
+Runtime code is grouped by owner: Core, Scene, Mesh, Terrain, Material, Lighting, Atmosphere, RayTracing, RenderGraph, GPUResource, Volume and Pipeline in the runtime assembly, and the validation scenarios in their own assembly. `Runtime/Pipeline/Pass/` groups the partial pipeline by domain: Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug. Volume components live in `Runtime/Volume/` under `InfinityTech.Rendering.Volume`. The atmosphere profile lives in `Runtime/Atmosphere/` under `InfinityTech.Rendering.Atmosphere` and is not a Volume component. `AtmosphereParameter` and `AtmosphereCache` live beside it and stay in `InfinityTech.Rendering.Pipeline`. Shaders use `Shaders/Library`, `Shaders/Surface`, `Shaders/Utility`, `Shaders/Mesh`, `Shaders/RayTracing` and `Shaders/Pass` with the same pass domains. A shader's `InfinityPipeline/` name does not follow its file path.
 
 ## 3. Configuration
 
@@ -213,7 +214,7 @@ A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.dit
 
 ### Backends and shaders
 
-`EMeshDrawBackendPolicy` is Auto, CPUDirect or GPUIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
+`EMeshDrawBackendPolicy` is Auto, CPUDirect or GPUIndirect. A diagnostics override wins, then the Rendering Debugger override, then the asset; the pipeline resolves that once per camera into `MeshWorld.requestedBackend` and writes the debugger's backend state. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
 
 Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshInstanceEntity`, then `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` guarded by generations. A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`; a component whose material lacks it, or lacks a pass its route enables, is logged with its context and not drawn.
 
@@ -362,7 +363,7 @@ Screen-space overlay UI records for a Game camera with no target texture, with `
 
 Editor windows, inspectors and debugger panels are specified in [Docs~/Manual/editor.md](Docs~/Manual/editor.md) and [Docs~/Manual/rendering-debugger.md](Docs~/Manual/rendering-debugger.md). They use Unity Editor IMGUI and Editor styles, plus one UI Toolkit drawer for the default Volume profile. The package does not define a visual design system.
 
-`RenderCaptureService` records normal-frame copies through graph transfers into session-owned staging. It does not replace `camera.targetTexture` and does not call `Camera.Render`. Capture selects an explicit Game camera, or the single active Game camera. Lighting is captured before scene-color ownership moves. Debug view and history are left unchanged.
+Diagnostics exist only in Editor and Development builds. The pipeline reaches them only through `PipelineDiagnostics`, outside the measured frame scope: validation scenarios register `PipelineFrameObserver`s on load, the render graph exposes one `IRGExecutionObserver` slot, and normal-frame capture runs at a fixed place in that dispatcher. Diagnostic components (`LivenessMarker`, `TemporalValidationCamera`, `CameraMovement`) keep their classes and serialized fields in every build, with their behavior compiled only for diagnostics. `RenderCaptureService` records normal-frame copies through graph transfers into session-owned staging. It does not replace `camera.targetTexture` and does not call `Camera.Render`. Capture selects an explicit Game camera, or the single active Game camera. Lighting is captured before scene-color ownership moves. Debug view and history are left unchanged.
 
 Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`, with bearer authentication. They do not save assets. `com.unity.pipeline` screenshot is not a normal-frame capture. Capture does not query a retired semantic name at frame end.
 

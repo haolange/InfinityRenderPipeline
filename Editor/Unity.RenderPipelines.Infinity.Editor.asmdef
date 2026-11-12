@@ -9,6 +9,7 @@
         "Unity.RenderPipelines.Core.Editor",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Infinity.Runtime",
+        "Unity.RenderPipelines.Infinity.Validation",
         "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],

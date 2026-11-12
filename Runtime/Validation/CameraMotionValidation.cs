@@ -48,6 +48,20 @@ namespace InfinityTech.Rendering.Pipeline
 #else
             current?.Tick();
 #endif
+            PipelineDiagnostics.motionPhase = current?.CurrentPhase;
+        }
+
+        static readonly Observer s_Observer = new Observer();
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Register() => PipelineDiagnostics.Register(s_Observer);
+
+        sealed class Observer : PipelineFrameObserver
+        {
+            internal override void BeginFrame(List<Camera> cameras) => Tick();
         }
     }
     internal sealed class CameraMotionSession
