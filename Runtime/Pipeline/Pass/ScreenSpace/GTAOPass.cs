@@ -127,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            GTAOSettings ssao = context.volumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
+            GTAOSettings ssao = context.volumes.screenSpaceAmbientOcclusion.Resolve();
 
             int fullWidth = context.dimensions.internalSize.x;
             int fullHeight = context.dimensions.internalSize.y;

@@ -522,9 +522,12 @@ namespace InfinityTech.Rendering.Pipeline
 
             ResolveVolumeSelection(camera, cameras, cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask);
             VolumeManager.instance.Update(state.volumeStack, volumeTrigger, volumeLayerMask);
+            VolumeSnapshot volumes = VolumeSnapshot.Capture(state.volumeStack);
+            AtmosphereParameter atmosphere = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
+            atmosphere.ThrowIfInvalid();
             state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
 
-            FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, temporalResolve);
+            FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, temporalResolve, volumes);
             // Declare camera outputs before Unity camera setup and culling.
             if (state.features.ShouldRecord(EFrameFeature.Motion))
             {
@@ -533,7 +536,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
                 policy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera), !CoreUtils.IsSceneLightingDisabled(camera),
-                InfinityDebugDisplaySettings.current.ResolveDebugView(camera), ResolveOutputDecision(camera, state), featureSupport);
+                InfinityDebugDisplaySettings.current.ResolveDebugView(camera), ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             PipelineDiagnostics.BeforeCamera(setup);
 #endif
@@ -660,9 +663,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         static CombineLutParameterDescriptor ResolveCombineLutParameters(in CameraRecordContext context)
         {
-            CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(
-                context.volumeStack.GetComponent<FilmTonemap>(),
-                context.volumeStack.GetComponent<ColorGrading>());
+            CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading);
             float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
             {
                 // x is the input value, y the output value
@@ -771,7 +772,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             // PHASE 3: shadow raster (longest ROP window).
-            CullShadowCasters(context);
+            CullShadowCasterSplits(context);
             RasterCascadeShadow(context, cascadeLists);
             RasterLocalShadow(context, localLists);
             ComputeShadowMoments(context);
@@ -1219,11 +1220,10 @@ namespace InfinityTech.Rendering.Pipeline
         // States what this camera wants to record. FeatureRegistry.Resolve decides what can record (kernels,
         // dependencies, camera policy), requests dependencies and keeps the reason for anything that cannot.
         FeatureSupportContext ConfigureFrameFeatures(CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
-            ETemporalResolve temporalResolve)
+            ETemporalResolve temporalResolve, in VolumeSnapshot volumes)
         {
             FrameFeatureSet features = state.features;
             features.Reset();
-            VolumeStack stack = state.volumeStack;
             bool temporal = policy.temporal;
 
             features.Request(EFrameFeature.Depth);
@@ -1249,9 +1249,9 @@ namespace InfinityTech.Rendering.Pipeline
                 features.Request(EFrameFeature.TAA);
             }
 
-            if (VolumeComponentActive(stack.GetComponent<SubsurfaceScattering>())) features.Request(EFrameFeature.SubsurfaceScattering);
+            if (VolumeComponentActive(volumes.subsurfaceScattering)) features.Request(EFrameFeature.SubsurfaceScattering);
 
-            var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
+            var rtao = volumes.rayTracingAmbientOcclusion;
             string rtaoReason = null;
             if (!pipelineAsset.enableRayTrace)
                 rtaoReason = RtaoAssetDisabled;
@@ -1274,14 +1274,14 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 features.Request(EFrameFeature.RTAO);
             }
-            else if (frameSettings.IsEnabled(EFrameSetting.AmbientOcclusion) && ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()))
+            else if (frameSettings.IsEnabled(EFrameSetting.AmbientOcclusion) && ScreenSpaceModeUtility.ShouldRequestGTAO(volumes.screenSpaceAmbientOcclusion))
             {
                 features.Request(EFrameFeature.GTAO);
             }
 
             EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
-                stack.GetComponent<ScreenSpaceReflection>(),
-                stack.GetComponent<ScreenSpaceIndirectDiffuse>());
+                volumes.screenSpaceReflection,
+                volumes.screenSpaceIndirectDiffuse);
             if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceReflection))
             {
                 features.Request(EFrameFeature.SSR);
@@ -1291,11 +1291,11 @@ namespace InfinityTech.Rendering.Pipeline
                 features.Request(EFrameFeature.SSGI);
             }
 
-            if (frameSettings.IsEnabled(EFrameSetting.VolumetricFog) && VolumeComponentActive(stack.GetComponent<VolumetricFog>()))
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricFog) && VolumeComponentActive(volumes.volumetricFog))
             {
                 features.Request(EFrameFeature.VolumetricFog);
             }
-            if (frameSettings.IsEnabled(EFrameSetting.VolumetricClouds) && VolumeComponentActive(stack.GetComponent<VolumetricCloud>()))
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricClouds) && VolumeComponentActive(volumes.volumetricCloud))
             {
                 features.Request(EFrameFeature.VolumetricCloud);
             }
@@ -1326,7 +1326,7 @@ namespace InfinityTech.Rendering.Pipeline
             LightContext lightContext = renderContext.lightContext;
             if (setup.frameSettings.IsEnabled(EFrameSetting.ContactShadows)
                 && (lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0)
-                && VolumeComponentActive(setup.state.volumeStack.GetComponent<ContactShadow>()))
+                && VolumeComponentActive(setup.volumes.contactShadow))
             {
                 features.Request(EFrameFeature.ContactShadow);
             }

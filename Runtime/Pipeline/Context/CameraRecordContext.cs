@@ -19,13 +19,16 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
         internal readonly EDebugView debugView;
         internal readonly OutputTransformDecision outputDecision;
+        internal readonly VolumeSnapshot volumes;
+        internal readonly AtmosphereParameter atmosphere;
         internal readonly FeatureSupportContext featureSupport;
 
         internal bool resetsHistory => historyReset != EHistoryReset.None;
 
         internal CameraSetup(Camera camera, CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
             in CameraDimensionDescriptor dimensions, EHistoryReset historyReset, ETemporalResolve temporalResolve, bool postProcessingEnabled,
-            bool sceneLightingEnabled, EDebugView debugView, in OutputTransformDecision outputDecision, in FeatureSupportContext featureSupport)
+            bool sceneLightingEnabled, EDebugView debugView, in OutputTransformDecision outputDecision, in VolumeSnapshot volumes,
+            in AtmosphereParameter atmosphere, in FeatureSupportContext featureSupport)
         {
             this.camera = camera;
             this.state = state;
@@ -38,6 +41,8 @@ namespace InfinityTech.Rendering.Pipeline
             this.sceneLightingEnabled = sceneLightingEnabled;
             this.debugView = debugView;
             this.outputDecision = outputDecision;
+            this.volumes = volumes;
+            this.atmosphere = atmosphere;
             this.featureSupport = featureSupport;
         }
     }
@@ -71,9 +76,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
         internal readonly EDebugView debugView;
         internal readonly OutputTransformDecision outputDecision;
+        internal readonly VolumeSnapshot volumes;
+        internal readonly AtmosphereParameter atmosphere;
         internal readonly CullingResults cullingResults;
         internal readonly FrameFeatureSet features;
-        internal readonly VolumeStack volumeStack;
         internal readonly HistoryCache historyCache;
         internal readonly CameraUniform cameraUniform;
 
@@ -92,9 +98,10 @@ namespace InfinityTech.Rendering.Pipeline
             sceneLightingEnabled = setup.sceneLightingEnabled;
             debugView = setup.debugView;
             outputDecision = setup.outputDecision;
+            volumes = setup.volumes;
+            atmosphere = setup.atmosphere;
             cullingResults = scene.cullingResults;
             features = setup.state.features;
-            volumeStack = setup.state.volumeStack;
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;
         }

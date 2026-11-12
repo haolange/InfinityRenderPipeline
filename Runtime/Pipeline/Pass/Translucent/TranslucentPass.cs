@@ -118,10 +118,8 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasPyramid = bindPyramid && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out colorPyramid);
             bool hasTranslucentDepth = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.TranslucentDepthBuffer, out translucentDepth);
 
-            float fogMaxDistance = context.volumeStack.GetComponent<InfinityTech.Rendering.Volume.VolumetricFog>().MaxDistance.value;
-            float aerialDistance = pipelineAsset.atmosphericalProfile != null
-                ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
-                : 0.0f;
+            float fogMaxDistance = context.volumes.volumetricFog.MaxDistance.value;
+            float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
 
             // T2 also draws materials that only have Unity's unlit pass.
             RendererListParams listParameters = samplerId == CustomSamplerId.RasterTranslucentT2

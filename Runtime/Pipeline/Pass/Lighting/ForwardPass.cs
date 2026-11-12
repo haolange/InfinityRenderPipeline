@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.atmosphereGGX = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter));
                     passData.atmosphereSH = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH));
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
-                        AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).cubemapSize) - 1;
+                        context.atmosphere.cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                     LightLoopInputs lightLoop = QueryLightLoop();
                     lightLoop.Read(passRef);

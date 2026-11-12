@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            SSRSettings settings = context.volumeStack.GetComponent<ScreenSpaceReflection>().Resolve();
+            SSRSettings settings = context.volumes.screenSpaceReflection.Resolve();
             int width = context.dimensions.internalSize.x;
             int height = context.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);

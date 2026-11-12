@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            var volCloud = context.volumeStack.GetComponent<VolumetricCloud>();
+            var volCloud = context.volumes.volumetricCloud;
             if (!VolumeComponentActive(volCloud))
             {
                 return;
@@ -113,8 +113,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle transmittanceLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT);
-            AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
-            atmosphereParameter.ThrowIfInvalid();
+            AtmosphereParameter atmosphereParameter = context.atmosphere;
 
             using (var passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {

@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.ContactShadow);
-            ContactShadowSettings settings = context.volumeStack.GetComponent<ContactShadow>().Resolve();
+            ContactShadowSettings settings = context.volumes.contactShadow.Resolve();
 
             int width = context.dimensions.internalSize.x;
             int height = context.dimensions.internalSize.y;

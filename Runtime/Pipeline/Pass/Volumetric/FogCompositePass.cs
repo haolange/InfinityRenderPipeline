@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
-            var volFog = context.volumeStack.GetComponent<InfinityTech.Rendering.Volume.VolumetricFog>();
+            var volFog = context.volumes.volumetricFog;
             maxDistance = volFog.MaxDistance.value;
 
             TextureDescriptor foggedDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);

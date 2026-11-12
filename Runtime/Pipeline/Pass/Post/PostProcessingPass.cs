@@ -218,11 +218,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         static PostVolumeState ResolvePostVolumeState(in CameraRecordContext context)
         {
-            VolumeStack stack = context.volumeStack;
-            Exposure exposure = stack.GetComponent<Exposure>();
-            Bloom bloom = stack.GetComponent<Bloom>();
-            Vignette vignette = stack.GetComponent<Vignette>();
-            FilmGrain filmGrain = stack.GetComponent<FilmGrain>();
+            Exposure exposure = context.volumes.exposure;
+            Bloom bloom = context.volumes.bloom;
+            Vignette vignette = context.volumes.vignette;
+            FilmGrain filmGrain = context.volumes.filmGrain;
 
             PostVolumeState state = default;
             state.recordAutoExposure = context.sceneLightingEnabled && ExposureUtility.ShouldRecordAuto(exposure);

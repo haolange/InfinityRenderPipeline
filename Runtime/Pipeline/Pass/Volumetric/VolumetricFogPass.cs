@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            var volFog = context.volumeStack.GetComponent<VolumetricFog>();
+            var volFog = context.volumes.volumetricFog;
             if (!VolumeComponentActive(volFog))
             {
                 return;
@@ -117,9 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool hasSkyView = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT);
             bool hasAerial = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT);
-            float aerialDistance = pipelineAsset.atmosphericalProfile != null
-                ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
-                : 0.0f;
+            float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
 
             using (var passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
@@ -237,7 +235,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            var volFog = context.volumeStack.GetComponent<VolumetricFog>();
+            var volFog = context.volumes.volumetricFog;
             int froxelWidth = Mathf.CeilToInt(context.dimensions.internalSize.x / 8.0f);
             int froxelHeight = Mathf.CeilToInt(context.dimensions.internalSize.y / 8.0f);
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.Resolve().depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);

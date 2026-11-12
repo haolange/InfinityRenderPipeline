@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            SSGISettings settings = context.volumeStack.GetComponent<ScreenSpaceIndirectDiffuse>().Resolve();
+            SSGISettings settings = context.volumes.screenSpaceIndirectDiffuse.Resolve();
             int width = context.dimensions.internalSize.x;
             int height = context.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);

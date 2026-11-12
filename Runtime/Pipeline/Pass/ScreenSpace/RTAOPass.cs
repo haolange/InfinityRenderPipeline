@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RayTracingAmbientOcclusion settings = context.volumeStack.GetComponent<RayTracingAmbientOcclusion>();
+            RayTracingAmbientOcclusion settings = context.volumes.rayTracingAmbientOcclusion;
             if (!VolumeComponentActive(settings))
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is marked to produce but the Volume is inactive.");

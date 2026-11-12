@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
-            var volume = context.volumeStack.GetComponent<SubsurfaceScattering>();
+            var volume = context.volumes.subsurfaceScattering;
             int count = EnsureDiffusionProfileBuffer(pipelineAsset.diffusionProfiles);
             int2 size = context.dimensions.internalSize;
             int2 halfSize = (size + 1) / 2;

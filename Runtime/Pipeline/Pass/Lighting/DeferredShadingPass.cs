@@ -82,8 +82,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle atmosphereGGXPrefilter = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
             RGBufferHandle atmosphereSkySH = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
-            AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
-            atmosphereParameter.ThrowIfInvalid();
+            AtmosphereParameter atmosphereParameter = context.atmosphere;
 
 
             var indirectDescriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal)

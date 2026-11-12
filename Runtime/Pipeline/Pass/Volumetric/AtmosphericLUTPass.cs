@@ -200,13 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAtmosphericLUT(in CameraRecordContext context)
         {
-            if (pipelineAsset.atmosphericalProfile == null)
-            {
-                throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required. Atmosphere lives only on the profile.");
-            }
-
-            AtmosphereParameter parameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
-            parameter.ThrowIfInvalid();
+            AtmosphereParameter parameter = context.atmosphere;
 
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
             Vector3 cameraPosition = context.camera.transform.position;
