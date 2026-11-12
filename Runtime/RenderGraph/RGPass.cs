@@ -326,18 +326,23 @@ namespace InfinityTech.Rendering.RenderGraph
 
     static class RGPassGuard
     {
+        internal const string ReadTexture = "RGPass.ReadTexture";
+        internal const string WriteTexture = "RGPass.WriteTexture";
+        internal const string ReadBuffer = "RGPass.ReadBuffer";
+        internal const string WriteBuffer = "RGPass.WriteBuffer";
+
         public static void RequireTexture(RGResourceFactory factory, in RGTextureHandle textureHandle, string api)
         {
             if (!textureHandle.IsValid())
-                throw new InvalidOperationException($"RGPass.{api} received an invalid RGTextureHandle.");
-            factory.RequireLive(textureHandle.handle, "RGPass." + api);
+                throw new InvalidOperationException(api + " received an invalid RGTextureHandle.");
+            factory.RequireLive(textureHandle.handle, api);
         }
 
         public static void RequireBuffer(RGResourceFactory factory, in RGBufferHandle bufferHandle, string api)
         {
             if (!bufferHandle.IsValid())
-                throw new InvalidOperationException($"RGPass.{api} received an invalid RGBufferHandle.");
-            factory.RequireLive(bufferHandle.handle, "RGPass." + api);
+                throw new InvalidOperationException(api + " received an invalid RGBufferHandle.");
+            factory.RequireLive(bufferHandle.handle, api);
         }
     }
 
@@ -347,7 +352,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public static RGTextureHandle ReadTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
-            RGPassGuard.RequireTexture(factory, input, nameof(ReadTexture));
+            RGPassGuard.RequireTexture(factory, input, RGPassGuard.ReadTexture);
             NoteSampled(pass, input.handle);
             pass.AddResourceRead(input.handle);
             return input;
@@ -355,7 +360,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public static RGTextureHandle WriteTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
-            RGPassGuard.RequireTexture(factory, input, nameof(WriteTexture));
+            RGPassGuard.RequireTexture(factory, input, RGPassGuard.WriteTexture);
             NoteSampled(pass, input.handle);
             pass.AddResourceWrite(input.handle);
             return input;
@@ -363,14 +368,14 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public static RGBufferHandle ReadBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferHandle bufferHandle)
         {
-            RGPassGuard.RequireBuffer(factory, bufferHandle, nameof(ReadBuffer));
+            RGPassGuard.RequireBuffer(factory, bufferHandle, RGPassGuard.ReadBuffer);
             pass.AddResourceRead(bufferHandle.handle);
             return bufferHandle;
         }
 
         public static RGBufferHandle WriteBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferHandle bufferHandle)
         {
-            RGPassGuard.RequireBuffer(factory, bufferHandle, nameof(WriteBuffer));
+            RGPassGuard.RequireBuffer(factory, bufferHandle, RGPassGuard.WriteBuffer);
             pass.AddResourceWrite(bufferHandle.handle);
             return bufferHandle;
         }

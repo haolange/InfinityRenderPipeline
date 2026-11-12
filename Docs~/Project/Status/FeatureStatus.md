@@ -1,5 +1,33 @@
 # Feature status
 
+### Sort key and record allocations — 2026-11-12 (macOS Metal)
+
+Three changes, one goal: the steady frame stops allocating just to name a failure or to carry a list that already exists.
+
+**Sort.** Every mesh draw list orders by one `ulong`, then command, entity and fade. Opaque, depth, shadow and motion use `StateSortKey`: fading sits in bit 63, the command state sits below it. Shader rank uses 15 bits so bit 63 stays clear. Translucent color uses `TranslucentColorSortKey`: priority in the high 16 bits, distance from far to near in the low 32. T0, T1 and T2 stay on the CPU. Burst cannot enter a generic job, so the schedule is two concrete jobs, `MeshDrawGatherStateJob` and `MeshDrawGatherTranslucentColorJob`.
+
+**Names and lists.** A resource check keeps a constant API name and builds the failure sentence only when the check fails. Preparing mesh lists does not allocate a `params` array. Compile clears one segment dictionary instead of creating a new one. A shadow moment atlas is sampled only when that camera produced it (`INFINITY_CASCADE_SHADOW_MOMENTS`, `INFINITY_LOCAL_SHADOW_MOMENTS`); a missing atlas is not bound and is not `Texture2D.blackTexture`. The four fixed ray-traced occlusion reasons are static strings. In-pass markers take a `ProfilingSampler` from `CachedSampler`, created once per name.
+
+**Uploads.** Cookie and probe uploads copy into one array on the atlas. The array doubles when it is too small and is reused by the next camera after this camera's queue observer runs. The two observers are created with the pipeline. A check of several compute kernels receives a static name array. A realtime probe is still filtered every frame it is visible. A cookie is still uploaded only when its texture changes.
+
+**Checked.** Unity 6000.6.0f1, task mirror, Metal. Static check: 0 error, 0 warning. `dotnet build` of the runtime and test projects: 0 error.
+
+- Sort: `MeshDrawListTests`, `MeshLodTests` and `SelectBackend_FollowsOverrideThenDebuggerThenAsset_AndRecordsCpuPassesOnCpu` were 17 passed and 0 failed after the translucent shader imported. The first run failed because `InfinityLit-Instanced` had not compiled `RasterTranslucentT0Pass` yet. The play log did not report the gather jobs as unknown Burst entry points.
+- Names and lists: `RenderGraphCompileTests`, `FeatureRegistryTests`, `ShadowSamplingGpuTests`, `ShadowMomentGpuTests` and `DeferredLightLoopGpuTests` were 47 passed and 0 failed after import. The first import failed on missing shadow kernels. `FilterShadow` warned that a variable was uninitialized; that path is now `FilterShadowDepth` with one return. A later shader import exited 0 and printed no shader warning.
+- Uploads: `LightCookieAtlasTests`, `LightCookieTransactionTests`, `ReflectionProbeTests` and `ReflectionProbeTransactionTests` were 35 passed and 0 failed, including both `TakeUploads_ReusesTheArray_AndMarksProduced` tests.
+
+Play mode opened `Scene_Spazon`. The Game view showed the courtyard, about 1.0M triangles, 579 draw calls and 586 instances. The new console line was the one present-format log. A Unity search-indexer `ArgumentOutOfRangeException` was outside InfinityRP.
+
+**Not checked.** `infinity_runtime_probe_start` did not run. `unity status` stayed `STATUS_PIPELINE_LOAD_PENDING`, so there is no 5/20/60 probe window, no `allocatedViewCount` and no separate CPU Direct and GPU Indirect probe. One Editor RSS sample taken around the sort change (1,472,416 KB to 1,477,952 KB over 60 seconds) is the whole Editor, not a probe live set. Player, iOS, D3D12 and Vulkan were not run. The owned Editor was not attached.
+
+### State order and render-graph scratch — 2026-11-11 (macOS Metal)
+
+`ESortMode` is gone. Opaque mesh passes submit commands in `stateKey` order on both backends and do not order instances by distance. Translucent color passes still order by priority then distance on the CPU. Render-graph compile scratch and in-pass markers are reused after the first camera instead of allocated every frame.
+
+Unity 6000.6.0f1, task mirror, Null device. `MeshDrawListTests` and `MeshPassCacheTests`: 13 passed, 1 skipped (`Compute shaders with GPU readback are not supported on this device`). `StateBuild_MergesOneCommandAcrossDistances` and the translucent distance-order test passed. `dotnet build` of the runtime and test projects: 0 error. Static check: 0 error, 0 warning. The baseline on the same filter, before this change, was 5 passed, 1 failed (the translucent shader pass was not imported yet), 1 skipped.
+
+TODO(UNVERIFIED): Game-window frames and 5/20/60 second memory. The owned Editor was not attached, and batchmode has no Game view for the runtime probe. Player, iOS, D3D12 and Vulkan were not run. Draw-call reduction is not a GPU-time result.
+
 ### Mesh preparation record order — 2026-11-11 (macOS Metal)
 
 Recorded order is the execution order. Nonempty lists upload and compact after their culling pass and before the raster block. Marker names and the one verified `Scene_Spazon` frame are in [the record](../../Record/Evidence/MeshPrepOrder-2026-11-11/Results.md).

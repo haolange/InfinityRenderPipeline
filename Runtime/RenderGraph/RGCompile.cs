@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -121,6 +122,32 @@ namespace InfinityTech.Rendering.RenderGraph
             public int index;
         }
 
+        readonly List<RGCullItem> m_CullStack = new List<RGCullItem>(32);
+        readonly List<RGAliasItem> m_AliasItems = new List<RGAliasItem>(32);
+        readonly List<int> m_AliasMembers = new List<int>(8);
+        readonly List<int> m_AliasSlotFree = new List<int>(8);
+        readonly List<(int first, int last)> m_SegmentRanges = new List<(int first, int last)>(8);
+        readonly List<int> m_ProfileIndices = new List<int>(8);
+        readonly HashSet<int> m_DuplicateSeen = new HashSet<int>();
+        readonly List<int> m_SegmentPasses = new List<int>(16);
+        readonly Dictionary<long, int> m_SegmentSlots = new Dictionary<long, int>();
+        readonly Stack<RGProfileScope> m_ScopePool = new Stack<RGProfileScope>(8);
+        Comparison<int> m_AliasOrder;
+        bool[] m_AliasUsed = Array.Empty<bool>();
+        NativeList<int> m_CycleEdges;
+        int[] m_CycleDegree = Array.Empty<int>();
+        int[] m_CycleFill = Array.Empty<int>();
+        int[] m_CycleStart = Array.Empty<int>();
+        byte[] m_CycleColor = Array.Empty<byte>();
+
+        void DisposeCompileScratch()
+        {
+            if (m_CycleEdges.IsCreated)
+            {
+                m_CycleEdges.Dispose();
+            }
+        }
+
         void CompilePass()
         {
             RunLiveness();
@@ -206,20 +233,20 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void CullingUnusedPass()
         {
-            var stack = new List<RGCullItem>(32);
+            m_CullStack.Clear();
             for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 DynamicArray<RGResourceCompileInfo> resources = m_ResourcesCompileInfos[type];
                 for (int i = 0; i < resources.size; ++i)
                 {
                     if (resources[i].refCount == 0)
-                        stack.Add(new RGCullItem { type = type, index = i });
+                        m_CullStack.Add(new RGCullItem { type = type, index = i });
                 }
             }
 
-            for (int cursor = 0; cursor < stack.Count; ++cursor)
+            for (int cursor = 0; cursor < m_CullStack.Count; ++cursor)
             {
-                RGCullItem item = stack[cursor];
+                RGCullItem item = m_CullStack[cursor];
                 ref RGResourceCompileInfo unused = ref m_ResourcesCompileInfos[item.type][item.index];
                 if (unused.cullClosed)
                 {
@@ -238,20 +265,20 @@ namespace InfinityTech.Rendering.RenderGraph
                     for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                     {
                         foreach (RGResourceHandle resource in pass.resourceReadLists[type])
-                            CloseRead(type, resource.index, stack);
+                            CloseRead(type, resource.index);
                         foreach (int resource in pass.temporalResourceList[type])
-                            CloseRead(type, resource, stack);
+                            CloseRead(type, resource);
                     }
                 }
             }
         }
 
-        void CloseRead(int type, int index, List<RGCullItem> stack)
+        void CloseRead(int type, int index)
         {
             ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][index];
             info.refCount--;
             if (info.refCount == 0 && !info.cullClosed)
-                stack.Add(new RGCullItem { type = type, index = index });
+                m_CullStack.Add(new RGCullItem { type = type, index = index });
         }
 
         void UpdatePassSynchronization(ref RGPassCompileInfo currentPassInfo, ref RGPassCompileInfo producerPassInfo, int currentPassIndex, int lastProducer, ref int lastSyncIndex)
@@ -774,7 +801,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void PlanAliases(bool simulateHoist)
         {
-            var items = new List<RGAliasItem>(32);
+            m_AliasItems.Clear();
             for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 for (int index = 0; index < m_ResourcesCompileInfos[type].size; ++index)
@@ -798,42 +825,47 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         continue;
                     }
-                    items.Add(new RGAliasItem { type = type, index = index, start = start, end = end });
+                    m_AliasItems.Add(new RGAliasItem { type = type, index = index, start = start, end = end });
                     m_ResourcesCompileInfos[type][index].estimatedBytes = EstimateResourceBytes(type, index);
                 }
             }
 
-            int groupId = 0;
-            var used = new bool[items.Count];
-            for (int i = 0; i < items.Count; ++i)
+            if (m_AliasUsed.Length < m_AliasItems.Count)
             {
-                if (used[i])
+                Array.Resize(ref m_AliasUsed, Math.Max(m_AliasItems.Count, Math.Max(8, m_AliasUsed.Length * 2)));
+            }
+            Array.Clear(m_AliasUsed, 0, m_AliasItems.Count);
+            if (m_AliasOrder == null)
+            {
+                m_AliasOrder = CompareAliasMembers;
+            }
+
+            int groupId = 0;
+            for (int i = 0; i < m_AliasItems.Count; ++i)
+            {
+                if (m_AliasUsed[i])
                 {
                     continue;
                 }
-                var members = new List<int>(4);
-                for (int j = i; j < items.Count; ++j)
+                m_AliasMembers.Clear();
+                for (int j = i; j < m_AliasItems.Count; ++j)
                 {
-                    if (used[j] || !SamePhysical(items[i], items[j]))
+                    if (m_AliasUsed[j] || !SamePhysical(m_AliasItems[i], m_AliasItems[j]))
                     {
                         continue;
                     }
-                    used[j] = true;
-                    members.Add(j);
+                    m_AliasUsed[j] = true;
+                    m_AliasMembers.Add(j);
                 }
-                members.Sort((a, b) =>
+                m_AliasMembers.Sort(m_AliasOrder);
+                m_AliasSlotFree.Clear();
+                for (int m = 0; m < m_AliasMembers.Count; ++m)
                 {
-                    int start = items[a].start.CompareTo(items[b].start);
-                    return start != 0 ? start : items[a].end.CompareTo(items[b].end);
-                });
-                var slotFree = new List<int>(4);
-                foreach (int member in members)
-                {
-                    RGAliasItem item = items[member];
+                    RGAliasItem item = m_AliasItems[m_AliasMembers[m]];
                     int slot = -1;
-                    for (int s = 0; s < slotFree.Count; ++s)
+                    for (int s = 0; s < m_AliasSlotFree.Count; ++s)
                     {
-                        if (slotFree[s] <= item.start)
+                        if (m_AliasSlotFree[s] <= item.start)
                         {
                             slot = s;
                             break;
@@ -841,12 +873,12 @@ namespace InfinityTech.Rendering.RenderGraph
                     }
                     if (slot < 0)
                     {
-                        slot = slotFree.Count;
-                        slotFree.Add(item.end + 1);
+                        slot = m_AliasSlotFree.Count;
+                        m_AliasSlotFree.Add(item.end + 1);
                     }
                     else
                     {
-                        slotFree[slot] = item.end + 1;
+                        m_AliasSlotFree[slot] = item.end + 1;
                     }
                     ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[item.type][item.index];
                     info.aliasSlot = slot;
@@ -854,6 +886,12 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 groupId++;
             }
+        }
+
+        int CompareAliasMembers(int a, int b)
+        {
+            int start = m_AliasItems[a].start.CompareTo(m_AliasItems[b].start);
+            return start != 0 ? start : m_AliasItems[a].end.CompareTo(m_AliasItems[b].end);
         }
 
         int CreatePass(int type, int index)
@@ -920,7 +958,7 @@ namespace InfinityTech.Rendering.RenderGraph
             int segment = -1;
             bool open = false;
             bool openAsync = false;
-            var slotSegment = new Dictionary<long, int>();
+            m_SegmentSlots.Clear();
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
                 ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
@@ -929,7 +967,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     info.segment = -1;
                     continue;
                 }
-                bool split = !open || info.enableAsyncCompute != openAsync || info.syncToPassIndex >= 0 || AliasConflict(passIndex, segment, slotSegment);
+                bool split = !open || info.enableAsyncCompute != openAsync || info.syncToPassIndex >= 0 || AliasConflict(passIndex, segment, m_SegmentSlots);
                 if (split)
                 {
                     segment++;
@@ -937,7 +975,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     openAsync = info.enableAsyncCompute;
                 }
                 info.segment = segment;
-                NoteSlotReleases(passIndex, segment, slotSegment);
+                NoteSlotReleases(passIndex, segment, m_SegmentSlots);
                 if (info.needGraphicsFence && info.syncFromPassIndex >= 0)
                     open = false;
             }
@@ -1007,7 +1045,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 return;
             }
-            var ranges = new List<(int first, int last)>();
+            m_SegmentRanges.Clear();
             for (int i = 0; i < m_NativeGroups.Count; ++i)
             {
                 RGNativePassGroup group = m_NativeGroups[i];
@@ -1027,7 +1065,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     }
                     if (passSegment != runSegment)
                     {
-                        ranges.Add((runFirst, previous));
+                        m_SegmentRanges.Add((runFirst, previous));
                         runFirst = passIndex;
                         runSegment = passSegment;
                     }
@@ -1035,7 +1073,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (runFirst >= 0)
                 {
-                    ranges.Add((runFirst, previous));
+                    m_SegmentRanges.Add((runFirst, previous));
                 }
             }
             for (int i = 0; i < m_NativeGroups.Count; ++i)
@@ -1045,7 +1083,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
                 m_PassCompileInfos[passIndex].mergeGroup = -1;
             int active = 0;
-            foreach ((int first, int last) range in ranges)
+            foreach ((int first, int last) range in m_SegmentRanges)
             {
                 RGNativePassGroup group = active < m_NativeGroups.Count ? m_NativeGroups[active] : RentGroup();
                 group.Clear();
@@ -1258,42 +1296,42 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int scopeIndex = 0; scopeIndex < m_ProfileScopes.Count; ++scopeIndex)
             {
                 RGProfileScope scope = m_ProfileScopes[scopeIndex];
-                var indices = new List<int>(scope.passes.Count);
+                m_ProfileIndices.Clear();
                 foreach (IRGPass pass in scope.passes)
                 {
                     if (pass.index < 0 || pass.index >= m_PassCompileInfos.size || m_PassCompileInfos[pass.index].culled)
                     {
                         continue;
                     }
-                    if (!indices.Contains(pass.index))
+                    if (!m_ProfileIndices.Contains(pass.index))
                     {
-                        indices.Add(pass.index);
+                        m_ProfileIndices.Add(pass.index);
                     }
                 }
-                if (indices.Count == 0)
+                if (m_ProfileIndices.Count == 0)
                 {
                     continue;
                 }
-                indices.Sort();
-                int runStart = indices[0];
-                int previous = indices[0];
-                for (int i = 1; i <= indices.Count; ++i)
+                m_ProfileIndices.Sort();
+                int runStart = m_ProfileIndices[0];
+                int previous = m_ProfileIndices[0];
+                for (int i = 1; i <= m_ProfileIndices.Count; ++i)
                 {
-                    bool boundary = i == indices.Count
-                        || indices[i] != previous + 1
-                        || m_PassCompileInfos[indices[i]].segment != m_PassCompileInfos[previous].segment;
+                    bool boundary = i == m_ProfileIndices.Count
+                        || m_ProfileIndices[i] != previous + 1
+                        || m_PassCompileInfos[m_ProfileIndices[i]].segment != m_PassCompileInfos[previous].segment;
                     if (boundary)
                     {
                         m_PassCompileInfos[runStart].beginSamples.Add(scope.sampler);
                         m_PassCompileInfos[previous].endSamples.Add(scope.sampler);
-                        if (i < indices.Count)
+                        if (i < m_ProfileIndices.Count)
                         {
-                            runStart = indices[i];
+                            runStart = m_ProfileIndices[i];
                         }
                     }
-                    if (i < indices.Count)
+                    if (i < m_ProfileIndices.Count)
                     {
-                        previous = indices[i];
+                        previous = m_ProfileIndices[i];
                     }
                 }
             }
@@ -1407,22 +1445,36 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void ValidateDuplicates(IRGPass pass)
         {
-            var seen = new HashSet<int>();
+            m_DuplicateSeen.Clear();
             foreach (RGResourceHandle handle in pass.sampledResources)
             {
                 int key = (handle.iType << 24) ^ (handle.index << 8) ^ handle.generation;
-                if (!seen.Add(key))
+                if (!m_DuplicateSeen.Add(key))
                     throw new InvalidOperationException($"'{pass.name}' declares {m_Resources.GetResourceName(handle)} more than once.");
+            }
+        }
+
+        void EnsureCycleStorage(int passCount)
+        {
+            if (!m_CycleEdges.IsCreated)
+            {
+                m_CycleEdges = new NativeList<int>(64, Allocator.Persistent);
+            }
+            if (m_CycleDegree.Length < passCount)
+            {
+                int capacity = Math.Max(passCount, Math.Max(8, m_CycleDegree.Length * 2));
+                m_CycleDegree = new int[capacity];
+                m_CycleFill = new int[capacity];
+                m_CycleColor = new byte[capacity];
+                m_CycleStart = new int[capacity + 1];
             }
         }
 
         void ValidateCycles()
         {
-            var edges = new List<int>[m_PassCompileInfos.size];
-            for (int i = 0; i < edges.Length; ++i)
-            {
-                edges[i] = new List<int>(4);
-            }
+            int passCount = m_PassCompileInfos.size;
+            EnsureCycleStorage(passCount);
+            Array.Clear(m_CycleDegree, 0, passCount);
             for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 for (int index = 0; index < m_ResourcesCompileInfos[type].size; ++index)
@@ -1440,41 +1492,66 @@ namespace InfinityTech.Rendering.RenderGraph
                             {
                                 continue;
                             }
-                            if (consumer > producer)
-                            {
-                                edges[producer].Add(consumer);
-                            }
-                            else
-                            {
-                                edges[consumer].Add(producer);
-                            }
+                            m_CycleDegree[consumer > producer ? producer : consumer]++;
                         }
                     }
                 }
             }
-            var color = new byte[edges.Length];
-            for (int i = 0; i < edges.Length; ++i)
+            m_CycleStart[0] = 0;
+            for (int i = 0; i < passCount; ++i)
             {
-                if (color[i] == 0)
+                m_CycleStart[i + 1] = m_CycleStart[i] + m_CycleDegree[i];
+                m_CycleFill[i] = m_CycleStart[i];
+            }
+            m_CycleEdges.ResizeUninitialized(m_CycleStart[passCount]);
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+            {
+                for (int index = 0; index < m_ResourcesCompileInfos[type].size; ++index)
                 {
-                    WalkCycle(i, edges, color);
+                    ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][index];
+                    foreach (int producer in info.producers)
+                    {
+                        if (m_PassCompileInfos[producer].culled)
+                        {
+                            continue;
+                        }
+                        foreach (int consumer in info.consumers)
+                        {
+                            if (consumer == producer || m_PassCompileInfos[consumer].culled)
+                            {
+                                continue;
+                            }
+                            int from = consumer > producer ? producer : consumer;
+                            int to = consumer > producer ? consumer : producer;
+                            m_CycleEdges[m_CycleFill[from]++] = to;
+                        }
+                    }
+                }
+            }
+            Array.Clear(m_CycleColor, 0, passCount);
+            for (int i = 0; i < passCount; ++i)
+            {
+                if (m_CycleColor[i] == 0)
+                {
+                    WalkCycle(i);
                 }
             }
         }
 
-        void WalkCycle(int passIndex, List<int>[] edges, byte[] color)
+        void WalkCycle(int passIndex)
         {
-            color[passIndex] = 1;
-            foreach (int next in edges[passIndex])
+            m_CycleColor[passIndex] = 1;
+            for (int edge = m_CycleStart[passIndex]; edge < m_CycleStart[passIndex + 1]; ++edge)
             {
-                if (color[next] == 1)
+                int next = m_CycleEdges[edge];
+                if (m_CycleColor[next] == 1)
                     throw new InvalidOperationException($"Render graph has a cross-pass resource cycle involving '{m_PassCompileInfos[passIndex].pass.name}' and '{m_PassCompileInfos[next].pass.name}'.");
-                if (color[next] == 0)
+                if (m_CycleColor[next] == 0)
                 {
-                    WalkCycle(next, edges, color);
+                    WalkCycle(next);
                 }
             }
-            color[passIndex] = 2;
+            m_CycleColor[passIndex] = 2;
         }
 
         internal void NoteProfiledPass(IRGPass pass)
@@ -1489,7 +1566,9 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 return;
             }
-            var scope = new RGProfileScope { sampler = sampler };
+            RGProfileScope scope = m_ScopePool.Count > 0 ? m_ScopePool.Pop() : new RGProfileScope();
+            scope.sampler = sampler;
+            scope.passes.Clear();
             m_ProfileScopes.Add(scope);
             m_OpenScopes.Add(scope);
         }

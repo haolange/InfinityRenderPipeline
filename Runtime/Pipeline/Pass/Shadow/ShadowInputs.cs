@@ -12,6 +12,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_LocalShadowMap = Shader.PropertyToID("SRV_LocalShadowMap");
         internal static readonly int SRV_CascadeShadowMoments = Shader.PropertyToID("SRV_CascadeShadowMoments");
         internal static readonly int SRV_LocalShadowMoments = Shader.PropertyToID("SRV_LocalShadowMoments");
+        internal static readonly GlobalKeyword CascadeMoments = GlobalKeyword.Create("INFINITY_CASCADE_SHADOW_MOMENTS");
+        internal static readonly GlobalKeyword LocalMoments = GlobalKeyword.Create("INFINITY_LOCAL_SHADOW_MOMENTS");
         internal static readonly int LocalShadowMapSize = Shader.PropertyToID("_LocalShadowMapSize");
         internal static readonly int ShadowMomentParams = Shader.PropertyToID("_ShadowMomentParams");
         internal static readonly int ShadowmaskMode = Shader.PropertyToID("_InfinityShadowmaskMode");
@@ -78,10 +80,14 @@ namespace InfinityTech.Rendering.Pipeline
 
         public readonly void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
+            commands.SetKeyword(ShadowShaderIDs.CascadeMoments, hasCascadeMoments);
+            commands.SetKeyword(ShadowShaderIDs.LocalMoments, hasLocalMoments);
             commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMap);
             commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMap, localMap);
-            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMoments, hasCascadeMoments ? (RenderTargetIdentifier)cascadeMoments : Texture2D.blackTexture);
-            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMoments, hasLocalMoments ? (RenderTargetIdentifier)localMoments : Texture2D.blackTexture);
+            if (hasCascadeMoments)
+                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMoments);
+            if (hasLocalMoments)
+                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowRectBuffer, localSlices);
             commands.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, cascadeCount);
@@ -99,10 +105,14 @@ namespace InfinityTech.Rendering.Pipeline
 
         public readonly void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
+            commands.SetKeyword(ShadowShaderIDs.CascadeMoments, hasCascadeMoments);
+            commands.SetKeyword(ShadowShaderIDs.LocalMoments, hasLocalMoments);
             commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMap);
             commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMap, localMap);
-            commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMoments, hasCascadeMoments ? (RenderTargetIdentifier)cascadeMoments : Texture2D.blackTexture);
-            commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMoments, hasLocalMoments ? (RenderTargetIdentifier)localMoments : Texture2D.blackTexture);
+            if (hasCascadeMoments)
+                commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMoments);
+            if (hasLocalMoments)
+                commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
             commands.SetGlobalBuffer(LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
             commands.SetGlobalBuffer(LightShaderIDs.LocalShadowRectBuffer, localSlices);
             commands.SetGlobalInt(CascadeShadowPassUtilityData.CascadeCountID, cascadeCount);

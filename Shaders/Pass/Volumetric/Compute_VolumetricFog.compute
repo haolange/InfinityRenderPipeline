@@ -1,6 +1,8 @@
 #pragma kernel ScatterDensity
 #pragma kernel Integrate
 #pragma kernel Temporal
+#pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/Lighting.hlsl"

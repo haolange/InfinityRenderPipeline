@@ -16,10 +16,11 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly int s_ClearTarget = Shader.PropertyToID("_ClearTarget");
         static readonly int s_ClearCount = Shader.PropertyToID("_ClearCount");
         static readonly int s_ClearValue = Shader.PropertyToID("_ClearValue");
+        static readonly string[] s_KernelNames = { ClearBufferKernelName, ClearIndirectArgsKernelName };
 
         internal static bool HasKernels(ComputeShader shader)
         {
-            return GraphicsUtility.HasRequiredKernels(shader, ClearBufferKernelName, ClearIndirectArgsKernelName);
+            return GraphicsUtility.HasRequiredKernels(shader, s_KernelNames);
         }
 
         // Writes value into the first count uints of buffer.

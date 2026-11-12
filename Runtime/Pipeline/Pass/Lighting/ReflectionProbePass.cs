@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
@@ -19,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public ComputeShader shader;
             public ProbeCubeUpload[] uploads;
+            public int uploadCount;
             public int resolution;
             public int mipCount;
             public RGTextureHandle atlas;
@@ -27,9 +27,8 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class ReflectionProbeProduction : IRGPassQueueObserver
         {
             public ReflectionProbeAtlas atlas;
-            public ProbeCubeKey[] keys;
             public void OnQueueFailed() { }
-            public void OnQueued() => atlas.MarkProduced(keys, keys.Length);
+            public void OnQueued() => atlas.MarkRecordedProduced();
         }
 
         // Imports the probe atlas when probes reach this camera's screen, GGX-filters the cubes that are new, changed or
@@ -46,31 +45,26 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
-            List<ProbeCubeUpload> pending = m_ReflectionProbeAtlas.Uploads;
-            if (pending.Count > 0)
+            if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
-                ProbeCubeUpload[] uploads = pending.ToArray();
-                pending.Clear();
-                var keys = new ProbeCubeKey[uploads.Length];
-                for (int i = 0; i < uploads.Length; ++i)
-                {
-                    keys[i] = uploads[i].key;
-                }
-
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
                     ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData<ReflectionProbeFilterPassData>();
                     passData.shader = shaders.cubeFilterShader;
                     passData.uploads = uploads;
+                    passData.uploadCount = uploadCount;
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
                     passData.mipCount = m_ReflectionProbeAtlas.MipCount;
                     passData.atlas = passRef.WriteTexture(atlas);
                     passRef.EnablePassCulling(false);
-                    passRef.SetQueueObserver(new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas, keys = keys });
+                    passRef.SetQueueObserver(m_ReflectionProbeProduction);
                     passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
-                        foreach (ProbeCubeUpload upload in passData.uploads)
+                        int count = passData.uploadCount;
+                        ProbeCubeUpload[] recorded = passData.uploads;
+                        for (int i = 0; i < count; ++i)
                         {
+                            ProbeCubeUpload upload = recorded[i];
                             if (upload.source == null)
                             {
                                 continue;

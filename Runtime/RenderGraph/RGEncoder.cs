@@ -61,6 +61,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGComputeEncoder : IComputeCommands
     {
+        public void SetKeyword(GlobalKeyword keyword, bool value) => m_CommandBuffer.SetKeyword(keyword, value);
         public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferHandle value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
         internal void SetBufferData(ComputeBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
             => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
@@ -709,6 +710,16 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EndSample(string name)
         {
             m_CommandBuffer.EndSample(name);
+        }
+
+        public void BeginSample(ProfilingSampler sampler)
+        {
+            sampler?.Begin(m_CommandBuffer);
+        }
+
+        public void EndSample(ProfilingSampler sampler)
+        {
+            sampler?.End(m_CommandBuffer);
         }
 
         #region SetGlobalParameter

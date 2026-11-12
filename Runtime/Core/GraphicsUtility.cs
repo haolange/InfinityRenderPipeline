@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static bool HasRequiredKernels(ComputeShader shader, string kernelName) => shader != null && shader.HasKernel(kernelName);
 
-        internal static bool HasRequiredKernels(ComputeShader shader, params string[] kernelNames)
+        internal static bool HasRequiredKernels(ComputeShader shader, string[] kernelNames)
         {
             if (shader == null)
             {

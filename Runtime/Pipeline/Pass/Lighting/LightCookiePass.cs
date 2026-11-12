@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
@@ -26,15 +25,15 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public ComputeShader shader;
             public CookieUpload[] uploads;
+            public int uploadCount;
             public RGTextureHandle atlas;
         }
 
         sealed class CookieProduction : IRGPassQueueObserver
         {
             public LightCookieAtlas atlas;
-            public CookieKey[] keys;
             public void OnQueueFailed() { }
-            public void OnQueued() => atlas.MarkProduced(keys, keys.Length);
+            public void OnQueued() => atlas.MarkRecordedProduced();
         }
 
         // Imports the cookie atlas when this camera's records reference it and uploads the textures that are new or
@@ -50,33 +49,28 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
 
-            List<CookieUpload> pending = m_LightCookieAtlas.Uploads;
-            if (pending.Count > 0)
+            if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {
-                CookieUpload[] uploads = pending.ToArray();
-                pending.Clear();
-                var keys = new CookieKey[uploads.Length];
-                for (int i = 0; i < uploads.Length; ++i)
-                {
-                    keys[i] = uploads[i].key;
-                }
-
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
                 {
                     ref LightCookiePassData passData = ref passRef.GetPassData<LightCookiePassData>();
                     passData.shader = shaders.lightCookieShader;
                     passData.uploads = uploads;
+                    passData.uploadCount = uploadCount;
                     passData.atlas = passRef.WriteTexture(atlas);
                     passRef.EnablePassCulling(false);
-                    passRef.SetQueueObserver(new CookieProduction { atlas = m_LightCookieAtlas, keys = keys });
+                    passRef.SetQueueObserver(m_CookieProduction);
                     passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
                         ComputeShader shader = passData.shader;
                         int copy2D = shader.FindKernel(LightCookiePassUtilityData.KernelCopy2D);
                         int cubeToOcta = shader.FindKernel(LightCookiePassUtilityData.KernelCubeToOctahedral);
                         int downsample = shader.FindKernel(LightCookiePassUtilityData.KernelDownsample);
-                        foreach (CookieUpload upload in passData.uploads)
+                        int count = passData.uploadCount;
+                        CookieUpload[] recorded = passData.uploads;
+                        for (int i = 0; i < count; ++i)
                         {
+                            CookieUpload upload = recorded[i];
                             if (upload.source == null)
                             {
                                 continue;

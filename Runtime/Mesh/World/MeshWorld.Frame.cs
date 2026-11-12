@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         /// <summary>
         /// Backend for one draw list. Order: explicit camera or test override, then the Rendering Debugger, then the asset.
-        /// Auto and GPU Indirect follow device capability. Back-to-front passes record on the CPU backend.
+        /// Auto and GPU Indirect follow device capability. A pass with <see cref="MeshPassDesc.cpuBackend"/> records on the CPU.
         /// </summary>
         internal EMeshDrawBackendPolicy SelectBackend(in MeshPassDesc desc)
         {
@@ -131,11 +131,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             else
             {
                 actual = EMeshDrawBackendPolicy.GPUIndirect;
-                debug.backendReason = "Indirect drawing supported; back-to-front passes use CPU Direct";
+                debug.backendReason = "Indirect drawing supported";
+            }
+            if (desc.cpuBackend && actual != EMeshDrawBackendPolicy.CPUDirect)
+            {
+                actual = EMeshDrawBackendPolicy.CPUDirect;
+                debug.backendReason = "This pass records on the CPU backend";
             }
             debug.requestedBackend = requested;
             debug.actualBackend = actual;
-            return desc.sortMode == ESortMode.BackToFront ? EMeshDrawBackendPolicy.CPUDirect : actual;
+            return actual;
         }
 
         internal BufferHandle GetGPUVisibilityBuffer(in MeshView view) => m_GPUVisibility.GetBufferHandle(view, entityHighWater);

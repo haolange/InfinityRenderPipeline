@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -51,7 +52,8 @@ namespace InfinityTech.Rendering.Pipeline
                 int lastMip = startMip + writeCount - 1;
                 string mipMarker = MipLabel(startMip, lastMip);
 
-                cmdEncoder.BeginSample(mipMarker);
+                ProfilingSampler mipSample = CachedSampler.Get(mipMarker);
+                cmdEncoder.BeginSample(mipSample);
                 cmdEncoder.SetComputeIntParam(shader, ColorPyramid_MipWriteCountID, writeCount);
                 cmdEncoder.SetComputeIntParam(shader, ColorPyramid_SrcScaleID, copySource ? 1 : 2);
                 cmdEncoder.SetComputeVectorParam(shader, ColorPyramid_SizeID, new Vector4(srcWidth, srcHeight, 1.0f / srcWidth, 1.0f / srcHeight));
@@ -69,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int secondMip = writeCount > 1 ? startMip + 1 : startMip;
                 cmdEncoder.SetComputeTextureParam(shader, kernel, UAV_ColorPyramid1ID, pyramidTexture, secondMip);
                 cmdEncoder.DispatchCompute(shader, kernel, groupsX, groupsY, 1);
-                cmdEncoder.EndSample(mipMarker);
+                cmdEncoder.EndSample(mipSample);
             }
         }
     }

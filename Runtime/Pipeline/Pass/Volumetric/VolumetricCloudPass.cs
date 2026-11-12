@@ -6,6 +6,7 @@ using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Volume;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -186,9 +187,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
-                    cmdEncoder.BeginSample("VolCloud_Trace");
+                    cmdEncoder.BeginSample(CachedSampler.Get("VolCloud_Trace"));
                     cmdEncoder.DispatchCompute(shader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
-                    cmdEncoder.EndSample("VolCloud_Trace");
+                    cmdEncoder.EndSample(CachedSampler.Get("VolCloud_Trace"));
                 });
             }
 

@@ -48,6 +48,43 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             => atlas.Acquire(null, ECookieLayout.Projected, ECookieChannels.RGB, id, updateCount, 64, 64, frame, out rect);
 
         [Test]
+        public void TakeUploads_ReusesTheArray_AndMarksProduced()
+        {
+            var atlas = new LightCookieAtlas();
+            Texture2D texture = new Texture2D(4, 4, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            try
+            {
+                atlas.Configure(256, 128);
+                var key = new CookieKey(7, ECookieLayout.Projected);
+                atlas.BeginFrame();
+                Assert.IsFalse(atlas.TakeUploads(out CookieUpload[] empty, out int emptyCount));
+                Assert.AreEqual(0, emptyCount);
+                Assert.IsNull(empty);
+
+                Assert.IsTrue(atlas.Acquire(texture, ECookieLayout.Projected, ECookieChannels.RGB, 7, 1, 64, 64, 1, out _));
+                Assert.IsTrue(atlas.TakeUploads(out CookieUpload[] first, out int firstCount));
+                Assert.AreEqual(1, firstCount);
+                Assert.AreEqual(key, first[0].key);
+                Assert.AreEqual(0, atlas.Uploads.Count);
+
+                atlas.BeginFrame();
+                Assert.IsTrue(atlas.Acquire(texture, ECookieLayout.Projected, ECookieChannels.RGB, 7, 2, 64, 64, 2, out _));
+                Assert.IsTrue(atlas.TakeUploads(out CookieUpload[] second, out int secondCount));
+                Assert.AreEqual(1, secondCount);
+                Assert.AreSame(first, second);
+
+                atlas.MarkRecordedProduced();
+                atlas.CommitFrame();
+                Assert.IsTrue(atlas.IsValid(key));
+            }
+            finally
+            {
+                atlas.Dispose();
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        [Test]
         public void Atlas_UploadsOnce_ReuploadsOnTextureChange_RollsBackOnFailure()
         {
             var atlas = new LightCookieAtlas();

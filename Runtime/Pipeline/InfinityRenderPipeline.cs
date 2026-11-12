@@ -227,10 +227,17 @@ namespace InfinityTech.Rendering.Pipeline
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
         private LightCookieAtlas m_LightCookieAtlas;
+        private CookieProduction m_CookieProduction;
         private ProbeVolumeIntegration m_ProbeVolumes;
         private ReflectionProbeAtlas m_ReflectionProbeAtlas;
+        private ReflectionProbeProduction m_ReflectionProbeProduction;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
+        const string RtaoAssetDisabled = "Ray tracing is disabled on the RP Asset.";
+        const string RtaoFrameSettings = "Disabled by Frame Settings.";
+        const string RtaoVolumeInactive = "RTAO Volume is inactive.";
+        const string RtaoNotReady = "UnifiedRayTracing is not ready.";
+        const string RtaoNoInstances = "URT accel has no mesh instances.";
         bool m_PreviousLightsUseLinearIntensity;
         bool m_PreviousLightsUseColorTemperature;
         bool m_PreviousUseScriptableRenderPipelineBatching;
@@ -308,8 +315,10 @@ namespace InfinityTech.Rendering.Pipeline
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
                 m_LocalShadowCache = new LocalShadowCache();
                 m_LightCookieAtlas = new LightCookieAtlas();
+                m_CookieProduction = new CookieProduction { atlas = m_LightCookieAtlas };
                 m_ProbeVolumes = new ProbeVolumeIntegration(asset);
                 m_ReflectionProbeAtlas = new ReflectionProbeAtlas();
+                m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas };
             }
             catch (Exception constructionFailure)
             {
@@ -593,7 +602,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     RGMeshDrawListHandle gbufferList = default, motionList = default, forwardList = default, translucentDepthList = default, translucentT0 = default, translucentT1 = default, translucentT2 = default;
                                     if (twoStageMesh)
                                     {
-                                        PrepareMeshLists(depthList);
+                                        PrepareMeshList(depthList);
                                         PrepareMeshLists(cascadeLists);
                                         PrepareMeshLists(localLists);
                                     }
@@ -1241,18 +1250,18 @@ namespace InfinityTech.Rendering.Pipeline
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
             string rtaoReason = null;
             if (!pipelineAsset.enableRayTrace)
-                rtaoReason = "Ray tracing is disabled on the RP Asset.";
+                rtaoReason = RtaoAssetDisabled;
             else if (!frameSettings.IsEnabled(EFrameSetting.RayTracedAmbientOcclusion))
-                rtaoReason = "Disabled by Frame Settings (" + frameSettings.SourceOf(EFrameSetting.RayTracedAmbientOcclusion) + ").";
+                rtaoReason = RtaoFrameSettings;
             else if (!VolumeComponentActive(rtao))
-                rtaoReason = "RTAO Volume is inactive.";
+                rtaoReason = RtaoVolumeInactive;
             else if (!InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders))
-                rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? "UnifiedRayTracing is not ready." : InfinityRayTracingEnvironment.lastBlockReason;
+                rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? RtaoNotReady : InfinityRayTracingEnvironment.lastBlockReason;
             else
             {
                 var rayEnv = InfinityRayTracingEnvironment.current;
                 rayEnv.SyncGeometry(renderContext.meshWorld);
-                if (rayEnv.InstanceCount == 0) rtaoReason = "URT accel has no mesh instances.";
+                if (rayEnv.InstanceCount == 0) rtaoReason = RtaoNoInstances;
             }
             InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
 

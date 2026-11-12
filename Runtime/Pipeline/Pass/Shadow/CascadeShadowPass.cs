@@ -172,7 +172,7 @@ namespace InfinityTech.Rendering.Pipeline
                         {
                             continue;
                         }
-                        string cascadeMarker = MeshDrawProfiling.Slice(EMeshViewKind.CascadeShadow, cascade);
+                        ProfilingSampler cascadeMarker = MeshDrawProfiling.SliceSampler(cascade);
                         cmdEncoder.BeginSample(cascadeMarker);
                         Vector4 rect = passData.tileRects[cascade];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));

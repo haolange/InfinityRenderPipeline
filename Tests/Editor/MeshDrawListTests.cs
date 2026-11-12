@@ -27,28 +27,49 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             Assert.Less(SortKeyPacking.SaturateSigned(-1, 16), SortKeyPacking.SaturateSigned(0, 16));
             Assert.AreEqual(0ul, SortKeyPacking.SaturateSigned(int.MinValue, 16));
             Assert.AreEqual(0xFFFFul, SortKeyPacking.SaturateSigned(int.MaxValue, 16));
-
-            Assert.AreEqual(0ul, SortKeyPacking.QuantizeDepth(float.NaN, 16));
-            Assert.AreEqual(0ul, SortKeyPacking.QuantizeDepth(-3f, 16));
-            Assert.Less(SortKeyPacking.QuantizeDepth(1000f, 16), SortKeyPacking.QuantizeDepth(2000f, 16), "Decimeters keep kilometers distinct.");
-            Assert.AreEqual(0xFFFFul, SortKeyPacking.QuantizeDepth(1e9f, 16));
-            Assert.AreEqual(0xFFFFul, SortKeyPacking.QuantizeDepth(float.PositiveInfinity, 16));
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void Comparer_IsATotalOrder(bool backToFront)
+        [Test]
+        public void StateSortKey_PutsFadingInTheHighBit_AndKeepsTheStateKey()
+        {
+            const ulong state = (1ul << 62) | 0xABCDu;
+            ulong stable = default(StateSortKey).Eval(new MeshSortKeyInput { stateKey = state, fade = 0f });
+            ulong fading = default(StateSortKey).Eval(new MeshSortKeyInput { stateKey = state, fade = -0.25f });
+            Assert.AreEqual(state, stable);
+            Assert.AreEqual(1ul, fading >> 63);
+            Assert.AreEqual(state, fading & ((1ul << 63) - 1ul));
+            Assert.Greater(fading, stable);
+            ulong masked = default(StateSortKey).Eval(new MeshSortKeyInput { stateKey = state | (1ul << 63), fade = 0f });
+            Assert.AreEqual(0ul, masked >> 63);
+        }
+
+        [Test]
+        public void TranslucentColorSortKey_OrdersPriorityThenFarther_AndPutsInvalidDistanceLast()
+        {
+            ulong Key(int priority, float distance) => default(TranslucentColorSortKey).Eval(new MeshSortKeyInput { priority = priority, distance = distance });
+            Assert.Less(Key(0, 20f), Key(0, 5f), "Farther draws first within one priority.");
+            Assert.Less(Key(-1, 1f), Key(0, 20f), "A lower priority draws first.");
+            Assert.Less(Key(0, 5f), Key(1, 50f), "A higher priority draws last.");
+            ulong nearest = Key(0, 0f);
+            Assert.Less(Key(0, 1f), nearest);
+            Assert.AreEqual(nearest, Key(0, float.NaN));
+            Assert.AreEqual(nearest, Key(0, -3f));
+            Assert.Less(Key(0, float.PositiveInfinity), Key(0, 1e9f));
+            Assert.AreEqual(0xFFFFFFFFul, TranslucentColorSortKey.DistanceFarFirst(float.NaN));
+        }
+
+        [Test]
+        public void Comparer_IsATotalOrder()
         {
             var random = new System.Random(5);
             var items = new MeshDrawInstance[64];
             for (int i = 0; i < items.Length; ++i)
             {
-                // Translucent (back-to-front) passes never fade; other modes mix stable and fading items.
-                bool fading = !backToFront && random.Next(3) == 0;
+                bool fading = random.Next(3) == 0;
                 float fade = fading ? (random.Next(2) == 0 ? 1 : -1) * (0.05f + 0.9f * (float)random.NextDouble()) : 0;
-                items[i] = new MeshDrawInstance { key = (ulong)random.Next(3), command = random.Next(3), entity = i, depth = random.Next(4), fade = fade };
+                items[i] = new MeshDrawInstance { key = (ulong)random.Next(3), command = random.Next(3), entity = i, fade = fade };
             }
-            var comparer = new MeshDrawInstanceComparer { backToFront = backToFront };
+            var comparer = new MeshDrawInstanceComparer();
             foreach (MeshDrawInstance a in items)
                 foreach (MeshDrawInstance b in items)
                     Assert.AreEqual(Math.Sign(comparer.Compare(a, b)), -Math.Sign(comparer.Compare(b, a)));
@@ -61,15 +82,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             for (int i = 1; i < first.Length; ++i)
             {
                 MeshDrawInstance a = first[i - 1], b = first[i];
-                if (!backToFront)
-                {
-                    Assert.IsTrue(!a.fading || b.fading, "Stable items precede fading ones, so a list changes the dither keyword once.");
-                    if (a.fading != b.fading) continue;
-                }
                 Assert.LessOrEqual(a.key, b.key);
                 if (a.key != b.key) continue;
-                if (backToFront) Assert.GreaterOrEqual(a.depth, b.depth, "Back-to-front: farther first within a priority.");
-                else Assert.LessOrEqual(a.command, b.command, "State order groups commands within a key.");
+                Assert.LessOrEqual(a.command, b.command);
+                if (a.command != b.command) continue;
+                Assert.LessOrEqual(a.entity, b.entity);
             }
         }
 
@@ -194,17 +211,27 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void FrontToBackBuild_OrdersByCoarseDistanceThenState()
+        public void StateBuild_MergesOneCommandAcrossDistances()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(0, 0) };
-                // 2.0 m and 2.05 m share a decimeter bucket, so state (the first-created material) decides inside it.
                 DrawSpec[] specs = { new DrawSpec(0, 0, 12f), new DrawSpec(1, 0, 2f), new DrawSpec(0, 0, 2.05f), new DrawSpec(1, 0, 0.5f) };
-                Build(fixture, MeshPassTable.Depth, materials, specs, out int[] order, out var runs, out _);
+                Build(fixture, MeshPassTable.Depth, materials, specs, out int[] order, out var runs, out int[] commandOfMaterial);
+                MeshPassCache cache = fixture.world.GetPassCache(MeshPassTable.Depth);
 
-                CollectionAssert.AreEqual(new[] { 3, 2, 1, 0 }, order);
-                Assert.AreEqual(4, runs.Length);
+                Assert.AreEqual(2, runs.Length, "One command is one run across distances.");
+                int firstMaterial = cache.commands[commandOfMaterial[0]].stateKey <= cache.commands[commandOfMaterial[1]].stateKey ? 0 : 1;
+                int secondMaterial = 1 - firstMaterial;
+                Assert.AreEqual(commandOfMaterial[firstMaterial], runs[0].command);
+                Assert.AreEqual(commandOfMaterial[secondMaterial], runs[1].command);
+                Assert.AreEqual(2, runs[0].count);
+                Assert.AreEqual(2, runs[1].count);
+                Assert.AreEqual(0ul, cache.commands[commandOfMaterial[0]].stateKey >> 63);
+                Assert.AreEqual(0ul, cache.commands[commandOfMaterial[1]].stateKey >> 63);
+                // Entity order inside a command, not camera distance.
+                Assert.AreEqual(firstMaterial == 0 ? 0 : 1, order[runs[0].offset]);
+                Assert.AreEqual(firstMaterial == 0 ? 2 : 3, order[runs[0].offset + 1]);
             }
         }
 

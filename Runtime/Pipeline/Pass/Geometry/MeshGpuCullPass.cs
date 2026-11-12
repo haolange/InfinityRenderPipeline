@@ -70,13 +70,30 @@ namespace InfinityTech.Rendering.Pipeline
         RGMeshDrawListHandle MakeMeshList(in MeshView view, ShaderTagId pass)
             => m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, pass));
 
-        void PrepareMeshLists(params RGMeshDrawListHandle[] handles)
+        void PrepareMeshList(in RGMeshDrawListHandle handle)
+        {
+            if (handle.IsValid)
+                m_RGBuilder.PrepareMeshDrawList(handle);
+        }
+
+        void PrepareMeshLists(RGMeshDrawListHandle[] handles)
         {
             for (int i = 0; i < handles.Length; ++i)
-            {
-                if (handles[i].IsValid)
-                    m_RGBuilder.PrepareMeshDrawList(handles[i]);
-            }
+                PrepareMeshList(handles[i]);
+        }
+
+        void PrepareMeshLists(
+            in RGMeshDrawListHandle first, in RGMeshDrawListHandle second, in RGMeshDrawListHandle third, in RGMeshDrawListHandle fourth,
+            in RGMeshDrawListHandle fifth, in RGMeshDrawListHandle sixth, in RGMeshDrawListHandle seventh, in RGMeshDrawListHandle eighth)
+        {
+            PrepareMeshList(first);
+            PrepareMeshList(second);
+            PrepareMeshList(third);
+            PrepareMeshList(fourth);
+            PrepareMeshList(fifth);
+            PrepareMeshList(sixth);
+            PrepareMeshList(seventh);
+            PrepareMeshList(eighth);
         }
 
         RGMeshDrawListHandle[] CreateCascadeMeshLists(RenderContext renderContext, Camera camera, in CullingResults cullingResults)

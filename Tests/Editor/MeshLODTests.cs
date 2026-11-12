@@ -146,25 +146,25 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void LODFactor_IsComplementaryInsideTheBand_AndStableOnlyWithoutDither()
         {
-            Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, 1, true, out float stable));
+            Assert.IsTrue(MeshDrawLod.Factor(0, 0, 1, true, out float stable));
             Assert.AreEqual(0f, stable, "Stable instances carry no dither factor.");
-            Assert.IsFalse(MeshDrawGatherJob.LODFactor(1, 0, 1, true, out _), "Outside a band the next level does not draw.");
+            Assert.IsFalse(MeshDrawLod.Factor(1, 0, 1, true, out _), "Outside a band the next level does not draw.");
 
             foreach (float fade in new[] { 0.01f, 0.5f, 0.99f })
             {
-                Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, fade, true, out float outgoing));
-                Assert.IsTrue(MeshDrawGatherJob.LODFactor(1, 0, fade, true, out float incoming));
+                Assert.IsTrue(MeshDrawLod.Factor(0, 0, fade, true, out float outgoing));
+                Assert.IsTrue(MeshDrawLod.Factor(1, 0, fade, true, out float incoming));
                 Assert.AreEqual(fade, outgoing);
                 Assert.AreEqual(-fade, incoming, "LODDitheringTransition keeps complementary pixels for +f and -f.");
-                Assert.IsFalse(MeshDrawGatherJob.LODFactor(2, 0, fade, true, out _));
+                Assert.IsFalse(MeshDrawLod.Factor(2, 0, fade, true, out _));
 
-                Assert.IsTrue(MeshDrawGatherJob.LODFactor(0, 0, fade, false, out float translucent));
+                Assert.IsTrue(MeshDrawLod.Factor(0, 0, fade, false, out float translucent));
                 Assert.AreEqual(0f, translucent);
-                Assert.IsFalse(MeshDrawGatherJob.LODFactor(1, 0, fade, false, out _), "Passes without dither draw the stable level only.");
+                Assert.IsFalse(MeshDrawLod.Factor(1, 0, fade, false, out _), "Passes without dither draw the stable level only.");
             }
 
-            Assert.IsFalse(MeshDrawGatherJob.LODFactor(0, 0, 0, true, out _), "At the bound the outgoing level has faded out.");
-            Assert.IsTrue(MeshDrawGatherJob.LODFactor(1, 0, 0, true, out float entering));
+            Assert.IsFalse(MeshDrawLod.Factor(0, 0, 0, true, out _), "At the bound the outgoing level has faded out.");
+            Assert.IsTrue(MeshDrawLod.Factor(1, 0, 0, true, out float entering));
             Assert.Less(entering, 0f, "The incoming level is fully present at the bound.");
         }
 

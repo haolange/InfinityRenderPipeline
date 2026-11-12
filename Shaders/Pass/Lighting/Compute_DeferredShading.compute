@@ -3,6 +3,8 @@
 #pragma multi_compile_local _ INFINITY_SSS_OUTPUT
 #pragma multi_compile_local _ DEFERRED_AO
 #pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
+#pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"

@@ -333,6 +333,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma fragment frag
             #pragma multi_compile _ INFINITY_FORWARD_AO
             #pragma multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW
+            #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
+            #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 #if defined(INFINITY_FORWARD_AO)
             Texture2D<float> SRV_ForwardOcclusion;
 #endif

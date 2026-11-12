@@ -379,7 +379,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 rank = m_StateRanks.Count;
                 m_StateRanks.Add(state, rank);
             }
-            return SortKeyPacking.Pack(SortKeyPacking.SaturateUnsigned(rank, 16), 48)
+            // Rank uses 15 bits so bit 63 stays clear. The CPU state key puts fading there.
+            return SortKeyPacking.Pack(SortKeyPacking.SaturateUnsigned(rank, 15), 48)
                 | SortKeyPacking.Pack(SortKeyPacking.SaturateUnsigned(key.material, 24), 24)
                 | SortKeyPacking.Pack(SortKeyPacking.SaturateUnsigned(key.section, 24), 0);
         }

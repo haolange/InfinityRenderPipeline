@@ -681,6 +681,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             m_PassList.Clear();
             m_ObjectPool.ReleaseRecordingAlloc();
+            for (int i = 0; i < m_ProfileScopes.Count; ++i)
+            {
+                m_ScopePool.Push(m_ProfileScopes[i]);
+            }
             m_ProfileScopes.Clear();
             m_OpenScopes.Clear();
             for (int i = 0; i < m_NativeGroups.Count; ++i)
@@ -730,6 +734,7 @@ namespace InfinityTech.Rendering.RenderGraph
             finally
             {
                 m_Resources.Dispose();
+                DisposeCompileScratch();
             }
         }
     }

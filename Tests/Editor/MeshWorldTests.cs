@@ -425,7 +425,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void SelectBackend_FollowsOverrideThenDebuggerThenAsset_AndRecordsBackToFrontOnCpu()
+        public void SelectBackend_FollowsOverrideThenDebuggerThenAsset_AndRecordsCpuPassesOnCpu()
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -440,7 +440,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer), "The debugger precedes the asset.");
                     world.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
                     Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "An explicit override precedes the debugger.");
-                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "Back-to-front passes record on the CPU backend.");
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "A pass that records on the CPU stays there.");
+                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth), "Translucent depth follows device capability.");
 
                     world.SetBackendOverride(null);
                     debug.backendOverride = null;
@@ -448,6 +449,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer));
                     world.assetBackendPolicy = EMeshDrawBackendPolicy.Auto;
                     Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "Auto follows device capability.");
+                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0));
+                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth));
                 }
                 finally { debug.backendOverride = previousDebugOverride; }
             }

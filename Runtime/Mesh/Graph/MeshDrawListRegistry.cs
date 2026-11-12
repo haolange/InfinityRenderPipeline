@@ -4,6 +4,7 @@ using Unity.Jobs;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -220,7 +221,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
-            commands.BeginSample(MeshDrawProfiling.Consumer(record.view, record.cache.desc.lightMode));
+            ProfilingSampler consumer = MeshDrawProfiling.ConsumerSampler(record.view, record.cache.desc.lightMode);
+            consumer.Begin(commands);
             try
             {
                 if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
@@ -234,7 +236,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             finally
             {
-                commands.EndSample(MeshDrawProfiling.Consumer(record.view, record.cache.desc.lightMode));
+                consumer.End(commands);
             }
             m_Records[index] = record;
         }
@@ -243,23 +245,24 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
-            string group = record.view.isShadow
-                ? MeshDrawProfiling.ShadowGroup(record.view.kind)
-                : MeshDrawProfiling.Consumer(record.view, record.cache.desc.lightMode);
-            string slice = SliceSampleName(record.view);
-            commands.BeginSample(group);
-            if (slice != null)
-                commands.BeginSample(slice);
-            commands.BeginSample("InitializeIndirectArgs");
+            ProfilingSampler group = record.view.isShadow
+                ? CachedSampler.Get(MeshDrawProfiling.ShadowGroup(record.view.kind))
+                : MeshDrawProfiling.ConsumerSampler(record.view, record.cache.desc.lightMode);
+            ProfilingSampler slice = record.view.isShadow ? MeshDrawProfiling.SliceSampler(record.view.subviewIndex) : null;
+            ProfilingSampler initialize = CachedSampler.Get("InitializeIndirectArgs");
+            ProfilingSampler compact = CachedSampler.Get("Compact");
+            group.Begin(commands);
+            slice?.Begin(commands);
+            initialize.Begin(commands);
             try
             {
                 m_World.gpuBackend.InitializeIndirectArgs(commands, record.payload, record.cache, record.commandCount, m_World.stats);
             }
             finally
             {
-                commands.EndSample("InitializeIndirectArgs");
+                initialize.End(commands);
             }
-            commands.BeginSample("Compact");
+            compact.Begin(commands);
             try
             {
                 m_World.gpuBackend.CompactInstances(commands, record.payload, record.cache, record.commandCount, record.candidateCount,
@@ -267,10 +270,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             finally
             {
-                commands.EndSample("Compact");
-                if (slice != null)
-                    commands.EndSample(slice);
-                commands.EndSample(group);
+                compact.End(commands);
+                slice?.End(commands);
+                group.End(commands);
             }
         }
 
@@ -296,9 +298,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             else
                 m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view);
         }
-
-        static string SliceSampleName(in MeshView view)
-            => view.isShadow ? MeshDrawProfiling.Slice(view.kind, view.subviewIndex) : null;
 
         /// <summary>
         /// Logical cleanup only: completes and frees CPU build jobs, releases visibility references and retires payloads,

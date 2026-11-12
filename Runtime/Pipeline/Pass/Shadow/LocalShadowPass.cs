@@ -236,7 +236,7 @@ namespace InfinityTech.Rendering.Pipeline
                         {
                             continue;
                         }
-                        string faceMarker = MeshDrawProfiling.Slice(EMeshViewKind.LocalShadow, slice);
+                        ProfilingSampler faceMarker = MeshDrawProfiling.SliceSampler(slice);
                         cmdEncoder.BeginSample(faceMarker);
                         Vector4 rect = passData.tileRects[slice];
                         DrawShadowSlice(cmdEncoder, rect, passData.casterBias[slice], passData.casterLight[slice], passData.shadowMatrices[slice],

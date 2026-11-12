@@ -10,19 +10,19 @@ namespace InfinityTech.Rendering.MeshPipeline
         public const int TranslucentQueueMin = 3000;
         public const int TranslucentQueueMax = 5000;
 
-        public static readonly MeshPassDesc Depth = new MeshPassDesc("RasterDepthPass", 0, OpaqueQueueMax, ESortMode.FrontToBack);
-        public static readonly MeshPassDesc GBuffer = new MeshPassDesc("RasterGBufferPass", 0, OpaqueQueueMax, ESortMode.State);
-        public static readonly MeshPassDesc Forward = new MeshPassDesc("RasterForwardPass", 0, OpaqueQueueMax, ESortMode.State);
-        public static readonly MeshPassDesc Motion = new MeshPassDesc("RasterMotionPass", 0, OpaqueQueueMax, ESortMode.FrontToBack,
+        public static readonly MeshPassDesc Depth = new MeshPassDesc("RasterDepthPass", 0, OpaqueQueueMax);
+        public static readonly MeshPassDesc GBuffer = new MeshPassDesc("RasterGBufferPass", 0, OpaqueQueueMax);
+        public static readonly MeshPassDesc Forward = new MeshPassDesc("RasterForwardPass", 0, OpaqueQueueMax);
+        public static readonly MeshPassDesc Motion = new MeshPassDesc("RasterMotionPass", 0, OpaqueQueueMax,
             EMeshEntityFlags.ObjectMotion, requirePreviousTransforms: true);
-        public static readonly MeshPassDesc Shadow = new MeshPassDesc("RasterShadowPass", 0, OpaqueQueueMax, ESortMode.State, EMeshEntityFlags.CastShadow);
-        public static readonly MeshPassDesc TranslucentDepth = new MeshPassDesc("RasterTranslucentDepthPass", TranslucentQueueMin, TranslucentQueueMax, ESortMode.FrontToBack);
-        public static readonly MeshPassDesc TranslucentT0 = new MeshPassDesc("RasterTranslucentT0Pass", TranslucentQueueMin, TranslucentQueueMax, ESortMode.BackToFront,
-            requirePreviousTransforms: true);
-        public static readonly MeshPassDesc TranslucentT1 = new MeshPassDesc("RasterTranslucentT1Pass", TranslucentQueueMin, TranslucentQueueMax, ESortMode.BackToFront,
-            requirePreviousTransforms: true);
-        public static readonly MeshPassDesc TranslucentT2 = new MeshPassDesc("RasterTranslucentT2Pass", TranslucentQueueMin, TranslucentQueueMax, ESortMode.BackToFront,
-            requirePreviousTransforms: true);
+        public static readonly MeshPassDesc Shadow = new MeshPassDesc("RasterShadowPass", 0, OpaqueQueueMax, EMeshEntityFlags.CastShadow);
+        public static readonly MeshPassDesc TranslucentDepth = new MeshPassDesc("RasterTranslucentDepthPass", TranslucentQueueMin, TranslucentQueueMax);
+        public static readonly MeshPassDesc TranslucentT0 = new MeshPassDesc("RasterTranslucentT0Pass", TranslucentQueueMin, TranslucentQueueMax,
+            requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor, cpuBackend: true);
+        public static readonly MeshPassDesc TranslucentT1 = new MeshPassDesc("RasterTranslucentT1Pass", TranslucentQueueMin, TranslucentQueueMax,
+            requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor, cpuBackend: true);
+        public static readonly MeshPassDesc TranslucentT2 = new MeshPassDesc("RasterTranslucentT2Pass", TranslucentQueueMin, TranslucentQueueMax,
+            requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor, cpuBackend: true);
 
         internal static readonly MeshPassDesc[] all =
         {

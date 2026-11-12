@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Unity.Mathematics;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.RenderGraph;
 
@@ -166,7 +168,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 commands.SetComputeVectorParam(shader, MeshOcclusionBindings.Extent, new Vector4(data.extent.x, data.extent.y, 0, 0));
                 commands.SetComputeIntParam(shader, MeshOcclusionBindings.Mips, data.mipCount);
             }
-            string sample = data.recovery ? "DepthRecovery" : "DepthPrediction";
+            ProfilingSampler sample = data.recovery ? CachedSampler.Get("DepthRecovery") : CachedSampler.Get("DepthPrediction");
             commands.BeginSample(sample);
             try
             {

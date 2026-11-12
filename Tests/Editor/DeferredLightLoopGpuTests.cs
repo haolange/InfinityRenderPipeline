@@ -155,8 +155,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (shadowSlices)
                 {
                     shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice { rect = Vector4.zero, depth = Vector4.zero, moments = Vector4.zero } }, 48));
-                    shader.SetTexture(kernel, "SRV_CascadeShadowMoments", black);
-                    shader.SetTexture(kernel, "SRV_LocalShadowMoments", black);
                 }
                 else shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { Vector4.zero }, 16));
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))

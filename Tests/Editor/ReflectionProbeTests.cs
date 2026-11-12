@@ -52,6 +52,43 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         static Cubemap CreateCube() => new Cubemap(16, TextureFormat.RGBAHalf, false) { hideFlags = HideFlags.HideAndDontSave };
 
         [Test]
+        public void TakeUploads_ReusesTheArray_AndMarksProduced()
+        {
+            var atlas = new ReflectionProbeAtlas();
+            Cubemap cube = CreateCube();
+            try
+            {
+                atlas.Configure(64, 2);
+                var key = new ProbeCubeKey(5, 6);
+                atlas.BeginFrame();
+                Assert.IsFalse(atlas.TakeUploads(out ProbeCubeUpload[] empty, out int emptyCount));
+                Assert.AreEqual(0, emptyCount);
+                Assert.IsNull(empty);
+
+                Assert.IsTrue(atlas.Acquire(key, cube, 1, true, 1, out _));
+                Assert.IsTrue(atlas.TakeUploads(out ProbeCubeUpload[] first, out int firstCount));
+                Assert.AreEqual(1, firstCount);
+                Assert.AreEqual(key, first[0].key);
+                Assert.AreEqual(0, atlas.Uploads.Count);
+
+                atlas.BeginFrame();
+                Assert.IsTrue(atlas.Acquire(key, cube, 1, true, 2, out _));
+                Assert.IsTrue(atlas.TakeUploads(out ProbeCubeUpload[] second, out int secondCount));
+                Assert.AreEqual(1, secondCount);
+                Assert.AreSame(first, second);
+
+                atlas.MarkRecordedProduced();
+                atlas.CommitFrame();
+                Assert.IsTrue(atlas.IsValid(key));
+            }
+            finally
+            {
+                atlas.Dispose();
+                UnityEngine.Object.DestroyImmediate(cube);
+            }
+        }
+
+        [Test]
         public void Atlas_FiltersOnce_RefiltersOnChange_RollsBackOnFailure()
         {
             var atlas = new ReflectionProbeAtlas();

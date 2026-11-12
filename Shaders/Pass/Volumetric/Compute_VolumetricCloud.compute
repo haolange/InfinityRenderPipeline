@@ -1,5 +1,7 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 #pragma kernel VolumetricCloudCS
+#pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/Lighting.hlsl"

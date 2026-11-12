@@ -111,6 +111,8 @@ namespace InfinityTech.Rendering.LightPipeline
         readonly Dictionary<CookieKey, Entry> m_Entries = new Dictionary<CookieKey, Entry>();
         readonly List<CookieKey> m_Scratch = new List<CookieKey>();
         readonly List<CookieUpload> m_Uploads = new List<CookieUpload>();
+        CookieUpload[] m_RecordedUploads;
+        int m_RecordedCount;
         AtlasQuadAllocator m_Allocator;
 
         public int AtlasSize
@@ -272,18 +274,68 @@ namespace InfinityTech.Rendering.LightPipeline
             return true;
         }
 
+        // Copies this camera's pending uploads into the atlas scratch and clears the list. The scratch grows by
+        // doubling and is reused by the next camera after this camera's queue observer has run.
+        public bool TakeUploads(out CookieUpload[] uploads, out int count)
+        {
+            count = m_Uploads.Count;
+            if (count == 0)
+            {
+                uploads = null;
+                return false;
+            }
+
+            EnsureRecordedCapacity(count);
+            m_Uploads.CopyTo(0, m_RecordedUploads, 0, count);
+            m_Uploads.Clear();
+            m_RecordedCount = count;
+            uploads = m_RecordedUploads;
+            return true;
+        }
+
         public void MarkProduced(CookieKey[] keys, int count)
         {
             for (int i = 0; i < count; ++i)
             {
-                if (m_Entries.TryGetValue(keys[i], out Entry entry) && entry.pending)
-                {
-                    // Queue acceptance overwrites this physical block. The old committed version must
-                    // not become reusable if a later update is discarded before it reaches the queue.
-                    entry.valid = false;
-                    entry.produced = true;
-                    m_Entries[keys[i]] = entry;
-                }
+                MarkPendingProduced(keys[i]);
+            }
+        }
+
+        public void MarkRecordedProduced()
+        {
+            int count = m_RecordedCount;
+            m_RecordedCount = 0;
+            for (int i = 0; i < count; ++i)
+            {
+                MarkPendingProduced(m_RecordedUploads[i].key);
+            }
+        }
+
+        void EnsureRecordedCapacity(int count)
+        {
+            if (m_RecordedUploads != null && m_RecordedUploads.Length >= count)
+            {
+                return;
+            }
+
+            int capacity = m_RecordedUploads == null ? 4 : m_RecordedUploads.Length;
+            while (capacity < count)
+            {
+                capacity *= 2;
+            }
+
+            m_RecordedUploads = new CookieUpload[capacity];
+        }
+
+        // Queue acceptance overwrites this physical block. The old committed version must not become
+        // reusable if a later update is discarded before it reaches the queue.
+        void MarkPendingProduced(CookieKey key)
+        {
+            if (m_Entries.TryGetValue(key, out Entry entry) && entry.pending)
+            {
+                entry.valid = false;
+                entry.produced = true;
+                m_Entries[key] = entry;
             }
         }
 

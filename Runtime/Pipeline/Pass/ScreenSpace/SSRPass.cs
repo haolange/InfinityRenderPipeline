@@ -5,6 +5,7 @@ using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Volume;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -368,7 +369,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_MotionViewProjID, passData.matrix_MotionViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_LastMotionViewProjID, passData.matrix_LastMotionViewProj);
 
-                    cmdEncoder.BeginSample("SSR_Classify");
+                    cmdEncoder.BeginSample(CachedSampler.Get("SSR_Classify"));
                     int clearArgs = passData.kernels[0];
                     cmdEncoder.SetComputeBufferParam(shader, clearArgs, SSRPassUtilityData.UAV_TileArgsID, passData.tileArgs);
                     cmdEncoder.DispatchCompute(shader, clearArgs, 1, 1, 1);
@@ -380,17 +381,17 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, classify, SSRPassUtilityData.UAV_RayHitID, passData.rayHit);
                     cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_SamplesID, passData.samples);
                     cmdEncoder.DispatchCompute(shader, classify, tileCount.x, tileCount.y, 1);
-                    cmdEncoder.EndSample("SSR_Classify");
+                    cmdEncoder.EndSample(CachedSampler.Get("SSR_Classify"));
 
-                    cmdEncoder.BeginSample("SSR_Trace");
+                    cmdEncoder.BeginSample(CachedSampler.Get("SSR_Trace"));
                     RecordSSRTrace(cmdEncoder, shader, passData.kernels[2], passData);
-                    cmdEncoder.EndSample("SSR_Trace");
+                    cmdEncoder.EndSample(CachedSampler.Get("SSR_Trace"));
 
                     int groupsX = (resolution.x + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
                     int groupsY = (resolution.y + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
 
                     // Resolve
-                    cmdEncoder.BeginSample("SSR_Resolve");
+                    cmdEncoder.BeginSample(CachedSampler.Get("SSR_Resolve"));
                     int resolve = passData.kernels[3];
                     BindSSRSurface(cmdEncoder, shader, resolve, passData);
                     cmdEncoder.SetComputeBufferParam(shader, resolve, SSRPassUtilityData.SRV_SamplesID, passData.samples);
@@ -399,10 +400,10 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, resolve, Shader.PropertyToID("UAV_HitDev"), passData.hitDev);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitDistanceID, passData.hitDistance);
                     cmdEncoder.DispatchCompute(shader, resolve, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample("SSR_Resolve");
+                    cmdEncoder.EndSample(CachedSampler.Get("SSR_Resolve"));
 
                     // Temporal
-                    cmdEncoder.BeginSample("SSR_Temporal");
+                    cmdEncoder.BeginSample(CachedSampler.Get("SSR_Temporal"));
                     int temporalKernel = passData.kernels[4];
                     BindSSRSurface(cmdEncoder, shader, temporalKernel, passData);
                     cmdEncoder.SetComputeTextureParam(shader,temporalKernel,Shader.PropertyToID("SRV_HitMotionMetadata"),passData.motionMetadata);
@@ -418,18 +419,18 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_TemporalID, passData.temporal);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_MetaID, passData.meta);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample("SSR_Temporal");
+                    cmdEncoder.EndSample(CachedSampler.Get("SSR_Temporal"));
 
                     if (passData.runSpatial)
                     {
-                        cmdEncoder.BeginSample("SSR_Bilateral");
+                        cmdEncoder.BeginSample(CachedSampler.Get("SSR_Bilateral"));
                         int bilateral = passData.kernels[5];
                         BindSSRSurface(cmdEncoder, shader, bilateral, passData);
                         cmdEncoder.SetComputeTextureParam(shader, bilateral, SSRPassUtilityData.SRV_TemporalID, passData.temporal);
                         cmdEncoder.SetComputeTextureParam(shader, bilateral, Shader.PropertyToID("SRV_Variance"), passData.variance);
                         cmdEncoder.SetComputeTextureParam(shader, bilateral, SSRPassUtilityData.UAV_OutputID, passData.filtered);
                         cmdEncoder.DispatchCompute(shader, bilateral, groupsX, groupsY, 1);
-                        cmdEncoder.EndSample("SSR_Bilateral");
+                        cmdEncoder.EndSample(CachedSampler.Get("SSR_Bilateral"));
                     }
 
 
@@ -437,7 +438,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     if (passData.runDebug)
                     {
-                        cmdEncoder.BeginSample("SSR_Debug");
+                        cmdEncoder.BeginSample(CachedSampler.Get("SSR_Debug"));
                         int debugKernel = passData.kernels[6];
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_TileClassID, passData.tileClass);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_RayHitID, passData.rayHit);
@@ -445,7 +446,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_MetaID, passData.meta);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.UAV_DebugID, passData.debug);
                         cmdEncoder.DispatchCompute(shader, debugKernel, (resolution.x+7)/8, (resolution.y+7)/8, 1);
-                        cmdEncoder.EndSample("SSR_Debug");
+                        cmdEncoder.EndSample(CachedSampler.Get("SSR_Debug"));
                     }
                 });
             }

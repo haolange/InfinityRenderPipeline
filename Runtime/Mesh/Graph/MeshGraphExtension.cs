@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 
@@ -254,14 +255,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         commands.SetBufferData(data.viewTable, data.views, 0, 0, data.viewCount);
                     }
-                    commands.BeginSample(data.sampleName);
+                    ProfilingSampler sample = CachedSampler.Get(data.sampleName);
+                    commands.BeginSample(sample);
                     try
                     {
                         data.world.gpuBackend.DispatchCullFrustumBatch(commands, data.inputs, data.viewCount, data.stride, data.viewTable, data.visibility, data.world.stats);
                     }
                     finally
                     {
-                        commands.EndSample(data.sampleName);
+                        commands.EndSample(sample);
                     }
                 });
             }

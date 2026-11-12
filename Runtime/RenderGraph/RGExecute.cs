@@ -426,7 +426,7 @@ namespace InfinityTech.Rendering.RenderGraph
             bool async = firstInfo.enableAsyncCompute;
             CommandBuffer asyncCommands = null;
             CommandBuffer commands = graphicsCommands;
-            var passes = new List<int>(end - first);
+            m_SegmentPasses.Clear();
             try
             {
                 if (async)
@@ -483,17 +483,17 @@ namespace InfinityTech.Rendering.RenderGraph
                         // Passes that already finished stay queued. The failing pass has not been accepted.
                         try
                         {
-                            QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, passes, ref hasQueuedAsync, ref lastAsyncFence);
+                            QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, m_SegmentPasses, ref hasQueuedAsync, ref lastAsyncFence);
                         }
                         catch (Exception queueError)
                         {
                             m_QueueSubmissionFailed = true;
-                            FailSegment(passes);
+                            FailSegment(m_SegmentPasses);
                             Debug.LogException(queueError);
                         }
                         passFailure.Throw();
                     }
-                    passes.Add(passIndex);
+                    m_SegmentPasses.Add(passIndex);
                     var useFence = new InfinityTech.Rendering.GPUResource.ResourceReuseFence
                     {
                         hasGraphics = !info.enableAsyncCompute && info.needGraphicsFence,
@@ -504,7 +504,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     m_Resources.QueueAttempt(info.pass, info.enableAsyncCompute, useFence);
                 }
 
-                QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, passes, ref hasQueuedAsync, ref lastAsyncFence);
+                QueueAcceptedPasses(ref graphContext, graphicsCommands, asyncCommands, async, m_SegmentPasses, ref hasQueuedAsync, ref lastAsyncFence);
             }
             finally
             {

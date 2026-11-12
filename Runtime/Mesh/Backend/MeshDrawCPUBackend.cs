@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Pipeline;
 
@@ -67,8 +68,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             using var cpuDraw = MeshDrawProfiling.Cpu("Draw", view, cache.desc.lightMode).Auto();
-            string marker = MeshDrawProfiling.Draw(view.kind, false);
-            commands.BeginSample(marker);
+            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(view.kind, false));
+            marker.Begin(commands);
             bool dithering = false;
             try
             {
@@ -101,7 +102,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     commands.SetKeyword(s_LodDither, false);
                 }
-                commands.EndSample(marker);
+                marker.End(commands);
             }
         }
 

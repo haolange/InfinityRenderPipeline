@@ -34,10 +34,13 @@ float4 _ShadowFilterParams;
 // x = EVSM exponent, y = light-bleeding reduction, z = minimum moment standard deviation.
 float4 _ShadowMomentParams;
 
-// Moment atlases (VSM / EVSM) at half the resolution of their depth atlas, same UV layout. Bound to a black texture
-// when no visible light uses moments.
+// Moment atlases exist only in the variant for a camera that produced that atlas.
+#if defined(INFINITY_CASCADE_SHADOW_MOMENTS)
 Texture2D<float4> SRV_CascadeShadowMoments;
+#endif
+#if defined(INFINITY_LOCAL_SHADOW_MOMENTS)
 Texture2D<float4> SRV_LocalShadowMoments;
+#endif
 
 // Depth is a plane in projected texture space. Compare each tap at that tap's
 // receiver depth, rather than comparing sloped neighboring texels to the center.
@@ -236,6 +239,20 @@ float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, floa
     return ShadowMomentVisibility(moments, ShadowMomentDepth(compareZ, depthParams, invFar), mode, _ShadowMomentParams);
 }
 
+float FilterShadowDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+{
+    // A moment filter without its compiled atlas is unshadowed. The keyword is on only when that atlas exists.
+    float shadow = 1;
+    if (light.shadowFilter == SHADOW_FILTER_HARD)
+        shadow = SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
+    else if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
+        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
+    else if (light.shadowFilter != SHADOW_FILTER_VSM && light.shadowFilter != SHADOW_FILTER_EVSM)
+        shadow = SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
+    return shadow;
+}
+
+#if defined(INFINITY_CASCADE_SHADOW_MOMENTS) || defined(INFINITY_LOCAL_SHADOW_MOMENTS)
 float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
 {
     float shadow = 1;
@@ -245,19 +262,14 @@ float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, Ligh
         shadow = SampleShadowMoments(momentMap, mode, uv, compareZ, texelSize, clipRect, depthParams, invFar);
     }
     else if (light.shadowFilter == SHADOW_FILTER_HARD)
-    {
         shadow = SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
-    }
     else if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
-    {
         shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
-    }
     else
-    {
         shadow = SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
-    }
     return shadow;
 }
+#endif
 
 float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, int cascadeIdx, float3 worldPos, float3 normal)
 {
@@ -279,8 +291,13 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, i
             float2 shadowUV = localUV * 0.5 + clipRect.xy;
             float4 params = _CascadeShadowParams[cascadeIdx];
             float4 depthParams = float4(params.y, params.z, params.x, 1);
+#if defined(INFINITY_CASCADE_SHADOW_MOMENTS)
             shadow = FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
                 ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+#else
+            shadow = FilterShadowDepth(cascadeShadowMap, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
+                ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+#endif
         }
     }
     return shadow;
@@ -350,8 +367,13 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, floa
             if (all(localUV >= 0.0) && all(localUV <= 1.0))
             {
                 float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
+#if defined(INFINITY_LOCAL_SHADOW_MOMENTS)
                 shadow = FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
                     ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+#else
+                shadow = FilterShadowDepth(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+#endif
             }
         }
     }

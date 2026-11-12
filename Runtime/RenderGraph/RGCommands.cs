@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public interface IComputeCommands
     {
+        void SetKeyword(GlobalKeyword keyword, bool value);
         void SetComputeFloatParam(ComputeShader computeShader, int nameID, float val);
         void SetComputeIntParam(ComputeShader computeShader, int nameID, int val);
         void SetComputeVectorParam(ComputeShader computeShader, int nameID, Vector4 val);

@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.RenderGraph;
@@ -261,8 +262,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount,
             in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
         {
-            string marker = MeshDrawProfiling.Draw(viewKind, true);
-            commands.BeginSample(marker);
+            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(viewKind, true));
+            marker.Begin(commands);
             bool dithering = false;
             try
             {
@@ -303,7 +304,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     commands.SetKeyword(s_LodDither, false);
                 }
-                commands.EndSample(marker);
+                marker.End(commands);
             }
         }
 

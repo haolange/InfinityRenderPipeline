@@ -104,6 +104,8 @@ namespace InfinityTech.Rendering.LightPipeline
         readonly List<ProbeCubeKey> m_Scratch = new List<ProbeCubeKey>();
         readonly Stack<int> m_FreeSlots = new Stack<int>();
         readonly List<ProbeCubeUpload> m_Uploads = new List<ProbeCubeUpload>();
+        ProbeCubeUpload[] m_RecordedUploads;
+        int m_RecordedCount;
 
         public int Resolution
         {
@@ -250,18 +252,68 @@ namespace InfinityTech.Rendering.LightPipeline
             return true;
         }
 
+        // Copies this camera's pending filters into the atlas scratch and clears the list. The scratch grows by
+        // doubling and is reused by the next camera after this camera's queue observer has run.
+        public bool TakeUploads(out ProbeCubeUpload[] uploads, out int count)
+        {
+            count = m_Uploads.Count;
+            if (count == 0)
+            {
+                uploads = null;
+                return false;
+            }
+
+            EnsureRecordedCapacity(count);
+            m_Uploads.CopyTo(0, m_RecordedUploads, 0, count);
+            m_Uploads.Clear();
+            m_RecordedCount = count;
+            uploads = m_RecordedUploads;
+            return true;
+        }
+
         public void MarkProduced(ProbeCubeKey[] keys, int count)
         {
             for (int i = 0; i < count; ++i)
             {
-                if (m_Entries.TryGetValue(keys[i], out Entry entry) && entry.pending)
-                {
-                    // Queue acceptance overwrites the physical slot; a later discarded update
-                    // cannot make its previously committed contents reusable again.
-                    entry.valid = false;
-                    entry.produced = true;
-                    m_Entries[keys[i]] = entry;
-                }
+                MarkPendingProduced(keys[i]);
+            }
+        }
+
+        public void MarkRecordedProduced()
+        {
+            int count = m_RecordedCount;
+            m_RecordedCount = 0;
+            for (int i = 0; i < count; ++i)
+            {
+                MarkPendingProduced(m_RecordedUploads[i].key);
+            }
+        }
+
+        void EnsureRecordedCapacity(int count)
+        {
+            if (m_RecordedUploads != null && m_RecordedUploads.Length >= count)
+            {
+                return;
+            }
+
+            int capacity = m_RecordedUploads == null ? 4 : m_RecordedUploads.Length;
+            while (capacity < count)
+            {
+                capacity *= 2;
+            }
+
+            m_RecordedUploads = new ProbeCubeUpload[capacity];
+        }
+
+        // Queue acceptance overwrites the physical slot. A later discarded update cannot make its
+        // previously committed contents reusable again.
+        void MarkPendingProduced(ProbeCubeKey key)
+        {
+            if (m_Entries.TryGetValue(key, out Entry entry) && entry.pending)
+            {
+                entry.valid = false;
+                entry.produced = true;
+                m_Entries[key] = entry;
             }
         }
 
