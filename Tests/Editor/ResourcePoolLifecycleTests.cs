@@ -11,6 +11,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ResourcePoolLifecycleTests
     {
+        // The pipeline requires graphics fences, so a submitted use always carries its completion fence. A fence recorded
+        // into a command buffer that is never executed stands for submitted GPU work that has not finished.
+        CommandBuffer m_PendingCommands;
+
+        GraphicsFence PendingCompletion()
+        {
+            if (!SystemInfo.supportsGraphicsFence) Assert.Ignore("Graphics fences are unavailable on this test backend.");
+            if (m_PendingCommands == null) m_PendingCommands = new CommandBuffer { name = "PendingCompletion" };
+            return m_PendingCommands.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+        }
+
+        [TearDown]
+        public void ReleasePendingCommands()
+        {
+            m_PendingCommands?.Release();
+            m_PendingCommands = null;
+        }
+
         [Test]
         public void BufferReturnWithoutFence_PreservesUnsubmittedRecordingAcrossCameras()
         {
@@ -106,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsTrue(usage.CanAcquireCommands(asyncCompute, 7, out _));
             Assert.IsFalse(usage.CanAcquireCommands(!asyncCompute, 7, out _));
             Assert.IsFalse(usage.CanAcquireCommands(asyncCompute, 8, out _), "Advancing a CPU frame cannot accept a previous submission.");
-            usage.Submitted(7, default, false, default);
+            usage.Submitted(7, PendingCompletion(), default);
             Assert.IsFalse(usage.CanWriteCpu, "Submit without a completion proof is insufficient for a CPU upload.");
             Assert.IsTrue(usage.CanAcquireCommands(asyncCompute, 8, out _));
         }
@@ -199,11 +217,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var usage = new ResourceUsage();
             usage.QueueAttempt(10, false, default);
             usage.QueueAttempt(11, false, default);
-            usage.Submitted(11, default, false, default);
+            usage.Submitted(11, PendingCompletion(), default);
             Assert.IsTrue(usage.pending);
             Assert.IsFalse(usage.CanWriteCpu);
             Assert.IsFalse(usage.CanAcquireCommands(false, 12, out _));
-            usage.Submitted(10, default, false, default);
+            usage.Submitted(10, PendingCompletion(), default);
             Assert.IsFalse(usage.pending);
             Assert.IsFalse(usage.CanWriteCpu, "All batches submitted still does not prove CPU completion.");
         }
@@ -229,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(usage.CanWriteCpu);
             Assert.IsFalse(usage.CanAcquireCommands(false, 2, out _));
             Assert.IsFalse(usage.CanAcquireCommands(false, 3, out _));
-            usage.Submitted(2, default, false, new ResourceReuseFence { hasGraphics = true });
+            usage.Submitted(2, PendingCompletion(), new ResourceReuseFence { hasGraphics = true });
             Assert.IsFalse(usage.CanWriteCpu);
             Assert.IsTrue(usage.CanAcquireCommands(false, 3, out _), "A successfully drained/submitted queue restores ordered GPU reuse only.");
         }

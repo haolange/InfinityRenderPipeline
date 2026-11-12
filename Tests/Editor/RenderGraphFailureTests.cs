@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void FallbackMrtClear_PreservesLoadedAttachmentAndDistinctClearAlpha()
+        public void TargetMrtClear_PreservesLoadedAttachmentAndDistinctClearAlpha()
         {
             var graph = new RGBuilder("AttachmentClearContract");
             var commands = new CommandBuffer();
@@ -54,27 +54,37 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             RTHandle depthHandle = null;
             try
             {
-                var pass = new RGRasterPass<ConsumerPassData>();
                 Color retained = new Color(0.25f, 0.5f, 0.75f, 0.625f);
                 Color cleared = new Color(0.75f, 0.25f, 0.5f, 0.125f);
+                var attachments = new RGTextureHandle[textures.Length];
+                var factory = typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
                 for (int i = 0; i < textures.Length; i++)
                 {
                     textures[i] = new RenderTexture(4, 4, 0, RenderTextureFormat.ARGBFloat);
                     textures[i].Create(); handles[i] = RTHandles.Alloc(textures[i]);
                     commands.SetRenderTarget(textures[i]);
                     commands.ClearRenderTarget(false, true, retained);
-                    var texture = graph.ImportTexture(handles[i]);
+                    attachments[i] = graph.ImportTexture(handles[i]);
                     // Imported descriptor is the same authority used by native attachments.
-                    var factory = typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
                     var resource = (RGTexture)typeof(RGResourceFactory).GetMethod("GetTextureResource", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                        .Invoke(factory, new object[] { texture.handle });
+                        .Invoke(factory, new object[] { attachments[i].handle });
                     resource.descriptor = new TextureDescriptor(4, 4) { clearColor = i == 0 ? cleared : Color.clear };
-                    pass.SetColorAttachment(texture, i, i == 1 ? RenderBufferLoadAction.Load : RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 }
                 depth.Create(); depthHandle = RTHandles.Alloc(depth);
-                pass.SetDepthStencilAttachment(graph.ImportTexture(depthHandle), RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                RGTextureHandle depthAttachment = graph.ImportTexture(depthHandle);
+                // The target path binds a compiled pass: record it in the graph and compile, as the frame does.
+                using (var pass = graph.AddRasterPass<ConsumerPassData>(new ProfilingSampler("AttachmentClear")))
+                {
+                    for (int i = 0; i < attachments.Length; i++)
+                    {
+                        pass.SetColorAttachment(attachments[i], i, i == 1 ? RenderBufferLoadAction.Load : RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                    }
+                    pass.SetDepthStencilAttachment(depthAttachment, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                    pass.SetExecuteFunc((in ConsumerPassData data, in RGRasterEncoder encoder) => { });
+                }
+                typeof(RGBuilder).GetMethod("CompilePass", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(graph, null);
                 var context = new RGContext { cmdBuffer = commands, objectPool = pool };
-                var info = new RGPassCompileInfo { pass = pass };
+                var info = graph.CompiledPass(0);
                 typeof(RGBuilder).GetMethod("SetRenderTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                     .Invoke(graph, new object[] { context, info });
                 Graphics.ExecuteCommandBuffer(commands);

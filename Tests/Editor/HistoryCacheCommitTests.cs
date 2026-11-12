@@ -116,7 +116,8 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             Assert.IsTrue(original.buffer.IsValid());
             Assert.IsTrue(pending.buffer.IsValid());
             m_Cache.FlushRetired();
-            Assert.IsFalse(pending.buffer.IsValid());
+            Assert.IsTrue(m_Pool.BufferUsage(pending.buffer).returned, "Flush returns the discarded acquisition to the pool, which owns its lifetime.");
+            Assert.IsFalse(m_Pool.BufferUsage(original.buffer).returned, "Committed history keeps its acquisition.");
             Assert.IsTrue(original.buffer.IsValid());
         }
 
