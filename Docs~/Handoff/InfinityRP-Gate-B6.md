@@ -1,6 +1,6 @@
 # 闸门 B6：本地验收清单（B6 + B5 遗留）
 
-分支 `claude/kind-knuth-d599st`，HEAD `3752cfe`，上一个闸门 `082a41d`（B5，PASS，附遗留项）。通用流程、判定标准与回报模板见
+分支 `claude/kind-knuth-d599st`，HEAD 为拉取时的最新提交（至少 `6c2bfb3`），上一个闸门 `082a41d`（B5，PASS，附遗留项）。通用流程、判定标准与回报模板见
 `InfinityRP-Local-Verification-Handoff.md`；本文只列这一闸门特有的内容。云端无法编译 shader，本批所有 HLSL 改动在此之前都是未验证的。
 
 ## 提交
@@ -16,6 +16,12 @@
 | 8cdf1b5 | B6g：RequiredProducers 一份集合并在资源解析时校验；depthTextureMode 只写一次；SubmitFrame；CombineLut 删常量与死参数（含 shader）；redundantparam 检查 |
 | 9d057bd | B6f-1：删除 12 个无人读取的相机全局量；cbuffer ViewUnifrom → ViewUniform（含 shader） |
 | 3752cfe | B6 复审修正：HistoryCache 改 internal（修 CS0051）、反射测试、资产 setter、Inspector 抛错、R8 守卫、subsurfaceEnabled |
+| 33ca038 | B8b：HistoryCache.Read，history 有效性一条规则（体积云/雾/曝光在上一帧失败后不再混合未初始化内容） |
+| a24cd36 | B8c：TextureDescriptor.Create2D |
+| 93a664a | B8d：附加光源数据每帧按可见索引从注册表解析一次，删除 3 处 TryGetComponent |
+| 586c574 | B8g-1：TryQuery + throw 改为 QueryTexture |
+| 12ce5c0 | B8g-2：可选输入由 feature 集合决定；体积雾删除"无大气 LUT"静默分支（含 shader） |
+| 6c2bfb3 | B8f-1：capture 请求解析为 ECaptureBuffer 位标志 |
 
 ## 编译
 
@@ -50,6 +56,8 @@ B6d 只改访问修饰符，字段名、类型、默认值均未变。验证方�
 - RP Asset 的阴影/SR/render scale/probe 修改通过 pipeline 重建生效；运行期脚本写资产不再生效（setter 已删除）。
 - 资源缺少 Depth/GBuffer/DeferredShading/Display 所需 kernel 时，pipeline 在构造时报错一次，而不是每帧报错。
 - 上传的相机全局量从 25 个降到 14 个；Frame Debugger 中不再出现 FrameIndex、TAAJitter 等。
+- 相机失败后的下一帧，体积云、体积雾、自动曝光把 history 视为无效（原来会混合池中未初始化的内容）。
+- 运行中给灯新增 InfinityAdditionalLightData 时，从下一帧（注册任务处理后）起生效；不再有同帧 TryGetComponent 兜底。
 
 ## 运行期新增的异常（出现即定位第一个 owner 回报）
 
@@ -59,12 +67,14 @@ B6d 只改访问修饰符，字段名、类型、默认值均未变。验证方�
 | `InfinityRP cannot render without X` | 资源解析时必需 producer 不受支持 |
 | `required producer X is not going to produce this frame` | 某相机录制后缺少必需产出（含 TAA/超分） |
 | `IndexOutOfRange` 出自 CullShadowCasterSplits / MeshGpuCullPass | ShadowAllocator 发布了越界的可见光索引（原来被静默跳过） |
+| `RGScoper.QueryTexture: X is not registered this frame` | 某 feature 被判定录制但其 producer 没有登记输出（原来被 TryQuery 静默跳过） |
 
 ## 必跑测试
 
 全量 EditMode，与 B5 基线（833 通过 / 14 失败）对比。重点：CameraFrameStateTests（history reset 原因、SkippedFrame）、TemporalAntiAliasingTests、
 LightBinningTests、RenderCaptureTests、AtmosphereCacheTests、HistoryCacheCommitTests、LocalShadowCacheTests、LightCookie*/ReflectionProbe* 测试、
-QualityLifecycleTests、NormalizationContractTests、SceneViewOutputTests、BakedGITests、ColorOutputGpuTests、DefaultVolumeOutputTests、ExposureOutputTests。
+QualityLifecycleTests、NormalizationContractTests、SceneViewOutputTests、BakedGITests、ColorOutputGpuTests、DefaultVolumeOutputTests、ExposureOutputTests、
+HistoryCacheCommitTests、RenderCaptureTests、ImageRegressionRequestTests、ShadowAllocator/LightBinning 相关测试。
 静态检查：`static_check.py` 0 error；`test_static_check.py` 全部通过（含新的 redundantparam 夹具）。
 
 ## 画面
