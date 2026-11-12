@@ -116,8 +116,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     inputs[i * 2] = new Vector4(cases[i].origin.x, cases[i].origin.y, cases[i].origin.z, cases[i].limit);
                     inputs[i * 2 + 1] = cases[i].direction;
                 }
-                using (var input = new ComputeBuffer(inputs.Length, 16))
-                using (var output = new ComputeBuffer(inputs.Length, 16))
+                using (var input = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16))
+                using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16))
                 {
                     input.SetData(inputs);
                     int kernel = shader.FindKernel("CloudShellContract");
@@ -182,8 +182,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     new Vector4(.1f, .00390625f, 1, 0),
                     new Vector4(.1f, .00390625f, 0, 0),
                 };
-                using (var input = new ComputeBuffer(inputs.Length, 16))
-                using (var output = new ComputeBuffer(inputs.Length, 16))
+                using (var input = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16))
+                using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16))
                 {
                     input.SetData(inputs);
                     int kernel = shader.FindKernel("CloudDepthContract");

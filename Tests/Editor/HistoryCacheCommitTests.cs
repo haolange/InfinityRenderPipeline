@@ -106,8 +106,8 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         [Test]
         public void FailedResize_PreservesCommittedBufferAndDescriptor()
         {
-            var small = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
-            var large = new BufferDescriptor(8, 16, ComputeBufferType.Structured);
+            var small = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
+            var large = new BufferDescriptor(8, 16, GraphicsBuffer.Target.Structured);
             BufferHandle original = m_Cache.GetBuffer(56, small);
             BufferHandle pending = m_Cache.GetWriteBuffer(56, large);
             m_Cache.MarkProduced(56);

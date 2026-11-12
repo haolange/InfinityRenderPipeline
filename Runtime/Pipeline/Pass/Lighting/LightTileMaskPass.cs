@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.Pipeline
                 name = masksName,
                 count = math.max(1, tileCount.x * tileCount.y * wordCount),
                 stride = sizeof(uint),
-                type = ComputeBufferType.Structured
+                target = GraphicsBuffer.Target.Structured
             });
 
             using (var passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))

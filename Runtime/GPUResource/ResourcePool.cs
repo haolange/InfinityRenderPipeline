@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.GPUResource
         {
             get;
         }
-        readonly Dictionary<ComputeBuffer, ResourceUsage> m_BufferUses = new Dictionary<ComputeBuffer, ResourceUsage>();
+        readonly Dictionary<GraphicsBuffer, ResourceUsage> m_BufferUses = new Dictionary<GraphicsBuffer, ResourceUsage>();
         readonly Dictionary<RTHandle, ResourceUsage> m_TextureUses = new Dictionary<RTHandle, ResourceUsage>();
         readonly Dictionary<RenderTexture, ResourceUsage> m_TexturePhysicalUses = new Dictionary<RenderTexture, ResourceUsage>();
         readonly HashSet<ResourceUsage> m_PendingUses = new HashSet<ResourceUsage>();
@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.GPUResource
             }
             m_CompletedUses.Clear();
         }
-        internal ResourceUsage BufferUsage(ComputeBuffer buffer) => buffer != null && m_BufferUses.TryGetValue(buffer, out var usage) ? usage : null;
+        internal ResourceUsage BufferUsage(GraphicsBuffer buffer) => buffer != null && m_BufferUses.TryGetValue(buffer, out var usage) ? usage : null;
         internal ResourceUsage TextureUsage(RTHandle texture)
         {
             if (texture == null)
@@ -152,11 +152,11 @@ namespace InfinityTech.Rendering.GPUResource
             {
                 EnsureRecording();
             }
-            ComputeBuffer buffer;
+            GraphicsBuffer buffer;
 
             if (!buffers.Pull(descriptor.GetHashCode(), descriptor, commandUse, asyncCompute, m_RecordingEpoch, out buffer, out reuseFence))
             {
-                buffer = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
+                buffer = new GraphicsBuffer(descriptor.target, descriptor.count, descriptor.stride);
                 buffer.name = descriptor.name;
                 buffers.RecordAllocation(descriptor);
                 m_BufferUses.Add(buffer, new ResourceUsage());

@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("A compute device with GPU readback is required.");
             const int directionalCount = 3;
             var owned = new List<UnityEngine.Object>();
-            var buffers = new List<ComputeBuffer>();
+            var buffers = new List<GraphicsBuffer>();
             RenderTexture previous = RenderTexture.active;
             try
             {
@@ -110,9 +110,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RenderTexture.active = previous;
                     return target;
                 }
-                ComputeBuffer Buffer<T>(T[] data, int stride) where T : struct
+                GraphicsBuffer Buffer<T>(T[] data, int stride) where T : struct
                 {
-                    var buffer = new ComputeBuffer(data.Length, stride); buffers.Add(buffer); buffer.SetData(data); return buffer;
+                    var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, data.Length, stride); buffers.Add(buffer); buffer.SetData(data); return buffer;
                 }
                 var black = Texture(Color.clear);
                 var layer = Texture(new Color(64f / 255, 0, 0, 1f / 255));

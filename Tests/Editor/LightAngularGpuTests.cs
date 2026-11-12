@@ -20,9 +20,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("A compute graphics device is required for the angular contract.");
             ComputeShader shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Shader);
             Assert.IsNotNull(shader, k_Shader);
-            using (var records = new ComputeBuffer(1, Marshal.SizeOf<LightRecord>()))
-            using (var points = new ComputeBuffer(positions.Length, 16))
-            using (var results = new ComputeBuffer(positions.Length, 8))
+            using (var records = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, Marshal.SizeOf<LightRecord>()))
+            using (var points = new GraphicsBuffer(GraphicsBuffer.Target.Structured, positions.Length, 16))
+            using (var results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, positions.Length, 8))
             {
                 records.SetData(new[] { record });
                 points.SetData(positions);

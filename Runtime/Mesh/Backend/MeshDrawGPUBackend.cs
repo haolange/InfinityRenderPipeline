@@ -159,7 +159,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void DispatchCullFrustumBatch<TCommands>(TCommands commands, in MeshCullInputs inputs, int viewCount, int stride,
-            ComputeBuffer viewTable, RGBufferHandle visibility, MeshWorldStats stats) where TCommands : struct, IComputeCommands
+            GraphicsBuffer viewTable, RGBufferHandle visibility, MeshWorldStats stats) where TCommands : struct, IComputeCommands
         {
             RequireSupported();
             commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
@@ -190,7 +190,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 payload.commandMeta = m_Pool.GetBuffer(new BufferDescriptor(commands * MeshPassCache.MetaStride, sizeof(uint)) { name = "MeshDrawCommandMeta" }, true, false, out payload.metaWait);
-                payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
+                payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
                 payload.instanceToEntity = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(uint)) { name = "MeshInstanceToEntity" }, true, false, out payload.instancesWait);
                 payload.instanceFade = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(float)) { name = "MeshInstanceFade" }, true, false, out payload.fadeWait);
             }
@@ -231,7 +231,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void CompactInstances(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
+            GraphicsBuffer visibility, int visibilityBase, MeshWorldStats stats)
         {
             RequireSupported();
             commands.SetComputeIntParam(m_Shader, ID_VisibilityBase, visibilityBase);
@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
+            GraphicsBuffer visibility, int visibilityBase, MeshWorldStats stats)
         {
             InitializeIndirectArgs(commands, payload, cache, commandCount, stats);
             CompactInstances(commands, payload, cache, commandCount, candidateCount, visibility, visibilityBase, stats);

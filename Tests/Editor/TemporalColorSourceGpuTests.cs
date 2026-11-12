@@ -26,8 +26,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var mips=new Texture2D(half,half,TextureFormat.RGBAFloat,true,true) {filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
             var levels=new[] {new Color(10,20,30,.75f),new Color(40,50,60,.5f),new Color(70,80,90,.25f)};
             float[] lods={0,.5f,1,1.5f,2,3};
-            using var inputs=new ComputeBuffer(lods.Length,16);
-            using var outputs=new ComputeBuffer(lods.Length,16);
+            using var inputs=new GraphicsBuffer(GraphicsBuffer.Target.Structured, lods.Length,16);
+            using var outputs=new GraphicsBuffer(GraphicsBuffer.Target.Structured, lods.Length,16);
             try
             {
                 var pixels=new Color[full*full];var depths=new Color[full*full];

@@ -35,8 +35,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             rects[40] = new int4(6, 4, 6, 4); // the last tile only
 
             int total = tileCount.x * tileCount.y * wordCount;
-            using (var rectBuffer = new ComputeBuffer(lightCount, 16))
-            using (var maskBuffer = new ComputeBuffer(total, 4))
+            using (var rectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, lightCount, 16))
+            using (var maskBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, total, 4))
             {
                 rectBuffer.SetData(rects);
                 maskBuffer.SetData(new uint[total]);

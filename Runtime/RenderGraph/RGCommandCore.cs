@@ -131,46 +131,17 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         internal void SetGlobalBuffer(int nameID, in RGBufferHandle buffer)
-        {
-            RGBuffer resource = resources.ResolveBuffer(buffer);
-            if (resource.graphicsResource != null)
-            {
-                commands.SetGlobalBuffer(nameID, resource.graphicsResource);
-            }
-            else
-            {
-                commands.SetGlobalBuffer(nameID, resource.resource);
-            }
-        }
+            => commands.SetGlobalBuffer(nameID, resources.ResolveBuffer(buffer).resource);
 
-        internal void SetComputeBuffer(ComputeShader shader, int kernel, int nameID, in RGBufferHandle buffer)
-        {
-            RGBuffer resource = resources.ResolveBuffer(buffer);
-            if (resource.graphicsResource != null)
-            {
-                commands.SetComputeBufferParam(shader, kernel, nameID, resource.graphicsResource);
-            }
-            else
-            {
-                commands.SetComputeBufferParam(shader, kernel, nameID, resource.resource);
-            }
-        }
+        internal void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, in RGBufferHandle buffer)
+            => commands.SetComputeBufferParam(shader, kernel, nameID, resources.ResolveBuffer(buffer).resource);
 
         internal void DispatchComputeIndirect(ComputeShader shader, int kernel, in RGBufferHandle argsBuffer, uint argsOffset)
         {
             RGBuffer resource = resources.ResolveBuffer(argsBuffer);
-            if (resource.graphicsResource != null)
-            {
-                if ((resource.graphicsTarget & GraphicsBuffer.Target.IndirectArguments) == 0)
-                    throw new InvalidOperationException($"RG buffer {resource.GetName()} is not an IndirectArguments buffer.");
-                commands.DispatchCompute(shader, kernel, resource.graphicsResource, argsOffset);
-            }
-            else
-            {
-                if ((resource.descriptor.type & ComputeBufferType.IndirectArguments) == 0)
-                    throw new InvalidOperationException($"RG buffer {resource.GetName()} is not an IndirectArguments buffer.");
-                commands.DispatchCompute(shader, kernel, resource.resource, argsOffset);
-            }
+            if ((resource.descriptor.target & GraphicsBuffer.Target.IndirectArguments) == 0)
+                throw new InvalidOperationException($"RG buffer {resource.GetName()} is not an IndirectArguments buffer.");
+            commands.DispatchCompute(shader, kernel, resource.resource, argsOffset);
         }
 
         internal void CopyTexture(in RGTextureHandle src, in RGTextureHandle dst)
@@ -201,13 +172,11 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void SetGlobalVectorArray(int nameID, Vector4[] values) => commands.SetGlobalVectorArray(nameID, values);
         internal void SetGlobalMatrixArray(int nameID, List<Matrix4x4> values) => commands.SetGlobalMatrixArray(nameID, values);
         internal void SetGlobalMatrixArray(int nameID, Matrix4x4[] values) => commands.SetGlobalMatrixArray(nameID, values);
-        internal void SetGlobalBuffer(int nameID, ComputeBuffer value) => commands.SetGlobalBuffer(nameID, value);
         internal void SetGlobalBuffer(int nameID, GraphicsBuffer value) => commands.SetGlobalBuffer(nameID, value);
-        internal void SetGlobalConstantBuffer(ComputeBuffer buffer, int nameID, int offset, int size) => commands.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         internal void SetGlobalConstantBuffer(GraphicsBuffer buffer, int nameID, int offset, int size) => commands.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         #endregion Global parameters
 
-        internal void SetBufferData(ComputeBuffer buffer, Array data, int sourceIndex, int destinationIndex, int count) => commands.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
+        internal void SetBufferData(GraphicsBuffer buffer, Array data, int sourceIndex, int destinationIndex, int count) => commands.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
         internal void BeginSample(ProfilingSampler sampler) => sampler?.Begin(commands);
         internal void EndSample(ProfilingSampler sampler) => sampler?.End(commands);
     }

@@ -17,7 +17,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetBufferData<T>(GraphicsBuffer buffer, Unity.Collections.NativeArray<T> data) where T : struct => m_Core.commands.SetBufferData(buffer, data);
         public void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count) => m_Core.commands.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
-        internal void SetBufferData(ComputeBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count) => m_Core.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
         public void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst) => m_Core.commands.CopyBuffer(src, dst);
         public void RequestAsyncReadback(GraphicsBuffer source, System.Action<AsyncGPUReadbackRequest> completion) => m_Core.commands.RequestAsyncReadback(source, completion);
         public void RequestAsyncReadback(Texture source, System.Action<AsyncGPUReadbackRequest> completion) => m_Core.commands.RequestAsyncReadback(source, 0, completion);
@@ -39,7 +38,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetKeyword(GlobalKeyword keyword, bool value) => m_Core.SetKeyword(keyword, value);
         public void SetKeyword(ComputeShader computeShader, in LocalKeyword keyword, bool value) => m_Core.SetKeyword(computeShader, keyword, value);
-        internal void SetBufferData(ComputeBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count) => m_Core.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
 
         #region SetGlobalParameter
         public void SetGlobalFloat(int nameID, float value) => m_Core.SetGlobalFloat(nameID, value);
@@ -59,10 +57,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value) => m_Core.SetGlobalTexture(nameID, value, RenderTextureSubElement.Default);
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, RenderTextureSubElement element) => m_Core.SetGlobalTexture(nameID, value, element);
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, in TextureView view) => m_Core.SetGlobalTexture(nameID, value, view);
-        public void SetGlobalBuffer(int nameID, ComputeBuffer value) => m_Core.SetGlobalBuffer(nameID, value);
         public void SetGlobalBuffer(int nameID, GraphicsBuffer value) => m_Core.SetGlobalBuffer(nameID, value);
         public void SetGlobalBuffer(int nameID, RGBufferHandle value) => m_Core.SetGlobalBuffer(nameID, value);
-        public void SetGlobalConstantBuffer(ComputeBuffer buffer, int nameID, int offset, int size) => m_Core.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         public void SetGlobalConstantBuffer(GraphicsBuffer buffer, int nameID, int offset, int size) => m_Core.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         #endregion SetGlobalParameter
 
@@ -85,11 +81,9 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, in TextureView view) => m_Core.SetComputeTexture(computeShader, kernelIndex, nameID, rt, view);
 
-        public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer) => m_Core.commands.SetComputeBufferParam(computeShader, kernelIndex, nameID, buffer);
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBuffer buffer) => m_Core.commands.SetComputeBufferParam(computeShader, kernelIndex, nameID, buffer);
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBufferHandle bufferHandle) => m_Core.commands.SetComputeBufferParam(computeShader, kernelIndex, nameID, bufferHandle);
-        public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer) => m_Core.SetComputeBuffer(computeShader, kernelIndex, nameID, buffer);
-        public void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size) => m_Core.commands.SetComputeConstantBufferParam(computeShader, nameID, buffer, offset, size);
+        public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer) => m_Core.SetComputeBufferParam(computeShader, kernelIndex, nameID, buffer);
         public void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, GraphicsBuffer buffer, int offset, int size) => m_Core.commands.SetComputeConstantBufferParam(computeShader, nameID, buffer, offset, size);
         public void SetComputeParamsFromMaterial(ComputeShader computeShader, int kernelIndex, Material material) => m_Core.commands.SetComputeParamsFromMaterial(computeShader, kernelIndex, material);
         public void SetComputeRayTracingAccelerationStructure(ComputeShader computeShader, int kernelIndex, int nameID, RayTracingAccelerationStructure rayTracingAccelerationStructure)
@@ -98,7 +92,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ) => m_Core.commands.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
         public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferHandle argsBuffer, in uint argsOffset) => m_Core.DispatchComputeIndirect(computeShader, kernelIndex, argsBuffer, argsOffset);
-        public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, ComputeBuffer indirectBuffer, in uint argsOffset) => m_Core.commands.DispatchCompute(computeShader, kernelIndex, indirectBuffer, argsOffset);
         public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, GraphicsBuffer indirectBuffer, in uint argsOffset) => m_Core.commands.DispatchCompute(computeShader, kernelIndex, indirectBuffer, argsOffset);
         public void CopyTexture(RGTextureHandle src, RGTextureHandle dst) => m_Core.CopyTexture(src, dst);
         public void BeginSample(ProfilingSampler sampler) => m_Core.BeginSample(sampler);
@@ -116,10 +109,8 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetRayTracingShaderPass(RayTracingShader rayTracingShader, string passName) => m_Core.commands.SetRayTracingShaderPass(rayTracingShader, passName);
         public void SetRayTracingAccelerationStructure(RayTracingShader rayTracingShader, int nameID, RayTracingAccelerationStructure rayTracingAccelerationStructure) => m_Core.commands.SetRayTracingAccelerationStructure(rayTracingShader, nameID, rayTracingAccelerationStructure);
-        public void SetRayTracingBufferParam(RayTracingShader rayTracingShader, int nameID, ComputeBuffer buffer) => m_Core.commands.SetRayTracingBufferParam(rayTracingShader, nameID, buffer);
         public void SetRayTracingBufferParam(RayTracingShader rayTracingShader, int nameID, GraphicsBuffer buffer) => m_Core.commands.SetRayTracingBufferParam(rayTracingShader, nameID, buffer);
         public void SetRayTracingBufferParam(RayTracingShader rayTracingShader, int nameID, GraphicsBufferHandle bufferHandle) => m_Core.commands.SetRayTracingBufferParam(rayTracingShader, nameID, bufferHandle);
-        public void SetRayTracingConstantBufferParam(RayTracingShader rayTracingShader, int nameID, ComputeBuffer buffer, int offset, int size) => m_Core.commands.SetRayTracingConstantBufferParam(rayTracingShader, nameID, buffer, offset, size);
         public void SetRayTracingConstantBufferParam(RayTracingShader rayTracingShader, int nameID, GraphicsBuffer buffer, int offset, int size) => m_Core.commands.SetRayTracingConstantBufferParam(rayTracingShader, nameID, buffer, offset, size);
         public void SetRayTracingTextureParam(RayTracingShader rayTracingShader, int nameID, RGTextureHandle texture) => m_Core.SetRayTracingTexture(rayTracingShader, nameID, texture);
         public void SetRayTracingTextureParam(RayTracingShader rayTracingShader, int nameID, RenderTargetIdentifier rt) => m_Core.SetRayTracingTexture(rayTracingShader, nameID, rt);
@@ -185,10 +176,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value) => m_Core.SetGlobalTexture(nameID, value, RenderTextureSubElement.Default);
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, RenderTextureSubElement element) => m_Core.SetGlobalTexture(nameID, value, element);
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, in TextureView view) => m_Core.SetGlobalTexture(nameID, value, view);
-        public void SetGlobalBuffer(int nameID, ComputeBuffer value) => m_Core.SetGlobalBuffer(nameID, value);
         public void SetGlobalBuffer(int nameID, GraphicsBuffer value) => m_Core.SetGlobalBuffer(nameID, value);
         public void SetGlobalBuffer(int nameID, RGBufferHandle value) => m_Core.SetGlobalBuffer(nameID, value);
-        public void SetGlobalConstantBuffer(ComputeBuffer buffer, int nameID, int offset, int size) => m_Core.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         public void SetGlobalConstantBuffer(GraphicsBuffer buffer, int nameID, int offset, int size) => m_Core.SetGlobalConstantBuffer(buffer, nameID, offset, size);
         #endregion SetGlobalParameter
 
@@ -302,36 +291,6 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Core.commands.DrawProcedural(indexBuffer, matrix, material, shaderPass, topology, indexCount);
         }
 
-        public void DrawProceduralIndirect(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs, in int argsOffset, MaterialPropertyBlock properties)
-        {
-            m_Core.commands.DrawProceduralIndirect(matrix, material,shaderPass,topology, bufferWithArgs,argsOffset, properties);
-        }
-
-        public void DrawProceduralIndirect(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs, in int argsOffset)
-        {
-            m_Core.commands.DrawProceduralIndirect(matrix, material, shaderPass, topology, bufferWithArgs, argsOffset);
-        }
-
-        public void DrawProceduralIndirect(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs)
-        {
-            m_Core.commands.DrawProceduralIndirect(matrix, material, shaderPass, topology, bufferWithArgs);
-        }
-
-        public void DrawProceduralIndirect(GraphicsBuffer indexBuffer, in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs, in int argsOffset, MaterialPropertyBlock properties)
-        {
-            m_Core.commands.DrawProceduralIndirect(indexBuffer,matrix, material, shaderPass, topology, bufferWithArgs, argsOffset, properties);
-        }
-
-        public void DrawProceduralIndirect(GraphicsBuffer indexBuffer, in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs, in int argsOffset)
-        {
-            m_Core.commands.DrawProceduralIndirect(indexBuffer, matrix, material, shaderPass, topology, bufferWithArgs, argsOffset);
-        }
-
-        public void DrawProceduralIndirect(GraphicsBuffer indexBuffer, in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, ComputeBuffer bufferWithArgs)
-        {
-            m_Core.commands.DrawProceduralIndirect(indexBuffer, matrix, material, shaderPass, topology, bufferWithArgs);
-        }
-
         public void DrawProceduralIndirect(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, GraphicsBuffer bufferWithArgs, in int argsOffset, MaterialPropertyBlock properties)
         {
             m_Core.commands.DrawProceduralIndirect(matrix, material, shaderPass, topology, bufferWithArgs, argsOffset, properties);
@@ -380,21 +339,6 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DrawMeshInstancedProcedural(Mesh mesh, in int submeshIndex, Material material, in int shaderPass, in int count, MaterialPropertyBlock properties)
         {
             m_Core.commands.DrawMeshInstancedProcedural(mesh, submeshIndex, material, shaderPass, count, properties);
-        }
-
-        public void DrawMeshInstancedIndirect(Mesh mesh, in int submeshIndex, Material material, in int shaderPass, ComputeBuffer bufferWithArgs, in int argsOffset, MaterialPropertyBlock properties)
-        {
-            m_Core.commands.DrawMeshInstancedIndirect(mesh, submeshIndex, material, shaderPass, bufferWithArgs, argsOffset, properties);
-        }
-
-        public void DrawMeshInstancedIndirect(Mesh mesh, in int submeshIndex, Material material, in int shaderPass, ComputeBuffer bufferWithArgs, in int argsOffset)
-        {
-            m_Core.commands.DrawMeshInstancedIndirect(mesh, submeshIndex, material, shaderPass, bufferWithArgs, argsOffset);
-        }
-
-        public void DrawMeshInstancedIndirect(Mesh mesh, in int submeshIndex, Material material, in int shaderPass, ComputeBuffer bufferWithArgs)
-        {
-            m_Core.commands.DrawMeshInstancedIndirect(mesh, submeshIndex, material, shaderPass, bufferWithArgs);
         }
 
         public void DrawMeshInstancedIndirect(Mesh mesh, in int submeshIndex, Material material, in int shaderPass, GraphicsBuffer bufferWithArgs, in int argsOffset, MaterialPropertyBlock properties)

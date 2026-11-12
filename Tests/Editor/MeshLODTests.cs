@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 orthographic.lodProjection = new MeshLODProjection { origin = float3.zero, scale = 0.25f, bias = 1, orthographic = true };
                 MeshView[] views = { perspective, orthographic };
                 int stride = world.entityHighWater;
-                var output = new ComputeBuffer(stride * views.Length, sizeof(uint));
+                var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, stride * views.Length, sizeof(uint));
                 try
                 {
                     var levels = new HashSet<uint>();

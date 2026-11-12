@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string ShaderPath = "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/VisualContract.compute";
         static Vector4[] Run(ComputeShader shader, string kernelName, int count)
         {
-            using (var output = new ComputeBuffer(count, 16))
+            using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 16))
             {
                 int kernel = shader.FindKernel(kernelName);
                 shader.SetBuffer(kernel, "Results", output);

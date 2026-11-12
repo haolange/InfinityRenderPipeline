@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("Compute and async readback required.");
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                 "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
-            using var output = new ComputeBuffer(4, 16);
+            using var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 4, 16);
             try
             {
                 int kernel = shader.FindKernel("ReceiverGradient");
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("Compute and async readback required.");
             ComputeShader shader = null;
             Texture2D depth = null;
-            ComputeBuffer output = null, matrices = null, slices = null;
+            GraphicsBuffer output = null, matrices = null, slices = null;
             try
             {
                 shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
@@ -82,10 +82,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     sliceData[face].atlasRect = new Vector4(face / 6f, 0, 1 / 6f, 1);
                     sliceData[face].shadowOriginSize = Vector4.zero;
                 }
-                matrices = new ComputeBuffer(6, 64); matrices.SetData(matrixData);
-                slices = new ComputeBuffer(6, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
+                matrices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 6, 64); matrices.SetData(matrixData);
+                slices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 6, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
                 slices.SetData(sliceData);
-                output = new ComputeBuffer(2, 16);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16);
                 var directions = new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
                 shader.SetVectorArray("TestWorldPositions", new[] { (Vector4)(directions[blockedFace] * 2), (Vector4)(directions[(blockedFace + 1) % 6] * 2) });
                 shader.SetVector("_LocalShadowMapSize", new Vector4(192, 32, 1 / 192f, 1 / 32f));
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("Compute and async readback required.");
             ComputeShader shader = null;
             Texture2D depth = null;
-            ComputeBuffer output = null;
+            GraphicsBuffer output = null;
             try
             {
                 var source = AssetDatabase.LoadAssetAtPath<ComputeShader>(
@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             + (blocker || (tile && (x < 32 || x >= 96 || y < 32 || y >= 96))
                                 ? (SystemInfo.usesReversedZBuffer ? .2f : -.2f) : 0);
                 depth.SetPixelData(values, 0); depth.Apply(false);
-                output = new ComputeBuffer(256, 16);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
                 int kernel = shader.FindKernel("SlopedPlane");
                 shader.SetVector("_ShadowFilterParams", new Vector4(2, 16, 32, 12));
                 shader.SetVector("TestRect", tile ? new Vector4(.25f, .25f, .5f, .5f) : new Vector4(0, 0, 1, 1));
@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("Compute and async readback required.");
             ComputeShader shader = null;
             Texture2D depth = null;
-            ComputeBuffer output = null;
+            GraphicsBuffer output = null;
             try
             {
                 shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     for (int x = 0; x < 128; x++) values[y * 128 + x] = x < 64
                         ? (local ? .5f : (reversed ? .8f : .2f)) : (reversed ? 0 : 1);
                 depth.SetPixelData(values, 0); depth.Apply(false);
-                output = new ComputeBuffer(256, 16);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
                 int kernel = shader.FindKernel("Penumbra");
                 shader.SetInt("TestLocal", local ? 1 : 0);
                 shader.SetVector("TestDepthParams", local

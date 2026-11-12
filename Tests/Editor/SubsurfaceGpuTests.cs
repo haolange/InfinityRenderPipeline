@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
                 Assert.Ignore("Compute and readback are required.");
             var owned = new List<Object>();
-            ComputeBuffer profiles = null;
+            GraphicsBuffer profiles = null;
             try
             {
                 T Own<T>(T value) where T : Object { owned.Add(value); return value; }
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 // Upload a nonuniform specular/emissive residual through a CPU-created texture.
                 var original = Texture((x, y) => Diffuse(x, y) + new Color(x % 2 == 0 ? 3 : 0, y % 2 == 0 ? 2 : 0, 1, 0));
                 Graphics.CopyTexture(original, scene);
-                profiles = new ComputeBuffer(2, 32);
+                profiles = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 32);
                 profiles.SetData(new[] { new DiffusionProfileRecord { scatterAlbedoDistance = new Vector4(1,1,1,mode == 3 ? .00001f : 1), parameters = new Vector4(3,0,0,0) }, new DiffusionProfileRecord { scatterAlbedoDistance = new Vector4(1,1,1,mode == 6 ? .00001f : 1), parameters = new Vector4(3,0,0,0) } });
                 shader.SetVector("SSS_Resolution", new Vector4(width, height, 1f / width, 1f / height));
                 shader.SetMatrix("Matrix_Proj", projection); shader.SetMatrix("Matrix_InvProj", projection.inverse);

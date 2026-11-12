@@ -34,12 +34,12 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
         // A texture outside the graph states its own logical view for a texture-view property.
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, in TextureView view);
-        void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer);
+        void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBuffer buffer);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer);
-        void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size);
+        void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, GraphicsBuffer buffer, int offset, int size);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
         // Thread-group counts come from three uints at argsOffset (bytes) in a graph buffer created with
-        // ComputeBufferType.IndirectArguments. The pass must declare the buffer with ReadBuffer.
+        // GraphicsBuffer.Target.IndirectArguments. The pass must declare the buffer with ReadBuffer.
         void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferHandle argsBuffer, in uint argsOffset);
         void CopyTexture(RGTextureHandle src, RGTextureHandle dst);
         void BeginSample(ProfilingSampler sampler);
@@ -75,7 +75,6 @@ namespace InfinityTech.Rendering.RenderGraph
         void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data);
         void SetViewport(in Rect pixelRect);
         void SetGlobalFloat(int nameID, float value);
-        void SetGlobalBuffer(int nameID, ComputeBuffer value);
         void SetGlobalBuffer(int nameID, RGBufferHandle value);
         void SetGlobalBuffer(int nameID, GraphicsBuffer value);
         void SetGlobalInt(int nameID, int value);

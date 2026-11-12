@@ -201,7 +201,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AtmosphereViewKey keyB = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.9f, 2.1f, 3.2f));
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
-            BufferDescriptor sun = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
+            BufferDescriptor sun = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
 
             m_View.BeginFrame();
             m_View.Resolve(keyA, sky, aerial, sun, out _, out _, out _, out bool firstHit);
@@ -223,7 +223,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AtmosphereViewKey key = AtmosphereViewKey.Create(parameter, sun, camera);
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
-            BufferDescriptor sunBuffer = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
+            BufferDescriptor sunBuffer = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
 
             m_View.BeginFrame();
             m_View.Resolve(key, sky, aerial, sunBuffer, out _, out _, out _, out _);
@@ -252,7 +252,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AtmosphereIBLKey key = AtmosphereIBLKey.Create(parameter, Vector3.up);
             TextureDescriptor cubemap = MakeCubemap(16, "Cube", false);
             TextureDescriptor prefilter = MakeCubemap(16, "Prefilter", true);
-            BufferDescriptor sh = new BufferDescriptor(9, 16, ComputeBufferType.Structured);
+            BufferDescriptor sh = new BufferDescriptor(9, 16, GraphicsBuffer.Target.Structured);
 
             m_Shared.BeginFrame();
             m_Shared.ResolveIBL(key, cubemap, prefilter, sh, out _, out _, out _, out bool firstHit);

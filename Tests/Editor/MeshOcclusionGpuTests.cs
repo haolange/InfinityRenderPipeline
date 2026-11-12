@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             float behind = reversed ? .2f : .8f, front = reversed ? .9f : .1f;
             var asset = MeshTestUtility.LoadMeshDrawShader();
             var shader = UnityEngine.Object.Instantiate(asset);
-            var allocations = new List<ComputeBuffer>();
+            var allocations = new List<GraphicsBuffer>();
             var previous = Furthest(padded, false, false);
             var current = Furthest(padded, currentHole, !currentHole);
             try
@@ -123,9 +123,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Visible(first));
                 CollectionAssert.AreEqual(new uint[] {1,0,0,0,0,0,0,0,0,1,0}, Read(deferred));
 
-                ComputeBuffer Buffer(Array values, int stride)
+                GraphicsBuffer Buffer(Array values, int stride)
                 {
-                    var buffer = new ComputeBuffer(values.Length, stride); allocations.Add(buffer); buffer.SetData(values); return buffer;
+                    var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, values.Length, stride); allocations.Add(buffer); buffer.SetData(values); return buffer;
                 }
             }
             finally
@@ -134,8 +134,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 UnityEngine.Object.DestroyImmediate(previous); UnityEngine.Object.DestroyImmediate(current); UnityEngine.Object.DestroyImmediate(shader);
             }
         }
-        static uint[] Visible(ComputeBuffer buffer) => MeshTestUtility.VisibleBits(Read(buffer));
-        static uint[] Read(ComputeBuffer buffer)
+        static uint[] Visible(GraphicsBuffer buffer) => MeshTestUtility.VisibleBits(Read(buffer));
+        static uint[] Read(GraphicsBuffer buffer)
         {
             var read = AsyncGPUReadback.Request(buffer); read.WaitForCompletion(); Assert.IsFalse(read.hasError);
             return read.GetData<uint>().ToArray();

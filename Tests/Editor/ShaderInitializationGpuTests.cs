@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             try
             {
-                using var source = new ComputeBuffer(inputs.Length, 16);
-                using var output = new ComputeBuffer(inputs.Length, 16);
+                using var source = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16);
+                using var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16);
                 source.SetData(inputs);
                 output.SetData(new Vector4[inputs.Length]);
                 int kernel = shader.FindKernel(kernelName);

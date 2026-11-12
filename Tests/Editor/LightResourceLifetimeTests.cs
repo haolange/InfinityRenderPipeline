@@ -43,11 +43,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     RGBufferHandle handle = factory.ImportBuffer(native, "NativeLightRecords");
                     factory.BeginRender();
-                    Assert.AreSame(native, factory.ResolveBuffer(handle).graphicsResource);
-                    Assert.AreEqual(native.target, factory.ResolveBuffer(handle).graphicsTarget);
+                    Assert.AreSame(native, factory.ResolveBuffer(handle).resource);
+                    Assert.AreEqual(native.target, factory.ResolveBuffer(handle).descriptor.target);
                     Assert.AreEqual(3, factory.ResolveBuffer(handle).descriptor.count);
                     Assert.AreEqual(16, factory.ResolveBuffer(handle).descriptor.stride);
-                    Assert.IsNull(factory.ResolveBuffer(handle).resource, "A native GraphicsBuffer import has no ComputeBuffer.");
                     // The encoder binds the handle through the graph's own factory, the path a recorded pass takes.
                     var encoder = new RGRasterEncoder(commands, factory);
                     encoder.SetGlobalBuffer(Shader.PropertyToID("TestLightRecords"), handle);

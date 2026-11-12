@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true, true, true)]
         public void OppositeQueue_WaitsForPriorHazard(bool firstAsync, bool firstWrite, bool secondWrite)
         {
-            var physical = new ComputeBuffer(1, sizeof(uint));
+            var physical = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             var graph = new RGBuilder("QueueHazard", null, true);
             try
             {
@@ -64,8 +64,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Writer_WaitsForLatestOppositeReader_AcrossResources()
         {
-            var physicalA = new ComputeBuffer(1, sizeof(uint));
-            var physicalB = new ComputeBuffer(1, sizeof(uint));
+            var physicalA = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
+            var physicalB = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             var graph = new RGBuilder("LatestReader", null, true);
             try
             {
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true)]
         public void SameQueue_DoesNotIntroduceCrossQueueFence(bool async)
         {
-            var physical = new ComputeBuffer(1, sizeof(uint));
+            var physical = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             var graph = new RGBuilder("SameQueue", null, true);
             try
             {
@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void RepeatedBufferImport_UsesOneHazardIdentity()
         {
-            var buffer = new ComputeBuffer(1, sizeof(uint));
+            var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             try
             {
                 var graph = new RGBuilder("BufferAliases", null, true);

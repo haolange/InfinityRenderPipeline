@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ProfilingSampler sampler;
         public MeshCullInputs inputs;
         public RGBufferHandle visibility;
-        public ComputeBuffer viewTable;
+        public GraphicsBuffer viewTable;
     }
 
     /// <summary>

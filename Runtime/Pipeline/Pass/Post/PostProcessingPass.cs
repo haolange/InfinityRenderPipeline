@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureWrite);
 
-            BufferDescriptor histogramDsc = new BufferDescriptor(ExposureUtility.HistogramBinCount, sizeof(uint), ComputeBufferType.Default);
+            BufferDescriptor histogramDsc = new BufferDescriptor(ExposureUtility.HistogramBinCount, sizeof(uint), GraphicsBuffer.Target.Structured);
             histogramDsc.name = PostProcessingPassUtilityData.ExposureHistogramName;
             RGBufferHandle histogram = m_RGBuilder.CreateBuffer(histogramDsc);
 

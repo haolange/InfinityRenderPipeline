@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         /// <summary>The LOD inputs every culling kernel reads, bound the way <c>MeshDrawGPUBackend.BindCullBounds</c> binds them.</summary>
-        internal static void BindLod(ComputeShader shader, int kernel, ComputeBuffer chains, in MeshLODProjection lod)
+        internal static void BindLod(ComputeShader shader, int kernel, GraphicsBuffer chains, in MeshLODProjection lod)
         {
             shader.SetBuffer(kernel, "_EntityLodChains", chains);
             shader.SetVector("_LodOrigin", new Vector4(lod.origin.x, lod.origin.y, lod.origin.z, 0));
@@ -182,12 +182,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return bits;
         }
 
-        internal static void DispatchFrustum(ComputeShader shader, MeshWorld world, MeshView[] views, ComputeBuffer visibility, int stride)
+        internal static void DispatchFrustum(ComputeShader shader, MeshWorld world, MeshView[] views, GraphicsBuffer visibility, int stride)
         {
             int kernel = shader.FindKernel("CullFrustum");
             var table = new MeshFrustumView[views.Length];
             for (int i = 0; i < views.Length; ++i) table[i] = MeshFrustumView.FromView(views[i]);
-            var viewBuffer = new ComputeBuffer(Math.Max(1, views.Length), System.Runtime.InteropServices.Marshal.SizeOf<MeshFrustumView>());
+            var viewBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Math.Max(1, views.Length), System.Runtime.InteropServices.Marshal.SizeOf<MeshFrustumView>());
             try
             {
                 viewBuffer.SetData(table);

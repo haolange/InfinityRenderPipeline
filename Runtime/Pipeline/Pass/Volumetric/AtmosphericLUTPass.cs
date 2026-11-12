@@ -226,9 +226,9 @@ namespace InfinityTech.Rendering.Pipeline
             aerialDsc.wrapMode = TextureWrapMode.Clamp;
             TextureDescriptor cubemapDsc = CreateAtmosphereCubemapDescriptor(parameter.cubemapSize, AtmosphericLUTPassUtilityData.CubemapName, false);
             TextureDescriptor prefilterDsc = CreateAtmosphereCubemapDescriptor(parameter.cubemapSize, AtmosphericLUTPassUtilityData.GGXPrefilterName, true);
-            BufferDescriptor sunDsc = new BufferDescriptor(1, sizeof(float) * 4, ComputeBufferType.Structured);
+            BufferDescriptor sunDsc = new BufferDescriptor(1, sizeof(float) * 4, GraphicsBuffer.Target.Structured);
             sunDsc.name = AtmosphericLUTPassUtilityData.SunBufferName;
-            BufferDescriptor shDsc = new BufferDescriptor(9, sizeof(float) * 4, ComputeBufferType.Structured);
+            BufferDescriptor shDsc = new BufferDescriptor(9, sizeof(float) * 4, GraphicsBuffer.Target.Structured);
             shDsc.name = AtmosphericLUTPassUtilityData.SkySHName;
 
             m_AtmosphereSharedCache.ResolveShared(parameter, transmittanceDsc, multiScatterDsc, out TextureHandle transmittanceHandle, out TextureHandle multiScatterHandle, out bool sharedHit);
@@ -268,7 +268,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGBufferHandle shPartial = default;
             if (generateIBL)
             {
-                BufferDescriptor partialDsc = new BufferDescriptor(Mathf.Max(1, shPartialCount * 9), sizeof(float) * 4, ComputeBufferType.Structured);
+                BufferDescriptor partialDsc = new BufferDescriptor(Mathf.Max(1, shPartialCount * 9), sizeof(float) * 4, GraphicsBuffer.Target.Structured);
                 partialDsc.name = AtmosphericLUTPassUtilityData.SHPartialName;
                 shPartial = m_RGBuilder.CreateBuffer(partialDsc);
             }

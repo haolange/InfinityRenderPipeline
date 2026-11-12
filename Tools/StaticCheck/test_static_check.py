@@ -114,12 +114,12 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/Mesh/M.cs:2', 'Runtime/Mesh/M.cs:3', 'Runtime/Mesh/M.cs:4'], sorted(o[2].split(': ')[0] for o in out))
 
     def test_physical_allocation_only_in_resource_pool(self):
-        self.write('Runtime/GPUResource/ResourcePool.cs', 'var t = RTHandles.Alloc(w, h, 1); var b = new ComputeBuffer(n, 4);')
+        self.write('Runtime/GPUResource/ResourcePool.cs', 'var t = RTHandles.Alloc(w, h, 1); var b = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, 4);')
         self.write('Runtime/RenderGraph/R.cs', 'm_Backbuffer = RTHandles.Alloc(backBuffer, "Backbuffer");')
         out = []
         static_check.check_physical_alloc(str(self.repo), out)
         self.assertEqual([], out)
-        self.write('Runtime/GPUResource/HistoryCache.cs', 'slot.committed = new ComputeBuffer(n, 4);\nvar t = RTHandles.Alloc(w, h, 1, depth);')
+        self.write('Runtime/GPUResource/HistoryCache.cs', 'slot.committed = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, 4);\nvar t = RTHandles.Alloc(w, h, 1, depth);')
         static_check.check_physical_alloc(str(self.repo), out)
         self.assertEqual(['Runtime/GPUResource/HistoryCache.cs:1', 'Runtime/GPUResource/HistoryCache.cs:2'], sorted(o[2].split(': ')[0] for o in out))
 

@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                 }
                 int stride = world.entityHighWater;
-                var output = new ComputeBuffer(stride * views.Count, sizeof(uint));
+                var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, stride * views.Count, sizeof(uint));
                 try
                 {
                     MeshTestUtility.DispatchFrustum(shader, world, views.ToArray(), output, stride);

@@ -20,12 +20,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             internal ComputeShader shader;
             internal int kernel, value;
             internal RGBufferHandle input, output;
-            internal List<ComputeBuffer> physical;
+            internal List<GraphicsBuffer> physical;
             internal RGResourceFactory resources;
         }
 
         static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle input, RGBufferHandle output,
-            bool async, int value, List<ComputeBuffer> physical = null)
+            bool async, int value, List<GraphicsBuffer> physical = null)
         {
             bool copy = input.IsValid();
             using (var pass = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite")))
@@ -70,9 +70,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsNotNull(shader);
             var pool = new ResourcePool();
             var graph = new RGBuilder("QueueGpuContract", pool);
-            var outputs = new ComputeBuffer[4];
-            var physical = new List<ComputeBuffer>();
-            var shared = new ComputeBuffer(Count, sizeof(uint));
+            var outputs = new GraphicsBuffer[4];
+            var physical = new List<GraphicsBuffer>();
+            var shared = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Count, sizeof(uint));
             var descriptor = new BufferDescriptor(Count, sizeof(uint));
             var initial = new uint[Count];
             Array.Fill(initial, 1u);
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var result = new RGBufferHandle[outputs.Length];
             for (int i = 0; i < outputs.Length; ++i)
             {
-                outputs[i] = new ComputeBuffer(Count, sizeof(uint));
+                outputs[i] = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Count, sizeof(uint));
                 result[i] = graph.ImportBuffer(new BufferHandle(-1, descriptor, outputs[i]));
             }
             Add(graph, shader, imported, result[0], async, 0);

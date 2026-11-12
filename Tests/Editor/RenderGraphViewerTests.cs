@@ -20,10 +20,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = new RGBuilder("CaptureProvenance");
             var texture = new RenderTexture(4, 4, 0) { name = "PersistentCaptureSource" };
             RTHandle handle = RTHandles.Alloc(texture);
-            var buffer = new ComputeBuffer(1, sizeof(uint));
+            var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             try
             {
-                graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor { count = 1, stride = sizeof(uint) }, buffer));
+                graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, sizeof(uint)), buffer));
                 Assert.Throws<InvalidOperationException>(() => graph.GetTextureProducer(default, out _));
                 Assert.Throws<InvalidOperationException>(() => graph.GetBufferProducer(default, out _));
                 TextureDescriptor descriptor = Descriptor("PersistentCaptureSource", 4);

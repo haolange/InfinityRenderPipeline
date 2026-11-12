@@ -32,32 +32,25 @@ namespace InfinityTech.Rendering.GPUResource
 
         public int count;
         public int stride;
-        public ComputeBufferType type;
+        public GraphicsBuffer.Target target;
 
-        public BufferDescriptor(int count, int stride) : this()
+        public BufferDescriptor(int count, int stride, GraphicsBuffer.Target target = GraphicsBuffer.Target.Structured) : this()
         {
-            this.count = count;
-            this.stride = stride;
-            type = ComputeBufferType.Default;
-        }
-
-        public BufferDescriptor(int count, int stride, ComputeBufferType type) : this()
-        {
-            this.type = type;
+            this.target = target;
             this.count = count;
             this.stride = stride;
         }
 
-        public bool Equals(BufferDescriptor target)
+        public bool Equals(BufferDescriptor other)
         {
-            return count == target.count
-                && stride == target.stride
-                && type == target.type;
+            return count == other.count
+                && stride == other.stride
+                && target == other.target;
         }
 
-        public override bool Equals(object target)
+        public override bool Equals(object obj)
         {
-            return target is BufferDescriptor other && Equals(other);
+            return obj is BufferDescriptor other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -65,7 +58,7 @@ namespace InfinityTech.Rendering.GPUResource
             int hashCode = 17;
             hashCode = hashCode * 23 + count;
             hashCode = hashCode * 23 + stride;
-            hashCode = hashCode * 23 + (int)type;
+            hashCode = hashCode * 23 + (int)target;
             return hashCode;
         }
     }
@@ -227,16 +220,16 @@ namespace InfinityTech.Rendering.GPUResource
     {
         internal readonly int lease;
         internal readonly BufferDescriptor descriptor;
-        public readonly ComputeBuffer buffer;
+        public readonly GraphicsBuffer buffer;
 
-        internal BufferHandle(int lease, in BufferDescriptor descriptor, ComputeBuffer buffer)
+        internal BufferHandle(int lease, in BufferDescriptor descriptor, GraphicsBuffer buffer)
         {
             this.lease = lease;
             this.descriptor = descriptor;
             this.buffer = buffer;
         }
 
-        public static implicit operator ComputeBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
+        public static implicit operator GraphicsBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
     }
 
     // One acquisition of a pooled texture; lease works as for BufferHandle.
@@ -499,9 +492,9 @@ namespace InfinityTech.Rendering.GPUResource
                 throw new InvalidOperationException("Resource cache destruction requires completed GPU uses and no recording references. Dispose its owning ResourcePool to defer destruction.");
         }
     }
-    public sealed class BufferCache : GPUResourceCache<ComputeBuffer, BufferDescriptor>
+    public sealed class BufferCache : GPUResourceCache<GraphicsBuffer, BufferDescriptor>
     {
-        protected override void ReleaseInternalResource(ComputeBuffer resource) => resource.Release();
+        protected override void ReleaseInternalResource(GraphicsBuffer resource) => resource.Release();
         protected override long EstimateBytes(in BufferDescriptor descriptor) => descriptor.EstimateBytes();
     }
     public sealed class TextureCache : GPUResourceCache<RTHandle, TextureDescriptor>

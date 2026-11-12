@@ -321,24 +321,24 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 var metaValues = new uint[commandCount * MeshPassCache.MetaStride];
                 for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = meta[i];
                 int instanceCapacity = math.max(1, 2 * (cache.memberCount + 1));
-                var buffers = new List<ComputeBuffer>();
+                var buffers = new List<GraphicsBuffer>();
                 try
                 {
-                    ComputeBuffer Upload(Array values, int stride, ComputeBufferType type = ComputeBufferType.Default)
+                    GraphicsBuffer Upload(Array values, int stride, GraphicsBuffer.Target target = GraphicsBuffer.Target.Structured)
                     {
-                        var buffer = new ComputeBuffer(values.Length, stride, type);
+                        var buffer = new GraphicsBuffer(target, values.Length, stride);
                         buffers.Add(buffer);
                         buffer.SetData(values);
                         return buffer;
                     }
-                    ComputeBuffer metaBuffer = Upload(metaValues, sizeof(uint));
-                    ComputeBuffer args = Upload(Enumerable.Repeat(uint.MaxValue, commandCount * 2 * 5).ToArray(), sizeof(uint), ComputeBufferType.IndirectArguments);
-                    ComputeBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
-                    ComputeBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
+                    GraphicsBuffer metaBuffer = Upload(metaValues, sizeof(uint));
+                    GraphicsBuffer args = Upload(Enumerable.Repeat(uint.MaxValue, commandCount * 2 * 5).ToArray(), sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured);
+                    GraphicsBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
+                    GraphicsBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
                     const int visibilityBase = 16;
                     var placed = new uint[visibilityBase + visibleWords.Length + 1];
                     for (int i = 0; i < visibleWords.Length; ++i) placed[visibilityBase + i] = visibleWords[i];
-                    ComputeBuffer visibility = Upload(placed, sizeof(uint));
+                    GraphicsBuffer visibility = Upload(placed, sizeof(uint));
                     int initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("Compact");
                     using var commands = new CommandBuffer();
                     commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
@@ -448,7 +448,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 }
                 finally
                 {
-                    foreach (ComputeBuffer buffer in buffers) buffer.Release();
+                    foreach (GraphicsBuffer buffer in buffers) buffer.Release();
                     Object.DestroyImmediate(shader);
                 }
             }

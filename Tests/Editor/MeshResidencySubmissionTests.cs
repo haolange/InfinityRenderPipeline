@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         struct CopyData { public ComputeShader shader; public int kernel; public RGBufferHandle input, output; }
         struct FailureData { }
-        static void Copy(RGBuilder graph, ComputeShader shader, BufferHandle input, ComputeBuffer output)
+        static void Copy(RGBuilder graph, ComputeShader shader, BufferHandle input, GraphicsBuffer output)
         {
             using (var pass = graph.AddComputePass<CopyData>(new ProfilingSampler("SubmissionCopy")))
             {
@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = new RGBuilder("DisposeWhileSubmitted", pool);
             var source = pool.GetBuffer(new BufferDescriptor(1, 4));
             source.buffer.SetData(new[] { 37u });
-            using var result = new ComputeBuffer(1, 4);
+            using var result = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 4);
             Copy(graph, shader, source, result);
             bool executed = false;
             Exception failure = null;
@@ -115,8 +115,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var world = new MeshWorld(pool, meshShader);
             var first = new RGBuilder("FirstCameraBeforeSubmit", pool);
             var second = new RGBuilder("SecondCameraBeforeSubmit", pool);
-            using var firstResult = new ComputeBuffer(1, 4);
-            using var secondResult = new ComputeBuffer(1, 4);
+            using var firstResult = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 4);
+            using var secondResult = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 4);
             MeshEntityId entity;
             using (var update = world.BeginUpdate()) { entity = Create(update); update.Commit(); }
             world.UpdateResidency();

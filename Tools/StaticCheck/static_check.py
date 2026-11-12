@@ -658,7 +658,7 @@ def check_hot_path_lookups(repo, out):
                 out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: Shader.PropertyToID outside a static readonly initializer'))
 
 
-PHYSICAL_ALLOC = re.compile(r'RTHandles\.Alloc\(|new\s+ComputeBuffer\(|new\s+GraphicsBuffer\(|new\s+RenderTexture\(|RenderTexture\.GetTemporary\(')
+PHYSICAL_ALLOC = re.compile(r'RTHandles\.Alloc\(|new\s+GraphicsBuffer\(|new\s+RenderTexture\(|RenderTexture\.GetTemporary\(')
 
 def check_physical_alloc(repo, out):
     for top in ('Runtime/GPUResource', 'Runtime/RenderGraph'):

@@ -122,17 +122,8 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    internal class RGBuffer : RGResource<BufferDescriptor, ComputeBuffer>
+    internal class RGBuffer : RGResource<BufferDescriptor, GraphicsBuffer>
     {
-        public GraphicsBuffer graphicsResource;
-        public GraphicsBuffer.Target graphicsTarget;
-
-        public override void Reset()
-        {
-            base.Reset();
-            graphicsResource = null;
-            graphicsTarget = default;
-        }
         public override string GetName()
         {
             return descriptor.name;
@@ -163,8 +154,7 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly List<TextureHandle> m_RetiredTextures = new List<TextureHandle>();
         readonly List<BufferHandle> m_RetiredBuffers = new List<BufferHandle>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
-        readonly Dictionary<ComputeBuffer, int> m_ImportedBuffers = new Dictionary<ComputeBuffer, int>();
-        readonly Dictionary<GraphicsBuffer, int> m_ImportedGraphicsBuffers = new Dictionary<GraphicsBuffer, int>();
+        readonly Dictionary<GraphicsBuffer, int> m_ImportedBuffers = new Dictionary<GraphicsBuffer, int>();
         readonly Dictionary<RenderTargetIdentifier, int> m_ImportedTextures = new Dictionary<RenderTargetIdentifier, int>();
         RTHandle m_Backbuffer;
         RenderTargetIdentifier m_BackbufferIdentifier;
@@ -330,7 +320,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal RGBuffer ResolveBuffer(in RGBufferHandle bufferHandle)
         {
             RGBuffer buffer = GetBufferResource(bufferHandle.handle);
-            if (buffer.resource == null && buffer.graphicsResource == null)
+            if (buffer.resource == null)
                 throw new InvalidOperationException($"Graph buffer '{buffer.GetName()}' has no live resource.");
             return buffer;
         }
@@ -366,15 +356,14 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (buffer == null || !buffer.IsValid())
                 throw new ArgumentException("Cannot import an invalid GraphicsBuffer.", nameof(buffer));
-            if (m_ImportedGraphicsBuffers.TryGetValue(buffer, out int existing))
+            if (m_ImportedBuffers.TryGetValue(buffer, out int existing))
             {
                 return BufferHandle(existing);
             }
             int index = AddNewResource((int)ERGResourceType.Buffer, m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
-            m_ImportedGraphicsBuffers.Add(buffer, index);
-            resource.graphicsResource = buffer;
-            resource.graphicsTarget = buffer.target;
-            resource.descriptor = new BufferDescriptor { name = name, count = buffer.count, stride = buffer.stride };
+            m_ImportedBuffers.Add(buffer, index);
+            resource.resource = buffer;
+            resource.descriptor = new BufferDescriptor(buffer.count, buffer.stride, buffer.target) { name = name };
             resource.imported = true;
             return BufferHandle(index);
         }
@@ -396,10 +385,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal BufferDescriptor GetBufferDescriptor(in RGResourceHandle handle)
         {
-            RGBuffer buffer = GetBufferResource(handle);
-            if (buffer.graphicsResource != null)
-                throw new InvalidOperationException("Imported GraphicsBuffer targets cannot be cloned as ComputeBuffer descriptors.");
-            return buffer.descriptor;
+            return GetBufferResource(handle).descriptor;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -584,7 +570,6 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void Clear()
         {
             m_ImportedBuffers.Clear();
-            m_ImportedGraphicsBuffers.Clear();
             m_ImportedTextures.Clear();
             // A failed graph may never reach compiled last-use releases. Preserve those allocations
             // outside the reusable pool until the enclosing frame has been submitted.

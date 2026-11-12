@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/TextureViewSampling.compute"));
             var exact=new Texture2D(17,13,TextureFormat.RGBAFloat,true,true);
             var padded=new Texture2D(64,64,TextureFormat.RGBAFloat,true,true);
-            using var samples=new ComputeBuffer(12,16);using var results=new ComputeBuffer(12,16);
+            using var samples=new GraphicsBuffer(GraphicsBuffer.Target.Structured, 12,16);using var results=new GraphicsBuffer(GraphicsBuffer.Target.Structured, 12,16);
             try
             {
                 foreach(var texture in new[]{exact,padded})

@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetTexture(kernel, "SurfaceDepth", surface);
                 shader.SetTexture(kernel, "ClosestPyramid", closest);
                 shader.SetTexture(kernel, "FurthestPyramid", furthest);
-                using (var output = new ComputeBuffer(2, 16))
+                using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16))
                 {
                     shader.SetBuffer(kernel, "Results", output);
                     shader.Dispatch(kernel, 1, 1, 1);

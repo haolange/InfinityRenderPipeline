@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
         static Vector4 Previous(ComputeShader shader, MeshMotionBinding binding, int index)
         {
-            using (var output = new ComputeBuffer(1, 16))
+            using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16))
             {
                 int kernel = shader.FindKernel("ReadPrevious");
                 var previous = binding.previous ?? binding.current;
