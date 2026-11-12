@@ -11,12 +11,12 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class TranslucentPassUtilityData
     {
         internal static readonly GlobalKeyword ReactiveKeyword = GlobalKeyword.Create("INFINITY_WRITE_REACTIVE_MASK");
-        internal static string DepthTextureName = "TranslucentDepthTexture";
+        internal static readonly string DepthTextureName = "TranslucentDepthTexture";
         internal static readonly GlobalKeyword VolumetricFogKeyword = GlobalKeyword.Create("_VOLUMETRIC_FOG");
         internal static readonly GlobalKeyword AerialKeyword = GlobalKeyword.Create("_AERIAL_PERSPECTIVE");
         internal static readonly GlobalKeyword RefractionKeyword = GlobalKeyword.Create("_REFRACTION_PYRAMID");
-        internal static int VolFog_MaxDistanceID = Shader.PropertyToID("VolFog_MaxDistance");
-        internal static int VolFog_AerialDistanceID = Shader.PropertyToID("VolFog_AerialDistance");
+        internal static readonly int VolFog_MaxDistanceID = Shader.PropertyToID("VolFog_MaxDistance");
+        internal static readonly int VolFog_AerialDistanceID = Shader.PropertyToID("VolFog_AerialDistance");
     }
 
     public partial class InfinityRenderPipeline

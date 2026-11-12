@@ -11,14 +11,14 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ColorPyramidPassUtilityData
     {
-        internal static string TextureName = "ColorPyramidTexture";
-        internal static int SRV_ColorTextureID = Shader.PropertyToID("_Source");
-        internal static int UAV_ColorPyramidID = Shader.PropertyToID("_Result");
-        internal static int UAV_ColorPyramid1ID = Shader.PropertyToID("_Result1");
-        internal static int ColorPyramid_SizeID = Shader.PropertyToID("_Size");
-        internal static int ColorPyramid_DstSizeID = Shader.PropertyToID("_DstSize");
-        internal static int ColorPyramid_MipWriteCountID = Shader.PropertyToID("_MipWriteCount");
-        internal static int ColorPyramid_SrcScaleID = Shader.PropertyToID("_SrcScale");
+        internal static readonly string TextureName = "ColorPyramidTexture";
+        internal static readonly int SRV_ColorTextureID = Shader.PropertyToID("_Source");
+        internal static readonly int UAV_ColorPyramidID = Shader.PropertyToID("_Result");
+        internal static readonly int UAV_ColorPyramid1ID = Shader.PropertyToID("_Result1");
+        internal static readonly int ColorPyramid_SizeID = Shader.PropertyToID("_Size");
+        internal static readonly int ColorPyramid_DstSizeID = Shader.PropertyToID("_DstSize");
+        internal static readonly int ColorPyramid_MipWriteCountID = Shader.PropertyToID("_MipWriteCount");
+        internal static readonly int ColorPyramid_SrcScaleID = Shader.PropertyToID("_SrcScale");
 
         static readonly System.Collections.Generic.Dictionary<int, string> s_MipLabels = new System.Collections.Generic.Dictionary<int, string>();
         static string MipLabel(int first, int last)

@@ -13,28 +13,28 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class VolumetricFogPassUtilityData
     {
-        internal static string TextureName = "VolumetricFogTexture";
-        internal static string HistoryTextureName = "HistoryVolumetricFog";
-        internal static int VolFog_ResolutionID = Shader.PropertyToID("VolFog_Resolution");
-        internal static int VolFog_ScreenSizeID = Shader.PropertyToID("VolFog_ScreenSize");
-        internal static int VolFog_DensityID = Shader.PropertyToID("VolFog_Density");
-        internal static int VolFog_HeightID = Shader.PropertyToID("VolFog_Height");
-        internal static int VolFog_HeightFalloffID = Shader.PropertyToID("VolFog_HeightFalloff");
-        internal static int VolFog_AlbedoID = Shader.PropertyToID("VolFog_Albedo");
-        internal static int VolFog_AnisotropyID = Shader.PropertyToID("VolFog_Anisotropy");
-        internal static int VolFog_AmbientIntensityID = Shader.PropertyToID("VolFog_AmbientIntensity");
-        internal static int VolFog_DepthSlicesID = Shader.PropertyToID("VolFog_DepthSlices");
-        internal static int VolFog_MaxDistanceID = Shader.PropertyToID("VolFog_MaxDistance");
-        internal static int VolFog_TemporalWeightID = Shader.PropertyToID("VolFog_TemporalWeight");
-        internal static int VolFog_FrameIndexID = Shader.PropertyToID("VolFog_FrameIndex");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_SkyViewLUTID = Shader.PropertyToID("SRV_SkyViewLUT");
-        internal static int SRV_AerialPerspectiveLUTID = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
-        internal static int SRV_HistoryVolumetricFogID = Shader.PropertyToID("SRV_HistoryVolumetricFog");
-        internal static int VolFog_HasSkyViewID = Shader.PropertyToID("VolFog_HasSkyView");
-        internal static int VolFog_HasAerialID = Shader.PropertyToID("VolFog_HasAerial");
-        internal static int VolFog_AerialDistanceID = Shader.PropertyToID("VolFog_AerialDistance");
-        internal static int UAV_VolumetricFogTextureID = Shader.PropertyToID("UAV_VolumetricFogTexture");
+        internal static readonly string TextureName = "VolumetricFogTexture";
+        internal static readonly string HistoryTextureName = "HistoryVolumetricFog";
+        internal static readonly int VolFog_ResolutionID = Shader.PropertyToID("VolFog_Resolution");
+        internal static readonly int VolFog_ScreenSizeID = Shader.PropertyToID("VolFog_ScreenSize");
+        internal static readonly int VolFog_DensityID = Shader.PropertyToID("VolFog_Density");
+        internal static readonly int VolFog_HeightID = Shader.PropertyToID("VolFog_Height");
+        internal static readonly int VolFog_HeightFalloffID = Shader.PropertyToID("VolFog_HeightFalloff");
+        internal static readonly int VolFog_AlbedoID = Shader.PropertyToID("VolFog_Albedo");
+        internal static readonly int VolFog_AnisotropyID = Shader.PropertyToID("VolFog_Anisotropy");
+        internal static readonly int VolFog_AmbientIntensityID = Shader.PropertyToID("VolFog_AmbientIntensity");
+        internal static readonly int VolFog_DepthSlicesID = Shader.PropertyToID("VolFog_DepthSlices");
+        internal static readonly int VolFog_MaxDistanceID = Shader.PropertyToID("VolFog_MaxDistance");
+        internal static readonly int VolFog_TemporalWeightID = Shader.PropertyToID("VolFog_TemporalWeight");
+        internal static readonly int VolFog_FrameIndexID = Shader.PropertyToID("VolFog_FrameIndex");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_SkyViewLUTID = Shader.PropertyToID("SRV_SkyViewLUT");
+        internal static readonly int SRV_AerialPerspectiveLUTID = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
+        internal static readonly int SRV_HistoryVolumetricFogID = Shader.PropertyToID("SRV_HistoryVolumetricFog");
+        internal static readonly int VolFog_HasSkyViewID = Shader.PropertyToID("VolFog_HasSkyView");
+        internal static readonly int VolFog_HasAerialID = Shader.PropertyToID("VolFog_HasAerial");
+        internal static readonly int VolFog_AerialDistanceID = Shader.PropertyToID("VolFog_AerialDistance");
+        internal static readonly int UAV_VolumetricFogTextureID = Shader.PropertyToID("UAV_VolumetricFogTexture");
     }
 
     public partial class InfinityRenderPipeline

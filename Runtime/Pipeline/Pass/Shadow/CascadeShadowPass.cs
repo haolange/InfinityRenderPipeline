@@ -11,17 +11,17 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class CascadeShadowPassUtilityData
     {
-        internal static string TextureName = "CascadeShadowMapTexture";
-        internal static int CascadeSpheresID = Shader.PropertyToID("_CascadeSpheres");
-        internal static int CascadeCountID = Shader.PropertyToID("_CascadeCount");
-        internal static int CascadeShadowMapSizeID = Shader.PropertyToID("_CascadeShadowMapSize");
-        internal static int CascadeMatricesID = Shader.PropertyToID("_CascadeMatrices");
-        internal static int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
-        internal static int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
-        internal static int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
+        internal static readonly string TextureName = "CascadeShadowMapTexture";
+        internal static readonly int CascadeSpheresID = Shader.PropertyToID("_CascadeSpheres");
+        internal static readonly int CascadeCountID = Shader.PropertyToID("_CascadeCount");
+        internal static readonly int CascadeShadowMapSizeID = Shader.PropertyToID("_CascadeShadowMapSize");
+        internal static readonly int CascadeMatricesID = Shader.PropertyToID("_CascadeMatrices");
+        internal static readonly int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
+        internal static readonly int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
+        internal static readonly int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
         // Shadow-caster shaders (ShadowPass / ShadowCaster) project with Matrix_ViewFlipYProj; the shadow passes set it
         // to the shadow matrix (a renderIntoTexture GPU projection) and restore the camera's afterwards.
-        internal static int MatrixViewFlipYProjID = Shader.PropertyToID("Matrix_ViewFlipYProj");
+        internal static readonly int MatrixViewFlipYProjID = Shader.PropertyToID("Matrix_ViewFlipYProj");
         internal static readonly int CascadeShadowParamsID = Shader.PropertyToID("_CascadeShadowParams");
         internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
 

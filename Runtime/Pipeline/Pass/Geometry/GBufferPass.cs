@@ -10,10 +10,10 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class GBufferPassUtilityData
     {
-        internal static string TextureAName = "GBufferTextureA";
-        internal static string TextureBName = "GBufferTextureB";
-        internal static string TextureCName = "GBufferTextureC";
-        internal static string LightingTextureName = "LightingTexture";
+        internal static readonly string TextureAName = "GBufferTextureA";
+        internal static readonly string TextureBName = "GBufferTextureB";
+        internal static readonly string TextureCName = "GBufferTextureC";
+        internal static readonly string LightingTextureName = "LightingTexture";
         internal static readonly GlobalKeyword DirectionalLightmapKeyword = GlobalKeyword.Create("DIRLIGHTMAP_COMBINED");
         internal static readonly GlobalKeyword ShadowmaskKeyword = GlobalKeyword.Create("SHADOWS_SHADOWMASK");
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");

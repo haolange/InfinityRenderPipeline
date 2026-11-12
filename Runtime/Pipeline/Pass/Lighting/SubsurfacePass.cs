@@ -13,16 +13,16 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class SubsurfacePassUtilityData
     {
-        internal static string TextureName = "SubsurfaceTexture";
-        internal static int SSS_ResolutionID = Shader.PropertyToID("SSS_Resolution");
-        internal static int SSS_NumSamplesID = Shader.PropertyToID("SSS_NumSamples");
-        internal static int SSS_ProfileCountID = Shader.PropertyToID("SSS_ProfileCount");
-        internal static int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
-        internal static int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
+        internal static readonly string TextureName = "SubsurfaceTexture";
+        internal static readonly int SSS_ResolutionID = Shader.PropertyToID("SSS_Resolution");
+        internal static readonly int SSS_NumSamplesID = Shader.PropertyToID("SSS_NumSamples");
+        internal static readonly int SSS_ProfileCountID = Shader.PropertyToID("SSS_ProfileCount");
+        internal static readonly int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
+        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
+        internal static readonly int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
+        internal static readonly int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
     }
 
     public partial class InfinityRenderPipeline

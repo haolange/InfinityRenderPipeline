@@ -11,15 +11,15 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class RTAOPassUtilityData
     {
-        internal static string OcclusionTextureName = "RTAOOcclusionTexture";
-        internal static int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
-        internal static int RadiusID = Shader.PropertyToID("RTAO_Radius");
-        internal static int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
-        internal static int InvViewID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_NormalTextureID = Shader.PropertyToID("SRV_NormalTexture");
-        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static int UAV_OcclusionTextureID = Shader.PropertyToID("UAV_OcclusionTexture");
+        internal static readonly string OcclusionTextureName = "RTAOOcclusionTexture";
+        internal static readonly int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
+        internal static readonly int RadiusID = Shader.PropertyToID("RTAO_Radius");
+        internal static readonly int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
+        internal static readonly int InvViewID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_NormalTextureID = Shader.PropertyToID("SRV_NormalTexture");
+        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
+        internal static readonly int UAV_OcclusionTextureID = Shader.PropertyToID("UAV_OcclusionTexture");
     }
 
     public partial class InfinityRenderPipeline

@@ -10,14 +10,14 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class HalfResDownsamplePassUtilityData
     {
-        internal static string DepthTextureName = "HalfResDepthTexture";
-        internal static string NormalTextureName = "HalfResNormalTexture";
-        internal static int SRV_FullResDepthID = Shader.PropertyToID("SRV_FullResDepthTexture");
-        internal static int SRV_FullResNormalID = Shader.PropertyToID("SRV_FullResNormalTexture");
-        internal static int UAV_HalfResDepthID = Shader.PropertyToID("UAV_HalfResDepthTexture");
-        internal static int UAV_HalfResNormalID = Shader.PropertyToID("UAV_HalfResNormalTexture");
-        internal static int HalfRes_FullResolutionID = Shader.PropertyToID("HalfRes_FullResolution");
-        internal static int HalfRes_HalfResolutionID = Shader.PropertyToID("HalfRes_HalfResolution");
+        internal static readonly string DepthTextureName = "HalfResDepthTexture";
+        internal static readonly string NormalTextureName = "HalfResNormalTexture";
+        internal static readonly int SRV_FullResDepthID = Shader.PropertyToID("SRV_FullResDepthTexture");
+        internal static readonly int SRV_FullResNormalID = Shader.PropertyToID("SRV_FullResNormalTexture");
+        internal static readonly int UAV_HalfResDepthID = Shader.PropertyToID("UAV_HalfResDepthTexture");
+        internal static readonly int UAV_HalfResNormalID = Shader.PropertyToID("UAV_HalfResNormalTexture");
+        internal static readonly int HalfRes_FullResolutionID = Shader.PropertyToID("HalfRes_FullResolution");
+        internal static readonly int HalfRes_HalfResolutionID = Shader.PropertyToID("HalfRes_HalfResolution");
     }
 
     public partial class InfinityRenderPipeline

@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword SubsurfaceKeyword = GlobalKeyword.Create("INFINITY_SSS_OUTPUT");
         internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
-        internal static string TextureName = "LightingTexture";
+        internal static readonly string TextureName = "LightingTexture";
     }
 
     public partial class InfinityRenderPipeline

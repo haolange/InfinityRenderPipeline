@@ -12,57 +12,57 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class CombineLutPassUtilityData
     {
-        internal static string CombineLookupTextureName = "CombineLookupTexture";
-        internal static int CombineLookupTextureID = Shader.PropertyToID("CombineLookupTexture");
+        internal static readonly string CombineLookupTextureName = "CombineLookupTexture";
+        internal static readonly int CombineLookupTextureID = Shader.PropertyToID("CombineLookupTexture");
 
-        internal static int WhiteBalanceTempID = Shader.PropertyToID("WhiteTemp");
-        internal static int WhiteBalanceTintID = Shader.PropertyToID("WhiteTint");
+        internal static readonly int WhiteBalanceTempID = Shader.PropertyToID("WhiteTemp");
+        internal static readonly int WhiteBalanceTintID = Shader.PropertyToID("WhiteTint");
 
-        internal static int FilmSlopeID = Shader.PropertyToID("FilmSlope");
-        internal static int FilmToeID = Shader.PropertyToID("FilmToe");
-        internal static int FilmShoulderID = Shader.PropertyToID("FilmShoulder");
-        internal static int FilmBlackClipID = Shader.PropertyToID("FilmBlackClip");
-        internal static int FilmWhiteClipID = Shader.PropertyToID("FilmWhiteClip");
-        internal static int FilmEnabledID = Shader.PropertyToID("FilmEnabled");
+        internal static readonly int FilmSlopeID = Shader.PropertyToID("FilmSlope");
+        internal static readonly int FilmToeID = Shader.PropertyToID("FilmToe");
+        internal static readonly int FilmShoulderID = Shader.PropertyToID("FilmShoulder");
+        internal static readonly int FilmBlackClipID = Shader.PropertyToID("FilmBlackClip");
+        internal static readonly int FilmWhiteClipID = Shader.PropertyToID("FilmWhiteClip");
+        internal static readonly int FilmEnabledID = Shader.PropertyToID("FilmEnabled");
 
-        internal static int ColorSaturationID = Shader.PropertyToID("ColorSaturation");
-        internal static int ColorContrastID = Shader.PropertyToID("ColorContrast");
-        internal static int ColorGammaID = Shader.PropertyToID("ColorGamma");
-        internal static int ColorGainID = Shader.PropertyToID("ColorGain");
-        internal static int ColorOffsetID = Shader.PropertyToID("ColorOffset");
+        internal static readonly int ColorSaturationID = Shader.PropertyToID("ColorSaturation");
+        internal static readonly int ColorContrastID = Shader.PropertyToID("ColorContrast");
+        internal static readonly int ColorGammaID = Shader.PropertyToID("ColorGamma");
+        internal static readonly int ColorGainID = Shader.PropertyToID("ColorGain");
+        internal static readonly int ColorOffsetID = Shader.PropertyToID("ColorOffset");
 
-        internal static int ColorSaturationShadowsID = Shader.PropertyToID("ColorSaturationShadows");
-        internal static int ColorContrastShadowsID = Shader.PropertyToID("ColorContrastShadows");
-        internal static int ColorGammaShadowsID = Shader.PropertyToID("ColorGammaShadows");
-        internal static int ColorGainShadowsID = Shader.PropertyToID("ColorGainShadows");
-        internal static int ColorOffsetShadowsID = Shader.PropertyToID("ColorOffsetShadows");
-        internal static int ColorCorrectionShadowsMaxID = Shader.PropertyToID("ColorCorrectionShadowsMax");
+        internal static readonly int ColorSaturationShadowsID = Shader.PropertyToID("ColorSaturationShadows");
+        internal static readonly int ColorContrastShadowsID = Shader.PropertyToID("ColorContrastShadows");
+        internal static readonly int ColorGammaShadowsID = Shader.PropertyToID("ColorGammaShadows");
+        internal static readonly int ColorGainShadowsID = Shader.PropertyToID("ColorGainShadows");
+        internal static readonly int ColorOffsetShadowsID = Shader.PropertyToID("ColorOffsetShadows");
+        internal static readonly int ColorCorrectionShadowsMaxID = Shader.PropertyToID("ColorCorrectionShadowsMax");
 
-        internal static int ColorSaturationMidtonesID = Shader.PropertyToID("ColorSaturationMidtones");
-        internal static int ColorContrastMidtonesID = Shader.PropertyToID("ColorContrastMidtones");
-        internal static int ColorGammaMidtonesID = Shader.PropertyToID("ColorGammaMidtones");
-        internal static int ColorGainMidtonesID = Shader.PropertyToID("ColorGainMidtones");
-        internal static int ColorOffsetMidtonesID = Shader.PropertyToID("ColorOffsetMidtones");
+        internal static readonly int ColorSaturationMidtonesID = Shader.PropertyToID("ColorSaturationMidtones");
+        internal static readonly int ColorContrastMidtonesID = Shader.PropertyToID("ColorContrastMidtones");
+        internal static readonly int ColorGammaMidtonesID = Shader.PropertyToID("ColorGammaMidtones");
+        internal static readonly int ColorGainMidtonesID = Shader.PropertyToID("ColorGainMidtones");
+        internal static readonly int ColorOffsetMidtonesID = Shader.PropertyToID("ColorOffsetMidtones");
 
-        internal static int ColorSaturationHighlightsID = Shader.PropertyToID("ColorSaturationHighlights");
-        internal static int ColorContrastHighlightsID = Shader.PropertyToID("ColorContrastHighlights");
-        internal static int ColorGammaHighlightsID = Shader.PropertyToID("ColorGammaHighlights");
-        internal static int ColorGainHighlightsID = Shader.PropertyToID("ColorGainHighlights");
-        internal static int ColorOffsetHighlightsID = Shader.PropertyToID("ColorOffsetHighlights");
-        internal static int ColorCorrectionHighlightsMinID = Shader.PropertyToID("ColorCorrectionHighlightsMin");
-        internal static int ColorCorrectionHighlightsMaxID = Shader.PropertyToID("ColorCorrectionHighlightsMax");
+        internal static readonly int ColorSaturationHighlightsID = Shader.PropertyToID("ColorSaturationHighlights");
+        internal static readonly int ColorContrastHighlightsID = Shader.PropertyToID("ColorContrastHighlights");
+        internal static readonly int ColorGammaHighlightsID = Shader.PropertyToID("ColorGammaHighlights");
+        internal static readonly int ColorGainHighlightsID = Shader.PropertyToID("ColorGainHighlights");
+        internal static readonly int ColorOffsetHighlightsID = Shader.PropertyToID("ColorOffsetHighlights");
+        internal static readonly int ColorCorrectionHighlightsMinID = Shader.PropertyToID("ColorCorrectionHighlightsMin");
+        internal static readonly int ColorCorrectionHighlightsMaxID = Shader.PropertyToID("ColorCorrectionHighlightsMax");
 
-        internal static int BlueCorrectionID = Shader.PropertyToID("BlueCorrection");
-        internal static int ExpandGamutID = Shader.PropertyToID("ExpandGamut");
+        internal static readonly int BlueCorrectionID = Shader.PropertyToID("BlueCorrection");
+        internal static readonly int ExpandGamutID = Shader.PropertyToID("ExpandGamut");
 
-        internal static int ColorScaleID = Shader.PropertyToID("ColorScale");
-        internal static int OverlayColorID = Shader.PropertyToID("OverlayColor");
-        internal static int MappingPolynomialID = Shader.PropertyToID("MappingPolynomial");
+        internal static readonly int ColorScaleID = Shader.PropertyToID("ColorScale");
+        internal static readonly int OverlayColorID = Shader.PropertyToID("OverlayColor");
+        internal static readonly int MappingPolynomialID = Shader.PropertyToID("MappingPolynomial");
 
-        internal static int OutputGamutID = Shader.PropertyToID("OutputGamut");
-        internal static int OutputDeviceID = Shader.PropertyToID("OutputDevice");
-        internal static int InverseGammaID = Shader.PropertyToID("InverseGamma");
-        internal static int ColorShadowTint2ID = Shader.PropertyToID("ColorShadow_Tint2");
+        internal static readonly int OutputGamutID = Shader.PropertyToID("OutputGamut");
+        internal static readonly int OutputDeviceID = Shader.PropertyToID("OutputDevice");
+        internal static readonly int InverseGammaID = Shader.PropertyToID("InverseGamma");
+        internal static readonly int ColorShadowTint2ID = Shader.PropertyToID("ColorShadow_Tint2");
     }
 
     internal struct CombineLutParameterDescriptor : IEquatable<CombineLutParameterDescriptor>

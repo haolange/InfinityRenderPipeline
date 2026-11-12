@@ -10,8 +10,8 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class MotionPassUtilityData
     {
-        internal static string MotionTextureName = "MotionTexture";
-        internal static string DepthTextureName = "MotionDepthTexture";
+        internal static readonly string MotionTextureName = "MotionTexture";
+        internal static readonly string DepthTextureName = "MotionDepthTexture";
     }
 
     public partial class InfinityRenderPipeline

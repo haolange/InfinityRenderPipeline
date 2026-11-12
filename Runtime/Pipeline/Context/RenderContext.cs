@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static void RegisterMesh(MeshComponent component, uint epoch) => MeshTasks.Add(new MeshTask { component = component, epoch = epoch, register = true });
         internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity, int worldId) => MeshTasks.Add(new MeshTask { component = component, entity = entity, worldId = worldId });
 
-        internal static List<RenderTask> GraphicsTasks = new List<RenderTask>(256);
+        internal static readonly List<RenderTask> GraphicsTasks = new List<RenderTask>(256);
 
         internal static void ProcessMeshTask(in MeshTask task, RenderContext context)
         {

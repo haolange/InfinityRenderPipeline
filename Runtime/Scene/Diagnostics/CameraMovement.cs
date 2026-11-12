@@ -9,10 +9,6 @@ namespace InfinityTech.Component.Utility
         public bool enableInputCapture = true;
         public bool holdRightMouseCapture = false;
 
-#if UNITY_EDITOR
-        private static Texture2D ms_invisibleCursor = null;
-#endif
-
         // Motion
 
         public float lookSpeed = 5f;
@@ -52,7 +48,7 @@ namespace InfinityTech.Component.Utility
             Cursor.lockState = CursorLockMode.Locked;
 
 #if UNITY_EDITOR
-            Cursor.SetCursor(ms_invisibleCursor, Vector2.zero, CursorMode.ForceSoftware);
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.ForceSoftware);
 #else
             Cursor.visible = false;
 #endif

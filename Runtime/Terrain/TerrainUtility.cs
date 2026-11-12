@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
     public static class TerrainUtility 
     {
-        public static Color[] LODColor = new Color[7] { new Color(1, 1, 1, 1), new Color(1, 0, 0, 1), new Color(0, 1, 0, 1), new Color(0, 0, 1, 1), new Color(1, 1, 0, 1), new Color(1, 0, 1, 1), new Color(0, 1, 1, 1) };
+        public static readonly Color[] LODColor = new Color[7] { new Color(1, 1, 1, 1), new Color(1, 0, 0, 1), new Color(0, 1, 0, 1), new Color(0, 0, 1, 1), new Color(1, 1, 0, 1), new Color(1, 0, 1, 1), new Color(0, 1, 1, 1) };
         
         public static float Squared(in float a)
         {

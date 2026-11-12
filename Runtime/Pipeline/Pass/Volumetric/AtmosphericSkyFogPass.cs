@@ -10,12 +10,12 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class AtmosphericSkyFogPassUtilityData
     {
-        internal static int SRV_SkyViewLUTID = Shader.PropertyToID("SRV_SkyViewLUT");
-        internal static int SRV_AerialPerspectiveLUTID = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_SunBufferID = Shader.PropertyToID("SRV_SunBuffer");
-        internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
-        internal static int Atmo_FarDepthID = Shader.PropertyToID("Atmo_FarDepth");
+        internal static readonly int SRV_SkyViewLUTID = Shader.PropertyToID("SRV_SkyViewLUT");
+        internal static readonly int SRV_AerialPerspectiveLUTID = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_SunBufferID = Shader.PropertyToID("SRV_SunBuffer");
+        internal static readonly int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
+        internal static readonly int Atmo_FarDepthID = Shader.PropertyToID("Atmo_FarDepth");
     }
 
     public partial class InfinityRenderPipeline

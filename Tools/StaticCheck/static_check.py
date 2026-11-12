@@ -24,8 +24,9 @@ Checks
   assemblies       Infinity assemblies grant InternalsVisibleTo to each Infinity consumer; diagnostics exist only in Editor/Development builds
   diagnostics      runtime code reaches capture and diagnostics symbols only inside #if UNITY_EDITOR || DEVELOPMENT_BUILD
   layering         lower runtime layers never name an upper layer's namespace (dependencies point down)
+  staticid         setup-time IDs, tags, keywords and samplers are static readonly, never mutable statics
 """
-import argparse, hashlib, json, os, re, sys, runpy
+import argparse, collections, hashlib, json, os, re, sys, runpy
 
 IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github'}
 UNITY_LIGHTMODES = {'ShadowCaster', 'Meta', 'SRPDefaultUnlit', 'Always', 'ForwardBase', 'DepthOnly', 'MotionVectors', 'RTAO'}
@@ -529,6 +530,11 @@ def check_unused_types(repo, out):
         for p in all_files(os.path.join(repo, root), {'.cs', '.hlsl', '.shader', '.compute'}):
             sources[os.path.relpath(p, repo).replace('\\', '/')] = code_only(read(p))
     declaration = re.compile(r'(\bstatic\s+)?\b(?:class|struct|enum|interface)\s+(\w+)([^{;]*)')
+    # One pass over all sources: identifier counts, minus constructor and finalizer names, which are not uses.
+    words, constructors = collections.Counter(), collections.Counter()
+    for text in sources.values():
+        words.update(re.findall(r'\b\w+\b', text))
+        constructors.update(re.findall(r'(?:(?:public|internal|private|protected|static)\s+|~)(\w+)\s*\(', text))
     for rel, text in sources.items():
         if not rel.startswith('Runtime/') or not rel.endswith('.cs') or rel.startswith(UNUSED_TYPE_DIRECTORIES):
             continue
@@ -538,9 +544,7 @@ def check_unused_types(repo, out):
                 continue
             if match.group(1) and re.search(r'\(\s*this\s', text):
                 continue  # extension-method holder, used through its methods
-            word = re.compile(r'\b' + name + r'\b')
-            ctor = re.compile(r'(?:public|internal|private|protected|static)\s+' + name + r'\s*\(|~' + name + r'\s*\(')
-            uses = sum(len(word.findall(t)) - len(ctor.findall(t)) for t in sources.values())
+            uses = words[name] - constructors[name]
             if uses <= 1:
                 out.append(('ERROR', 'unusedtypes', f'{rel}: type {name} has no reference outside its declaration'))
 
@@ -619,6 +623,16 @@ for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList'):
     LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
 
 
+STATIC_ID_INIT = re.compile(r'^\s*(?:(?:public|internal|private|protected)\s+)?static\s+(?!readonly\b)(?!const\b)[\w.<>\[\]]+\s+(\w+)\s*=\s*'
+                            r'(?:Shader\.PropertyToID|new\s+ShaderTagId|new\s+ProfilingSampler|GlobalKeyword\.Create|new\s+LocalKeyword)\s*\(', re.M)
+
+def check_static_ids(repo, out):
+    for top in ('Runtime', 'Editor'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            for m in STATIC_ID_INIT.finditer(read(p)):
+                out.append(('ERROR', 'staticid', f'{os.path.relpath(p, repo)}: {m.group(1)} is a mutable static; make it static readonly'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -646,7 +660,7 @@ def main():
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
-                     ('diagnostics', check_diagnostics), ('layering', check_layering)):
+                     ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

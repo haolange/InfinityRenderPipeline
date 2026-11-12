@@ -9,18 +9,18 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ScreenSpaceCompositePassUtilityData
     {
-        internal static string TextureName = "ScreenSpaceComposite";
-        internal static int Composite_ResolutionID = Shader.PropertyToID("Composite_Resolution");
-        internal static int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
-        internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
-        internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_SSRTextureID = Shader.PropertyToID("SRV_SSRTexture");
-        internal static int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
-        internal static int UAV_SceneColorID = Shader.PropertyToID("UAV_SceneColor");
-        internal static int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static int WorldSpaceCameraPosID = Shader.PropertyToID("_WorldSpaceCameraPos");
+        internal static readonly string TextureName = "ScreenSpaceComposite";
+        internal static readonly int Composite_ResolutionID = Shader.PropertyToID("Composite_Resolution");
+        internal static readonly int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
+        internal static readonly int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
+        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
+        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_SSRTextureID = Shader.PropertyToID("SRV_SSRTexture");
+        internal static readonly int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
+        internal static readonly int UAV_SceneColorID = Shader.PropertyToID("UAV_SceneColor");
+        internal static readonly int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
+        internal static readonly int WorldSpaceCameraPosID = Shader.PropertyToID("_WorldSpaceCameraPos");
     }
 
     public partial class InfinityRenderPipeline

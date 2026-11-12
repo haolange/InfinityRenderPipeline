@@ -14,13 +14,13 @@ namespace InfinityTech.Rendering.LightPipeline
 {
     internal static class LightShaderIDs
     {
-        public static int DirectionalLightCount = Shader.PropertyToID("g_DirectionalLightCount");
-        public static int LocalLightCount = Shader.PropertyToID("g_LocalLightCount");
-        public static int SunRecordIndex = Shader.PropertyToID("g_SunRecordIndex");
-        public static int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
-        public static int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
-        public static int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
-        public static int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
+        public static readonly int DirectionalLightCount = Shader.PropertyToID("g_DirectionalLightCount");
+        public static readonly int LocalLightCount = Shader.PropertyToID("g_LocalLightCount");
+        public static readonly int SunRecordIndex = Shader.PropertyToID("g_SunRecordIndex");
+        public static readonly int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
+        public static readonly int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
+        public static readonly int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
+        public static readonly int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
         // Clustered light list (LightLoop.hlsl).
         public static readonly int LightZBins = Shader.PropertyToID("SRV_LightZBins");
         public static readonly int LightTileMasks = Shader.PropertyToID("SRV_LightTileMasks");

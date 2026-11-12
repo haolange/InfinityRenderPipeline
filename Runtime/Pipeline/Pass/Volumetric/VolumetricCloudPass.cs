@@ -13,28 +13,28 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class VolumetricCloudPassUtilityData
     {
-        internal static string TextureName = "VolumetricCloudTexture";
-        internal static string HistoryTextureName = "HistoryVolumetricCloud";
-        internal static int VolCloud_ResolutionID = Shader.PropertyToID("VolCloud_Resolution");
-        internal static int VolCloud_CloudLayerBottomID = Shader.PropertyToID("VolCloud_CloudLayerBottom");
-        internal static int VolCloud_CloudLayerThicknessID = Shader.PropertyToID("VolCloud_CloudLayerThickness");
-        internal static int VolCloud_DensityMultiplierID = Shader.PropertyToID("VolCloud_DensityMultiplier");
-        internal static int VolCloud_ShapeFactorID = Shader.PropertyToID("VolCloud_ShapeFactor");
-        internal static int VolCloud_ErosionFactorID = Shader.PropertyToID("VolCloud_ErosionFactor");
-        internal static int VolCloud_AnisotropyID = Shader.PropertyToID("VolCloud_Anisotropy");
-        internal static int VolCloud_SilverIntensityID = Shader.PropertyToID("VolCloud_SilverIntensity");
-        internal static int VolCloud_SilverSpreadID = Shader.PropertyToID("VolCloud_SilverSpread");
-        internal static int VolCloud_AmbientIntensityID = Shader.PropertyToID("VolCloud_AmbientIntensity");
-        internal static int VolCloud_NumPrimaryStepsID = Shader.PropertyToID("VolCloud_NumPrimarySteps");
-        internal static int VolCloud_NumLightStepsID = Shader.PropertyToID("VolCloud_NumLightSteps");
-        internal static int VolCloud_TemporalWeightID = Shader.PropertyToID("VolCloud_TemporalWeight");
-        internal static int VolCloud_FrameIndexID = Shader.PropertyToID("VolCloud_FrameIndex");
-        internal static int VolCloud_PlanetRadiusID = Shader.PropertyToID("VolCloud_PlanetRadius");
-        internal static int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_TransmittanceLUTID = Shader.PropertyToID("SRV_TransmittanceLUT");
-        internal static int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
-        internal static int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
+        internal static readonly string TextureName = "VolumetricCloudTexture";
+        internal static readonly string HistoryTextureName = "HistoryVolumetricCloud";
+        internal static readonly int VolCloud_ResolutionID = Shader.PropertyToID("VolCloud_Resolution");
+        internal static readonly int VolCloud_CloudLayerBottomID = Shader.PropertyToID("VolCloud_CloudLayerBottom");
+        internal static readonly int VolCloud_CloudLayerThicknessID = Shader.PropertyToID("VolCloud_CloudLayerThickness");
+        internal static readonly int VolCloud_DensityMultiplierID = Shader.PropertyToID("VolCloud_DensityMultiplier");
+        internal static readonly int VolCloud_ShapeFactorID = Shader.PropertyToID("VolCloud_ShapeFactor");
+        internal static readonly int VolCloud_ErosionFactorID = Shader.PropertyToID("VolCloud_ErosionFactor");
+        internal static readonly int VolCloud_AnisotropyID = Shader.PropertyToID("VolCloud_Anisotropy");
+        internal static readonly int VolCloud_SilverIntensityID = Shader.PropertyToID("VolCloud_SilverIntensity");
+        internal static readonly int VolCloud_SilverSpreadID = Shader.PropertyToID("VolCloud_SilverSpread");
+        internal static readonly int VolCloud_AmbientIntensityID = Shader.PropertyToID("VolCloud_AmbientIntensity");
+        internal static readonly int VolCloud_NumPrimaryStepsID = Shader.PropertyToID("VolCloud_NumPrimarySteps");
+        internal static readonly int VolCloud_NumLightStepsID = Shader.PropertyToID("VolCloud_NumLightSteps");
+        internal static readonly int VolCloud_TemporalWeightID = Shader.PropertyToID("VolCloud_TemporalWeight");
+        internal static readonly int VolCloud_FrameIndexID = Shader.PropertyToID("VolCloud_FrameIndex");
+        internal static readonly int VolCloud_PlanetRadiusID = Shader.PropertyToID("VolCloud_PlanetRadius");
+        internal static readonly int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_TransmittanceLUTID = Shader.PropertyToID("SRV_TransmittanceLUT");
+        internal static readonly int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
+        internal static readonly int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
     }
 
     public partial class InfinityRenderPipeline

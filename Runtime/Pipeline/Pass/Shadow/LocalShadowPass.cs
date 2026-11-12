@@ -17,12 +17,12 @@ namespace InfinityTech.Rendering.Pipeline
         internal static Vector4 DepthCopyOffset(Vector4 source, Vector4 destination) =>
             new Vector4(source.x - destination.x, source.y - destination.y, 0, 0);
 
-        internal static string TextureName = "LocalShadowMapTexture";
-        internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
-        internal static int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
-        internal static int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
-        internal static int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
+        internal static readonly string TextureName = "LocalShadowMapTexture";
+        internal static readonly int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
+        internal static readonly int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
+        internal static readonly int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
+        internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
+        internal static readonly int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
         internal static readonly int ShadowCasterBiasID = Shader.PropertyToID("_ShadowCasterBias");
         internal static readonly int ShadowCasterLightID = Shader.PropertyToID("_ShadowCasterLight");
     }

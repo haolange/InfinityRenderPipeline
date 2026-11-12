@@ -9,9 +9,9 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DBufferPassUtilityData
     {
-        internal static string DBufferAName = "DBufferTextureA";
-        internal static string DBufferBName = "DBufferTextureB";
-        internal static string DBufferCName = "DBufferTextureC";
+        internal static readonly string DBufferAName = "DBufferTextureA";
+        internal static readonly string DBufferBName = "DBufferTextureB";
+        internal static readonly string DBufferCName = "DBufferTextureC";
     }
 
     public partial class InfinityRenderPipeline

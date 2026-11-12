@@ -12,23 +12,23 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ContactShadowPassUtilityData
     {
-        internal static string SunTextureName = "ContactShadowSun";
-        internal static string MaskTextureName = "ContactShadowMask";
-        internal static int ContactShadow_NumStepsID = Shader.PropertyToID("ContactShadow_NumSteps");
-        internal static int ContactShadow_SunNumStepsID = Shader.PropertyToID("ContactShadow_SunNumSteps");
-        internal static int ContactShadow_FrameIndexID = Shader.PropertyToID("ContactShadow_FrameIndex");
-        internal static int ContactShadow_MaxDistanceID = Shader.PropertyToID("ContactShadow_MaxDistance");
-        internal static int ContactShadow_ThicknessID = Shader.PropertyToID("ContactShadow_Thickness");
-        internal static int ContactShadow_IntensityID = Shader.PropertyToID("ContactShadow_Intensity");
-        internal static int ContactShadow_FadeDistanceID = Shader.PropertyToID("ContactShadow_FadeDistance");
-        internal static int ContactShadow_ResolutionID = Shader.PropertyToID("ContactShadow_Resolution");
-        internal static int ContactShadow_DepthParamsID = Shader.PropertyToID("ContactShadow_DepthParams");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int UAV_ContactShadowSunID = Shader.PropertyToID("UAV_ContactShadowSun");
-        internal static int UAV_ContactShadowMaskID = Shader.PropertyToID("UAV_ContactShadowMask");
+        internal static readonly string SunTextureName = "ContactShadowSun";
+        internal static readonly string MaskTextureName = "ContactShadowMask";
+        internal static readonly int ContactShadow_NumStepsID = Shader.PropertyToID("ContactShadow_NumSteps");
+        internal static readonly int ContactShadow_SunNumStepsID = Shader.PropertyToID("ContactShadow_SunNumSteps");
+        internal static readonly int ContactShadow_FrameIndexID = Shader.PropertyToID("ContactShadow_FrameIndex");
+        internal static readonly int ContactShadow_MaxDistanceID = Shader.PropertyToID("ContactShadow_MaxDistance");
+        internal static readonly int ContactShadow_ThicknessID = Shader.PropertyToID("ContactShadow_Thickness");
+        internal static readonly int ContactShadow_IntensityID = Shader.PropertyToID("ContactShadow_Intensity");
+        internal static readonly int ContactShadow_FadeDistanceID = Shader.PropertyToID("ContactShadow_FadeDistance");
+        internal static readonly int ContactShadow_ResolutionID = Shader.PropertyToID("ContactShadow_Resolution");
+        internal static readonly int ContactShadow_DepthParamsID = Shader.PropertyToID("ContactShadow_DepthParams");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int UAV_ContactShadowSunID = Shader.PropertyToID("UAV_ContactShadowSun");
+        internal static readonly int UAV_ContactShadowMaskID = Shader.PropertyToID("UAV_ContactShadowMask");
         // Consumers compile contact resources only in their enabled Deferred or Forward variant.
-        internal static int SRV_ContactShadowSunID = Shader.PropertyToID("SRV_ContactShadowSun");
-        internal static int SRV_ContactShadowMaskID = Shader.PropertyToID("SRV_ContactShadowMask");
+        internal static readonly int SRV_ContactShadowSunID = Shader.PropertyToID("SRV_ContactShadowSun");
+        internal static readonly int SRV_ContactShadowMaskID = Shader.PropertyToID("SRV_ContactShadowMask");
 
         // x, y = m22, m23 of the GPU projection (linear view depth from device depth), z = 1 when orthographic.
         internal static Vector4 DepthParams(Camera camera)

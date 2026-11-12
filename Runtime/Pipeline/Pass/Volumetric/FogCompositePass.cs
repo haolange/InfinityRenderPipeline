@@ -10,13 +10,13 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class FogCompositePassUtilityData
     {
-        internal static int FogComposite_ResolutionID = Shader.PropertyToID("FogComposite_Resolution");
-        internal static int FogComposite_MaxDistanceID = Shader.PropertyToID("FogComposite_MaxDistance");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
-        internal static int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
-        internal static int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
+        internal static readonly int FogComposite_ResolutionID = Shader.PropertyToID("FogComposite_Resolution");
+        internal static readonly int FogComposite_MaxDistanceID = Shader.PropertyToID("FogComposite_MaxDistance");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
+        internal static readonly int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
+        internal static readonly int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
+        internal static readonly int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
     }
 
     public partial class InfinityRenderPipeline

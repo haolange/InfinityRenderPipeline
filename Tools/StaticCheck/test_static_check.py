@@ -89,6 +89,17 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_kernels(str(self.repo), out)
         self.assertEqual(['Runtime/U.cs: kernel "KernelB" is not declared by shaders.aShader'], [o[2] for o in out])
 
+    def test_mutable_static_id_fails_and_readonly_passes(self):
+        self.write('Runtime/A.cs', 'static readonly int ID_A = Shader.PropertyToID("A");\n'
+                                   'internal static readonly ShaderTagId Tag = new ShaderTagId("T");\nconst string Name = "N";')
+        out = []
+        static_check.check_static_ids(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/B.cs', 'internal static int SRV_DepthID = Shader.PropertyToID("SRV_Depth");\n'
+                                   'static ProfilingSampler s_Sampler = new ProfilingSampler("S");')
+        static_check.check_static_ids(str(self.repo), out)
+        self.assertEqual(['SRV_DepthID', 's_Sampler'], sorted(o[2].split(': ')[1].split(' ')[0] for o in out))
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

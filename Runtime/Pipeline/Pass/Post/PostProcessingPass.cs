@@ -13,41 +13,41 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class PostProcessingPassUtilityData
     {
-        internal static string TextureName = "PostProcessTexture";
-        internal static string BloomTextureName = "BloomTexture";
-        internal static string ExposureEVName = "ExposureEV";
-        internal static string ExposureHistogramName = "ExposureHistogram";
-        internal static int PP_ResolutionID = Shader.PropertyToID("PP_Resolution");
-        internal static int PP_BloomIntensityID = Shader.PropertyToID("PP_BloomIntensity");
-        internal static int PP_BloomThresholdID = Shader.PropertyToID("PP_BloomThreshold");
-        internal static int PP_BloomScatterID = Shader.PropertyToID("PP_BloomScatter");
-        internal static int PP_VignetteIntensityID = Shader.PropertyToID("PP_VignetteIntensity");
-        internal static int PP_VignetteSmoothnessID = Shader.PropertyToID("PP_VignetteSmoothness");
-        internal static int PP_FilmGrainIntensityID = Shader.PropertyToID("PP_FilmGrainIntensity");
-        internal static int PP_FilmGrainResponseID = Shader.PropertyToID("PP_FilmGrainResponse");
-        internal static int PP_FrameIndexID = Shader.PropertyToID("PP_FrameIndex");
-        internal static int PP_ExposureMultiplierID = Shader.PropertyToID("PP_ExposureMultiplier");
-        internal static int PP_AutoExposureID = Shader.PropertyToID("PP_AutoExposure");
-        internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int SRV_CombineLUTID = Shader.PropertyToID("SRV_CombineLUT");
-        internal static int SRV_ExposureEVID = Shader.PropertyToID("SRV_ExposureEV");
+        internal static readonly string TextureName = "PostProcessTexture";
+        internal static readonly string BloomTextureName = "BloomTexture";
+        internal static readonly string ExposureEVName = "ExposureEV";
+        internal static readonly string ExposureHistogramName = "ExposureHistogram";
+        internal static readonly int PP_ResolutionID = Shader.PropertyToID("PP_Resolution");
+        internal static readonly int PP_BloomIntensityID = Shader.PropertyToID("PP_BloomIntensity");
+        internal static readonly int PP_BloomThresholdID = Shader.PropertyToID("PP_BloomThreshold");
+        internal static readonly int PP_BloomScatterID = Shader.PropertyToID("PP_BloomScatter");
+        internal static readonly int PP_VignetteIntensityID = Shader.PropertyToID("PP_VignetteIntensity");
+        internal static readonly int PP_VignetteSmoothnessID = Shader.PropertyToID("PP_VignetteSmoothness");
+        internal static readonly int PP_FilmGrainIntensityID = Shader.PropertyToID("PP_FilmGrainIntensity");
+        internal static readonly int PP_FilmGrainResponseID = Shader.PropertyToID("PP_FilmGrainResponse");
+        internal static readonly int PP_FrameIndexID = Shader.PropertyToID("PP_FrameIndex");
+        internal static readonly int PP_ExposureMultiplierID = Shader.PropertyToID("PP_ExposureMultiplier");
+        internal static readonly int PP_AutoExposureID = Shader.PropertyToID("PP_AutoExposure");
+        internal static readonly int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
+        internal static readonly int SRV_CombineLUTID = Shader.PropertyToID("SRV_CombineLUT");
+        internal static readonly int SRV_ExposureEVID = Shader.PropertyToID("SRV_ExposureEV");
 
-        internal static int SRV_BloomSourceID = Shader.PropertyToID("SRV_BloomSource");
-        internal static int SRV_BloomTextureID = Shader.PropertyToID("SRV_BloomTexture");
-        internal static int UAV_BloomTargetID = Shader.PropertyToID("UAV_BloomTarget");
-        internal static int BloomMipSizeID = Shader.PropertyToID("BloomMipSize");
-        internal static int PP_BloomPrefilterID = Shader.PropertyToID("PP_BloomPrefilter");
+        internal static readonly int SRV_BloomSourceID = Shader.PropertyToID("SRV_BloomSource");
+        internal static readonly int SRV_BloomTextureID = Shader.PropertyToID("SRV_BloomTexture");
+        internal static readonly int UAV_BloomTargetID = Shader.PropertyToID("UAV_BloomTarget");
+        internal static readonly int BloomMipSizeID = Shader.PropertyToID("BloomMipSize");
+        internal static readonly int PP_BloomPrefilterID = Shader.PropertyToID("PP_BloomPrefilter");
 
-        internal static int UAV_ExposureHistogramID = Shader.PropertyToID("UAV_ExposureHistogram");
-        internal static int SRV_ExposureHistoryEVID = Shader.PropertyToID("SRV_ExposureHistoryEV");
-        internal static int UAV_ExposureEVID = Shader.PropertyToID("UAV_ExposureEV");
-        internal static int PP_ExposureHistogramRangeID = Shader.PropertyToID("PP_ExposureHistogramRange");
-        internal static int PP_ExposureLowPercentileID = Shader.PropertyToID("PP_ExposureLowPercentile");
-        internal static int PP_ExposureHighPercentileID = Shader.PropertyToID("PP_ExposureHighPercentile");
-        internal static int PP_ExposureAdaptID = Shader.PropertyToID("PP_ExposureAdapt");
-        internal static int PP_ExposureResetID = Shader.PropertyToID("PP_ExposureReset");
+        internal static readonly int UAV_ExposureHistogramID = Shader.PropertyToID("UAV_ExposureHistogram");
+        internal static readonly int SRV_ExposureHistoryEVID = Shader.PropertyToID("SRV_ExposureHistoryEV");
+        internal static readonly int UAV_ExposureEVID = Shader.PropertyToID("UAV_ExposureEV");
+        internal static readonly int PP_ExposureHistogramRangeID = Shader.PropertyToID("PP_ExposureHistogramRange");
+        internal static readonly int PP_ExposureLowPercentileID = Shader.PropertyToID("PP_ExposureLowPercentile");
+        internal static readonly int PP_ExposureHighPercentileID = Shader.PropertyToID("PP_ExposureHighPercentile");
+        internal static readonly int PP_ExposureAdaptID = Shader.PropertyToID("PP_ExposureAdapt");
+        internal static readonly int PP_ExposureResetID = Shader.PropertyToID("PP_ExposureReset");
 
-        internal static int MaxBloomMips = 6;
+        internal static readonly int MaxBloomMips = 6;
     }
 
     public partial class InfinityRenderPipeline

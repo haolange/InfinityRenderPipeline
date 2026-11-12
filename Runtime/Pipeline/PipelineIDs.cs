@@ -174,16 +174,16 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static class InfinityPassIDs
     {
-        public static ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
-        public static ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
-        public static ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
-        public static ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
-        public static ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
-        public static ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
-        public static ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
-        public static ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
-        public static ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
-        public static ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
+        public static readonly ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
+        public static readonly ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
+        public static readonly ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
+        public static readonly ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
+        public static readonly ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
+        public static readonly ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
+        public static readonly ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
+        public static readonly ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
+        public static readonly ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
+        public static readonly ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
     }
 
     public static class InfinityRenderQueue

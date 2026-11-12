@@ -11,21 +11,21 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class SuperResolutionPassUtilityData
     {
-        internal static string TextureName = "SuperResolutionTexture";
-        internal static string HistoryColorTextureName = "HistorySuperResolutionColor";
-        internal static int HistoryColorTextureID = Shader.PropertyToID("HistorySuperResolutionColor");
+        internal static readonly string TextureName = "SuperResolutionTexture";
+        internal static readonly string HistoryColorTextureName = "HistorySuperResolutionColor";
+        internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistorySuperResolutionColor");
         internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistorySuperResolutionDepth");
         internal static readonly int UAV_HistoryColorTextureID = Shader.PropertyToID("UAV_SRHistoryColorTexture");
         internal static readonly int UAV_HistoryDepthTextureID = Shader.PropertyToID("UAV_SRHistoryDepthTexture");
-        internal static int SR_ResolutionID = Shader.PropertyToID("SR_Resolution");
-        internal static int SR_JitterID = Shader.PropertyToID("SR_Jitter");
-        internal static int SR_FrameIndexID = Shader.PropertyToID("SR_FrameIndex");
-        internal static int SR_SharpnessID = Shader.PropertyToID("SR_Sharpness");
-        internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
-        internal static int SRV_HistoryColorTextureID = Shader.PropertyToID("SRV_HistoryColorTexture");
-        internal static int UAV_SuperResolutionTextureID = Shader.PropertyToID("UAV_SuperResolutionTexture");
+        internal static readonly int SR_ResolutionID = Shader.PropertyToID("SR_Resolution");
+        internal static readonly int SR_JitterID = Shader.PropertyToID("SR_Jitter");
+        internal static readonly int SR_FrameIndexID = Shader.PropertyToID("SR_FrameIndex");
+        internal static readonly int SR_SharpnessID = Shader.PropertyToID("SR_Sharpness");
+        internal static readonly int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
+        internal static readonly int SRV_HistoryColorTextureID = Shader.PropertyToID("SRV_HistoryColorTexture");
+        internal static readonly int UAV_SuperResolutionTextureID = Shader.PropertyToID("UAV_SuperResolutionTexture");
     }
 
     public partial class InfinityRenderPipeline

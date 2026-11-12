@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGTextureHandle
     {
-        private static RGTextureHandle s_NullHandle = new RGTextureHandle();
+        private static readonly RGTextureHandle s_NullHandle = new RGTextureHandle();
 
         public static RGTextureHandle nullHandle { get { return s_NullHandle; } }
 

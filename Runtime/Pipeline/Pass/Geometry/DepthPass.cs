@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DepthPassUtilityData
     {
-        internal static string TextureName = "DepthTexture";
+        internal static readonly string TextureName = "DepthTexture";
     }
 
     public partial class InfinityRenderPipeline

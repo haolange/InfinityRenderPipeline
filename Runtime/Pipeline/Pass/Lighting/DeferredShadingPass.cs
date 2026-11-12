@@ -11,15 +11,15 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DeferredShadingPassUtilityData
     {
-        internal static string TextureName = "LightingTexture";
-        internal static int DeferredShading_ResolutionID = Shader.PropertyToID("DeferredShading_Resolution");
-        internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
-        internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
-        internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
-        internal static int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
+        internal static readonly string TextureName = "LightingTexture";
+        internal static readonly int DeferredShading_ResolutionID = Shader.PropertyToID("DeferredShading_Resolution");
+        internal static readonly int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
+        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
+        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
+        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
+        internal static readonly int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
+        internal static readonly int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
+        internal static readonly int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
     }
 
     public partial class InfinityRenderPipeline
