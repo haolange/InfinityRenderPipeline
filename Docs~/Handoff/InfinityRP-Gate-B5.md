@@ -1,6 +1,6 @@
 # 闸门 B5：本地验收清单（B3–B5）
 
-分支 `claude/kind-knuth-d599st`，HEAD `58af7e4`，上一个闸门 `8da744f`（B2，已 PASS）。通用流程、判定标准和回报模板见
+分支 `claude/kind-knuth-d599st`，HEAD `082a41d`，上一个闸门 `8da744f`（B2，已 PASS）。通用流程、判定标准和回报模板见
 `InfinityRP-Local-Verification-Handoff.md`；本文只列这一闸门特有的内容。用户已授权本闸门运行 `BuildScriptsOnly`。
 
 ## 提交
@@ -23,13 +23,20 @@
 | 69844ac | B5 复审修正：compute encoder 补回 SetBufferData；缺 execute 改在编译期报错；segment 规划按组提升后的创建位置；去掉 m_RGScoper 别名 |
 | c3ba454 | 上一轮 RETURN 修正：Unity 6000.6 中 `DrawingSettings.enableDynamicBatching` 为错误级废弃，不再写它 |
 | 58af7e4 | 删除资产字段 `enableDynamicBatch` 与 Inspector 勾选框（用户批准的 schema 变更）|
+| 5ba5039 | Docs~/Handoff：本目录（只有文档）|
+| 082a41d | 第二次 RETURN 修正：ResourcePoolLifecycleTests（提交必带完成 fence）、HistoryCacheCommitTests（丢弃的获取归还给池）、RenderGraphFailureTests.TargetMrtClear（在图中编译后再绑定目标）三处测试改测新契约 |
+
+## 上一轮的本地改动
+
+第二轮验收时在本地对 `ResourcePoolLifecycleTests` 做的机械修复（去掉 `Submitted` 的 `false` 参数）已被 `082a41d` 取代。拉取前先丢弃该本地改动。
 
 ## 编译（三种配置都必须做）
 
 1. 默认 Editor 编译（Runtime、Editor、Tests、Validation）。
 2. 定义 `INFINITY_UNITY_CLI` 后再编译（`Editor/Cli`）。
-3. release：`BuildPipeline.BuildPlayer` + `BuildOptions.BuildScriptsOnly`（已授权），不定义 `DEVELOPMENT_BUILD`。在独立任务镜像上跑，
-   记录输出路径与大小，验收后删除构建产物。B2 闸门里 AssemblyBuilder 的 CS0012（GraphicsUtility.cs:15 引用 Editor 版 Core RP）是
+3. release：`BuildPipeline.BuildPlayer` + `BuildOptions.BuildScriptsOnly`（已授权），不定义 `DEVELOPMENT_BUILD`，目标为当前平台，输出到
+   intermediate 任务目录。没有独立任务镜像时，在持有项目的这个 Editor 进程内调用（经 Unity CLI 或菜单），不要另起 batch 进程或第二个 Editor；
+   不改 Player 设置、不切平台、不保存资产。记录输出路径与大小，验收后删除构建产物。B2 闸门里 AssemblyBuilder 的 CS0012（GraphicsUtility.cs:15 引用 Editor 版 Core RP）是
    harness 问题，这次以 BuildScriptsOnly 的结果为准；若仍报 CS0012，附完整错误与引用链回报。
 
 允许本地机械修复：漏 `using`、批次内改名漏改、`.meta` 缺失、设计意图唯一的签名不匹配。每处写进报告并附 diff。
