@@ -113,11 +113,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
-                LightLoopInputs lightLoop = QueryLightLoop();
+                LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                ShadowInputs shadows = QueryShadowInputs();
+                ShadowInputs shadows = QueryShadowInputs(context);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.deferredShadingShader = kernel.shader;

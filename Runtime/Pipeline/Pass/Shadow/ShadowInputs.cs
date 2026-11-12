@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        ShadowInputs QueryShadowInputs()
+        ShadowInputs QueryShadowInputs(in CameraRecordContext context)
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             ShadowFilterSettings filter = m_Settings.shadowFilter;
@@ -156,8 +156,12 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
                 shadowDistance = m_Settings.shadowDistance,
             };
-            inputs.hasCascadeMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out inputs.cascadeMoments);
-            inputs.hasLocalMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out inputs.localMoments);
+            // ComputeShadowMoments builds each atlas exactly when the feature records and the allocator uses moments there.
+            bool moments = context.features.ShouldRecord(EFrameFeature.ShadowMoments);
+            inputs.hasCascadeMoments = moments && allocator.CascadeUsesMoments;
+            inputs.hasLocalMoments = moments && allocator.LocalMomentSliceCount > 0;
+            inputs.cascadeMoments = inputs.hasCascadeMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMoments) : default;
+            inputs.localMoments = inputs.hasLocalMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMoments) : default;
             return inputs;
         }
     }

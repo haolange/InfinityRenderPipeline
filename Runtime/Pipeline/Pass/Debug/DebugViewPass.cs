@@ -288,7 +288,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (needLightLoop)
                 {
-                    LightLoopInputs lightLoop = QueryLightLoop();
+                    LightLoopInputs lightLoop = QueryLightLoop(context);
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                     passData.depthTexture = passRef.ReadTexture(depthTexture);

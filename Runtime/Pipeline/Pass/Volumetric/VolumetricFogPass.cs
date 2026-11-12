@@ -30,8 +30,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int VolFog_TemporalWeightID = Shader.PropertyToID("VolFog_TemporalWeight");
         internal static readonly int VolFog_FrameIndexID = Shader.PropertyToID("VolFog_FrameIndex");
         internal static readonly int SRV_HistoryVolumetricFogID = Shader.PropertyToID("SRV_HistoryVolumetricFog");
-        internal static readonly int VolFog_HasSkyViewID = Shader.PropertyToID("VolFog_HasSkyView");
-        internal static readonly int VolFog_HasAerialID = Shader.PropertyToID("VolFog_HasAerial");
         internal static readonly int UAV_VolumetricFogTextureID = Shader.PropertyToID("UAV_VolumetricFogTexture");
     }
 
@@ -68,8 +66,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyTexture;
             public RGTextureHandle skyViewLUT;
             public RGTextureHandle aerialPerspectiveLUT;
-            public int hasSkyView;
-            public int hasAerial;
             public float aerialDistance;
         }
 
@@ -112,8 +108,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool hasSkyView = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT);
-            bool hasAerial = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT);
+            RGTextureHandle skyViewLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT);
+            RGTextureHandle aerialPerspectiveLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT);
             float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
 
             using (var passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
@@ -136,10 +132,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop();
+                LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs();
+                ShadowInputs shadows = QueryShadowInputs(context);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -150,17 +146,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricFogTexture = passRef.WriteTexture(volumetricFogTexture);
-                passData.hasSkyView = hasSkyView ? 1 : 0;
-                passData.hasAerial = hasAerial ? 1 : 0;
                 passData.aerialDistance = aerialDistance;
-                if (hasSkyView)
-                {
-                    passData.skyViewLUT = passRef.ReadTexture(skyViewLUT);
-                }
-                if (hasAerial)
-                {
-                    passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
-                }
+                passData.skyViewLUT = passRef.ReadTexture(skyViewLUT);
+                passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
@@ -181,8 +169,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_HasSkyViewID, passData.hasSkyView);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_HasAerialID, passData.hasAerial);
                     cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
 
                     int scatterKernel = passData.scatterDensityKernel.index;
@@ -190,14 +176,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.lightLoop.Bind(cmdEncoder, shader, scatterKernel);
                     passData.shadows.Bind(cmdEncoder, shader, scatterKernel);
                     cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
-                    if (passData.hasSkyView != 0)
-                    {
-                        cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_SkyViewLUT, passData.skyViewLUT);
-                    }
-                    if (passData.hasAerial != 0)
-                    {
-                        cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_AerialPerspectiveLUT, passData.aerialPerspectiveLUT);
-                    }
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_SkyViewLUT, passData.skyViewLUT);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_AerialPerspectiveLUT, passData.aerialPerspectiveLUT);
                     cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
                     cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogScatterSampler);
                     cmdEncoder.DispatchCompute(shader, passData.scatterDensityKernel.index, passData.scatterDensityKernel.GroupsX(passData.froxelResolution.x), passData.scatterDensityKernel.GroupsY(passData.froxelResolution.y), 1);
@@ -227,10 +207,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryVolumetricFog(in CameraRecordContext context)
         {
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle source))
+            if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {
                 return;
             }
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer);
 
             var volFog = context.volumes.volumetricFog;
             int froxelWidth = Mathf.CeilToInt(context.dimensions.internalSize.x / 8.0f);

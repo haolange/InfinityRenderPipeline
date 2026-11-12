@@ -32,7 +32,6 @@ namespace InfinityTech.Rendering.Pipeline
             public bool bindFog;
             public bool bindAerial;
             public bool bindPyramid;
-            public bool bindTranslucentDepth;
             public float fogMaxDistance;
             public float aerialDistance;
             public RGTextureHandle volumetricFog;
@@ -109,14 +108,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            RGTextureHandle volumetricFog = default;
-            RGTextureHandle aerialLut = default;
-            RGTextureHandle colorPyramid = default;
-            RGTextureHandle translucentDepth = default;
-            bool hasFog = bindFog && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out volumetricFog);
-            bool hasAerial = bindFog && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out aerialLut);
-            bool hasPyramid = bindPyramid && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out colorPyramid);
-            bool hasTranslucentDepth = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.TranslucentDepthBuffer, out translucentDepth);
+            bool hasFog = bindFog && context.features.ShouldRecord(EFrameFeature.VolumetricFog);
+            bool hasAerial = bindFog;
+            bool hasPyramid = bindPyramid && context.features.ShouldRecord(EFrameFeature.ColorPyramid);
+            RGTextureHandle volumetricFog = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
+            RGTextureHandle aerialLut = hasAerial ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT) : default;
+            RGTextureHandle colorPyramid = hasPyramid ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer) : default;
+            // RasterTranslucentDepth runs before every translucent color pass and always registers its target.
+            RGTextureHandle translucentDepth = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.TranslucentDepthBuffer);
 
             float fogMaxDistance = context.volumes.volumetricFog.MaxDistance.value;
             float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
@@ -146,7 +145,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bindFog = hasFog;
                 passData.bindAerial = hasAerial;
                 passData.bindPyramid = hasPyramid;
-                passData.bindTranslucentDepth = hasTranslucentDepth;
                 passData.fogMaxDistance = fogMaxDistance;
                 passData.aerialDistance = aerialDistance;
                 if (hasFog)
@@ -161,10 +159,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.colorPyramid = passRef.ReadTexture(colorPyramid);
                 }
-                if (hasTranslucentDepth)
-                {
-                    passData.translucentDepth = passRef.ReadTexture(translucentDepth);
-                }
+                passData.translucentDepth = passRef.ReadTexture(translucentDepth);
 
                 passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
@@ -186,10 +181,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.ColorPyramidBuffer, passData.colorPyramid);
                     }
-                    if (passData.bindTranslucentDepth)
-                    {
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepth);
-                    }
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepth);
                     cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });

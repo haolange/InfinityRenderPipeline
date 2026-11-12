@@ -173,11 +173,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        LightLoopInputs QueryLightLoop()
+        LightLoopInputs QueryLightLoop(in CameraRecordContext context)
         {
             LightContext lightContext = renderContext.lightContext;
-            bool hasCookieAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
-            bool hasProbeAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
+            bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
+            bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
+            RGTextureHandle cookieAtlas = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
+            RGTextureHandle probeAtlas = hasProbeAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
             bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {

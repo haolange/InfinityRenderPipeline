@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int width, height;
         }
 
-        int RecordLightMaskCapture()
+        int RecordLightMaskCapture(in CameraRecordContext context)
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
             var lightContext = renderContext.lightContext;
@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
                 ref var data = ref pass.GetPassData();
-                data.source = pass.ReadBuffer(QueryLightLoop().tileMasks);
+                data.source = pass.ReadBuffer(QueryLightLoop(context).tileMasks);
                 data.destination = pass.WriteTexture(destination);
                 data.kernel = kernel;
                 data.width = width;
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
                         id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
                         break;
                     case "LightTileMask":
-                        id = RecordLightMaskCapture();
+                        id = RecordLightMaskCapture(context);
                         break;
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer);

@@ -88,20 +88,20 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
-                    ShadowInputs shadows = QueryShadowInputs();
+                    ShadowInputs shadows = QueryShadowInputs(context);
                     shadows.Read(passRef);
                     passData.shadows = shadows;
-                    passData.hasContactShadow = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowSun);
+                    passData.hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);
                     if (passData.hasContactShadow)
                     {
-                        passData.contactShadowSun = passRef.ReadTexture(contactShadowSun);
+                        passData.contactShadowSun = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer));
                         passData.contactShadowMask = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
                     }
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
-                    passData.hasOcclusion = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusion);
+                    passData.hasOcclusion = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
                     if (passData.hasOcclusion)
                     {
-                        passData.occlusion = passRef.ReadTexture(occlusion);
+                        passData.occlusion = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer));
                     }
                     passData.meshDrawList = passRef.UseMeshDrawList(forwardMeshDrawList);
                     passData.rendererList = passRef.UseRendererList(forwardRendererList);
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         context.atmosphere.cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                    LightLoopInputs lightLoop = QueryLightLoop();
+                    LightLoopInputs lightLoop = QueryLightLoop(context);
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                 }

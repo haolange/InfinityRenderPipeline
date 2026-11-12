@@ -45,8 +45,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeScreenSpaceComposite(in CameraRecordContext context)
         {
-            bool hasSSR = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureHandle ssrTexture);
-            bool hasSSGI = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureHandle ssgiTexture);
+            bool hasSSR = context.features.ShouldRecord(EFrameFeature.SSR);
+            bool hasSSGI = context.features.ShouldRecord(EFrameFeature.SSGI);
+            RGTextureHandle ssrTexture = hasSSR ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSRBuffer) : default;
+            RGTextureHandle ssgiTexture = hasSSGI ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer) : default;
             if (!hasSSR && !hasSSGI)
             {
                 return;

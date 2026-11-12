@@ -134,10 +134,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop();
+                LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs();
+                ShadowInputs shadows = QueryShadowInputs(context);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -196,10 +196,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryVolumetricCloud(in CameraRecordContext context)
         {
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle source))
+            if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {
                 return;
             }
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricCloudBuffer);
 
             int cloudWidth = Mathf.Max(1, context.dimensions.internalSize.x >> 1);
             int cloudHeight = Mathf.Max(1, context.dimensions.internalSize.y >> 1);

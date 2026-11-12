@@ -34,8 +34,6 @@ Texture2D<float> SRV_LocalShadowMap;
 Texture2D<float4> SRV_SkyViewLUT;
 Texture3D<float4> SRV_AerialPerspectiveLUT;
 Texture3D<float4> SRV_HistoryVolumetricFog;
-int VolFog_HasSkyView;
-int VolFog_HasAerial;
 float VolFog_AerialDistance;
 RWTexture3D<float4> UAV_VolumetricFogTexture;
 
@@ -155,21 +153,11 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
         AccumulateLocalLights(worldPos, viewDir, scattering, viewDepth, screenUV, inScatter, SRV_CascadeShadowMap, SRV_LocalShadowMap);
 
-        if (VolFog_HasSkyView != 0)
-        {
-            inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
-        }
-        else
-        {
-            inScatter += scattering * VolFog_AmbientIntensity;
-        }
-
-        if (VolFog_HasAerial != 0)
-        {
-            float linearDepth = length(worldPos - _WorldSpaceCameraPos);
-            float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
-            inScatter += aerial.rgb * density;
-        }
+        // The atmosphere lookup tables always exist: the pipeline cannot run without its atmosphere profile.
+        inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
+        float linearDepth = length(worldPos - _WorldSpaceCameraPos);
+        float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
+        inScatter += aerial.rgb * density;
 
         UAV_VolumetricFogTexture[uint3(id.xy, z)] = float4(inScatter, extinction.x);
     }

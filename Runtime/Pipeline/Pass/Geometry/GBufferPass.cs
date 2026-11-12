@@ -70,13 +70,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle lightingTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);
 
-            RGTextureHandle dBufferA = default;
-            RGTextureHandle dBufferB = default;
-            RGTextureHandle dBufferC = default;
-            bool bindDBuffer = context.features.IsProduced(EFrameFeature.DBuffer)
-                && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DBufferA, out dBufferA)
-                && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DBufferB, out dBufferB)
-                && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
+            bool bindDBuffer = context.features.IsProduced(EFrameFeature.DBuffer);
+            RGTextureHandle dBufferA = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferA) : default;
+            RGTextureHandle dBufferB = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferB) : default;
+            RGTextureHandle dBufferC = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferC) : default;
 
             RGRendererListHandle gbufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterGBufferPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, m_Settings.enableInstanceBatch));

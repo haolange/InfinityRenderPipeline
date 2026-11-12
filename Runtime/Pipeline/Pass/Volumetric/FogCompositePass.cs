@@ -40,8 +40,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeFogComposite(in CameraRecordContext context)
         {
-            bool hasFog = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle volumetricFogTexture);
-            bool hasCloud = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle volumetricCloudTexture);
+            bool hasFog = context.features.ShouldRecord(EFrameFeature.VolumetricFog);
+            bool hasCloud = context.features.ShouldRecord(EFrameFeature.VolumetricCloud);
+            RGTextureHandle volumetricFogTexture = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
+            RGTextureHandle volumetricCloudTexture = hasCloud ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricCloudBuffer) : default;
             if (!TranslucentFeatureUtility.ShouldRecordFogComposite(hasFog, hasCloud))
             {
                 return;

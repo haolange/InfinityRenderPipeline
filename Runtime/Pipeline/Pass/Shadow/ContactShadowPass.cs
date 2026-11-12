@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_ViewProj = context.cameraUniform.matrix_ViewFlipYJitterProj;
                 passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop();
+                LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
