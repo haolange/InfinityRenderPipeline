@@ -695,6 +695,32 @@ def check_rg_api(repo, out):
                     out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes a string {name}'))
 
 
+PIPELINE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipeline\b')
+CLASS_MEMBER = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|readonly)\s+)*[\w<>\[\],.]+\s+(\w+)\s*(?:=>|=|;)', re.M)
+CLASS_METHOD = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|override|unsafe)\s+)*[\w<>\[\],.]+\s+(\w+)\s*\(([^)]*)\)', re.M)
+
+def check_redundant_parameters(repo, out):
+    """A pipeline instance method never takes a parameter named like a pipeline field or property: it shadows it."""
+    bodies = []
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        text = without_comments(read(p))
+        for match in PIPELINE_PARTIAL.finditer(text):
+            body = method_body(text[match.start():], '{') or ''
+            offset = match.start() + text[match.start():].index(body)
+            bodies.append((os.path.relpath(p, repo).replace(os.sep, '/'), text, body, offset))
+    members = set()
+    for _, _, body, _ in bodies:
+        members |= set(CLASS_MEMBER.findall(body))
+    for rel, text, body, offset in bodies:
+        for m in CLASS_METHOD.finditer(body):
+            if re.search(r'\bstatic\b', body[m.start():m.start(1)]):
+                continue
+            for name in re.findall(r'(\w+)\s*(?:=[^,]*)?(?:,|$)', m.group(2).strip()):
+                if name in members:
+                    line = text.count(chr(10), 0, offset + m.start()) + 1
+                    out.append(('ERROR', 'redundantparam', f'{rel}:{line}: {m.group(1)} takes {name}, which shadows the pipeline member'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -723,7 +749,8 @@ def main():
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
-                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api)):
+                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
+                     ('redundantparam', check_redundant_parameters)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

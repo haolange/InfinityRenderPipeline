@@ -40,6 +40,22 @@ namespace InfinityTech.Rendering.Pipeline
     {
         static readonly FeatureDescriptor[] s_Descriptors = Build();
 
+        // Every camera records these. Resources that cannot support one fail when they resolve, not per frame.
+        internal static readonly EFrameFeature[] RequiredProducers =
+            { EFrameFeature.Depth, EFrameFeature.GBuffer, EFrameFeature.DeferredShading, EFrameFeature.Display };
+
+        internal static void RequireProducerSupport(string[] resourceReasons)
+        {
+            foreach (EFrameFeature feature in RequiredProducers)
+            {
+                string reason = resourceReasons[(int)feature];
+                if (reason != null)
+                {
+                    throw new InvalidOperationException($"InfinityRP cannot render without {feature}: {reason}");
+                }
+            }
+        }
+
         internal static FeatureDescriptor Get(EFrameFeature feature) => s_Descriptors[(int)feature];
 
         static FeatureDescriptor[] Build()

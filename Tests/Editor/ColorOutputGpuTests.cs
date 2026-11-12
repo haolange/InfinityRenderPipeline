@@ -244,12 +244,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 profile.TryGet(out FilmTonemap film);
                 profile.TryGet(out ColorGrading grading);
                 var descriptor = CombineLutParameterUtility.FromVolumeStack(film, grading);
-                descriptor.MappingPolynomial = new float4(0, 1, 0, 0);
-                descriptor.InverseGamma = new float4(1, 1, 1, 0);
                 // Bind independently by the shader's semantic names, not the pass's property IDs.
                 foreach (FieldInfo field in typeof(CombineLutParameterDescriptor).GetFields())
                 {
-                    string name = field.Name == "ColorShadowTint2" ? "ColorShadow_Tint2" : field.Name;
+                    string name = field.Name;
                     object value = field.GetValue(descriptor);
                     if (value is float scalar) shader.SetFloat(name, scalar);
                     else if (value is int integer) shader.SetInt(name, integer);

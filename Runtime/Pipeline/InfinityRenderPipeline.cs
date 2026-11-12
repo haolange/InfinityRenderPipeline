@@ -370,32 +370,9 @@ namespace InfinityTech.Rendering.Pipeline
                     if (firstCameraException == null) firstCameraException = exception;
                 }
 
-                GraphicsFence poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
-                var retiredReuseFence = new ResourceReuseFence
-                {
-                    hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
-                };
-                frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
-                    cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
-
                 try
                 {
-                    if (!nativeSubmitted) renderContext.meshWorld.transformVersions.RollbackUnsubmitted();
-                    if (!nativeSubmitted) m_ResourcePool.SubmissionUncertain(true);
-                    else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
-                    frameValid &= m_RGBuilder.CanRetireSubmittedResources;
-                    InfinityRayTracingEnvironment.current?.CompleteFrame(frameValid);
-                    CompleteFrameTransaction(m_FrameTransactions, m_CameraStates, frameValid);
-                    if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
-                    {
-                        FlushFrameRetirement(retiredReuseFence);
-                        m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
-                        RecycleUnseenCameraStates(Time.frameCount, retiredReuseFence);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    if (firstCameraException == null) firstCameraException = exception;
+                    frameValid = SubmitFrame(scriptableRenderContext, cmdBuffer, ref firstCameraException, out submitted);
                 }
                 finally
                 {
@@ -424,6 +401,40 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
             if (firstCameraException != null)
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstCameraException).Throw();
+        }
+
+        // Queues the frame, completes every frame transaction by the outcome and retires what the reuse fence covers.
+        // A failure after submission is kept as the frame's first exception.
+        bool SubmitFrame(ScriptableRenderContext scriptableRenderContext, CommandBuffer cmdBuffer, ref Exception firstCameraException, out bool submitted)
+        {
+            GraphicsFence poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+            var retiredReuseFence = new ResourceReuseFence
+            {
+                hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
+            };
+            bool frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
+                cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
+
+            try
+            {
+                if (!nativeSubmitted) renderContext.meshWorld.transformVersions.RollbackUnsubmitted();
+                if (!nativeSubmitted) m_ResourcePool.SubmissionUncertain(true);
+                else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
+                frameValid &= m_RGBuilder.CanRetireSubmittedResources;
+                InfinityRayTracingEnvironment.current?.CompleteFrame(frameValid);
+                CompleteFrameTransaction(m_FrameTransactions, m_CameraStates, frameValid);
+                if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
+                {
+                    FlushFrameRetirement(retiredReuseFence);
+                    m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
+                    RecycleUnseenCameraStates(Time.frameCount, retiredReuseFence);
+                }
+            }
+            catch (Exception exception)
+            {
+                if (firstCameraException == null) firstCameraException = exception;
+            }
+            return frameValid;
         }
 
         // One camera: PrepareCamera decides, CullCamera culls, RecordCamera records the graph, Execute runs it.
@@ -522,10 +533,12 @@ namespace InfinityTech.Rendering.Pipeline
             state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
 
             FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, temporalResolve, volumes);
-            // Declare camera outputs before Unity camera setup and culling.
-            if (state.features.ShouldRecord(EFrameFeature.Motion))
+            // Unity keeps previous object transforms only for a camera that declares motion vectors. Declare them once,
+            // before camera setup and culling; the flag stays on the camera.
+            const DepthTextureMode motionOutputs = DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
+            if (state.features.ShouldRecord(EFrameFeature.Motion) && (camera.depthTextureMode & motionOutputs) != motionOutputs)
             {
-                camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
+                camera.depthTextureMode |= motionOutputs;
             }
 
             var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
@@ -655,40 +668,6 @@ namespace InfinityTech.Rendering.Pipeline
             return new CameraScene(cullingResults, mainView);
         }
 
-        static CombineLutParameterDescriptor ResolveCombineLutParameters(in CameraRecordContext context)
-        {
-            CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading);
-            float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
-            {
-                // x is the input value, y the output value
-                // RGB = a, b, c where y = a * x*x + b * x + c
-
-                float c = ColorTransform.x;
-                float b = 4 * ColorTransform.y - 3 * ColorTransform.x - ColorTransform.z;
-                float a = ColorTransform.z - ColorTransform.x - b;
-
-                descriptor.MappingPolynomial.x = a;
-                descriptor.MappingPolynomial.y = b;
-                descriptor.MappingPolynomial.z = c;
-                descriptor.MappingPolynomial.w = 1;
-            }
-
-            OutputTransformDecision outputDecision = context.outputDecision;
-            descriptor.OutputGamut = outputDecision.outputGamut;
-            descriptor.OutputDevice = outputDecision.outputDevice;
-            descriptor.OutputMode = (int)outputDecision.mode;
-            descriptor.HDREncoding = (int)outputDecision.hdrEncoding;
-
-            float DisplayGamma = 2.2f;
-            descriptor.InverseGamma.x = 1.0f / DisplayGamma;
-            descriptor.InverseGamma.y = 2.2f / DisplayGamma;
-            descriptor.InverseGamma.z = 1.0f / math.max(0, 1.0f);
-            descriptor.InverseGamma.w = 0.0f;
-
-            descriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
-            return descriptor;
-        }
-
         // The camera's pass list in submission order. mainView is replaced when two-stage occlusion is prepared.
         void RecordCamera(in CameraRecordContext context, MeshView mainView)
         {
@@ -697,7 +676,7 @@ namespace InfinityTech.Rendering.Pipeline
             UploadLightData(renderContext.lightContext);
             ComputeLightCookies(context);
             ComputeReflectionProbes(context);
-            ComputeCombineLuts(context, ResolveCombineLutParameters(context));
+            ComputeCombineLuts(context, CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading));
             ComputeAtmosphericLUT(context);
 
             ComputeTemporalColorPyramid(context);
@@ -1219,14 +1198,14 @@ namespace InfinityTech.Rendering.Pipeline
             features.Reset();
             bool temporal = policy.temporal;
 
-            features.Request(EFrameFeature.Depth);
-            features.Request(EFrameFeature.GBuffer);
+            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
+            {
+                features.Request(feature);
+            }
             features.Request(EFrameFeature.Motion);
-            features.Request(EFrameFeature.DeferredShading);
             features.Request(EFrameFeature.HiZ);
             features.Request(EFrameFeature.ColorPyramid);
             features.Request(EFrameFeature.PostProcess);
-            features.Request(EFrameFeature.Display);
             if (renderContext.WorldDecalCount > 0 && frameSettings.IsEnabled(EFrameSetting.Decals))
             {
                 features.Request(EFrameFeature.DBuffer);

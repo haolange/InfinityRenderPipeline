@@ -53,14 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int BlueCorrectionID = Shader.PropertyToID("BlueCorrection");
         internal static readonly int ExpandGamutID = Shader.PropertyToID("ExpandGamut");
 
-        internal static readonly int ColorScaleID = Shader.PropertyToID("ColorScale");
-        internal static readonly int OverlayColorID = Shader.PropertyToID("OverlayColor");
-        internal static readonly int MappingPolynomialID = Shader.PropertyToID("MappingPolynomial");
 
-        internal static readonly int OutputGamutID = Shader.PropertyToID("OutputGamut");
-        internal static readonly int OutputDeviceID = Shader.PropertyToID("OutputDevice");
-        internal static readonly int InverseGammaID = Shader.PropertyToID("InverseGamma");
-        internal static readonly int ColorShadowTint2ID = Shader.PropertyToID("ColorShadow_Tint2");
     }
 
     internal struct CombineLutParameterDescriptor : IEquatable<CombineLutParameterDescriptor>
@@ -105,17 +98,6 @@ namespace InfinityTech.Rendering.Pipeline
         public float BlueCorrection;
         public float ExpandGamut;
 
-        public float4 ColorScale;
-        public float4 OverlayColor;
-        public float4 MappingPolynomial;
-
-        public int OutputGamut;
-        public int OutputDevice;
-        public int OutputMode;
-        public int HDREncoding;
-        public float4 InverseGamma;
-        public float4 ColorShadowTint2;
-
         public bool Equals(CombineLutParameterDescriptor other)
         {
             return WhiteTemp.Equals(other.WhiteTemp)
@@ -150,16 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
                 && ColorCorrectionHighlightsMin.Equals(other.ColorCorrectionHighlightsMin)
                 && ColorCorrectionHighlightsMax.Equals(other.ColorCorrectionHighlightsMax)
                 && BlueCorrection.Equals(other.BlueCorrection)
-                && ExpandGamut.Equals(other.ExpandGamut)
-                && ColorScale.Equals(other.ColorScale)
-                && OverlayColor.Equals(other.OverlayColor)
-                && MappingPolynomial.Equals(other.MappingPolynomial)
-                && OutputGamut == other.OutputGamut
-                && OutputDevice == other.OutputDevice
-                && OutputMode == other.OutputMode
-                && HDREncoding == other.HDREncoding
-                && InverseGamma.Equals(other.InverseGamma)
-                && ColorShadowTint2.Equals(other.ColorShadowTint2);
+                && ExpandGamut.Equals(other.ExpandGamut);
         }
     }
 
@@ -167,14 +140,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public static CombineLutParameterDescriptor FromVolumeStack(FilmTonemap film, ColorGrading grading)
         {
-            if (film == null || grading == null)
-                throw new InvalidOperationException("InfinityRP: resolved FilmTonemap and ColorGrading snapshots are required.");
             CombineLutParameterDescriptor descriptor = default;
             ApplyFilmTonemap(ref descriptor, film);
             ApplyColorGrading(ref descriptor, grading);
-
-            descriptor.ColorScale = new float4(1.0f, 1.0f, 1.0f, 0.0f);
-            descriptor.OverlayColor = new float4(0.0f, 0.0f, 0.0f, 0.0f);
             return descriptor;
         }
 
@@ -305,15 +273,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.BlueCorrectionID, passData.combineLutParameterDescriptor.BlueCorrection);
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.ExpandGamutID, passData.combineLutParameterDescriptor.ExpandGamut);
-
-                    cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorScaleID, passData.combineLutParameterDescriptor.ColorScale);
-                    cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.OverlayColorID, passData.combineLutParameterDescriptor.OverlayColor);
-                    cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.MappingPolynomialID, passData.combineLutParameterDescriptor.MappingPolynomial);
-
-                    cmdEncoder.SetComputeIntParam(passData.combineLUTShader, CombineLutPassUtilityData.OutputGamutID, passData.combineLutParameterDescriptor.OutputGamut);
-                    cmdEncoder.SetComputeIntParam(passData.combineLUTShader, CombineLutPassUtilityData.OutputDeviceID, passData.combineLutParameterDescriptor.OutputDevice);
-                    cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.InverseGammaID, passData.combineLutParameterDescriptor.InverseGamma);
-                    cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorShadowTint2ID, passData.combineLutParameterDescriptor.ColorShadowTint2);
 
                     cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, InfinityShaderIDs.CombineLookupTexture, passData.combineLookupTexture);
 

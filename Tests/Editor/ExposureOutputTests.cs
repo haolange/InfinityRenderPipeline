@@ -194,21 +194,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void CombineLutKey_FieldEquals_IncludesOutputMode()
-        {
-            CombineLutParameterDescriptor a = default;
-            a.WhiteTemp = 6500.0f;
-            a.OutputMode = (int)EOutputMode.SDR;
-            a.HDREncoding = (int)EHDREncoding.PQ_Rec2020;
-
-            CombineLutParameterDescriptor b = a;
-            Assert.IsTrue(a.Equals(b));
-
-            b.OutputMode = (int)EOutputMode.HDR;
-            Assert.IsFalse(a.Equals(b));
-        }
-
-        [Test]
         public void ResolveBackbufferFormat_TargetWins()
         {
             GraphicsFormat format = OutputTransformUtility.ResolveBackbufferFormat(

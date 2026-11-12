@@ -28,39 +28,10 @@ float4 Square(float4 x)
 	return x * x;
 }
 
-float4 MappingPolynomial;			 // RGB = a, b, c where y = a * x*x + b * x + c
-
-// @param InLDRColor needs to be LDR (0..1) and in linear space
-half3 ColorCorrection(half3 InLDRColor)
-{
-	// final color correction to adjust for hardware differences, to make quick adjustements before a demo or simply a user setting
-	return MappingPolynomial.x * (InLDRColor * InLDRColor) + MappingPolynomial.y * InLDRColor + MappingPolynomial.z;
-}
-
-half3 select(bool c, half3 a, half3 b)    
-{ 
-	return c ? a : b; 
-}
 // ---------------------------------------------------
 
 #include "TonemapCommon.hlsl"
 
-// usually 1/2.2, the .y is used for inverse gamma when "gamma only" mode is not used
-half3 InverseGamma;
-
-// Texture0 is the neutral one and is computed in the shader
-Texture2D Textures_1;
-SamplerState Samplers_1;
-Texture2D Textures_2;
-SamplerState Samplers_2;
-Texture2D Textures_3;
-SamplerState Samplers_3;
-Texture2D Textures_4;
-SamplerState Samplers_4;
-// 0 is for neutral, 1 for Textures_1, 2 for ...
-float LUTWeights[5];
-half3 ColorScale;
-half4 OverlayColor;
 
 static const float LUTSize = 32;
 
@@ -227,14 +198,6 @@ float3 ColorCorrectAll( float3 WorkingColor )
 	return WorkingColorSMH;
 }
 
-uint OutputDevice;
-uint OutputGamut;
-
-uint GetOutputDevice()
-{
-	return OutputDevice;
-}
-
 float BlueCorrection;
 float ExpandGamut;
 
@@ -278,8 +241,6 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	const float3x3 AP0_2_AP1 = mul( XYZ_2_AP1_MAT, AP0_2_XYZ_MAT );
 	const float3x3 AP1_2_AP0 = mul( XYZ_2_AP0_MAT, AP1_2_XYZ_MAT );
 
-	const float3x3 AP1_2_Output  = OuputGamutMappingMatrix( OutputGamut );
-
 	float3 LUTEncodedColor = Neutral.rgb;
 	// Consumers sample with LinToLog. LUT texels are always log-encoded, never PQ/sRGB.
 	float3 LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
@@ -320,7 +281,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	ColorAP1 = ColorCorrectAll( ColorAP1 );
 
-	// Store for Legacy tonemap later and for Linear HDR output without tone curve
+	// Graded color without the film curve, written when FilmEnabled is 0.
 	float3 GradedColor = mul( AP1_2_sRGB, ColorAP1 );
 
 	const float3x3 BlueCorrect =
@@ -349,22 +310,10 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	// Convert from AP1 to sRGB and clip out-of-gamut values
 	float3 FilmColor = max(0, mul( AP1_2_sRGB, ColorAP1 ));
-	
-	// apply math color correction on top to texture based solution
-	FilmColor = ColorCorrection( FilmColor );
 
-	// blend with custom LDR color, used for Fade track in Matinee
-	float3 FilmColorNoGamma = lerp( FilmColor * ColorScale, OverlayColor.rgb, OverlayColor.a );
-	// Apply Fade track to linear outputs also
-	GradedColor = lerp(GradedColor * ColorScale, OverlayColor.rgb, OverlayColor.a);
-
-
-	// Apply "gamma" curve adjustment.
-	FilmColor = pow( max(0, FilmColorNoGamma), InverseGamma.y );
-		
-	// OutputTransform is the single transfer-encoding owner. CombineLUT writes Rec.709
-	// linear graded+tonemapped color. OutputGamut/OutputDevice stay in the CPU key.
-	half3 OutDeviceColor = lerp(GradedColor, FilmColorNoGamma, saturate(FilmEnabled));
+	// OutputTransform is the single transfer-encoding owner. CombineLUT writes Rec.709 linear graded and
+	// tonemapped color, so no output setting reaches this shader or its cache key.
+	half3 OutDeviceColor = lerp(GradedColor, FilmColor, saturate(FilmEnabled));
 
 	OutColor.rgb = OutDeviceColor;
 	OutColor.a = 1;

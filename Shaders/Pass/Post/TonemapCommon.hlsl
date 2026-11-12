@@ -31,13 +31,6 @@ Shoulder = 0.45;
 BlackClip = 0;
 WhiteClip = 0;
 
-// Legacy settings
-Slope = 0.98;
-Toe = 0.3;
-Shoulder = 0.22;
-BlackClip = 0;
-WhiteClip = 0.025;
-
 // ACES settings
 Slope = 0.91;
 Toe = 0.53;
@@ -253,88 +246,4 @@ float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor )
 	float3 oces = RRT( aces );
 	float3 OutputReferredLinearAP1Color = ODT_2000nits( oces );
 	return OutputReferredLinearAP1Color;
-}
-
-static const float3x3 GamutMappingIdentityMatrix = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-//
-// Gamut conversion matrices
-//
-float3x3 OuputGamutMappingMatrix( uint OutputGamut )
-{
-	// Gamut mapping matrices used later
-	const float3x3 AP1_2_sRGB    = mul( XYZ_2_sRGB_MAT, mul( D60_2_D65_CAT, AP1_2_XYZ_MAT ) );
-	const float3x3 AP1_2_DCI_D65 = mul( XYZ_2_P3D65_MAT, mul( D60_2_D65_CAT, AP1_2_XYZ_MAT ) );
-	const float3x3 AP1_2_Rec2020 = mul( XYZ_2_Rec2020_MAT, mul( D60_2_D65_CAT, AP1_2_XYZ_MAT ) );
-
-	// Set gamut mapping matrix 
-	// 0 = sRGB - D65
-	// 1 = P3 - D65
-	// 2 = Rec.2020 - D65
-	// 3 = ACES AP0 - D60
-	// 4 = ACES AP1 - D60
-
-	if( OutputGamut == 1 )
-		return AP1_2_DCI_D65;
-	else if( OutputGamut == 2 )
-		return AP1_2_Rec2020;
-	else if( OutputGamut == 3 )
-		return AP1_2_AP0_MAT;
-	else if( OutputGamut == 4 )
-		return GamutMappingIdentityMatrix;
-	else
-		return AP1_2_sRGB;
-}
-
-float3x3 OuputInverseGamutMappingMatrix( uint OutputGamut )
-{
-	// Gamut mapping matrices used later
-	const float3x3 sRGB_2_AP1    = mul( XYZ_2_AP1_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
-	const float3x3 DCI_D65_2_AP1 = mul( XYZ_2_AP1_MAT, mul( D65_2_D60_CAT, P3D65_2_XYZ_MAT ) );
-	const float3x3 Rec2020_2_AP1 = mul( XYZ_2_AP1_MAT, mul( D65_2_D60_CAT, Rec2020_2_XYZ_MAT ) );
-
-	// Set gamut mapping matrix 
-	// 0 = sRGB - D65
-	// 1 = P3 (DCI) - D65
-	// 2 = Rec.2020 - D65
-	// 3 = ACES AP0 - D60
-	float3x3 GamutMappingMatrix = sRGB_2_AP1;
-	if( OutputGamut == 1 )
-		GamutMappingMatrix = DCI_D65_2_AP1;
-	else if( OutputGamut == 2 )
-		GamutMappingMatrix = Rec2020_2_AP1;
-	else if( OutputGamut == 3 )
-		GamutMappingMatrix = AP0_2_AP1_MAT;
-
-	return GamutMappingMatrix;
-}
-
-float3 ST2084ToScRGB(float3 Color, uint OutputDevice)
-{
-	// Nvidia HDR encoding - Remove PQ, convert to linear scRGB
-	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, AP1_2_XYZ_MAT);
-	const float WhitePoint = 80.f;
-
-	// 1000.f nit display
-	float MaxODTNits = 1000.0f;
-	float MinODTNits = 0.0001f;
-
-	if (OutputDevice == 4 || OutputDevice == 6)
-	{
-		// 2000 nit display
-		MaxODTNits = 2000.0f;
-		MinODTNits = 0.005f;
-	}
-
-	float3 OutColor = ST2084ToLinear(Color);
-		
-	OutColor = clamp(OutColor, MinODTNits, MaxODTNits);
-	OutColor.x = Y_2_linCV(OutColor.x, MaxODTNits, MinODTNits);
-	OutColor.y = Y_2_linCV(OutColor.y, MaxODTNits, MinODTNits);
-	OutColor.z = Y_2_linCV(OutColor.z, MaxODTNits, MinODTNits);
-
-	float scRGBScale = MaxODTNits / WhitePoint;
-	OutColor = mul(AP1_2_sRGB, OutColor) * scRGBScale;
-
-	return OutColor;
 }

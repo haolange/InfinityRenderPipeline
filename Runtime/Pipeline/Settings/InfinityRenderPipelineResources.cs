@@ -77,6 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             resolvedKernels.RequireUngatedKernels();
             var resolvedPasses = new BlitShaderPasses(materials.blitMaterial);
             string[] reasons = FeatureRegistry.ResolveResourceSupport(resolvedKernels, textures);
+            FeatureRegistry.RequireProducerSupport(reasons);
             kernels = resolvedKernels;
             blitPasses = resolvedPasses;
             featureResourceReasons = reasons;
