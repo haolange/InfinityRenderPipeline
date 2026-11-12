@@ -69,9 +69,9 @@ namespace InfinityTech.Rendering.Pipeline
             occlusionDsc.wrapMode = TextureWrapMode.Clamp;
             RGTextureHandle occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
 
-            using (RGRayTracingPassHandle passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
+            using (var passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
-                ref RTAOPassData passData = ref passRef.GetPassData<RTAOPassData>();
+                ref RTAOPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 RTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;

@@ -346,16 +346,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using (new RGProfilingScope(graph, parent))
                 {
                     using (var pass = graph.AddComputePass<PassData>(graphics))
+                    {
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    }
                     using (var pass = graph.AddComputePass<PassData>(asyncFirst))
                     {
                         pass.EnableAsyncCompute(true);
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
                     using (var pass = graph.AddComputePass<PassData>(asyncLast))
                     {
                         pass.EnableAsyncCompute(true);
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
                 }
                 Compile(graph);

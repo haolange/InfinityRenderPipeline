@@ -186,12 +186,12 @@ namespace InfinityTech.Rendering.Pipeline
                 sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
+            using (var passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref LocalShadowPassData passData = ref passRef.GetPassData<LocalShadowPassData>();
+                ref LocalShadowPassData passData = ref passRef.GetPassData();
                 {
                     passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
@@ -336,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCopyShadowDepthTiles)))
             {
                 pass.SetDepthStencilAttachment(destination, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                ref var data = ref pass.GetPassData<CopyCachedLocalShadowPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.shaderPass = shaderPass;
                 data.count = count;

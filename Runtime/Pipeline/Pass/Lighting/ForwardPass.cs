@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
                 new RenderQueueRange(0, 2999), SortingCriteria.OptimizeStateChanges, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, pipelineAsset));
 
             //Add ForwardPass
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
+            using (var passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
+                ref ForwardPassData passData = ref passRef.GetPassData();
                 {
                     passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;

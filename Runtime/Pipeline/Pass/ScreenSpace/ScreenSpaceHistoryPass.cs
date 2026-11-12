@@ -42,11 +42,11 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.name = name;
             RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(historyId, descriptor));
             historyCache.MarkProduced(historyId);
-            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR)))
+            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR)))
             {
                 passRef.ReadTexture(source);
                 passRef.WriteTexture(history);
-                ref CopyHistoryScalarPassData passData = ref passRef.GetPassData<CopyHistoryScalarPassData>();
+                ref CopyHistoryScalarPassData passData = ref passRef.GetPassData();
                 passData.source = source;
                 passData.history = history;
                 passRef.SetExecuteFunc((in CopyHistoryScalarPassData data, in RGTransferEncoder cmdEncoder) =>
@@ -105,14 +105,14 @@ namespace InfinityTech.Rendering.Pipeline
             historyCache.MarkProduced(radianceHistoryId);
             historyCache.MarkProduced(metaHistoryId);
 
-            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
+            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
             {
                 passRef.ReadTexture(radianceSource);
                 passRef.WriteTexture(radianceHistory);
                 passRef.ReadTexture(metaSource);
                 passRef.WriteTexture(metaHistory);
 
-                ref CopyHistoryRadianceMetaPassData passData = ref passRef.GetPassData<CopyHistoryRadianceMetaPassData>();
+                ref CopyHistoryRadianceMetaPassData passData = ref passRef.GetPassData();
                 passData.radianceSource = radianceSource;
                 passData.radianceHistory = radianceHistory;
                 passData.metaSource = metaSource;

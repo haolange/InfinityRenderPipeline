@@ -273,12 +273,12 @@ namespace InfinityTech.Rendering.Pipeline
                 shPartial = m_RGBuilder.CreateBuffer(partialDsc);
             }
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
+            using (var passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {
                 passRef.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
                     view = m_ActiveFrameState.atmosphereViewCache, generateShared = generateShared,
                     generateView = generateView, generateIBL = generateIBL });
-                ref AtmosphericLUTPassData passData = ref passRef.GetPassData<AtmosphericLUTPassData>();
+                ref AtmosphericLUTPassData passData = ref passRef.GetPassData();
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;

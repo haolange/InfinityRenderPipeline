@@ -119,12 +119,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = true
                 };
                 RGTextureHandle texture = graph.CreateTexture(descriptor);
-                using (RGComputePassHandle pass = graph.AddComputePass<FailurePassData>(new ProfilingSampler("FailureContractProducer")))
+                using (var pass = graph.AddComputePass<FailurePassData>(new ProfilingSampler("FailureContractProducer")))
                 {
                     pass.EnablePassCulling(false);
                     pass.SetQueueObserver(observed);
                     pass.EnableAsyncCompute(asyncCompute);
-                    ref FailurePassData data = ref pass.GetPassData<FailurePassData>();
+                    ref FailurePassData data = ref pass.GetPassData();
                     data.observation = observed;
                     data.texture = pass.WriteTexture(texture);
                     pass.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands) =>
@@ -133,10 +133,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         InjectFailure(parameters.observation.error);
                     });
                 }
-                using (RGTransferPassHandle pass = graph.AddTransferPass<ConsumerPassData>(new ProfilingSampler("FailureContractConsumer")))
+                using (var pass = graph.AddTransferPass<ConsumerPassData>(new ProfilingSampler("FailureContractConsumer")))
                 {
                     pass.EnablePassCulling(false);
-                    pass.GetPassData<ConsumerPassData>().texture = pass.ReadTexture(texture);
+                    pass.GetPassData().texture = pass.ReadTexture(texture);
                     pass.SetExecuteFunc((in ConsumerPassData data, in RGTransferEncoder commands) => { });
                 }
                 Exception actual = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, frameCommands));

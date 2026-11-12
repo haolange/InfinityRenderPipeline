@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
-                ref var data = ref pass.GetPassData<AntiAliasingPassData>();
+                ref var data = ref pass.GetPassData();
                 ComputeKernel temporalKernel = diagnostics ? kernels.temporalAntiAliasingDebug : kernels.temporalAntiAliasing;
                 data.shader = temporalKernel.shader;
                 data.kernel = temporalKernel.index;

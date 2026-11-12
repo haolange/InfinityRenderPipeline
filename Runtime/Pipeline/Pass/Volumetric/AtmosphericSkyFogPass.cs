@@ -49,9 +49,9 @@ namespace InfinityTech.Rendering.Pipeline
             parameter.ThrowIfInvalid();
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
+            using (var passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
             {
-                ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData<AtmosphericSkyFogPassData>();
+                ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData();
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;

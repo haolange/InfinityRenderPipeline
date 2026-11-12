@@ -443,8 +443,6 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         continue;
                     }
-                    if (!info.pass.hasExecuteAction)
-                        throw new InvalidOperationException($"RenderPass {info.pass.name} was not provided with an execute function.");
                     BeginSamples(info.beginSamples, graphContext.cmdBuffer);
                     bool passScoped = info.pass.customSampler != null;
                     ProfilingScope passScope = passScoped ? new ProfilingScope(graphContext.cmdBuffer, info.pass.customSampler) : default;

@@ -251,10 +251,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add ColorGradePass
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
+            using (var passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
             {
                 //Setup Phase
-                ref CombineLutPassData passData = ref passRef.GetPassData<CombineLutPassData>();
+                ref CombineLutPassData passData = ref passRef.GetPassData();
                 passData.combineLUTShader = shaders.combineLUTShader;
                 passData.combineLutKernel = kernels.combineLut;
                 passData.combineLookupTexture = passRef.WriteTexture(combineLookupTexture);

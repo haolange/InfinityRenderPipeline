@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 pass.SetDepthStencilAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer),
                     UnityEngine.Rendering.RenderBufferLoadAction.Load, UnityEngine.Rendering.RenderBufferStoreAction.Store, EDepthAccess.Write);
-                ref var data = ref pass.GetPassData<DepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data = default;
                 data.meshDrawList = pass.UseMeshDrawList(draws);
                 pass.SetExecuteFunc((in DepthPassData data, in RGRasterEncoder commands) => commands.SubmitMeshDrawList(data.meshDrawList));

@@ -78,9 +78,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
+            using (var passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
             {
-                ref SuperResolutionPassData passData = ref passRef.GetPassData<SuperResolutionPassData>();
+                ref SuperResolutionPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
                 passData.inputResolution = m_ActiveFrameState.dimensions.internalSize;
                 passData.resetHistory = m_CameraUniform.historyReset || historyCreated

@@ -121,9 +121,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeColorPyramid)))
+            using (var passRef = m_RGBuilder.AddComputePass<ColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeColorPyramid)))
             {
-                ref ColorPyramidPassData passData = ref passRef.GetPassData<ColorPyramidPassData>();
+                ref ColorPyramidPassData passData = ref passRef.GetPassData();
                 passData.mipCount = mipCount;
                 passData.resolution = new int2(width, height);
                 passData.kernel = kernels.colorPyramid;

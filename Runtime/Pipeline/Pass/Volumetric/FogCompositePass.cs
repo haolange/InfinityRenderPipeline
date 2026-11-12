@@ -63,9 +63,9 @@ namespace InfinityTech.Rendering.Pipeline
             foggedDsc.wrapMode = TextureWrapMode.Clamp;
             RGTextureHandle foggedSceneColor = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.FoggedSceneColorBuffer, foggedDsc);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
+            using (var passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
             {
-                ref FogCompositePassData passData = ref passRef.GetPassData<FogCompositePassData>();
+                ref FogCompositePassData passData = ref passRef.GetPassData();
                 passData.kernel = kernels.fogComposite;
                 passData.fogKeyword = kernels.fogCompositeFog;
                 passData.cloudKeyword = kernels.fogCompositeCloud;

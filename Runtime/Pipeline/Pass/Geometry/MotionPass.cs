@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
                 new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, pipelineAsset));
 
             //Add ObjectMotionPass
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
+            using (var passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
                 // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
+                ref ObjectMotionPassData passData = ref passRef.GetPassData();
                 {
                     passData.meshDrawList = passRef.UseMeshDrawList(motionMeshDrawList);
                     passData.rendererList = passRef.UseRendererList(motionRendererList);
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CameraMotionPass
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
+            using (var passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
+                ref CameraMotionPassData passData = ref passRef.GetPassData();
                 {
                     passData.depthTexture = depthTexture;
                     passData.shaderPass = blitPasses.cameraMotion;

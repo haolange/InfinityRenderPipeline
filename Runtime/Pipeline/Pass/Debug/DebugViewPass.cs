@@ -274,9 +274,9 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGScoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
             postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
+            using (var passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
-                ref DebugViewPassData passData = ref passRef.GetPassData<DebugViewPassData>();
+                ref DebugViewPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.mode = (int)view;
                 passData.kernel = debugKernel;

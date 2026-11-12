@@ -83,9 +83,9 @@ namespace InfinityTech.Rendering.Pipeline
             maskDsc.colorFormat = GraphicsFormat.R32_UInt;
             RGTextureHandle maskTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
+            using (var passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
             {
-                ref ContactShadowPassData passData = ref passRef.GetPassData<ContactShadowPassData>();
+                ref ContactShadowPassData passData = ref passRef.GetPassData();
                 passData.settings = settings;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);

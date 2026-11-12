@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void Read(RGComputePassHandle passRef)
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void Read(RGRasterPassHandle passRef)
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -233,9 +233,9 @@ namespace InfinityTech.Rendering.Pipeline
                 type = ComputeBufferType.Structured
             });
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
+            using (var passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
             {
-                ref LightTileMaskPassData passData = ref passRef.GetPassData<LightTileMaskPassData>();
+                ref LightTileMaskPassData passData = ref passRef.GetPassData();
                 passData.localCount = itemCount;
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;

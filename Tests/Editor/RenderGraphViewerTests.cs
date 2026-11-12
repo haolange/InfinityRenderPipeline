@@ -33,9 +33,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual("External", queue);
                 RGTextureHandle unproduced = graph.CreateTexture(Descriptor("Unproduced", 4));
                 Assert.Throws<InvalidOperationException>(() => graph.GetTextureProducer(unproduced, out _));
-                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("CurrentProducer")))
+                using (var pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("CurrentProducer")))
                 {
-                    pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(imported);
+                    pass.GetPassData().texture = pass.WriteTexture(imported);
+                    pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { });
                 }
                 Assert.AreEqual("CurrentProducer", graph.GetTextureProducer(imported, out queue));
                 Assert.AreEqual("Graphics", queue);
@@ -85,21 +86,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 RGTextureHandle texture = graph.CreateTexture(Descriptor("ViewerTexture", 8));
                 RGTextureHandle unused = graph.CreateTexture(Descriptor("ViewerUnused", 4));
-                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerProducer")))
+                using (var pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerProducer")))
                 {
                     pass.EnablePassCulling(false);
-                    pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(texture);
+                    pass.GetPassData().texture = pass.WriteTexture(texture);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
-                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerCulled")))
+                using (var pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerCulled")))
                 {
-                    pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(unused);
+                    pass.GetPassData().texture = pass.WriteTexture(unused);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
-                using (RGTransferPassHandle pass = graph.AddTransferPass<ViewerPassData>(new ProfilingSampler("ViewerConsumer")))
+                using (var pass = graph.AddTransferPass<ViewerPassData>(new ProfilingSampler("ViewerConsumer")))
                 {
                     pass.EnablePassCulling(false);
-                    pass.GetPassData<ViewerPassData>().texture = pass.ReadTexture(texture);
+                    pass.GetPassData().texture = pass.ReadTexture(texture);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGTransferEncoder commands) => { executed = true; StopBeforeSubmit(); });
                 }
 

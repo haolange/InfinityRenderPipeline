@@ -116,9 +116,9 @@ namespace InfinityTech.Rendering.Pipeline
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
+            using (var passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {
-                ref VolumetricCloudPassData passData = ref passRef.GetPassData<VolumetricCloudPassData>();
+                ref VolumetricCloudPassData passData = ref passRef.GetPassData();
                 passData.cloudLayerBottom = cloud.cloudLayerBottom;
                 passData.cloudLayerThickness = cloud.cloudLayerThickness;
                 passData.densityMultiplier = cloud.densityMultiplier;
@@ -213,11 +213,11 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricCloudBuffer);
 
-            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricCloud)))
+            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricCloud)))
             {
                 passRef.ReadTexture(source);
                 passRef.WriteTexture(history);
-                ref CopyHistoryVolumetricCloudPassData passData = ref passRef.GetPassData<CopyHistoryVolumetricCloudPassData>();
+                ref CopyHistoryVolumetricCloudPassData passData = ref passRef.GetPassData();
                 passData.source = source;
                 passData.history = history;
                 passRef.SetExecuteFunc((in CopyHistoryVolumetricCloudPassData passData, in RGTransferEncoder cmdEncoder) =>

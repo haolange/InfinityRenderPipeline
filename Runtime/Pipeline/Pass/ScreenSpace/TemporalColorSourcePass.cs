@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddComputePass<TemporalColorMipData>(ProfilingSampler.Get(CustomSamplerId.ComputeTemporalColorPyramid)))
             {
                 pass.EnableAsyncCompute(true);
-                ref var data = ref pass.GetPassData<TemporalColorMipData>();
+                ref var data = ref pass.GetPassData();
                 data = default;
                 data.kernel = kernels.temporalColorMip;
                 data.source = source;
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             MarkFeatureProduced(EFrameFeature.TemporalColorPyramid);
         }
-        static TemporalColorView ReadTemporalColorView(RGComputePassHandle pass, TemporalColorView source)
+        static TemporalColorView ReadTemporalColorView<TPassData>(RGComputePassHandle<TPassData> pass, TemporalColorView source) where TPassData : struct
         {
             source.color = pass.ReadTexture(source.color);
             source.depth = pass.ReadTexture(source.depth);

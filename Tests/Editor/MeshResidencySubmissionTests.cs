@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             using (var pass = graph.AddComputePass<CopyData>(new ProfilingSampler("SubmissionCopy")))
             {
-                ref var data = ref pass.GetPassData<CopyData>();
+                ref var data = ref pass.GetPassData();
                 data.shader = shader; data.kernel = shader.FindKernel("Copy");
                 data.input = pass.ReadBuffer(graph.ImportBuffer(input));
                 data.output = pass.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, 4), output)));

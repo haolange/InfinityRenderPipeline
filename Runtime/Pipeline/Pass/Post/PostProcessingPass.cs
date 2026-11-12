@@ -301,9 +301,9 @@ namespace InfinityTech.Rendering.Pipeline
             float dt = math.max(Time.unscaledDeltaTime, 1.0f / 120.0f);
             float adapt = 1.0f - math.exp(-volumes.adaptSpeed * dt);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ExposurePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeExposure)))
+            using (var passRef = m_RGBuilder.AddComputePass<ExposurePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeExposure)))
             {
-                ref ExposurePassData passData = ref passRef.GetPassData<ExposurePassData>();
+                ref ExposurePassData passData = ref passRef.GetPassData();
                 passData.exposureClear = kernels.exposureClear;
                 passData.exposureHistogram = kernels.exposureHistogram;
                 passData.exposureReduce = kernels.exposureReduce;
@@ -359,9 +359,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeBloom(Camera camera, in RGTextureHandle sceneColorTexture, in RGTextureHandle bloomTexture, in RGTextureHandle exposureEV, in PostVolumeState volumes)
         {
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom)))
+            using (var passRef = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom)))
             {
-                ref BloomPassData passData = ref passRef.GetPassData<BloomPassData>();
+                ref BloomPassData passData = ref passRef.GetPassData();
                 passData.bloomDownsample = kernels.bloomDownsample;
                 passData.bloomUpsample = kernels.bloomUpsample;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
@@ -440,7 +440,7 @@ namespace InfinityTech.Rendering.Pipeline
                     pass.EnableNativeRenderPass(false);
                 }
                 pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-                ref var data = ref pass.GetPassData<PostCombinePassData>();
+                ref var data = ref pass.GetPassData();
                 data.output = PrepareFinalOutput(camera, decision, sceneColor, finalTarget, blitPasses.postCombine);
                 data.resolution = m_ActiveFrameState.dimensions.displaySize;
                 data.bloomIntensity = volumes.bloomIntensity;

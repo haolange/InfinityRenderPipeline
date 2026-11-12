@@ -32,11 +32,11 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDepthPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
+            using (var passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
             {
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
+                ref DepthPassData passData = ref passRef.GetPassData();
                 passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 

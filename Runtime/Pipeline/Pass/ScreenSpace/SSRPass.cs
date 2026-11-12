@@ -229,9 +229,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
+            using (var passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
             {
-                ref SSRPassData passData = ref passRef.GetPassData<SSRPassData>();
+                ref SSRPassData passData = ref passRef.GetPassData();
                 passData.settings = settings;
                 passData.resolution = resolution;
                 passData.traceResolution = traceResolution;

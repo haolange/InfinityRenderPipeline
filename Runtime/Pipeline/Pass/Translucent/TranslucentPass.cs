@@ -54,12 +54,12 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterTranslucentDepthPass,
                 InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
+            using (var passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref TranslucentDepthPassData passData = ref passRef.GetPassData<TranslucentDepthPassData>();
+                ref TranslucentDepthPassData passData = ref passRef.GetPassData();
                 passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
@@ -140,7 +140,7 @@ namespace InfinityTech.Rendering.Pipeline
                     SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, pipelineAsset);
             RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(listParameters);
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
+            using (var passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(sceneColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref TranslucentColorPassData passData = ref passRef.GetPassData<TranslucentColorPassData>();
+                ref TranslucentColorPassData passData = ref passRef.GetPassData();
                 passData.meshDrawList = passRef.UseMeshDrawList(meshDrawList);
                 passData.rendererList = passRef.UseRendererList(rendererList);
                 passData.writeReactive = writeReactive;

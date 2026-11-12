@@ -22,13 +22,13 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RendererList overlay = renderContext.scriptableRenderContext.CreateUIOverlayRendererList(camera);
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
+            using (var passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(displayColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
-                ref UIOverlayPassData passData = ref passRef.GetPassData<UIOverlayPassData>();
+                ref UIOverlayPassData passData = ref passRef.GetPassData();
                 passData.rendererList = overlay;
                 var size = m_ActiveFrameState.dimensions.displaySize;
                 passData.viewport = finalTarget ? m_ActiveFrameState.dimensions.outputViewport : new Rect(0, 0, size.x, size.y);

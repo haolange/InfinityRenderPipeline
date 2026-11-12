@@ -48,9 +48,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
-                using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
+                using (var passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
-                    ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData<ReflectionProbeFilterPassData>();
+                    ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData();
                     passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;

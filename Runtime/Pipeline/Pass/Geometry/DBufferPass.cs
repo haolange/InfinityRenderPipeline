@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDBufferPass,
                 new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, pipelineAsset));
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
+            using (var passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(dBufferC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref DBufferPassData passData = ref passRef.GetPassData<DBufferPassData>();
+                ref DBufferPassData passData = ref passRef.GetPassData();
                 {
                     passData.rendererList = passRef.UseRendererList(dBufferRendererList);
                     passData.depthTexture = depthTexture;

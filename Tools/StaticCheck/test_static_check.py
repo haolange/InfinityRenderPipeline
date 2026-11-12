@@ -123,6 +123,16 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_physical_alloc(str(self.repo), out)
         self.assertEqual(['Runtime/GPUResource/HistoryCache.cs:1', 'Runtime/GPUResource/HistoryCache.cs:2'], sorted(o[2].split(': ')[0] for o in out))
 
+    def test_rg_api_rejects_string_and_params_overloads(self):
+        self.write('Runtime/RenderGraph/RGEncoder.cs', 'public void SetComputeIntParam(ComputeShader shader, int nameID, int value) { }\n'
+                                                    'public void DispatchRays(RayTracingShader shader, string rayGenName, uint w) { }')
+        out = []
+        static_check.check_rg_api(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/RenderGraph/RGCommands.cs', 'void SetGlobalFloat(string name, float value);\nvoid SetGlobalVectors(params Vector4[] values);')
+        static_check.check_rg_api(str(self.repo), out)
+        self.assertEqual(['Runtime/RenderGraph/RGCommands.cs:1', 'Runtime/RenderGraph/RGCommands.cs:2'], sorted(o[2].split(': ')[0] for o in out))
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

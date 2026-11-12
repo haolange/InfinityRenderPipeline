@@ -121,9 +121,9 @@ namespace InfinityTech.Rendering.Pipeline
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
+            using (var passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
-                ref VolumetricFogPassData passData = ref passRef.GetPassData<VolumetricFogPassData>();
+                ref VolumetricFogPassData passData = ref passRef.GetPassData();
                 passData.density = fog.density;
                 passData.height = fog.height;
                 passData.heightFalloff = fog.heightFalloff;
@@ -244,11 +244,11 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
 
-            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
+            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
             {
                 passRef.ReadTexture(source);
                 passRef.WriteTexture(history);
-                ref CopyHistoryVolumetricFogPassData passData = ref passRef.GetPassData<CopyHistoryVolumetricFogPassData>();
+                ref CopyHistoryVolumetricFogPassData passData = ref passRef.GetPassData();
                 passData.source = source;
                 passData.history = history;
                 passRef.SetExecuteFunc((in CopyHistoryVolumetricFogPassData passData, in RGTransferEncoder cmdEncoder) =>

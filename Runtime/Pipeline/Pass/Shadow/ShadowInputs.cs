@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 filterParams;
         public Vector4 momentParams;
 
-        public void Read(RGComputePassHandle passRef)
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
             passRef.ReadBuffer(localSlices);
         }
 
-        public void Read(RGRasterPassHandle passRef)
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);

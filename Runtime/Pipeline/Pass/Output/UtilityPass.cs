@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUpscaleDepthForEditorOverlays)))
             {
                 pass.SetDepthStencilAttachment(output, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                ref var data = ref pass.GetPassData<DisplayDepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.shaderPass = blitPasses.upscaleDepth;
                 pass.SetExecuteFunc((in DisplayDepthPassData data, in RGRasterEncoder commands) =>
@@ -71,14 +71,14 @@ namespace InfinityTech.Rendering.Pipeline
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay)))
+            using (var passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay)))
             {
                 // Unity forbids drawing gizmos / wire overlay inside BeginRenderPass.
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
+                ref WireOverlayPassData passData = ref passRef.GetPassData();
                 {
                     passData.rendererList = wireOverlayRendererList;
                     var size = m_ActiveFrameState.dimensions.displaySize;
@@ -109,14 +109,14 @@ namespace InfinityTech.Rendering.Pipeline
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
-                using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos)))
+                using (var passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos)))
                 {
                     // Unity forbids drawing gizmos inside BeginRenderPass.
                     passRef.EnableNativeRenderPass(false);
                     passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                     passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                    ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
+                    ref GizmosPassData passData = ref passRef.GetPassData();
                     {
                         passData.rendererList = gizmosRendererList;
                         var size = m_ActiveFrameState.dimensions.displaySize;
@@ -284,7 +284,7 @@ namespace InfinityTech.Rendering.Pipeline
                     pass.EnableNativeRenderPass(false);
                 }
                 pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-                ref var data = ref pass.GetPassData<FinalOutputPassData>();
+                ref var data = ref pass.GetPassData();
                 data = PrepareFinalOutput(camera, decision, source, finalTarget, blitPasses.finalOutput);
                 data.srcTexture = pass.ReadTexture(source);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

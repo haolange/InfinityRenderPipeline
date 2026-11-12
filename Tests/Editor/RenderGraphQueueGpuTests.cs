@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 pass.EnableAsyncCompute(async);
                 pass.EnablePassCulling(false);
-                ref Data data = ref pass.GetPassData<Data>();
+                ref Data data = ref pass.GetPassData();
                 data.shader = shader;
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
                 data.value = value;

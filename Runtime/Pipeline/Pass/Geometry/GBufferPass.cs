@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
             bakedDescriptor.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
             RGTextureHandle bakedOcclusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
+            using (var passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(bakedOcclusion, 5, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
+                ref GBufferPassData passData = ref passRef.GetPassData();
                 {
                     passData.bindDBuffer = bindDBuffer;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;

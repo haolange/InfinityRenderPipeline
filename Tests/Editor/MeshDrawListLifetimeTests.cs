@@ -38,11 +38,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         {
             if (keep)
                 MeshGraphExtension.Of(graph).PrepareMeshDrawList(graph, draws);
-            using (RGRasterPassHandle pass = graph.AddRasterPass<DrawPassData>(ProfilingSampler.Get(sampler)))
+            using (var pass = graph.AddRasterPass<DrawPassData>(ProfilingSampler.Get(sampler)))
             {
                 pass.SetColorAttachment(target, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 if (keep) pass.EnablePassCulling(false);
-                ref DrawPassData data = ref pass.GetPassData<DrawPassData>();
+                ref DrawPassData data = ref pass.GetPassData();
                 data.meshDrawList = pass.UseMeshDrawList(draws);
                 pass.SetExecuteFunc((in DrawPassData passData, in RGRasterEncoder encoder) => encoder.SubmitMeshDrawList(passData.meshDrawList));
             }
@@ -83,13 +83,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 {
                     foreign.SetMeshWorld(fixture.world);
                     RGMeshDrawListHandle draws = owner.CreateMeshDrawList(new MeshDrawListDesc(MeshTestUtility.CameraView(1), InfinityPassIDs.RasterGBufferPass));
-                    using (RGRasterPassHandle pass = foreign.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Foreign")))
+                    using (var pass = foreign.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Foreign")))
                     {
                         Assert.Throws<System.InvalidOperationException>(() => pass.UseMeshDrawList(draws), "A foreign handle fails at record.");
                         Assert.AreEqual(0, pass.pass.extensionUses.Count);
                         pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
                     }
-                    using (RGRasterPassHandle pass = owner.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Owner")))
+                    using (var pass = owner.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Owner")))
                     {
                         Assert.IsTrue(pass.UseMeshDrawList(draws).IsValid);
                         CollectionAssert.AreEqual(new[] { draws.index }, pass.pass.extensionUses);
@@ -192,7 +192,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(stale.index, fresh.index);
                     Assert.IsTrue(lists.IsLive(fresh));
                     Assert.IsFalse(lists.IsLive(stale), "The graph generation rejects a handle whose index was reused.");
-                    using (RGRasterPassHandle pass = graph.AddRasterPass<EmptyRasterData>(new ProfilingSampler("StaleConsumer")))
+                    using (var pass = graph.AddRasterPass<EmptyRasterData>(new ProfilingSampler("StaleConsumer")))
                     {
                         Assert.Throws<System.InvalidOperationException>(() => pass.UseMeshDrawList(stale), "A stale handle fails at record.");
                         Assert.AreEqual(0, pass.pass.extensionUses.Count);

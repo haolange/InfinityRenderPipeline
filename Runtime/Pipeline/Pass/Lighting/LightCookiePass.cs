@@ -49,9 +49,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {
-                using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
+                using (var passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
                 {
-                    ref LightCookiePassData passData = ref passRef.GetPassData<LightCookiePassData>();
+                    ref LightCookiePassData passData = ref passRef.GetPassData();
                     passData.copy2D = kernels.cookieCopy2D;
                     passData.cubeToOctahedral = kernels.cookieCubeToOctahedral;
                     passData.downsample = kernels.cookieDownsample;

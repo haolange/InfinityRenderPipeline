@@ -271,7 +271,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         upload.KeepImportedWritesLocal();
                     }
                     patches = upload.WriteBuffer(graph.ImportBuffer(version.patches));
-                    upload.GetPassData<UploadData>().version = version;
+                    upload.GetPassData().version = version;
                     upload.SetExecuteFunc((in UploadData data, in RGTransferEncoder commands) =>
                     {
                         var v = data.version;
@@ -285,7 +285,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     pass.KeepImportedWritesLocal();
                 }
-                ref BuildData data = ref pass.GetPassData<BuildData>();
+                ref BuildData data = ref pass.GetPassData();
                 data = default;
                 data.version = version;
                 data.shader = m_CopyKernel.shader;

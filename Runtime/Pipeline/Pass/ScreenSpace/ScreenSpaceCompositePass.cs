@@ -69,9 +69,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
+            using (var passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
             {
-                ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData<ScreenSpaceCompositePassData>();
+                ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;

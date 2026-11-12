@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return draws;
         }
 
-        MeshCullInputs CullInputs(RGBuilder builder, RGComputePassHandle pass, bool boundsOnly = false)
+        MeshCullInputs CullInputs<TPassData>(RGBuilder builder, RGComputePassHandle<TPassData> pass, bool boundsOnly = false) where TPassData : struct
         {
             MeshWorldGPU gpu = world.gpu;
             var inputs = new MeshCullInputs
@@ -235,9 +235,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             BufferHandle batch = world.gpuVisibility.EnsureFrustumBatch(world.entityHighWater, viewCount, out int stride);
             m_BoundFrustumStride = stride;
             RGBufferHandle visibility = builder.ImportBuffer(batch);
-            using (RGComputePassHandle pass = builder.AddComputePass<MeshFrustumBatchData>(MeshDrawProfiling.culling))
+            using (var pass = builder.AddComputePass<MeshFrustumBatchData>(MeshDrawProfiling.culling))
             {
-                ref MeshFrustumBatchData data = ref pass.GetPassData<MeshFrustumBatchData>();
+                ref MeshFrustumBatchData data = ref pass.GetPassData();
                 data.world = world;
                 MeshFrustumView[] stored = builder.GetRecordingArray<MeshFrustumView>(viewCount);
                 System.Array.Copy(m_FrustumRecords, stored, viewCount);
@@ -380,7 +380,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             bool gpu = record.backend == EMeshDrawBackendPolicy.GPUIndirect;
             RGBufferHandle uploaded = builder.ImportBuffer(gpu ? record.payload.commandMeta : record.cpuInstances);
             RGBufferHandle cpuFades = gpu ? default : builder.ImportBuffer(record.cpuFades);
-            using (RGTransferPassHandle upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
+            using (var upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
             {
                 upload.KeepImportedWritesLocal();
                 upload.WriteBuffer(uploaded);
@@ -392,7 +392,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     upload.WriteBuffer(cpuFades);
                 }
-                ref MeshDrawPreparePassData data = ref upload.GetPassData<MeshDrawPreparePassData>();
+                ref MeshDrawPreparePassData data = ref upload.GetPassData();
                 data.lists = drawLists;
                 data.index = drawIndex;
                 upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands) => data.lists.Upload(data.index, commands.m_Core.commands));
@@ -409,7 +409,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle fades = builder.ImportBuffer(record.payload.instanceFade);
             RGBufferHandle args = builder.ImportBuffer(record.payload.indirectArgs);
             RGBufferHandle candidates = builder.ImportBuffer(record.cache.candidateBuffer);
-            using (RGComputePassHandle compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
+            using (var compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
             {
                 compact.KeepImportedWritesLocal();
                 compact.ReadBuffer(uploaded);
@@ -418,7 +418,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 compact.WriteBuffer(instances);
                 compact.WriteBuffer(fades);
                 compact.WriteBuffer(args);
-                ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
+                ref MeshDrawPreparePassData data = ref compact.GetPassData();
                 data.lists = drawLists;
                 data.index = drawIndex;
                 compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_Core.commands));
@@ -494,7 +494,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             => MeshGraphExtension.Of(builder).PrepareMeshDrawList(builder, draws);
 
         /// <summary>Declares the pass as a consumer. A handle from another builder or an earlier graph fails here.</summary>
-        public static RGMeshDrawListHandle UseMeshDrawList(this RGRasterPassHandle pass, in RGMeshDrawListHandle draws)
+        public static RGMeshDrawListHandle UseMeshDrawList<TPassData>(this RGRasterPassHandle<TPassData> pass, in RGMeshDrawListHandle draws) where TPassData : struct
         {
             if (!(pass.extension is MeshGraphExtension owner))
             {

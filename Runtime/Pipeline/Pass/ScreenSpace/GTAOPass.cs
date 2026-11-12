@@ -169,9 +169,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle fullResNormalTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
             RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion)))
+            using (var passRef = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion)))
             {
-                ref GTAOPassData passData = ref passRef.GetPassData<GTAOPassData>();
+                ref GTAOPassData passData = ref passRef.GetPassData();
                 passData = default;
                 passData.traceKernel = kernels.occlusionTrace.index;
                 passData.spatialXKernel = kernels.occlusionSpatialX.index;

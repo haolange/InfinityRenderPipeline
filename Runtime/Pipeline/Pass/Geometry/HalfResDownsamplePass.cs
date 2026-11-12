@@ -69,10 +69,10 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             //Add HalfResDownsamplePass
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
+            using (var passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
             {
                 //Setup Phase
-                ref HalfResDownsamplePassData passData = ref passRef.GetPassData<HalfResDownsamplePassData>();
+                ref HalfResDownsamplePassData passData = ref passRef.GetPassData();
                 passData.fullResolution = new int2(fullWidth, fullHeight);
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.halfRes = kernels.halfResDownsample;

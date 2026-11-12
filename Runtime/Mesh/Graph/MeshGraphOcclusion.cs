@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             using (var pass = builder.AddComputePass<MeshOcclusionData>(MeshDrawProfiling.culling))
             {
                 pass.KeepImportedWritesLocal();
-                ref var data = ref pass.GetPassData<MeshOcclusionData>();
+                ref var data = ref pass.GetPassData();
                 data = default;
                 data.world = world;
                 data.view = first;
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             using (var pass = builder.AddComputePass<MeshOcclusionData>(MeshDrawProfiling.culling))
             {
                 pass.KeepImportedWritesLocal();
-                ref var data = ref pass.GetPassData<MeshOcclusionData>();
+                ref var data = ref pass.GetPassData();
                 data = default;
                 data.world = world;
                 data.view = lists.final;

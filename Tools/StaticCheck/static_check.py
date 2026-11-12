@@ -27,6 +27,7 @@ Checks
   staticid         setup-time IDs, tags, keywords and samplers are static readonly, never mutable statics
   hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
   physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
+  rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -673,6 +674,27 @@ def check_physical_alloc(repo, out):
                 out.append(('ERROR', 'physicalalloc', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: {m.group(0)} allocates outside ResourcePool'))
 
 
+RG_API_FILES = ('Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommandCore.cs')
+# Unity exposes these ray-tracing entry points by name only.
+RG_API_STRING_ONLY = {'passName', 'rayGenName'}
+RG_API_STRING_METHODS = {'SetUnifiedAccelerationStructure'}
+
+def check_rg_api(repo, out):
+    for rel in RG_API_FILES:
+        path = os.path.join(repo, rel)
+        if not os.path.exists(path):
+            continue
+        text = without_comments(read(path))
+        for m in re.finditer(r'(\w+)\s*\(([^)]*)\)', text):
+            method, parameters = m.group(1), m.group(2)
+            line = text.count('\n', 0, m.start()) + 1
+            if re.search(r'\bparams\s', parameters):
+                out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes params'))
+            for name in re.findall(r'\bstring\s+(\w+)', parameters):
+                if name not in RG_API_STRING_ONLY and method not in RG_API_STRING_METHODS:
+                    out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes a string {name}'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -701,7 +723,7 @@ def main():
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
-                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc)):
+                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

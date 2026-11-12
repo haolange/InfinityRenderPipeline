@@ -126,9 +126,9 @@ namespace InfinityTech.Rendering.Pipeline
             };
             RGTextureHandle moments = m_RGScoper.CreateAndRegisterTexture(momentKey, descriptor);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
+            using (var passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
             {
-                ref ShadowMomentPassData passData = ref passRef.GetPassData<ShadowMomentPassData>();
+                ref ShadowMomentPassData passData = ref passRef.GetPassData();
                 passData.fromDepth = kernels.momentFromDepth;
                 passData.blurH = kernels.momentBlurH;
                 passData.blurV = kernels.momentBlurV;

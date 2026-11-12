@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
             ComputeKernel kernel = closest.IsValid() ? kernels.hiZClosest : kernels.hiZFurthest;
             using (var pass = m_RGBuilder.AddComputePass<HiZPassData>(sampler))
             {
-                ref var data = ref pass.GetPassData<HiZPassData>();
+                ref var data = ref pass.GetPassData();
                 data = default;
                 data.kernel = kernel;
                 data.fullSize = new int2(width, height);

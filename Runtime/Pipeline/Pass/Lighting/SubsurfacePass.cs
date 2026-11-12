@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle color = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             using (var pass = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
             {
-                ref var data = ref pass.GetPassData<SubsurfacePassData>();
+                ref var data = ref pass.GetPassData();
                 data.burleyKernel = kernels.burleySubsurface;
                 data.composeKernel = kernels.composeSubsurface;
                 data.projection = m_CameraUniform.matrix_FlipYJitterProj;

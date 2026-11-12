@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassHandle pass, string semantic, RGTextureHandle source)
+        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> pass, string semantic, RGTextureHandle source) where TPassData : struct
         {
             var session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, semantic) < 0)
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
             var destination = m_RGScoper.CreateAndRegisterTexture(id, descriptor);
             using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureLightMaskPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
                 data.destination = pass.WriteTexture(destination);
                 data.kernel = kernel;
@@ -344,9 +344,9 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureDepthValues";
             RGTextureHandle destination = m_RGBuilder.CreateTexture(descriptor);
-            using (RGComputePassHandle pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
+            using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureDepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
                 data.kernel = kernel;
@@ -374,7 +374,7 @@ namespace InfinityTech.Rendering.Pipeline
             var destination = m_RGBuilder.CreateTexture(descriptor);
             using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureDepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
                 data.kernel = kernel;
@@ -430,10 +430,10 @@ namespace InfinityTech.Rendering.Pipeline
             staging.evidence.sourceDescriptor = sourceDescriptor;
             staging.evidence.sourceMip = sourceMip;
             RGTextureHandle destination = m_RGBuilder.ImportTexture(staging.handle);
-            using (RGTransferPassHandle pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
+            using (var pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
             {
                 pass.EnablePassCulling(false);
-                ref CaptureTransferPassData data = ref pass.GetPassData<CaptureTransferPassData>();
+                ref CaptureTransferPassData data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
                 data.staging = staging;

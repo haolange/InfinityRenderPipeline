@@ -100,9 +100,9 @@ namespace InfinityTech.Rendering.Pipeline
                 scatterDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
             }
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<DeferredShadingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDeferredShading)))
+            using (var passRef = m_RGBuilder.AddComputePass<DeferredShadingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDeferredShading)))
             {
-                ref DeferredShadingPassData passData = ref passRef.GetPassData<DeferredShadingPassData>();
+                ref DeferredShadingPassData passData = ref passRef.GetPassData();
                 passData.bakedDiffuse = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedDiffuseBuffer));
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
