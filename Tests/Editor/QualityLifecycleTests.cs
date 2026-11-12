@@ -47,10 +47,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Texture2D originalResourceBestFit = testResources.textures.bestFitNormalTexture;
             type.GetField("resources", flags).SetValue(pipeline, testResources);
             type.GetField("m_PipelineAsset", flags).SetValue(pipeline, GraphicsSettings.currentRenderPipeline);
-            var originalBlit = GraphicsUtility.m_BlitMaterial;
+            var originalBlit = GraphicsUtility.s_BlitMaterial;
             var originalBestFit = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
             int originalAA = QualitySettings.antiAliasing;
-            GraphicsUtility.m_BlitMaterial = null;
+            GraphicsUtility.s_BlitMaterial = null;
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", Texture2D.grayTexture);
             var supported = SupportedRenderingFeatures.active;
             var shader = Shader.globalRenderPipeline;
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(replacementOwnsState ? false : linear, GraphicsSettings.lightsUseLinearIntensity);
                 if (!replacementOwnsState)
                 {
-                    Assert.IsNull(GraphicsUtility.m_BlitMaterial);
+                    Assert.IsNull(GraphicsUtility.s_BlitMaterial);
                     Assert.AreSame(Texture2D.grayTexture, Shader.GetGlobalTexture("g_BestFitNormal_LUT"));
                     Assert.AreEqual(temperature, GraphicsSettings.lightsUseColorTemperature);
                     Assert.AreEqual(batching, GraphicsSettings.useScriptableRenderPipelineBatching);
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 GraphicsSettings.useScriptableRenderPipelineBatching = batching;
                 testResources.materials.blitMaterial = originalResourceBlit;
                 testResources.textures.bestFitNormalTexture = originalResourceBestFit;
-                GraphicsUtility.m_BlitMaterial = originalBlit;
+                GraphicsUtility.s_BlitMaterial = originalBlit;
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", originalBestFit);
                 QualitySettings.antiAliasing = originalAA;
                 UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(originalLightmapper);

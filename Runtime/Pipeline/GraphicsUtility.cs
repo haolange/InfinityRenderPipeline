@@ -45,13 +45,13 @@ namespace InfinityTech.Rendering.Pipeline
             return true;
         }
 
-        internal static Material m_BlitMaterial;
+        internal static Material s_BlitMaterial;
 
         internal static Material BlitMaterial
         {
             get
             {
-                return m_BlitMaterial;
+                return s_BlitMaterial;
             }
         }
 

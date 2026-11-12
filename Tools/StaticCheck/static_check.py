@@ -12,7 +12,6 @@ Checks
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
-  graphdependency  Runtime/RenderGraph never references the mesh pipeline
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
   meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
@@ -24,6 +23,7 @@ Checks
   unusedtypes      every type declared in Runtime is referenced outside its declaration
   assemblies       Infinity assemblies grant InternalsVisibleTo to each Infinity consumer; diagnostics exist only in Editor/Development builds
   diagnostics      runtime code reaches capture and diagnostics symbols only inside #if UNITY_EDITOR || DEVELOPMENT_BUILD
+  layering         lower runtime layers never name an upper layer's namespace (dependencies point down)
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -268,15 +268,6 @@ def check_unity_boundary(repo, out):
         text = read(p)
         if re.search(r'GetComponent\s*<\s*(?:Mesh)?Renderer\s*>|forceRenderingOff|LightmapSettings|LightProbes|BakedLightingSource', text):
             out.append(('ERROR', 'unityboundary', os.path.relpath(p, repo) + ': custom Mesh must not own native renderer lighting/state'))
-
-
-def check_graph_dependency(repo, out):
-    # The render graph is extended by the mesh pipeline through IRGGraphExtension; it must not depend on it.
-    # Both share an assembly, so any MeshPipeline token (full, namespace-relative, alias or using static) is the dependency.
-    root = os.path.join(repo, 'Runtime/RenderGraph')
-    for p in all_files(root, {'.cs'}):
-        if re.search(r'\bMeshPipeline\b', without_comments(read(p))):
-            out.append(('ERROR', 'graphdependency', os.path.relpath(p, repo) + ': RenderGraph must not reference InfinityTech.Rendering.MeshPipeline'))
 
 
 MESH_DIR = 'Runtime/Mesh'
@@ -615,6 +606,29 @@ def check_diagnostics(repo, out):
                 out.append(('ERROR', 'diagnostics', f'{rel}:{number}: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'))
 
 
+# Each lower runtime directory and the namespaces above it that it must not name.
+UPPER = ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph', 'GPUResource')
+LAYERS = {
+    'Runtime/Core/': UPPER,
+    'Runtime/GPUResource/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+    'Runtime/RenderGraph/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere'),
+}
+
+
+def check_layering(repo, out):
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        for prefix, forbidden in LAYERS.items():
+            if not rel.startswith(prefix):
+                continue
+            names = '|'.join(forbidden)
+            pattern = re.compile(r'\bnamespace\s+InfinityTech\.Rendering\.(?:' + names + r')\b|\busing\s+InfinityTech\.Rendering\.(?:' + names + r')\s*;|'
+                                 r'(?<![\w.])(?:InfinityTech\.Rendering\.)?(?:' + names + r')\.[A-Z]')
+            for number, line in enumerate(code_only(read(p)).split('\n'), 1):
+                if pattern.search(line):
+                    out.append(('ERROR', 'layering', f'{rel}:{number}: names an upper layer ({prefix} may not depend on {", ".join(forbidden)})'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -623,12 +637,12 @@ def main():
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
-                     ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
+                     ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
-                     ('diagnostics', check_diagnostics)):
+                     ('diagnostics', check_diagnostics), ('layering', check_layering)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

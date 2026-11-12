@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
     [CreateAssetMenu(menuName = "Rendering/Infinity/Pipeline Asset", order = 360)]
-    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "pipeline-asset.md")]
+    [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "pipeline-asset.md")]
     public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>, IProbeVolumeEnabledRenderPipeline
     {
         public VolumeProfile qualityVolumeProfile

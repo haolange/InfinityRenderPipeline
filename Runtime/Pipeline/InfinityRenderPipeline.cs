@@ -900,7 +900,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_PreviousLightsUseColorTemperature = GraphicsSettings.lightsUseColorTemperature;
             m_PreviousUseScriptableRenderPipelineBatching = GraphicsSettings.useScriptableRenderPipelineBatching;
             m_PreviousAntiAliasing = QualitySettings.antiAliasing;
-            m_PreviousBlitMaterial = GraphicsUtility.m_BlitMaterial;
+            m_PreviousBlitMaterial = GraphicsUtility.s_BlitMaterial;
             m_PreviousBestFitTexture = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
         }
 
@@ -950,8 +950,8 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphicsSettings.useScriptableRenderPipelineBatching = m_PreviousUseScriptableRenderPipelineBatching;
             if (QualitySettings.antiAliasing == 0)
                 QualitySettings.antiAliasing = m_PreviousAntiAliasing;
-            if (GraphicsUtility.m_BlitMaterial == m_InstalledBlitMaterial)
-                GraphicsUtility.m_BlitMaterial = m_PreviousBlitMaterial;
+            if (GraphicsUtility.s_BlitMaterial == m_InstalledBlitMaterial)
+                GraphicsUtility.s_BlitMaterial = m_PreviousBlitMaterial;
             if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
         }
@@ -1039,7 +1039,7 @@ namespace InfinityTech.Rendering.Pipeline
             SupportedRenderingFeatures.active = installedFeatures;
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
 
-            GraphicsUtility.m_BlitMaterial = m_InstalledBlitMaterial;
+            GraphicsUtility.s_BlitMaterial = m_InstalledBlitMaterial;
 
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;

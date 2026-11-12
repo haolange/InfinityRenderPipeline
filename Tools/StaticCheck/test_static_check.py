@@ -95,14 +95,16 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_doc_facts(str(self.repo), out)
         self.assertEqual([], out)
 
-    def test_render_graph_must_not_reference_mesh_pipeline(self):
+    def test_lower_layer_naming_an_upper_layer_fails(self):
         self.write('Runtime/RenderGraph/RGBuilder.cs', 'using InfinityTech.Rendering.MeshPipeline;\nclass RGBuilder {}')
-        self.write('Runtime/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nclass RGPass {}')
+        self.write('Runtime/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nusing InfinityTech.Rendering.GPUResource;\nclass RGPass {}')
         self.write('Runtime/RenderGraph/RGCompile.cs', 'namespace InfinityTech.Rendering.RenderGraph { class C { MeshPipeline.MeshView view; } }')
+        self.write('Runtime/Core/A.cs', 'namespace InfinityTech.Rendering.Pipeline { class A {} }')
+        self.write('Runtime/Pipeline/P.cs', 'using InfinityTech.Rendering.RenderGraph;')
         out = []
-        static_check.check_graph_dependency(str(self.repo), out)
-        self.assertEqual(['RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
-        self.assertTrue(all(o[1] == 'graphdependency' for o in out))
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual(['A.cs', 'RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
+        self.assertTrue(all(o[1] == 'layering' for o in out))
 
     def test_mesh_bindings_are_a_closed_set(self):
         self.write('Shaders/Library/GPUScene.hlsl', 'uint InstanceOffset;\nStructuredBuffer<uint> InstanceToEntity;\n')
