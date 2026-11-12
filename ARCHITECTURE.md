@@ -1,6 +1,6 @@
 # Infinity Render Pipeline — Architecture
 
-This document describes the implementation in this package. When that implementation changes, revise the affected statement. Do not append iteration notes. Contributor obligations, including how this file stays short, are in [AGENTS.md](AGENTS.md). Authoring is in [Docs~/Manual/index.md](Docs~/Manual/index.md). Verification state is in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Archived plans and receipts under [Docs~/Record/History/](Docs~/Record/History) are evidence, not a specification.
+This document describes the implementation in this package. Its **Contracts** subsections are normative: they are the invariants each subsystem keeps. When the implementation changes, revise the affected statement. Do not append iteration notes. Principles, design rules, conventions and the work method are in [AGENTS.md](AGENTS.md). Authoring is in [Docs~/Manual/index.md](Docs~/Manual/index.md). Verification state is in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Archived plans and receipts under [Docs~/Record/History/](Docs~/Record/History) are evidence, not a specification.
 
 ## 1. System
 
@@ -12,6 +12,12 @@ Two geometry paths share the frame:
 - `MeshComponent` instances are entities of `MeshWorld` and are submitted through `RGMeshDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
 
 The package owns the render graph, the physical resource pool, image history, the mesh world and its GPU entity columns, light records, shadow allocation and the atmosphere profile. Unity owns the device, command submission, fences, native culling and the Volume manager.
+
+### Contracts
+
+- Hot paths are structs and Burst jobs with an explicit `Allocator` (`Persistent`, `TempJob` or `Temp`). `unsafe` is limited to native containers and culling jobs. Burst jobs do not capture managed delegates.
+- `MeshDrawCommandKey`, `MeshVisibilitySignature`, `BufferDescriptor` and `TextureDescriptor` use field-level `Equals`; `GetHashCode` only accelerates lookup. Filter, grouping and sort are three operations, not one hash. Sort keys saturate signed and unsigned 16-bit segments before packing; silent truncation is not saturation.
+- With fixed object counts after warmup, normal proxy update, graph record and execution allocate no managed memory, for stationary and moving objects. Growth, registration and requested diagnostics are separate from that path. A resource the compiled shader variant does not sample is not bound. Reuse does not shorten recording, submission, cancellation or completion ownership.
 
 ## 2. Layout
 
@@ -46,6 +52,14 @@ The Editor discovers Volume types by reflection. A Player builds its registry fr
 
 `EQualityLevel` is Low, Medium, High, Ultra or Custom. `Resolve()` returns a settings struct. Custom reads the Volume parameters. Every other level reads the preset table in `Runtime/Pipeline/Quality/`. Passes consume the struct and do not branch on the quality level.
 
+### Contracts
+
+- Default Volume values come only from `InfinityDefaultVolumeProfileSettings`; quality-level values only from the optional asset `qualityVolumeProfile`. A missing Player component type returns null; no hardcoded value replaces it. The default profile includes the required color and exposure components and every consumed optional type.
+- Required exposure reads the resolved camera stack; `overrideState` does not gate it. Exposure is a multiply before the LUT. Tonemap is None or ACES. Combine LUT has no inactive-component constant fallback.
+- A Volume feature exposes `quality` plus its low-level parameters; `Resolve()` returns `F<Feature>Settings`. Atmosphere, deferred shading and temporal anti-aliasing are not Volume features.
+- Runtime resources live only in Global Settings `IRenderPipelineResources` containers with `[ResourcePath]`. The pipeline asset never references runtime shaders; its material fields are optional overrides for objects created from the GameObject menu. A missing required resource fails at record or setup. `ResolveDefaultVolumeProfile` throws when the Global Settings slot is empty. There is no `Resources.Load` fallback. Player shader stripping lives in `Editor/Material/`.
+- Debug state is runtime and owned by `InfinityDebugDisplaySettings`; `debugView` is not serialized on the pipeline asset. A debugger control exists only with a consumer.
+
 ## 4. Camera frame
 
 `Render(ScriptableRenderContext, List<Camera>)` is the frame entry. `EPipelineProfileId.RecordRG` is a profiler label around the recording block in `InfinityRenderPipeline.Render`. It is not a method.
@@ -66,6 +80,12 @@ Recording order, with the gate that skips a step:
 
 Async eligibility is a queue assignment. It is not a measurement of overlap. The current Metal validation host reports no async compute support. Early occlusion recovery and late shading, subsurface, temporal resolve and post stay on the graphics queue because their inputs are the surrounding raster work.
 
+### Contracts
+
+- Volume, asset, kernel and dependency configuration run before culling. Recording that depends on scene content is decided after `LightContext.Build`.
+- A missing volume or a disabled optional feature skips recording; so does a missing shader or kernel of an optional feature. Lighting, active temporal anti-aliasing and display throw at record when their contract is broken. Execute never contains `if (shader == null) return`.
+- Async eligibility is not evidence of overlap. History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer. Early visibility recovery and immediately dependent late effects stay on graphics by design.
+
 ## 5. Render graph
 
 `RGBuilder` records passes, textures, buffers and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected. Work the core does not model attaches as one `IRGGraphExtension` per builder. The extension sees the recorded passes once per compile and clears its state whenever the recorded graph is dropped, with or without execution. It does not add or reorder passes. A pass stores the extension's ids in `extensionUses`, and pass handles and raster encoders carry their builder's extension, so a draw list from another builder is never consumed or submitted. The render graph has no dependency on the mesh pipeline; mesh draw lists are that extension, in `MeshPipeline/Graph/`. Recorded order is the schedule.
@@ -81,6 +101,19 @@ Pass types are fixed by the work. Transfer copies. Raster draws. Compute dispatc
 `EnableNativeRenderPass(false)` is used only where a native render-pass attachment cannot represent the target: gizmos and wire overlay, because Unity forbids gizmos inside `BeginRenderPass`; final output, because the backbuffer has no owning `RenderTexture` from which to resolve `AttachmentDescriptor.graphicsFormat`; and UI overlay, because Unity does not expose the overlay renderer list as a native render-pass payload.
 
 `RGBuilder.Execute` propagates the original exception. Graph commands are isolated from the enclosing camera profiler scope. Unreturned graph allocations return to the pool only after submit. `RGProfilingScope` is a pass range: on one segment the parent sampler begins on the first live pass and ends on the last. A segment split closes it and opens it again. It does not insert a pass. Pass GPU names come from `pass.customSampler`.
+
+### Contracts
+
+- A designed path is not disabled to quiet the Console: no `EnableAsyncCompute(false)` as a correctness switch, no `throw` replaced by `return false`, no dispatch of count 0 that only looks wired. An unimplemented feature is not recorded.
+- An invalid `RGTextureHandle` or `RGBufferHandle`, a failed query or a failed resolve fails at record or setup. `Texture2D.blackTexture`, a lighting buffer used as history and an empty `RenderTargetIdentifier` are never bound. Unity's "temporary render texture" message means an empty identifier, not a `GetTemporaryRT` call: check handle validity, pass order and which producer must register the ID.
+- Graph textures are created, imported or taken from `ResourcePool`; hot paths do not call `GetTemporaryRT`. Mip chains stay in one compute pass: the graph tracks resources, not subresources. Lookup tables, froxel volumes and cubemaps are compute; atmosphere tables are not produced with `Blit`, `SetRenderTarget` or `BuiltinRenderTextureType`.
+- Downstream reads the semantic ID the last producer registered. `DisplayColorBuffer` is the present source when a linear intermediate exists; consumers do not guess among `SuperResolutionBuffer`, `AntiAliasingBuffer` and `LightingBuffer`.
+- Feature code uses `IComputeCommands`, `IRasterCommands`, `IRaytracingCommands` and `ITransferCommands`, implemented by graph encoders. Outside the graph a `CommandBuffer` is wrapped with `CommandBufferCommands`. Encoders define no `implicit operator CommandBuffer`.
+- `ReadOnlyDepthStencil` is set only when the pass declared read-only depth and does not write it. A color-only target uses the color-only `SetRenderTarget` overload; an empty depth identifier is never put in a `RenderTargetBinding`. Attachment Load is a read. Depth that a later effect or capture consumes is stored.
+- `CommandBufferPool.Get()` is unnamed. Camera and pass groups use `ProfilingScope(cmd, sampler)`. A `ProfilingSampler` name never matches a `cmd.BeginSample(string)` argument. In-pass markers use a cached `ProfilingSampler` of that name (`BloomDownsample`, `BloomUpsample`, `InitializeIndirectArgs`, `Compact`). `ProfilingScope(sampler)` without a command buffer is a CPU-only track.
+- RAW, WAR and WAW hazards compile on the effective queue, gated by device async-compute and fence support. An async-queue fence is never queried as a CPU completion signal on a Metal device that does not support it.
+- Atmosphere and light-list outputs are consumer inputs; producers do not prebind them as globals. Every light-list consumer declares the z-bin and tile-mask buffers and binds them with `LightLoopInputs`. Light-context uploads are Transfer producers. An imported `GraphicsBuffer` is not cloned into a `ComputeBuffer` descriptor. Replaced light-context buffers retire after submit.
+- Native submit, queueing the final fence and accepting the frame transaction are three results. A fence that was never queued acknowledges no work. Frame cleanup keeps the first exception and still attempts submit for earlier accepted work.
 
 ## 6. Resources and history
 
@@ -99,6 +132,15 @@ Screen-texture bindings carry logical and physical metadata. Normalized sampling
 `MeshWorldGPU.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers per entity slot. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks world identity, snapshot range and slot generation.
 
 Clear depth and sampled depth are different values. `ClearRenderTarget` and `AttachmentDescriptor.clearDepth` take `GraphicsUtility.ClearDepthFar`, which is normalized so that 1 means the far plane. Shader comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`.
+
+### Contracts
+
+- Image history lives only in `HistoryCache`. A same-frame scoper ID that has not been written is not history. Shared-cache validity comes from queue-accepted production, independent of camera success.
+- `ReleaseBuffer` and `ReleaseTexture` keep recording references and queued use. Cancelled recordings release only their recording references. Partially queued or uncertain submissions stay protected. Pool return is not proof of safe CPU reuse.
+- Camera framebuffer descriptors declare Internal or Display sizing; fixed lookup tables, atlases and external targets stay Exact.
+- Screen-binding registries are generated only by `python3 -B Tools/TextureViews.py --write`, never by loading assets; the offline gate checks them.
+- Atlases that live across cameras and frames follow `AtmosphereSharedCache`: pending reservations, commit on queue-accepted `MarkProduced`, `DiscardUnproducedPending` for failed cameras, physical retirement after submit. Cross-frame keys are instance IDs, not per-frame record indices.
+- Cached depth-atlas tile copies stay raster: Unity `CopyTexture` forbids a partial depth-only copy.
 
 ## 7. Mesh drawing pipeline
 
@@ -153,7 +195,7 @@ The nine passes (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, Tran
 1. Proxy update: registration tasks, one `MeshWorldUpdate` for removals and every dirty component, explicit static poses, then dynamic poses. A component stages its sync inside the transaction and publishes it after the commit; an id is valid only in the world that issued it, and a new world resyncs every registered component. A shader import or a shader swap on a material makes the affected components validate again and the commands resolve their pass indices again.
 2. `MeshWorld.UpdateResidency` uploads dirty entity columns, the next transform version and stale pass candidate tables.
 3. `MeshWorld.BeginCamera` resets per-camera counters and visibility interning.
-4. Passes call `CreateMeshDrawList(new MeshDrawListDesc(meshView, InfinityPassIDs.X))`. On the GPU backend that declaration also requests `RequestMeshGPUCulling` for the view.
+4. `InfinityRenderPipeline.Render` creates the camera's lists with `CreateMeshDrawList(new MeshDrawListDesc(meshView, InfinityPassIDs.X))` before the raster block and passes each handle to its raster pass. On the GPU backend that declaration also requests `RequestMeshGPUCulling` for the view.
 5. Compile releases draw lists with no live consumer. A live list with zero pass-cache members freezes the cache revision as an empty list; it allocates no visibility, build job, payload or preparation producer. Its raster consumer and renderer list remain live, and submit still rejects a changed revision. Nonempty CPU lists acquire interned visibility and schedule their gather, sort and merge jobs; nonempty GPU lists rent their payload when preparation is recorded. Recording adds one upload producer per nonempty list and, for GPU indirect, one compute producer, after that list's culling pass and before the raster block that draws it. The graph does not move those passes.
 6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity` and `instanceFade`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer first runs `InitializeIndirectArgs` for both ranges of every command slot, then `Compact` (one thread per element slot) atomically increments each argument record's instance count and writes the corresponding instance and fade. The consumer issues one `DrawMeshInstancedIndirect` per live command for its stable range and, for a command with members whose chain has a band, one more for its fading range. Raster submission only draws.
 7. `ReleaseAll` completes and frees build jobs, releases visibility references and retires payloads, instance buffers and transform-version references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
@@ -170,7 +212,7 @@ A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.dit
 
 ### Content
 
-`MeshComponent` draws a `MeshAsset`: `meshes[i]` is LOD *i* (one mesh may fill several levels), `lODInfos[i].screenSize` its lower bound, `lODInfos[i].materialSlot[s]` the material slot of submesh *s*, and `fadeWidth` the band width. A submesh without a slot entry has no material and draws nothing; an explicit slot outside the asset's materials makes the asset invalid. The asset's materials are authoring defaults that the inspector copies into a component once, on assignment; the component's material array, indexed by slot, is the runtime authority. Components share one geometry state per asset (level meshes, submesh counts, union bounds and the element table, one entry per level and submesh). An edit of the asset or one of its meshes marks that state stale, and every component that references it rebuilds its entity on the next sync. Only a registered component holds a reference on its asset's state, and destroying the asset re-syncs its components. A component whose asset fails `MeshAsset.ThrowIfInvalid` is logged with its context and not drawn. Loading never converts 0.4 data. The explicit migration menu, which assigns each component a shared one-level asset of its old mesh, exists only at commit `6703ab8`; the hidden legacy fields it read are removed after it.
+`MeshComponent` draws a `MeshAsset`: `meshes[i]` is LOD *i* (one mesh may fill several levels), `lODInfos[i].screenSize` its lower bound, `lODInfos[i].materialSlot[s]` the material slot of submesh *s*, and `fadeWidth` the band width. A submesh without a slot entry has no material and draws nothing; an explicit slot outside the asset's materials makes the asset invalid. The asset's materials are authoring defaults that the inspector copies into a component once, on assignment; the component's material array, indexed by slot, is the runtime authority. Components share one geometry state per asset (level meshes, submesh counts, union bounds and the element table, one entry per level and submesh). An edit of the asset or one of its meshes marks that state stale, and every component that references it rebuilds its entity on the next sync. Only a registered component holds a reference on its asset's state, and destroying the asset re-syncs its components. A component whose asset fails `MeshAsset.ThrowIfInvalid` is logged with its context and not drawn.
 
 ### Backends and shaders
 
@@ -180,7 +222,7 @@ Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshIns
 
 `ERenderingLayer : byte` is the shared mesh and light mask, with `Everything = 0xFF`. Surface masks in GBuffer C are an 8-bit unorm value. High bits are rejected.
 
-Public recording for a pass is:
+Recording a list for a pass is:
 
 ```csharp
 RGMeshDrawListHandle draws = graph.CreateMeshDrawList(new MeshDrawListDesc(meshView, InfinityPassIDs.RasterGBufferPass));
@@ -191,9 +233,23 @@ cmdEncoder.SubmitMeshDrawList(data.meshDrawList);
 
 Content code mutates `MeshComponent`. It does not call `CreateMeshDrawList`. Submitting a mesh draw list records its draw calls into the raster encoder. Native submit and a submission segment are command-buffer submission.
 
-Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. Preparation samplers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, shared across views and owned by `MeshDrawProfiling`. Culling scopes identify the frustum batch, prediction and recovery; compaction scopes identify view kind, pass, visibility phase, draw-list index and shadow slice. CPU schedule, completion, upload and draw markers include the pass in their name and view kind, slice and draw-list index as metadata. Completion time can include main-thread job execution. `compactDispatches` counts list preparations; `compactKernelDispatches` counts recorded kernel dispatches for the last camera, while a frame-tree export counts actual ready events per list and kernel. A preparation producer is not recorded inside its consumer's profiling range, so a raster pass group contains that pass's draws. Shared sampler names do not merge graph nodes.
+Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. `MeshDrawProfiling` owns the shared samplers. CPU schedule, completion, upload and draw markers include the pass in their name and view kind, slice and draw-list index as metadata. Completion time can include main-thread job execution. `compactDispatches` counts list preparations; `compactKernelDispatches` counts recorded kernel dispatches for the last camera, while a frame-tree export counts actual ready events per list and kernel. A preparation producer is not recorded inside its consumer's profiling range, so a raster pass group contains that pass's draws. Shared sampler names do not merge graph nodes.
 
 `TranslucentPass` draws MeshComponent content from the TranslucentDepth and T0/T1/T2 presets before the native renderer list of the same pass, with the pass's keywords and global inputs already bound. TranslucentDepth uses the state key. T0, T1 and T2 record on the CPU and order by priority, then distance from far to near. The two lists are sorted separately, so MeshComponent and native translucent renderers have no distance order between them. Out of scope for this pipeline: GPU sorting of draw keys, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects.
+
+### Contracts
+
+- Entity data belongs to the entity: one logical object owns one entity slot, which is its transform and bounds record; submesh, material and pass add element and command references. An element is one submesh of one LOD level with one material.
+- Stable structure is cached; view results are regenerated. Pass caches change incrementally at commit; visibility, LOD, sort and compaction are per request. There is no `MeshDrawRequest` type. Naming follows the flow `MeshDrawListDesc` → `CreateMeshDrawList` / `UseMeshDrawList` / `SubmitMeshDrawList`; a list holds `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s.
+- A structural lease carries the transaction generation. Section and material reclaim waits for commit. A world interns at most 64 pass descs. `MeshWorldGPU.Update` throws while a transaction is open; replacement tables are published atomically and draw lists bind the frozen tables.
+- Visibility results are interned per camera by `MeshVisibilityShare`; `MeshDrawListRegistry.ReleaseAll` owns that handle lifetime. TempJob arrays do not survive the frame.
+- GPU payload objects are empty between uses; physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or write it from the CPU. Capacity (member count, command high water) is acquired once before recording; execution checks it and never grows or recreates a buffer bound to a live command buffer. A draw list whose pass cache changed after record fails at execute. The stable and fading instance and argument ranges of every command are disjoint.
+- CPU direct records no GPU mesh culling or compaction. Backends hold no static mutable state.
+- `ERenderingLayer` is `enum : byte`, `[Flags]`, `Everything = 0xFF`; no integer layer index is reintroduced. Pass membership does not apply the mask; shadow views do, through visibility.
+- Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`; `Materials` is read-only. One structural transaction per frame syncs every dirty component.
+- Notifications: `NotifyGeometryChanged(Mesh)` after in-place mesh edits, `NotifyGeometryChanged(MeshAsset)` after script edits of an asset, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue edits, `NotifyEntityChanged` after static pose, layer, scene or external entity edits from script. Editor edits notify through Undo and hierarchy events. Dynamic poses are read every frame. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
+- Every opaque mesh pass (Shadow, Depth, GBuffer, Forward, Motion) declares `multi_compile _ INFINITY_LOD_DITHER` and calls `LODDitheringTransition`.
+- Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. A culling pass's in-pass scope is `Shadows`, `Depth`, `DepthAndShadows`, `DepthPrediction` or `DepthRecovery`. A compaction pass's in-pass scopes are the consumer (`CascadeShadow`, `LocalShadow`, `DepthPrediction`, `DepthRecovery`, `GBuffer`, `Motion`, `Forward` or a translucent stage), then `SliceN` for a shadow, then `InitializeIndirectArgs` and `Compact`. An upload pass's scope is the consumer token, with `.SliceN` on a shadow. Renderer-list submission adds no wrapper. Native `(RP ...)` labels stay as Unity emits them.
 
 ## 8. Materials
 
@@ -202,6 +258,13 @@ Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` f
 GBuffer layout and YCoCg checkerboard encoding live in `Shaders/Library/GBufferPack.hlsl`. `GBufferPass` allocates three `R8G8B8A8_UNorm` targets and a `R16G16B16A16_SFloat` lighting target. InfinityLit exposes base color, normal, roughness, reflectance, specular level, emission color, subsurface profile and thickness, refraction, iridescence and pixel depth offset. It does not expose metallic, mask, occlusion, detail, height or emission textures. Shader Graph Lit has a Metallic block; the runtime lit constant buffer uses reflectance.
 
 Surface shaders are `InfinityPipeline/InfinityLit`, `InfinityLit-Instanced`, `InfinityUnlit`, `InfinityDecal` and `TerrainLit`. Custom LightMode tags use the `Raster*Pass` names in `InfinityPassIDs`. Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay unchanged.
+
+### Contracts
+
+- `MaterialRouteUtility` is the only route and stage parser; there is no second parser or rounding path. Exact values are validated before derived mutations. Runtime edits of `_SurfaceRoute` or `_TranslucentStage` call `ApplyPassState`. An inspector redraw does not apply derived pass state or mark every referencing `MeshComponent` dirty.
+- Metal value and out helpers initialize their results before guarded work and return once where the cross-compiler requires a single exit. Resource access stays behind its validity gate. A rejected surface keeps its raw depth. Ray loops exit through an explicit found state and `break` without changing traversal order. Diagnostics are not suppressed and a callee result is not replaced with a caller-side default. Kernel bounds exits and group-barrier participation keep their meaning.
+- A degenerate normalization is guarded before a reciprocal length. Required resources are bound and physical inputs validated at setup; no fallback texture substitutes. Compute passes resolve kernels by name and store kernel and thread-group sizes in pass data at record time. Deferred shading uses an 8×8 group; the clustered light lookup keeps 16×16 tiles.
+- Shader warning acceptance is public `ShaderUtil` diagnostics after a production dispatch or draw, a fresh log window and the current Example feature chain. A fixture, a reimport or `FindKernel` alone is not that acceptance.
 
 ## 9. Lights
 
@@ -214,6 +277,10 @@ Surface shaders are `InfinityPipeline/InfinityLit`, `InfinityLit-Instanced`, `In
 Cookies and IES profiles share one atlas. Reflection probes are prefiltered into one atlas, axis-aligned, and limited to the asset slot count. Each atlas keeps one upload array, grown to its high water, and one queue observer created with the pipeline. Further probes are skipped in priority order. Unity culls probes by their box, so a sphere influence larger than the box can be culled while still visible. Probe rendering layers are not supported. Translucent T0 has no specular environment term.
 
 `LightRecord` and its HLSL struct are compared by `Tools/StaticCheck/static_check.py` and by an EditMode test. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`.
+
+### Contracts
+
+- Unity `Light` owns color, intensity, temperature, range, spot angles, shadow mode, strength, bias, near plane, culling mask, rendering layers, bake type, bounce intensity and the cookie. `InfinityAdditionalLightData` owns `LightSourceShape` and the Infinity-only fields: shadow filter, update mode, contact shadow, volumetric weights, IES, distance fade and light layer. Derived native fields (`type`, `shapeRadius`, `areaSize`, `shadowAngle`) are written on user edits and API setters, never on load.
 
 ## 10. Shadows
 
@@ -237,15 +304,25 @@ Ground-truth ambient occlusion traces, filters and accumulates at half resolutio
 
 Subsurface scattering, when the Volume is active and a diffusion profile exists, writes a diffuse-only component from deferred and opaque forward shading; the attachment exists only when the device supports it and the frame requests it. Indirect composition replaces that component's indirect term. `ComputeBurleySubsurface` filters the half-resolution diffuse buffer and recomposes full resolution as the original color minus the original diffuse plus the filtered diffuse. Specular and emissive light stay outside the filter. The material profile index selects the diffusion parameters. The Volume owns enable and sample count. The pipeline asset owns the diffusion profile list. No subsurface target is allocated when the feature is off.
 
+### Contracts
+
+- Screen-space reflection `Samples` is rays per pixel, 1 to 4; `ResolveSamples` is the Poisson reuse count, not a ray count. There is no world-space ray length. Hit color is the accepted unsharpened previous frame. `SCREEN_TRACE_RELATIVE_THICKNESS` and `SSGI_TRACE_LINEAR` are diagnostic variants. Bilateral reflection cleanup uses hysteresis 0.5 on the reconstruction variance.
+- Subsurface routing requires opaque Deferred subsurface materials.
+- Ray-traced occlusion selects `ComputeRayTracedOcclusion` or `RayTracingOcclusion` from its Unified Ray Tracing backend; its graph pass type stays RayTracing.
+
 ## 12. Atmosphere, fog, clouds and translucency
 
-`AtmosphericalProfile` on the pipeline asset is the only atmosphere configuration. `AtmosphereParameter.FromProfile(null)` throws. `ThrowIfInvalid` rejects out-of-range thickness, scattering, heights, ozone and sun angle. Lengths are meters. Scattering and absorption are stored per kilometer and multiplied by `ScatterPerKmToPerMeter` (0.001) at bind. Volume does not override the atmosphere.
+`AtmosphericalProfile` on the pipeline asset is the only atmosphere configuration. `AtmosphereParameter.FromProfile(null)` throws. `ThrowIfInvalid` rejects out-of-range thickness, scattering, heights, ozone and sun angle. Lengths are meters. Scattering and absorption are stored per kilometer and multiplied by `ScatterPerKmToPerMeter` (0.001) at bind. Volume does not override the atmosphere, and there is no `AtmosphereParameter.Default()`.
 
 Lookup tables and the aerial-perspective volume are compute products. Cubemap faces are a `RWTexture2DArray`. Sky and fog are applied in `ComputeAtmosphericSkyAndFog` after opaque lighting and before translucent depth.
 
 Volumetric fog and volumetric clouds record when their frame setting is on, the Volume component is active, and their kernels exist. Fog builds an 8×8-pixel froxel volume and reads the light loop. Clouds trace at half internal resolution, require the atmosphere transmittance table, and read the light loop and shadow inputs. Each keeps its own history.
 
 Translucent depth is followed by clouds, fog, fog composite, T0, the color pyramid, T1 and T2. T1 is the refraction stage and reads the pyramid. T0 is lit before that pyramid. T2 is the last translucent stage and includes unlit and overlay-canvas geometry that is not the screen-space overlay list.
+
+### Contracts
+
+- The atmosphere compute shader uses one unit system, meters with scattering converted at bind; not both.
 
 ## 13. Temporal resolve and output
 
@@ -263,9 +340,20 @@ Scene view uses the full pipeline. A gap in the global frame counter does not re
 
 `ImportBackbuffer` brings the camera target into the graph. An imported resource is not created or released by the pool. Player cameras that target a display resolve sRGB from `Display.requiresSrgbBlitToBackbuffer` when no render-texture format is known. HDR reads the active swapchain format, gamut and paper white. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are separate encodings. HLG is not available through Unity's color-gamut API. While HDR output is active the pipeline owns automatic tonemapping and restores it on exit.
 
-Screen-space overlay UI records for a Game camera with no target texture. On the linear-intermediate path it draws into `DisplayColorBuffer` before encoding. On the direct path it draws into the hardware-sRGB target. Scene view does not draw that list. Screen-space camera and world-space canvases use the T2 renderer list.
+Screen-space overlay UI records for a Game camera with no target texture, with `CreateUIOverlayRendererList` and `DrawRendererList`; it is not `DrawUIOverlay`. On the linear-intermediate path it draws into `DisplayColorBuffer` before encoding. On the direct path it draws into the hardware-sRGB target. Scene view does not draw that list. Screen-space camera and world-space canvases use the T2 renderer list.
 
 `ReactiveMask` is an R8 attachment allocated only for temporal anti-aliasing. The first translucent color pass clears it even when it draws nothing. Later passes load it. Other temporal policies omit the attachment.
+
+### Contracts
+
+- On the compute side the jittered reconstruction matrix is `matrix_*FlipYJitter*`. Motion vectors are jitter-free; `SV_POSITION` uses the jittered view-projection, the clip positions used for velocity do not.
+- Color history uses `uv - motion`. Raster depth history uses `uv - motion + previousJitterUV - currentJitterUV`. Motion metadata carries expected previous raw depth, current surface raw depth, validity and reserved data from one surface. Invalid, off-screen or disoccluded history has zero weight; multiplying undefined history by zero is not rejection. Sample age lives in the alpha of the `RGBA16F` history. Current eye depth is never compared with previous-camera eye depth.
+- Sharpening never feeds history. Temporal blending is linear RGB. Output sharpening scales RGB together; a YCoCg Y offset that adds a constant to RGB is not that operation. `TAAJitter` has super-resolution consumers.
+- Native renderer-list draws use `unity_MatrixPreviousM` and skinned previous positions. The pipeline keeps no second native pose history, sets no per-renderer property blocks and never substitutes another camera's latest object pose.
+- Encoded targets never alias `PostProcessBuffer` or `DisplayColorBuffer`. A later output draw encodes an already composed buffer and does not grade again. Read-only post bypass may alias its source. An overlay writer requires its own target.
+- The backbuffer enters only through `ImportBackbuffer`; `RTHandle.SetTexture` is internal to Core RP; rebinding reallocates when the identifier changes. `ReactiveMask` has no standalone clear dispatch.
+- Display-depth upsampling exists only for recorded Editor overlays that need it. `TAAConfidenceBuffer` is created only when `debugView != None` or this frame's capture requests confidence. Capture changes neither debug view nor history.
+- Fixed-ratio super resolution: explicit Unity camera targets are imported by identifier. Native HDR state is queried live; HDR automatic tonemapping has one owner and is restored on exit.
 
 ## 14. Editor and capture
 
@@ -273,7 +361,7 @@ Editor windows, inspectors and debugger panels are specified in [Docs~/Manual/ed
 
 `RenderCaptureService` records normal-frame copies through graph transfers into session-owned staging. It does not replace `camera.targetTexture` and does not call `Camera.Render`. Capture selects an explicit Game camera, or the single active Game camera. Lighting is captured before scene-color ownership moves. Debug view and history are left unchanged.
 
-Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`, with bearer authentication. They do not save assets. `com.unity.pipeline` screenshot is not a normal-frame capture.
+Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`, with bearer authentication. They do not save assets. `com.unity.pipeline` screenshot is not a normal-frame capture. Capture does not query a retired semantic name at frame end.
 
 ## 15. Integration boundary
 
@@ -287,20 +375,30 @@ Shader Graph access is confined to `Editor/ShaderGraph/`. Runtime code does not 
 
 Custom VFX Graph outputs are unsupported. Particle systems use the translucent renderer list.
 
+### Contracts
+
+- Shader Graph 17.6 keeps `Target` and `SubTarget` internal. The Infinity target compiles into `Unity.ShaderGraph.Editor` through the single asmref at `Editor/ShaderGraph/` and references Infinity by strings, which `static_check.py` checks. Runtime does not depend on it.
+- Adaptive Probe Volumes are bound with `ProbeReferenceVolume.BindAPVRuntimeResources` and `UpdateShaderVariablesProbeVolumes` before the graph records; no graph encoder exposes a `CommandBuffer` for that bind. Enable and disable of an entity each pair with one unregister, including disable followed by destroy.
+- Native renderer content keeps lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion on Unity renderer lists. `MeshComponent` never discovers or changes a renderer and stores no lightmap or CPU per-instance probe data.
+- Additional-data components own only Infinity extensions. They are added with Undo by `ObjectFactory.componentWasAdded` and by the Infinity inspectors; no public field is assigned to a camera or light by the user. Editor load, reload and scene save do not regenerate hidden data. Terrain sector regeneration is an explicit inspector action with Undo and prefab tracking.
+- Unified Ray Tracing's explicit-instance API is wrapped by an isolated adapter; its persistent-scene scope is transient and released with the adapter. Valid hardware ray-tracing assets that are not yet integrated are kept.
+- `SupportedRenderingFeatures.active.rendersUIOverlay` is true. Custom VFX Graph outputs stay unsupported: no friend-assembly shim and no Package Cache patch.
+
 ## 16. Limits present in the source
 
-These are properties of the current implementation, not a verification record. [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) states what has actually been executed.
+These are properties of the current implementation, not a verification record. [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) states what has actually been executed. None of them is hidden behind a fallback, a disabled pass or a dummy resource.
 
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render.
 - Rectangle and disk shadow tiles cover a 120° cone.
 - Reflection probes are axis-aligned, slot-limited and not filtered by rendering layer. Translucent T0 has no specular environment term.
 - Contact shadows cover at most 24 local lights and the sun.
 - InfinityLit has no metallic, mask, occlusion, detail, height or emission map. The conversion wizard reports the dropped maps.
-- Shader Graph scene depth is available in decal graphs, scene color in T1, and the fog node returns no fog. Graph motion is rigid.
+- Shader Graph scene depth is available in decal graphs, scene color in T1, and the fog node returns no fog. Graph motion is rigid. Shader Graph materials have no mesh-instancing path, so `MeshComponent` does not draw them.
+- `MeshComponent` Receive Shadow and Affect Indirect Lighting are stored on the entity, and no pass reads them.
 - The light and reflection-probe complexity views count clustered-loop visits, not lights that shade the pixel.
-- Several recorded passes can contain no draws. Frame Debugger may omit them. Cascade shadows still bind their target when the draw count is zero.
+- Several recorded passes can contain no draws (`RenderDBuffer` without a DBuffer shader, `RenderLocalShadow` without local casters, `CopyHistory*` transfers). Frame Debugger may omit them. Cascade shadows still bind their target when the draw count is zero.
 - Hi-Z, half-resolution geometry, lookup tables, light masks and the screen-space producers are async-eligible where the device allows. Overlap has not been measured.
 - Ray-traced ambient occlusion records only when Unified Ray Tracing is ready and the acceleration structure has instances. Player shader load is unverified.
 - Combine LUT writes Rec.709 linear and dispatches only when the grading key changes.
-- Image-regression baselines are per graphics API and are absent until recorded on a verified Editor.
+- Image-regression baselines are per graphics API, not per GPU vendor, and are absent until recorded on a verified Editor.
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is not established.

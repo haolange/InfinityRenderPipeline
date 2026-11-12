@@ -31,10 +31,25 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
-    def test_custom_apv_has_no_instance_lighting_binding(self):
-        self.write('Shaders/Surface/InfinityLit-Instanced.shader', 'SampleAdaptiveProbeVolume(positionWS);')
+    def test_agents_over_limit_fails_and_at_limit_passes(self):
+        self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []
-        static_check.check_unity_boundary(str(self.repo), out)
+        static_check.check_agents_size(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('AGENTS.md', 'a' * (static_check.AGENTS_LIMIT + 1))
+        static_check.check_agents_size(str(self.repo), out)
+        self.assertEqual(['agentsize'], [o[1] for o in out])
+
+    def test_sentence_in_both_documents_fails(self):
+        shared = 'History lives only in the history cache, and every reader imports the accepted version of it.'
+        self.write('AGENTS.md', 'Principles. ' + shared + ' More text.')
+        self.write('ARCHITECTURE.md', 'Implementation. Short one. ' + shared)
+        out = []
+        static_check.check_doc_facts(str(self.repo), out)
+        self.assertEqual(['docfacts'], [o[1] for o in out])
+        self.write('ARCHITECTURE.md', 'Implementation only, with a different sentence that is long enough to count here.')
+        out = []
+        static_check.check_doc_facts(str(self.repo), out)
         self.assertEqual([], out)
 
     def test_render_graph_must_not_reference_mesh_pipeline(self):

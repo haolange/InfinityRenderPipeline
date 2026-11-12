@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
     /// <summary>
     /// Adaptive Probe Volume lifecycle of one pipeline instance. ProbeReferenceVolume is a CoreRP singleton that owns
     /// persistent GPU resources; it is initialized with the pipeline, and per camera its streaming, bindings and
-    /// constants are set on the camera command buffer before culling and before the RenderGraph records (AGENTS.md:
+    /// constants are set on the camera command buffer before culling and before the RenderGraph records (ARCHITECTURE.md §15:
     /// the one CoreRP-owned global binding outside the graph). Surfaces sample it under PROBE_VOLUMES_L1 / L2.
     /// SupportedRenderingFeatures.overridesLightProbeSystem / skyOcclusion are installed with the pipeline's features.
     /// </summary>

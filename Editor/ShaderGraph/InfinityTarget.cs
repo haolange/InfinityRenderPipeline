@@ -42,7 +42,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
     /// <summary>
     /// Shader Graph target of the Infinity Render Pipeline. This code compiles into Unity.ShaderGraph.Editor through the
-    /// asmref next to it (AGENTS.md, Integration exceptions): Target and SubTarget are internal in Shader Graph 17.6.
+    /// asmref next to it (ARCHITECTURE.md §15 Contracts): Target and SubTarget are internal in Shader Graph 17.6.
     /// It references Infinity only by strings, which Tools/StaticCheck/static_check.py verifies: the pipeline asset
     /// type name, package include and template paths, LightMode tags and material GUI class names.
     /// </summary>

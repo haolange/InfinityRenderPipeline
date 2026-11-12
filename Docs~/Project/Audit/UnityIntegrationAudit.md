@@ -2,8 +2,6 @@
 
 Reference: local Unity 6000.6.0f1, HDRP/CoreRP/Shader Graph 17.6.0. The reference packages are inspected, not modified or imported as runtime dependencies. Infinity's RenderGraph, ResourcePool, Mesh Drawing Pipeline and custom terrain algorithms remain Infinity-owned.
 
-The [file inventory](UnityBoundaryInventory.csv) includes every tracked or nonignored candidate file, including metadata, hidden package configuration, imported assets, tools and historical documents. Each row identifies the owner, applicable boundary, inspection/disposition, evidence reference and inspected-byte hash. Removed paths are explicit. Assets are checked through their producer/import contracts; historical material is reference-only. The generated inventory records itself as derived to avoid a recursive hash. Regenerate explicitly with `python3 Tools/StaticCheck/boundary_inventory.py --write` after reviewing the candidate; regeneration alone is not source inspection. File coverage is not a claim that every algorithm was rewritten or every platform executed.
-
 ## Decisions and consumer closure
 
 | Area | Ownership and disposition | Reference / acceptance |

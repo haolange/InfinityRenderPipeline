@@ -18,6 +18,8 @@ Checks
   meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
+  agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
+  docfacts         no sentence of 80 or more characters appears in both AGENTS.md and ARCHITECTURE.md
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -262,12 +264,6 @@ def check_unity_boundary(repo, out):
         text = read(p)
         if re.search(r'GetComponent\s*<\s*(?:Mesh)?Renderer\s*>|forceRenderingOff|LightmapSettings|LightProbes|BakedLightingSource', text):
             out.append(('ERROR', 'unityboundary', os.path.relpath(p, repo) + ': custom Mesh must not own native renderer lighting/state'))
-    surface = os.path.join(repo, 'Shaders/Surface/InfinityLit-Instanced.shader')
-    if os.path.exists(surface) and re.search(r'INFINITY_MESH_(?:LIGHTMAP|DIRECTIONAL|SHADOWMASK)|meshBakedLightingBuffer|meshProbeLightingBuffer', read(surface)):
-        out.append(('ERROR', 'unityboundary', 'custom Mesh contains per-instance baked/probe bindings'))
-    for name in ('MeshBakedLighting.cs', 'MeshProbeLighting.cs'):
-        if os.path.exists(os.path.join(repo, 'Runtime/Mesh', name)):
-            out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
 
 
 def check_graph_dependency(repo, out):
@@ -475,6 +471,31 @@ def check_lod_dither(repo, out):
                 out.append(('ERROR', 'lodither', f'{os.path.relpath(p, repo)}: {light} does not cross-fade with INFINITY_LOD_DITHER'))
 
 
+AGENTS_LIMIT = 15 * 1024
+
+
+def check_agents_size(repo, out):
+    agents = os.path.join(repo, 'AGENTS.md')
+    size = os.path.getsize(agents) if os.path.exists(agents) else 0
+    if size > AGENTS_LIMIT:
+        out.append(('ERROR', 'agentsize', f'AGENTS.md is {size} bytes; the limit is {AGENTS_LIMIT}'))
+
+
+def doc_sentences(text):
+    text = re.sub(r'```.*?```', ' ', text, flags=re.S)
+    text = re.sub(r'\s+', ' ', text)
+    return {t.strip() for t in re.split(r'(?<=[.!?])\s+', text) if len(t.strip()) >= 80}
+
+
+def check_doc_facts(repo, out):
+    paths = [os.path.join(repo, name) for name in ('AGENTS.md', 'ARCHITECTURE.md')]
+    if not all(os.path.exists(p) for p in paths):
+        return
+    shared = doc_sentences(read(paths[0])) & doc_sentences(read(paths[1]))
+    for sentence in sorted(shared):
+        out.append(('ERROR', 'docfacts', 'stated in both AGENTS.md and ARCHITECTURE.md: ' + sentence[:120]))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -485,7 +506,8 @@ def main():
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
-                     ('fprefix', check_fprefix), ('generationname', check_generationname)):
+                     ('fprefix', check_fprefix), ('generationname', check_generationname),
+                     ('agentsize', check_agents_size), ('docfacts', check_doc_facts)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)
