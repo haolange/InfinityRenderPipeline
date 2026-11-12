@@ -176,27 +176,27 @@ namespace InfinityTech.Rendering.Pipeline
         LightLoopInputs QueryLightLoop(RenderContext renderContext)
         {
             LightContext context = renderContext.lightContext;
-            bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
-            bool hasProbeAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
+            bool hasCookieAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
+            bool hasProbeAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
             bool hasProbeList = hasProbeAtlas && context.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {
-                probes = m_RGScoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
-                probeZBins = m_RGScoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
+                probes = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
+                probeZBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
                 probeTileMasks = hasProbeList
-                    ? m_RGScoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
-                    : m_RGScoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
+                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
                 probeAtlas = probeAtlas,
                 hasProbeAtlas = hasProbeAtlas,
                 probeCount = hasProbeList ? context.ReflectionProbeCount : 0,
                 probeTileParams = context.ProbeTileParams,
-                cookies = m_RGScoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
+                cookies = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
                 cookieAtlas = cookieAtlas,
                 hasCookieAtlas = hasCookieAtlas,
-                zBins = m_RGScoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
+                zBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
                 tileMasks = context.HasLocalLightList()
-                    ? m_RGScoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
-                    : m_RGScoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
+                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
                 tileParams = context.TileParams,
                 zBinParams = context.ZBinParams,
                 directionalCount = context.DirectionalLightCount,
@@ -225,7 +225,7 @@ namespace InfinityTech.Rendering.Pipeline
         // second index space of the clustered list.
         void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
         {
-            RGBufferHandle tileMasks = m_RGScoper.CreateBuffer(masksKey, new BufferDescriptor
+            RGBufferHandle tileMasks = m_RGBuilder.scoper.CreateBuffer(masksKey, new BufferDescriptor
             {
                 name = masksName,
                 count = math.max(1, tileCount.x * tileCount.y * wordCount),
@@ -240,7 +240,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;
                 passData.kernel = kernels.lightTileMask;
-                passData.tileRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(rectsKey));
+                passData.tileRects = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(rectsKey));
                 passData.tileMasks = passRef.WriteBuffer(tileMasks);
 
                 passRef.EnablePassCulling(false);

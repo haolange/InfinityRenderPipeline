@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
             occlusionDsc.enableRandomWrite = true;
             occlusionDsc.filterMode = FilterMode.Bilinear;
             occlusionDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureHandle occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
+            RGTextureHandle occlusion = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
 
             using (var passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
@@ -86,9 +86,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.accel = env.Accel;
                 passData.buildScratch = env.PrepareBuildScratch();
                 passData.traceScratch = env.PrepareTraceScratch((uint)m_ActiveFrameState.dimensions.internalSize.x, (uint)m_ActiveFrameState.dimensions.internalSize.y);
-                passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.normalTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 passData.occlusionTexture = passRef.WriteTexture(occlusion);
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder) =>

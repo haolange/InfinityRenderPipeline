@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             LightContext context = renderContext.lightContext;
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
             if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {

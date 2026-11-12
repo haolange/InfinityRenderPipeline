@@ -108,15 +108,15 @@ namespace InfinityTech.Rendering.Pipeline
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
 
             TextureDescriptor volumetricFogDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.TextureName, true);
-            RGTextureHandle volumetricFogTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
+            RGTextureHandle volumetricFogTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
             RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
 
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool hasSkyView = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT);
-            bool hasAerial = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            bool hasSkyView = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT);
+            bool hasAerial = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT);
             float aerialDistance = pipelineAsset.atmosphericalProfile != null
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ShadowInputs shadows = QueryShadowInputs(renderContext);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
-                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.volumetricFogShader = shaders.volumetricFogShader;
                 passData.scatterDensityKernel = kernels.fogScatterDensity;
                 passData.integrateKernel = kernels.fogIntegrate;
@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryVolumetricFog(HistoryCache historyCache, Camera camera)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle source))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle source))
             {
                 return;
             }

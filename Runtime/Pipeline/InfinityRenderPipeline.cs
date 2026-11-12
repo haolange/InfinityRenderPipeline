@@ -216,8 +216,6 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        // The graph builder owns the scoper; this is the same object, held for brevity in pass code.
-        private RGScoper m_RGScoper;
         private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
         private Dictionary<int, CameraFrameState> m_CameraStates;
@@ -316,7 +314,6 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ResourcePool = new ResourcePool();
                 renderContext = new RenderContext(m_ResourcePool, shaders.meshDrawPipelineCS);
                 m_RGBuilder = new RGBuilder("RenderGraph", m_ResourcePool);
-                m_RGScoper = m_RGBuilder.scoper;
                 m_CameraStates = new Dictionary<int, CameraFrameState>();
                 m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
                 m_RGBuilder.SetMeshWorld(renderContext.meshWorld);

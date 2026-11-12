@@ -36,11 +36,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT) ||
-                !m_RGScoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferHandle sunBuffer))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
+                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
+                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT) ||
+                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT) ||
+                !m_RGBuilder.scoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferHandle sunBuffer))
             {
                 throw new System.InvalidOperationException("InfinityRP: Atmosphere composite is missing Lighting, Depth, SkyView, Aerial, or SunBuffer.");
             }

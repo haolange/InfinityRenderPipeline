@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
         void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
-            var depthSource = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            var depthSource = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var depthDescription = m_RGBuilder.GetTextureDescriptor(depthSource);
             int width = depthDescription.width, height = depthDescription.height;
             var colorDescriptor = TemporalColorDescriptor(width, height, "HistoryColorTexture", true);
@@ -62,13 +62,13 @@ namespace InfinityTech.Rendering.Pipeline
             // Both sides of the ping-pong history have identical physical usage flags.
             var accumulation = m_RGBuilder.ImportTexture(history.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, writeColor));
             var temporalDepth = m_RGBuilder.ImportTexture(history.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, writeDepth));
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, accumulation);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.TAADepthBuffer, temporalDepth);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, accumulation);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAADepthBuffer, temporalDepth);
             history.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
             history.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
-            var sharpened = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
-            m_RGScoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
-            var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            var sharpened = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
+            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
+            var input = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
             bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             diagnostics |= RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence;
@@ -78,9 +78,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 var descriptor = TemporalColorDescriptor(width, height, "TAADiagnostics", true);
                 descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
-                confidence = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
+                confidence = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
                 descriptor.name = "TAAReprojection";
-                reprojection = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
+                reprojection = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
             }
             using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
@@ -98,9 +98,9 @@ namespace InfinityTech.Rendering.Pipeline
                     && history.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
-                data.motion = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
-                data.metadata = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
-                data.reactive = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer));
+                data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
+                data.metadata = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                data.reactive = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer));
                 data.historyColor = pass.ReadTexture(historyColor);
                 data.historyDepth = pass.ReadTexture(historyDepth);
                 data.accumulation = pass.WriteTexture(accumulation);

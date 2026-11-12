@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            var sourceDescriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+            var sourceDescriptor = m_RGBuilder.GetTextureDescriptor(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
             int fullWidth = sourceDescriptor.width;
             int fullHeight = sourceDescriptor.height;
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResDepthDsc.depthBufferBits = EDepthBits.None;
                 halfResDepthDsc.enableRandomWrite = true;
             }
-            RGTextureHandle halfResDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
+            RGTextureHandle halfResDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
 
             TextureDescriptor halfResNormalDsc = new TextureDescriptor(halfWidth, halfHeight, ETextureSizingDomain.Internal, 2);
             {
@@ -64,9 +64,9 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResNormalDsc.depthBufferBits = EDepthBits.None;
                 halfResNormalDsc.enableRandomWrite = true;
             }
-            RGTextureHandle halfResNormalTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
+            RGTextureHandle halfResNormalTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
 
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             //Add HalfResDownsamplePass
             using (var passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.halfRes = kernels.halfResDownsample;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.normalTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.halfResDepthTexture = passRef.WriteTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.WriteTexture(halfResNormalTexture);
 

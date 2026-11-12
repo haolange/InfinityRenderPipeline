@@ -140,10 +140,10 @@ namespace InfinityTech.Rendering.Pipeline
             float localSize = pipelineAsset.localShadowMapResolution;
             var inputs = new ShadowInputs
             {
-                cascadeMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
-                localMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
-                localMatrices = m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
-                localSlices = m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
+                cascadeMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
+                localMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
+                localMatrices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
+                localSlices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
                 cascadeCount = allocator.CascadeAllocatedCount,
                 cascadeMatrices = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeMatrices),
                 cascadeSpheres = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeSpheres),
@@ -156,8 +156,8 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
                 shadowDistance = pipelineAsset.shadowDistance,
             };
-            inputs.hasCascadeMoments = m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out inputs.cascadeMoments);
-            inputs.hasLocalMoments = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out inputs.localMoments);
+            inputs.hasCascadeMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out inputs.cascadeMoments);
+            inputs.hasLocalMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out inputs.localMoments);
             return inputs;
         }
     }

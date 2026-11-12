@@ -104,7 +104,7 @@ D3D12, Vulkan and Windows stay `TODO(UNVERIFIED)`.
 
 ### RenderGraph compiler — 2026-10-27
 
-The compiler culls across resource types, plans descriptor-level alias slots, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so aliasing is that slot plan executed by ResourcePool. Memoryless is requested only on Metal, only for an attachment that stays inside one native render pass and ends in `DontCare`, and not for a color UAV.
+The compiler culls across resource types, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so overlap is descriptor-level reuse by ResourcePool. Memoryless is requested only on Metal, only for an attachment that stays inside one native render pass and ends in `DontCare`, and not for a color UAV.
 
 Verified on the owned InfinityExample Editor, Unity 6000.6.0f1, Metal, `Scene_Spazon` MainCamera at 1666×937. The post-refresh `Editor.log` window and the rest of this Editor session contain no InfinityRP `InvalidOperationException`, no `numAttachments` assert, and no memoryless/UAV warning.
 

@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryScalar(HistoryCache historyCache, int sourceId, int historyId, string name)
         {
-            if (!m_RGScoper.TryQueryTexture(sourceId, out RGTextureHandle source))
+            if (!m_RGBuilder.scoper.TryQueryTexture(sourceId, out RGTextureHandle source))
             {
                 return;
             }
@@ -89,8 +89,8 @@ namespace InfinityTech.Rendering.Pipeline
         void CopyHistoryRadianceMeta(HistoryCache historyCache, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId,
             int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
-            if (!m_RGScoper.TryQueryTexture(radianceSourceId, out RGTextureHandle radianceSource) ||
-                !m_RGScoper.TryQueryTexture(metaSourceId, out RGTextureHandle metaSource))
+            if (!m_RGBuilder.scoper.TryQueryTexture(radianceSourceId, out RGTextureHandle radianceSource) ||
+                !m_RGBuilder.scoper.TryQueryTexture(metaSourceId, out RGTextureHandle metaSource))
             {
                 return;
             }
@@ -128,17 +128,17 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ResolveOpaqueSceneColor()
         {
-            if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out _))
+            if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out _))
             {
                 return;
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out _))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out _))
             {
                 throw new System.InvalidOperationException("InfinityRP: OpaqueSceneColor has no DeferredBase LightingBuffer to adopt.");
             }
 
-            m_RGScoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
+            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
     }
 }

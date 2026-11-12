@@ -243,7 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             frameState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
             RGTextureHandle combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
 
             if (hit)
             {

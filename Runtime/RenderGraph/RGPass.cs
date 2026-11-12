@@ -49,6 +49,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal abstract class IRGPass
     {
+        internal abstract bool hasExecuteAction { get; }
         public int index;
         public string name;
         public ProfilingSampler customSampler;
@@ -110,7 +111,6 @@ namespace InfinityTech.Rendering.RenderGraph
             get;
             protected set;
         }
-
 
         public List<RGResourceHandle>[] resourceReadLists;
         public List<RGResourceHandle>[] resourceWriteLists;
@@ -240,6 +240,8 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         internal T passData;
         internal RGTransferPassExecuteAction<T> ExecuteAction;
+        internal override bool hasExecuteAction => ExecuteAction != null;
+
         public RGTransferPass() : base()
         {
             passType = EPassType.Transfer;
@@ -262,6 +264,8 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         internal T passData;
         internal RGComputePassExecuteAction<T> ExecuteAction;
+        internal override bool hasExecuteAction => ExecuteAction != null;
+
         public RGComputePass() : base()
         {
             passType = EPassType.Compute;
@@ -284,6 +288,8 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         internal T passData;
         internal RGRayTracingPassExecuteAction<T> ExecuteAction;
+        internal override bool hasExecuteAction => ExecuteAction != null;
+
         public RGRayTracingPass() : base()
         {
             passType = EPassType.RayTracing;
@@ -306,6 +312,8 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         internal T passData;
         internal RGRasterPassExecuteAction<T> ExecuteAction;
+        internal override bool hasExecuteAction => ExecuteAction != null;
+
         public RGRasterPass() : base()
         {
             passType = EPassType.Raster;
@@ -346,10 +354,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    // One declaration implementation for every pass kind. The public handles only keep the execute-delegate type.
+    // One declaration implementation for every pass kind; the typed handles forward to it.
     static class RGPassDeclaration
     {
-
         public static RGTextureHandle ReadTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
             RGPassGuard.RequireTexture(factory, input, RGPassGuard.ReadTexture);
@@ -431,11 +438,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public ref TData GetPassData() => ref m_Pass.passData;
         public void SetExecuteFunc(RGTransferPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
 
-        // Recording a pass ends here; a pass without an execute function is a recording defect.
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            if (m_Pass.ExecuteAction == null)
-                throw new InvalidOperationException($"Render graph pass '{m_Pass.name}' was recorded without an execute function.");
         }
     }
 
@@ -465,11 +471,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public ref TData GetPassData() => ref m_Pass.passData;
         public void SetExecuteFunc(RGComputePassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
 
-        // Recording a pass ends here; a pass without an execute function is a recording defect.
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            if (m_Pass.ExecuteAction == null)
-                throw new InvalidOperationException($"Render graph pass '{m_Pass.name}' was recorded without an execute function.");
         }
     }
 
@@ -497,11 +502,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public ref TData GetPassData() => ref m_Pass.passData;
         public void SetExecuteFunc(RGRayTracingPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
 
-        // Recording a pass ends here; a pass without an execute function is a recording defect.
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            if (m_Pass.ExecuteAction == null)
-                throw new InvalidOperationException($"Render graph pass '{m_Pass.name}' was recorded without an execute function.");
         }
     }
 
@@ -560,11 +564,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public ref TData GetPassData() => ref m_Pass.passData;
         public void SetExecuteFunc(RGRasterPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
 
-        // Recording a pass ends here; a pass without an execute function is a recording defect.
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            if (m_Pass.ExecuteAction == null)
-                throw new InvalidOperationException($"Render graph pass '{m_Pass.name}' was recorded without an execute function.");
         }
     }
 }

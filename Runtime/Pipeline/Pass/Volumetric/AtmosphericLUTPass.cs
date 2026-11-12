@@ -244,14 +244,14 @@ namespace InfinityTech.Rendering.Pipeline
             RGBufferHandle sunBuffer = m_RGBuilder.ImportBuffer(sunHandle);
             RGBufferHandle shCoefficients = m_RGBuilder.ImportBuffer(shHandle);
 
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceLUT);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatteringLUT);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewLUT);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialPerspectiveLUT);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereCubemap, atmosphereCubemap);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, ggxPrefilter);
-            m_RGScoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunBuffer);
-            m_RGScoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSkySH, shCoefficients);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceLUT);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatteringLUT);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewLUT);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialPerspectiveLUT);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereCubemap, atmosphereCubemap);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, ggxPrefilter);
+            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunBuffer);
+            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSkySH, shCoefficients);
 
             int ggxMipCount = AtmosphericLUTPassUtilityData.GGXMipCount(parameter.cubemapSize);
 

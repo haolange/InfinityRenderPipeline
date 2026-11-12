@@ -77,11 +77,11 @@ namespace InfinityTech.Rendering.Pipeline
                 depthBufferBits = EDepthBits.None,
                 enableRandomWrite = true
             };
-            RGTextureHandle sunTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
+            RGTextureHandle sunTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
             TextureDescriptor maskDsc = sunDsc;
             maskDsc.name = ContactShadowPassUtilityData.MaskTextureName;
             maskDsc.colorFormat = GraphicsFormat.R32_UInt;
-            RGTextureHandle maskTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
+            RGTextureHandle maskTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
 
             using (var passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
             {
@@ -96,9 +96,9 @@ namespace InfinityTech.Rendering.Pipeline
                 LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.kernel = kernels.contactShadow;
-                passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
                 passData.sunTexture = passRef.WriteTexture(sunTexture);
                 passData.maskTexture = passRef.WriteTexture(maskTexture);
 

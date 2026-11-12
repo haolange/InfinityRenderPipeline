@@ -18,16 +18,16 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddTransferPass<LightUploadPassData>(s_LightUpload))
             {
                 pass.GetPassData().context = context;
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LightRecordBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LightRecordBuffer, "LightRecordBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LightTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.TileRectBuffer, "LightTileRectBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LightZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ZBinBuffer, "LightZBinBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyLightTileMaskBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyTileMaskBuffer, "EmptyLightTileMaskBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowMatrixBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowMatrixBuffer, "LocalShadowMatrixBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowRectBuffer, "LocalShadowRectBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LightCookieBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.CookieBuffer, "LightCookieBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.ReflectionProbeBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ReflectionProbeBuffer, "ReflectionProbeBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.ProbeTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeTileRectBuffer, "ProbeTileRectBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.ProbeZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeZBinBuffer, "ProbeZBinBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LightRecordBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LightRecordBuffer, "LightRecordBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LightTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.TileRectBuffer, "LightTileRectBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LightZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ZBinBuffer, "LightZBinBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.EmptyLightTileMaskBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyTileMaskBuffer, "EmptyLightTileMaskBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LocalShadowMatrixBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowMatrixBuffer, "LocalShadowMatrixBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LocalShadowRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowRectBuffer, "LocalShadowRectBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.LightCookieBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.CookieBuffer, "LightCookieBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.ReflectionProbeBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ReflectionProbeBuffer, "ReflectionProbeBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.ProbeTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeTileRectBuffer, "ProbeTileRectBuffer")));
+                m_RGBuilder.scoper.RegisterBuffer(LightShaderIDs.ProbeZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeZBinBuffer, "ProbeZBinBuffer")));
                 pass.SetExecuteFunc((in LightUploadPassData data, in RGTransferEncoder commands) => data.context.Upload(commands));
             }
         }

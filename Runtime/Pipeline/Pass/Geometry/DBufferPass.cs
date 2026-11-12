@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferADsc.depthBufferBits = EDepthBits.None;
                 dBufferADsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
+            RGTextureHandle dBufferA = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
             TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferBDsc.depthBufferBits = EDepthBits.None;
                 dBufferBDsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
+            RGTextureHandle dBufferB = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
             TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -59,9 +59,9 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferCDsc.depthBufferBits = EDepthBits.None;
                 dBufferCDsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
+            RGTextureHandle dBufferC = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
 
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDBufferPass,
                 new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, pipelineAsset));

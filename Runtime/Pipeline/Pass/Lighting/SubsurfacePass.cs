@@ -89,8 +89,8 @@ namespace InfinityTech.Rendering.Pipeline
             int2 size = m_ActiveFrameState.dimensions.internalSize;
             int2 halfSize = (size + 1) / 2;
             var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, 2);
-            RGTextureHandle filtered = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
-            RGTextureHandle color = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle filtered = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
+            RGTextureHandle color = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             using (var pass = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
             {
                 ref var data = ref pass.GetPassData();
@@ -102,10 +102,10 @@ namespace InfinityTech.Rendering.Pipeline
                 data.profileCount = count;
                 data.numSamples = volume.numSamples.value;
                 data.profileBuffer = pass.ReadBuffer(m_RGBuilder.ImportBuffer(m_DiffusionProfileBuffer));
-                data.lightingTexture = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer));
-                data.depthTexture = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                data.gBufferB = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                data.gBufferC = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                data.lightingTexture = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer));
+                data.depthTexture = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                data.gBufferB = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                data.gBufferC = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 data.subsurfaceTexture = pass.WriteTexture(filtered);
                 pass.ReadTexture(color);
                 data.sceneColor = pass.WriteTexture(color);

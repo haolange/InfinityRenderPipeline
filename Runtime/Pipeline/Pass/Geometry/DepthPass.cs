@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDepthPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
 

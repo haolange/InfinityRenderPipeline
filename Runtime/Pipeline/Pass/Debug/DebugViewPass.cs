@@ -51,12 +51,12 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureHandle postProcessTexture))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureHandle postProcessTexture))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView requires PostProcessBuffer, which was never registered this frame.");
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView requires DepthBuffer, which was never registered this frame.");
             }
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
                     RequireTexture(InfinityShaderIDs.GBufferC, "GBufferC", view, out gBufferC);
                     break;
                 case EDebugView.AO:
-                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     break;
                 case EDebugView.SSR:
-                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -123,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.SSRRayHit:
                 case EDebugView.SSRConfidence:
                 case EDebugView.SSRHistoryAge:
-                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRDebugBuffer, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSRDebugBuffer, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     break;
                 case EDebugView.SSGI:
-                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.Pipeline
                     RequireTexture(InfinityShaderIDs.MotionBuffer, "MotionBuffer", view, out motionTexture);
                     break;
                 case EDebugView.TAAConfidence:
-                    if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
+                    if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
@@ -171,17 +171,17 @@ namespace InfinityTech.Rendering.Pipeline
                     debugKernel = kernels.debugViewSceneColor;
                     bindSet = 2;
                     needSceneColor = true;
-                    sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
+                    sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
                     break;
                 case EDebugView.CascadeShadowAtlas:
                 case EDebugView.LocalShadowAtlas:
                 case EDebugView.CachedShadowAtlas:
                 case EDebugView.ShadowMoments:
-                    bool hasAtlas = view == EDebugView.CascadeShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMap, out optionalTexture)
-                        : view == EDebugView.LocalShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMap, out optionalTexture)
-                        : view == EDebugView.CachedShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.CachedLocalShadowMap, out optionalTexture)
-                        : m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out optionalTexture)
-                            || m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out optionalTexture);
+                    bool hasAtlas = view == EDebugView.CascadeShadowAtlas ? m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMap, out optionalTexture)
+                        : view == EDebugView.LocalShadowAtlas ? m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMap, out optionalTexture)
+                        : view == EDebugView.CachedShadowAtlas ? m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CachedLocalShadowMap, out optionalTexture)
+                        : m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out optionalTexture)
+                            || m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out optionalTexture);
                     if (hasAtlas)
                     {
                         debugKernel = kernels.debugViewShadow;
@@ -195,7 +195,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     break;
                 case EDebugView.LightCookieAtlas:
-                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.Pipeline
                         : view == EDebugView.IndirectDiffuse ? InfinityShaderIDs.IndirectDiffuseBuffer
                         : view == EDebugView.IndirectSpecular ? InfinityShaderIDs.IndirectSpecularBuffer
                         : InfinityShaderIDs.ContactShadowBuffer;
-                    if (m_RGScoper.TryQueryTexture(optionalId, out optionalTexture))
+                    if (m_RGBuilder.scoper.TryQueryTexture(optionalId, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.Pipeline
                     break;
                 case EDebugView.ReflectionProbeAtlas:
                     int probeCount = renderContext?.lightContext != null ? renderContext.lightContext.ReflectionProbeCount : 0;
-                    if (probeCount > 0 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out optionalTexture))
+                    if (probeCount > 0 && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewProbeAtlas;
                         bindSet = 7;
@@ -266,8 +266,8 @@ namespace InfinityTech.Rendering.Pipeline
             debugDescriptor.name = "DebugDisplayTexture";
             debugDescriptor.colorFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat;
             debugDescriptor.enableRandomWrite = true;
-            m_RGScoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
-            postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
+            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
+            postProcessTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
 
             using (var passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
@@ -362,7 +362,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RequireTexture(int id, string idName, EDebugView view, out RGTextureHandle texture)
         {
-            if (!m_RGScoper.TryQueryTexture(id, out texture))
+            if (!m_RGBuilder.scoper.TryQueryTexture(id, out texture))
             {
                 throw new InvalidOperationException($"InfinityRP: DebugView '{view}' requires {idName}, which was never registered this frame.");
             }

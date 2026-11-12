@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;
             descriptor.filterMode = FilterMode.Bilinear;
-            var mips = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
+            var mips = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
             Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
             var source = new TemporalColorView
             {
@@ -69,8 +69,8 @@ namespace InfinityTech.Rendering.Pipeline
                     && state.historyCache.TextureGeneration(colorID) > 0 && state.historyCache.TextureGeneration(depthID) > 0
             };
             state.temporalColorView = source;
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.color);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depth);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.color);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depth);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             RenderCaptureService.current?.RecordTemporalColorState(state.camera, source, sr);
 #endif

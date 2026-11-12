@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.LightCookies);
 
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
 
             if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {

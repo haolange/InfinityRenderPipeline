@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                 translucentDepthDsc.dimension = TextureDimension.Tex2D;
                 translucentDepthDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureHandle translucentDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
+            RGTextureHandle translucentDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
 
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterTranslucentDepthPass,
                 InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
@@ -99,12 +99,12 @@ namespace InfinityTech.Rendering.Pipeline
             bool bindFog,
             bool bindPyramid)
         {
-            RGTextureHandle sceneColor = m_RGScoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle sceneColor = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool writeReactive = ShouldRecordFeature(EFrameFeature.TAA);
             bool initializeReactive = false;
             RGTextureHandle reactiveMask = default;
-            if (writeReactive && !m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMask))
+            if (writeReactive && !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMask))
             {
                 var size = m_ActiveFrameState.dimensions.internalSize;
                 var descriptor = new TextureDescriptor(size.x, size.y, ETextureSizingDomain.Internal)
@@ -113,19 +113,19 @@ namespace InfinityTech.Rendering.Pipeline
                     depthBufferBits = EDepthBits.None, dimension = TextureDimension.Tex2D,
                     clearColor = Color.clear, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
                 };
-                reactiveMask = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, descriptor);
+                reactiveMask = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, descriptor);
                 initializeReactive = true;
             }
-            RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
             RGTextureHandle volumetricFog = default;
             RGTextureHandle aerialLut = default;
             RGTextureHandle colorPyramid = default;
             RGTextureHandle translucentDepth = default;
-            bool hasFog = bindFog && m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out volumetricFog);
-            bool hasAerial = bindFog && m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out aerialLut);
-            bool hasPyramid = bindPyramid && m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out colorPyramid);
-            bool hasTranslucentDepth = m_RGScoper.TryQueryTexture(InfinityShaderIDs.TranslucentDepthBuffer, out translucentDepth);
+            bool hasFog = bindFog && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out volumetricFog);
+            bool hasAerial = bindFog && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out aerialLut);
+            bool hasPyramid = bindPyramid && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out colorPyramid);
+            bool hasTranslucentDepth = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.TranslucentDepthBuffer, out translucentDepth);
 
             float fogMaxDistance = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.Volume.VolumetricFog>().MaxDistance.value;
             float aerialDistance = pipelineAsset.atmosphericalProfile != null
@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (writeReactive)
                     passRef.SetColorAttachment(reactiveMask, 1, initializeReactive ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionTexture, writeReactive ? 2 : 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passRef.GetPassData();

@@ -127,6 +127,9 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly List<int> m_SegmentPasses = new List<int>(16);
         // Physical keys released so far in the open segment.
         readonly HashSet<long> m_SegmentReleases = new HashSet<long>();
+        // (effective create pass, physical key) of every created resource, ordered by pass.
+        readonly List<(int pass, long key)> m_SegmentCreates = new List<(int pass, long key)>(32);
+        static readonly Comparison<(int pass, long key)> s_ByCreatePass = (a, b) => a.pass.CompareTo(b.pass);
         readonly int[][] m_PassLocalOwners = { Array.Empty<int>(), Array.Empty<int>() };
         readonly Stack<RGProfileScope> m_ScopePool = new Stack<RGProfileScope>(8);
 
@@ -743,6 +746,8 @@ namespace InfinityTech.Rendering.RenderGraph
             bool open = false;
             bool openAsync = false;
             m_SegmentReleases.Clear();
+            CollectSegmentCreates();
+            int createCursor = 0;
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
                 ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
@@ -751,7 +756,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     info.segment = -1;
                     continue;
                 }
-                bool split = !open || info.enableAsyncCompute != openAsync || info.syncToPassIndex >= 0 || CreatesReleasedPhysical(passIndex);
+                bool split = !open || info.enableAsyncCompute != openAsync || info.syncToPassIndex >= 0 || CreatesReleasedPhysical(passIndex, ref createCursor);
                 if (split)
                 {
                     segment++;
@@ -777,20 +782,52 @@ namespace InfinityTech.Rendering.RenderGraph
             return ((long)type << 32) | (uint)m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, index)).PhysicalDescriptor().GetHashCode();
         }
 
-        bool CreatesReleasedPhysical(int passIndex)
+        // A texture attached by a native render-pass group is created at the group's first pass (HoistGroupCreates);
+        // segment planning uses that position so a hoisted create that overlaps an earlier release does not split.
+        int EffectiveCreatePass(int createPass, int type, int index)
         {
-            ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
-            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+            if (type != (int)ERGResourceType.Texture)
             {
-                foreach (int index in info.resourceCreateList[type])
+                return createPass;
+            }
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
+                if (info.culled || info.mergeGroup < 0 || !PassUsesTexture(info.pass, index))
                 {
-                    if (m_SegmentReleases.Contains(PhysicalKey(type, index)))
+                    continue;
+                }
+                int first = m_NativeGroups[info.mergeGroup].firstPass;
+                return first >= 0 && first < createPass ? first : createPass;
+            }
+            return createPass;
+        }
+
+        void CollectSegmentCreates()
+        {
+            m_SegmentCreates.Clear();
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+                {
+                    foreach (int index in info.resourceCreateList[type])
                     {
-                        return true;
+                        m_SegmentCreates.Add((EffectiveCreatePass(passIndex, type, index), PhysicalKey(type, index)));
                     }
                 }
             }
-            return false;
+            m_SegmentCreates.Sort(s_ByCreatePass);
+        }
+
+        bool CreatesReleasedPhysical(int passIndex, ref int cursor)
+        {
+            bool conflict = false;
+            for (; cursor < m_SegmentCreates.Count && m_SegmentCreates[cursor].pass <= passIndex; ++cursor)
+            {
+                conflict |= m_SegmentCreates[cursor].pass == passIndex && m_SegmentReleases.Contains(m_SegmentCreates[cursor].key);
+            }
+            return conflict;
         }
 
         void NoteReleases(int passIndex)
@@ -1098,6 +1135,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     continue;
                 }
+                if (!info.pass.hasExecuteAction)
+                    throw new InvalidOperationException($"Render graph pass '{info.pass.name}' was recorded without an execute function.");
                 ValidatePassLocal(info.pass, passIndex);
                 ValidateReads(info.pass, passIndex);
                 if (info.pass.passType == EPassType.Raster)

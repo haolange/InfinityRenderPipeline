@@ -45,8 +45,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeScreenSpaceComposite(RenderContext renderContext, Camera camera)
         {
-            bool hasSSR = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureHandle ssrTexture);
-            bool hasSSGI = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureHandle ssgiTexture);
+            bool hasSSR = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureHandle ssrTexture);
+            bool hasSSGI = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureHandle ssgiTexture);
             if (!hasSSR && !hasSSGI)
             {
                 return;
@@ -61,13 +61,13 @@ namespace InfinityTech.Rendering.Pipeline
             compositeDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
             compositeDsc.depthBufferBits = EDepthBits.None;
             compositeDsc.enableRandomWrite = true;
-            RGTextureHandle compositeTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
+            RGTextureHandle compositeTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
 
-            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGTextureHandle gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
-            RGTextureHandle gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureHandle gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureHandle gBufferA = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureHandle gBufferB = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureHandle gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             using (var passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
             {
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
                 if (passData.hasSubsurface && hasSSGI)
                 {
-                    passData.scatterDiffuse = m_RGScoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);
+                    passData.scatterDiffuse = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);
                     passRef.ReadTexture(passData.scatterDiffuse);
                     passRef.WriteTexture(passData.scatterDiffuse);
                 }
@@ -91,8 +91,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ssrKeyword = kernels.compositeSSR;
                 passData.ssgiKeyword = kernels.compositeSSGI;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
-                passData.indirectDiffuse = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
-                passData.indirectSpecular = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
+                passData.indirectDiffuse = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
+                passData.indirectSpecular = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
                 passData.gBufferC = passRef.ReadTexture(gBufferC);
@@ -141,7 +141,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            m_RGScoper.MoveTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
+            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
     }
 }

@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var previousTransforms = m_ActiveFrameState.meshMotionHistory.pendingBinding;
 
             TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
@@ -44,11 +44,11 @@ namespace InfinityTech.Rendering.Pipeline
                 motionTextureDsc.colorFormat = GraphicsFormat.R16G16_SFloat;
                 motionTextureDsc.depthBufferBits = EDepthBits.None;
             }
-            RGTextureHandle motionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
+            RGTextureHandle motionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
             motionTextureDsc.name = "MotionMetadata";
             motionTextureDsc.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             motionTextureDsc.clearColor = Color.clear;
-            RGTextureHandle motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
+            RGTextureHandle motionMetadata = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
             RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterMotionPass,

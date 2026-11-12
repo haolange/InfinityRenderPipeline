@@ -54,13 +54,13 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
             RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
-            m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
+            m_RGBuilder.scoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
             var pendingColor = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
                 "HistorySuperResolutionDepth", true, ETextureSizingDomain.Display);
             var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
             historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
             historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
 
@@ -72,12 +72,12 @@ namespace InfinityTech.Rendering.Pipeline
                 superResDsc.depthBufferBits = EDepthBits.None;
                 superResDsc.enableRandomWrite = true;
             }
-            RGTextureHandle superResolutionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
-            m_RGScoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, superResolutionTexture);
+            RGTextureHandle superResolutionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
+            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, superResolutionTexture);
 
-            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
             using (var passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
             {

@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureHandle shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
 
             // Same tile size as ShadowAllocator.Allocate, so a cached tile copies 1:1 into the frame atlas.
             int tileResolution = math.max(1, shadowMapResolution / 4);
@@ -300,7 +300,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RGTextureHandle cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
             int shaderPass = blitPasses.copyShadowDepthTile;
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);

@@ -30,7 +30,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             drawing.perObjectData = perObjectData;
             drawing.enableInstancing = asset.enableInstanceBatch;
-            drawing.enableDynamicBatching = asset.enableDynamicBatch;
+            // Dynamic batching pre-transforms vertices on the CPU and drops each object's previous matrix, so a list that
+            // writes motion vectors never batches dynamically.
+            drawing.enableDynamicBatching = asset.enableDynamicBatch && (perObjectData & PerObjectData.MotionVectors) == 0;
             var filtering = new FilteringSettings(queues, camera.cullingMask, uint.MaxValue);
             return new RendererListParams(cullingResults, drawing, filtering);
         }

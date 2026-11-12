@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
-            RGTextureHandle sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
+            RGTextureHandle sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
 
             if (!frameState.postProcessingEnabled)
             {
@@ -141,12 +141,12 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
                         descriptor.name = "PostProcessTexture";
-                        var output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
+                        var output = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
                         RasterFinalOutput(camera, decision, sceneColorTexture, output, false);
                     }
                     else
                     {
-                        m_RGScoper.RegisterTexture(InfinityShaderIDs.PostProcessBuffer, sceneColorTexture);
+                        m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.PostProcessBuffer, sceneColorTexture);
                     }
                 }
                 else
@@ -157,7 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.CombineLookupTexture, out RGTextureHandle combineLUT))
+            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CombineLookupTexture, out RGTextureHandle combineLUT))
             {
                 throw new InvalidOperationException("InfinityRP: PostProcess requires CombineLookupTexture.");
             }
@@ -176,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline
             postProcessDsc.filterMode = FilterMode.Bilinear;
             postProcessDsc.wrapMode = TextureWrapMode.Clamp;
             RGTextureHandle postProcessTexture = plan.linearIntermediate
-                ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc) : target;
+                ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc) : target;
 
             RGTextureHandle bloomTexture = default;
             if (volumes.bloomIntensity > 0)
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
                 bloomDsc.autoGenerateMips = false;
                 bloomDsc.filterMode = FilterMode.Bilinear;
                 bloomDsc.wrapMode = TextureWrapMode.Clamp;
-                bloomTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
+                bloomTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
             }
 
             RGTextureHandle exposureEV;
@@ -275,7 +275,7 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
             TextureHandle evRead = frameState.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
             RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureRead);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureRead);
             return exposureRead;
         }
 
@@ -287,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
             TextureHandle evRead = frameState.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc, out bool created);
             RGTextureHandle exposureWrite = m_RGBuilder.ImportTexture(evWrite);
             RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureWrite);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureWrite);
 
             BufferDescriptor histogramDsc = new BufferDescriptor(ExposureUtility.HistogramBinCount, sizeof(uint), GraphicsBuffer.Target.Structured);
             histogramDsc.name = PostProcessingPassUtilityData.ExposureHistogramName;

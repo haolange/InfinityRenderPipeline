@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureHandle shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
 
             int lightIndex = allocator.CascadeVisibleLightIndex;
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);

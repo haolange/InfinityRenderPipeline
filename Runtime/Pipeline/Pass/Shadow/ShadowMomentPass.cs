@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
-            RGTextureHandle moments = m_RGScoper.CreateAndRegisterTexture(momentKey, descriptor);
+            RGTextureHandle moments = m_RGBuilder.scoper.CreateAndRegisterTexture(momentKey, descriptor);
 
             using (var passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
             {
@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rects = rects;
                 passData.depthParams = depthParams;
                 passData.momentParams = momentParams;
-                passData.depth = passRef.ReadTexture(m_RGScoper.QueryTexture(depthKey));
+                passData.depth = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(depthKey));
                 passData.moments = passRef.WriteTexture(moments);
                 descriptor.name = name + "BlurTemp";
                 passData.blurTemp = passRef.CreatePassLocalTexture(descriptor);

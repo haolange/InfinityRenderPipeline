@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
             descriptor.name = "Capture_" + semantic;
             descriptor.enableRandomWrite = true;
-            var snapshot = m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
+            var snapshot = m_RGBuilder.scoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
             return new CaptureStageSnapshot { enabled = true, kernel = kernel, width = descriptor.width, height = descriptor.height, texture = pass.WriteTexture(snapshot) };
         }
 
@@ -113,7 +113,7 @@ namespace InfinityTech.Rendering.Pipeline
                 name = "Capture_LightTileMask", dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R32G32B32A32_SFloat, enableRandomWrite = true
             };
-            var destination = m_RGScoper.CreateAndRegisterTexture(id, descriptor);
+            var destination = m_RGBuilder.scoper.CreateAndRegisterTexture(id, descriptor);
             using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
                 ref var data = ref pass.GetPassData();
@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     var key = buffer == "TemporalColorMips" ? InfinityShaderIDs.TemporalColorMipBuffer :
                         buffer == "HiZClosest" ? InfinityShaderIDs.HiZClosestBuffer : InfinityShaderIDs.HiZFurthestBuffer;
-                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(key));
+                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGBuilder.scoper.QueryTexture(key));
                     for (int mip = 0; mip < PyramidMipBatch.MipCount(descriptor.width, descriptor.height); mip++)
                         RecordCaptureTransfer(session, buffer + "_Mip" + mip, key, mip);
                     continue;
@@ -395,7 +395,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecordCaptureTransfer(RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
-            RGTextureHandle source = m_RGScoper.QueryTexture(shaderId);
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(shaderId);
             if (!source.IsValid())
             {
                 throw new InvalidOperationException("Capture source producer is missing: " + semantic);

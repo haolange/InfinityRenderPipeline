@@ -64,47 +64,47 @@ namespace InfinityTech.Rendering.Pipeline
             ComputeKernel kernel = kernels.deferredShading;
             int2 groupCount = new int2(kernel.GroupsX(width), kernel.GroupsY(height));
 
-            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGTextureHandle gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
-            RGTextureHandle gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureHandle gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool hasAO = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusionTexture);
+            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureHandle gBufferA = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureHandle gBufferB = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureHandle gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            bool hasAO = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusionTexture);
             if ((ShouldRecordFeature(EFrameFeature.GTAO) || ShouldRecordFeature(EFrameFeature.RTAO)) && !hasAO)
             {
                 throw new System.InvalidOperationException("InfinityRP: AO is recorded this frame but OcclusionBuffer is not registered.");
             }
 
-            bool hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowTexture);
+            bool hasContactShadow = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowTexture);
             if (ShouldRecordFeature(EFrameFeature.ContactShadow) && !hasContactShadow)
             {
                 throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded this frame but ContactShadowBuffer is not registered.");
             }
-            RGTextureHandle atmosphereGGXPrefilter = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
-            RGBufferHandle atmosphereSkySH = m_RGScoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
+            RGTextureHandle atmosphereGGXPrefilter = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
+            RGBufferHandle atmosphereSkySH = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
 
             var indirectDescriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal)
             { name = "IndirectDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = true };
-            RGTextureHandle indirectDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectDiffuseBuffer, indirectDescriptor);
+            RGTextureHandle indirectDiffuse = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectDiffuseBuffer, indirectDescriptor);
             indirectDescriptor.name = "IndirectSpecular";
-            RGTextureHandle indirectSpecular = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectSpecularBuffer, indirectDescriptor);
+            RGTextureHandle indirectSpecular = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectSpecularBuffer, indirectDescriptor);
 
             m_ActiveFrameState.subsurfaceEnabled = ShouldRecordFeature(EFrameFeature.SubsurfaceScattering);
             RGTextureHandle scatterDiffuse = default;
             if (m_ActiveFrameState.subsurfaceEnabled)
             {
                 indirectDescriptor.name = "ScatterDiffuse";
-                scatterDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
+                scatterDiffuse = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
             }
 
             using (var passRef = m_RGBuilder.AddComputePass<DeferredShadingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDeferredShading)))
             {
                 ref DeferredShadingPassData passData = ref passRef.GetPassData();
-                passData.bakedDiffuse = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedDiffuseBuffer));
-                passData.bakedOcclusion = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
+                passData.bakedDiffuse = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.BakedDiffuseBuffer));
+                passData.bakedOcclusion = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
                 passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
@@ -123,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline
                 LightLoopInputs lightLoop = QueryLightLoop(renderContext);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 ShadowInputs shadows = QueryShadowInputs(renderContext);
                 shadows.Read(passRef);
                 passData.shadows = shadows;
@@ -142,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (hasContactShadow)
                 {
                     passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
-                    passData.contactShadowMask = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
+                    passData.contactShadowMask = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
                 }
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
                 passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);

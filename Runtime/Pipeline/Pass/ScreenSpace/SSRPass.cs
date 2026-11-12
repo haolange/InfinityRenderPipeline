@@ -178,37 +178,37 @@ namespace InfinityTech.Rendering.Pipeline
             bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
             bool runSpatial = settings.spatialPasses > 0;
 
-            RGTextureHandle rayHit = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
+            RGTextureHandle rayHit = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
                 SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
-            RGTextureHandle resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
+            RGTextureHandle resolved = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle hitMean = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitMeanBuffer,
+            RGTextureHandle hitMean = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitMeanBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitMean", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, divisor));
-            RGTextureHandle hitDev = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDevBuffer,
+            RGTextureHandle hitDev = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDevBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDev", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, divisor));
-            RGTextureHandle variance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRVarianceBuffer,
+            RGTextureHandle variance = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRVarianceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
+            RGTextureHandle hitDistance = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
-            RGTextureHandle temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
+            RGTextureHandle temporal = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
+            RGTextureHandle meta = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor));
             RGTextureHandle filtered = runSpatial
-                ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
+                ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
                     SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRFiltered", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor))
                 : temporal;
             if (!runSpatial)
             {
-                m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRFilteredBuffer, filtered);
+                m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSRFilteredBuffer, filtered);
             }
             RGTextureHandle output = filtered;
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, output);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, output);
             RGTextureHandle debug = default;
             if (runDebug)
             {
-                debug = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRDebugBuffer,
+                debug = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRDebugBuffer,
                     SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.DebugName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point));
             }
 
@@ -219,9 +219,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             TextureDescriptor historyVarianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "HistorySSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor);
             RGTextureHandle historyVariance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceDsc, out bool historyVarianceCreated));
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVariance);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVariance);
             bool historyValid = m_ActiveFrameState.acceptedSSR && !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
                 && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
                 && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0
@@ -265,15 +265,15 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
 
-                passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.hiZTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
-                passData.hiZFurthestTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
-                passData.gBufferA = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA));
-                passData.gBufferB = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.hiZTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
+                passData.hiZFurthestTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
+                passData.gBufferA = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA));
+                passData.gBufferB = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 passData.temporalColor = ReadTemporalColorView(passRef, m_ActiveFrameState.temporalColorView);
-                passData.motionMetadata = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
-                passData.motionTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
+                passData.motionMetadata = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                passData.motionTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
                 passData.historyVariance = passRef.ReadTexture(historyVariance);
@@ -287,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
                     && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
                 // A captured classification must outlive this pass for the graph-owned Transfer readback.
                 passData.tileClass = captureTileClass
-                    ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(PassShaderIDs.Capture_SSRTileClass, tileClassDescriptor))
+                    ? passRef.WriteTexture(m_RGBuilder.scoper.CreateAndRegisterTexture(PassShaderIDs.Capture_SSRTileClass, tileClassDescriptor))
                     : passRef.CreatePassLocalTexture(tileClassDescriptor);
 #else
                 passData.tileClass = passRef.CreatePassLocalTexture(tileClassDescriptor);

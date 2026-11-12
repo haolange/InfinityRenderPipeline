@@ -50,7 +50,7 @@ Camera Rendering explains that MSAA, the built-in HDR toggle and command-buffer 
 
 Window > Analysis > Infinity Render Graph Viewer shows the last compiled graph for each camera while the window is open. The window title is Render Graph Viewer. The toolbar selects a graph snapshot, then Pause, Culled, Imported, Unused, a name filter, Copy and Clear.
 
-The summary line shows the frame, pass count, culled count, async count, segment count, resource count and peak alias memory in kibibytes.
+The summary line shows the frame, pass count, culled count, async count, segment count, resource count and the peak bytes of graph resources live at one pass, in kibibytes.
 
 Columns are passes in record order. A header is blue on the graphics queue, orange on async compute, and gray when the pass is culled. The tooltip names the pass, its type, queue, cull state, submission segment, and native-pass group and subpass when the pass was merged. Rows are resources. An imported resource has a dot. A cell is green for a read, red for a write, and yellow for both. A blue band is the pooled lifetime from the allocating pass to the releasing pass.
 

@@ -36,6 +36,10 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Core = new RGCommandCore(commandBuffer, resources);
         }
 
+        // Uploads data a compute pass reads in the same command stream (mesh frustum views).
+        internal void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
+            => m_Core.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
+
         public void SetKeyword(GlobalKeyword keyword, bool value) => m_Core.SetKeyword(keyword, value);
         public void SetKeyword(ComputeShader computeShader, in LocalKeyword keyword, bool value) => m_Core.SetKeyword(computeShader, keyword, value);
 

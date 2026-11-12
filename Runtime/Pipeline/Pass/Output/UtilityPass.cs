@@ -29,11 +29,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterUpscaleDepthForEditorOverlays()
         {
-            RGTextureHandle source = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var dimensions = m_ActiveFrameState.dimensions;
             if (!dimensions.downscaled)
             {
-                m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, source);
+                m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, source);
                 return;
             }
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.name = "DisplayDepthTexture";
             descriptor.sizingDomain = ETextureSizingDomain.Display;
             descriptor.viewDivisor = 1;
-            RGTextureHandle output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
+            RGTextureHandle output = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
             using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUpscaleDepthForEditorOverlays)))
             {
                 pass.SetDepthStencilAttachment(output, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, EDepthAccess.Write);
@@ -66,8 +66,8 @@ namespace InfinityTech.Rendering.Pipeline
         
         void RasterWireOverlay(RenderContext renderContext, Camera camera)
         {
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-            RGTextureHandle colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
+            RGTextureHandle colorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
@@ -104,8 +104,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (Handles.ShouldRenderGizmos())
             {
-                RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-                RGTextureHandle colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+                RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
+                RGTextureHandle colorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
@@ -188,15 +188,15 @@ namespace InfinityTech.Rendering.Pipeline
                     RasterGizmos(renderContext, camera);
                 }
 #endif
-                m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer));
+                m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer));
                 if (plan.uiOverlay)
                 {
-                    RasterUIOverlay(renderContext, camera, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), false);
+                    RasterUIOverlay(renderContext, camera, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), false);
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RecordNormalFrameCapture(camera);
 #endif
-                RasterFinalOutput(camera, decision, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), target, true);
+                RasterFinalOutput(camera, decision, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), target, true);
             }
             else
             {
