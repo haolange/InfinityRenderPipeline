@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sceneColorTexture;
         }
 
-        void ComputeScreenSpaceComposite(RenderContext renderContext, Camera camera)
+        void ComputeScreenSpaceComposite(in CameraRecordContext context)
         {
             bool hasSSR = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureHandle ssrTexture);
             bool hasSSGI = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureHandle ssgiTexture);
@@ -52,8 +52,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
 
             TextureDescriptor compositeDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             compositeDsc.name = ScreenSpaceCompositePassUtilityData.TextureName;
@@ -73,9 +73,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.worldSpaceCameraPos = camera.transform.position;
-                passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
+                passData.hasSubsurface = context.state.subsurfaceEnabled;
                 if (passData.hasSubsurface && hasSSGI)
                 {
                     passData.scatterDiffuse = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);

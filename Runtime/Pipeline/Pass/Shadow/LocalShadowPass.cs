@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults, RGMeshDrawListHandle[] preparedLists)
+        void RasterLocalShadow(in CameraRecordContext context, RGMeshDrawListHandle[] preparedLists)
         {
             int shadowMapResolution = pipelineAsset.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
@@ -131,9 +131,9 @@ namespace InfinityTech.Rendering.Pipeline
                     lastRecord = local.recordIndex;
                     lightCount++;
                     production = m_LocalShadowCache.NextProduction();
-                    Light groupLight = cullingResults.visibleLights[local.visibleLightIndex].light;
+                    Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
                     cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
-                        MeshView.SceneCullingMaskFor(camera), local.isSpot ? 1 : 6, frame);
+                        MeshView.SceneCullingMaskFor(context.camera), local.isSpot ? 1 : 6, frame);
                 }
 
                 if (!local.valid)
@@ -142,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 int lightIdx = local.visibleLightIndex;
-                VisibleLight visibleLight = cullingResults.visibleLights[lightIdx];
+                VisibleLight visibleLight = context.cullingResults.visibleLights[lightIdx];
                 Light shadowLight = visibleLight.light;
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
@@ -151,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
-                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
+                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(context.camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && cacheRender[slice])
@@ -171,15 +171,15 @@ namespace InfinityTech.Rendering.Pipeline
                     sliceMeshDrawLists[slice] = preparedLists[slice];
                 else
                 {
-                    sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(visibleLight, local, camera), InfinityPassIDs.RasterShadowPass));
+                    sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(context, visibleLight, local), InfinityPassIDs.RasterShadowPass));
                     m_RGBuilder.PrepareMeshDrawList(sliceMeshDrawLists[slice]);
                 }
 
-                if (!cullingResults.GetShadowCasterBounds(lightIdx, out _))
+                if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {
                     continue;
                 }
-                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
+                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(context.cullingResults, lightIdx);
                 shadowDrawingSettings.useRenderingLayerMaskTest = true;
                 shadowDrawingSettings.splitIndex = local.face;
                 shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
@@ -196,8 +196,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
                     passData.shadowMapResolution = shadowMapResolution;
-                    passData.cameraViewProj = m_CameraUniform.matrix_ViewProj;
-                    passData.cameraViewFlipYProj = m_CameraUniform.matrix_ViewFlipYProj;
+                    passData.cameraViewProj = context.cameraUniform.matrix_ViewProj;
+                    passData.cameraViewFlipYProj = context.cameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;

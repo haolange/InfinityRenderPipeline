@@ -47,29 +47,29 @@ namespace InfinityTech.Rendering.Pipeline
             => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R32_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
 
-        void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
+        void ComputeAntiAliasing(in CameraRecordContext context)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
+            context.features.ThrowIfCannotProduce(EFrameFeature.TAA);
             var depthSource = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var depthDescription = m_RGBuilder.GetTextureDescriptor(depthSource);
             int width = depthDescription.width, height = depthDescription.height;
             var colorDescriptor = TemporalColorDescriptor(width, height, "HistoryColorTexture", true);
             var depthDescriptor = TemporalDepthDescriptor(width, height, "HistoryDepthTexture", true);
-            var historyColor = m_RGBuilder.ImportTexture(history.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, out bool colorCreated));
-            var historyDepth = m_RGBuilder.ImportTexture(history.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, out bool depthCreated));
+            var historyColor = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, out bool colorCreated));
+            var historyDepth = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, out bool depthCreated));
             var writeColor = TemporalColorDescriptor(width, height, "HistoryColorTexture", true);
             var writeDepth = TemporalDepthDescriptor(width, height, "HistoryDepthTexture", true);
             // Both sides of the ping-pong history have identical physical usage flags.
-            var accumulation = m_RGBuilder.ImportTexture(history.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, writeColor));
-            var temporalDepth = m_RGBuilder.ImportTexture(history.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, writeDepth));
+            var accumulation = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, writeColor));
+            var temporalDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, writeDepth));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, accumulation);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAADepthBuffer, temporalDepth);
-            history.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
-            history.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
+            context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
+            context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
             var sharpened = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
             m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
             var input = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None;
+            bool diagnostics = context.debugView != EDebugView.None;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             diagnostics |= RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence;
 #endif
@@ -90,12 +90,12 @@ namespace InfinityTech.Rendering.Pipeline
                 data.kernel = temporalKernel.index;
                 data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
                 data.resolution = new Vector4(width, height, 1f / width, 1f / height);
-                data.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
-                data.jitter = new Vector4(currentJitter.x, currentJitter.y, uniform.previousJitterUV.x, uniform.previousJitterUV.y);
-                data.historyValid = !uniform.historyReset && !colorCreated && !depthCreated
-                    && history.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0
-                    && history.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
+                data.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+                Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(context.cameraUniform.matrix_FlipYJitterProj, context.cameraUniform.matrix_FlipYProj);
+                data.jitter = new Vector4(currentJitter.x, currentJitter.y, context.cameraUniform.previousJitterUV.x, context.cameraUniform.previousJitterUV.y);
+                data.historyValid = !context.cameraUniform.historyReset && !colorCreated && !depthCreated
+                    && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0
+                    && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
                 data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
@@ -146,7 +146,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.DispatchCompute(shader, kernel, data.groups.x, data.groups.y, 1);
                 });
             }
-            MarkFeatureProduced(EFrameFeature.TAA);
+            context.features.MarkProduced(EFrameFeature.TAA);
         }
     }
 }

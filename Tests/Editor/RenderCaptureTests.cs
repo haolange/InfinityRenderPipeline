@@ -14,6 +14,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderCaptureTests
     {
+        static CameraSetup Setup(Camera camera, CameraFrameState state) => new CameraSetup(camera, state,
+            CameraRenderPolicy.For(camera.cameraType), default, default, true, true, EDebugView.None, default, default);
+
         static RenderCaptureRequest Request(string directory) => new RenderCaptureRequest
         {
             outputDirectory = directory, fixture = "CaptureLifecycle", scene = "NoMatchingScene",
@@ -107,9 +110,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var target = new RenderTexture(1, 1, 0);
             target.Create();
             camera.targetTexture = target;
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var historyPool = new ResourcePool();
@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(camera, state, asset);
+                session.PrepareCamera(Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -160,7 +160,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(asset); UnityEngine.Object.DestroyImmediate(profile);
                 UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
                 if (Directory.Exists(directory)) Directory.Delete(directory, true);
             }
@@ -181,9 +180,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var target = new RenderTexture(1, 1, 0);
             target.Create();
             camera.targetTexture = target;
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var historyPool = new ResourcePool();
@@ -196,7 +192,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(camera, state, asset);
+                session.PrepareCamera(Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -240,7 +236,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(asset); UnityEngine.Object.DestroyImmediate(profile);
                 UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
                 if (Directory.Exists(directory)) Directory.Delete(directory, true);
             }
@@ -259,9 +254,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var target = new RenderTexture(1, 1, 0);
             target.Create();
             camera.targetTexture = target;
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var historyPool = new ResourcePool();
@@ -274,7 +266,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(camera, state, asset);
+                session.PrepareCamera(Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -299,7 +291,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(asset); UnityEngine.Object.DestroyImmediate(profile);
                 UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
                 if (Directory.Exists(directory)) Directory.Delete(directory, true);
             }

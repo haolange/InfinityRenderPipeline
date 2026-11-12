@@ -18,11 +18,10 @@ namespace InfinityTech.Rendering.Pipeline
         public FrameFeatureSet features;
         public int lastSeenFrame;
         public CameraType cameraType;
-        public CameraDimensionDescriptor dimensions;
+        // Dimensions of the last prepared frame. PrepareCamera resets history when this frame's differ.
+        public CameraDimensionDescriptor preparedDimensions;
         internal readonly TextureCapacityState internalCapacity = new TextureCapacityState();
         internal readonly TextureCapacityState displayCapacity = new TextureCapacityState();
-        public bool postProcessingEnabled = true;
-        public bool sceneLightingEnabled = true;
         public AtmosphereViewCache atmosphereViewCache;
         public CombineLutCache combineLutCache;
         public bool executeSucceeded;
@@ -30,10 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
         public bool loggedOutputDecision;
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
-        public CameraRenderPolicy renderPolicy;
-        public ResolvedFrameSettings frameSettings;
-        // Debug view of this camera this frame (InfinityDebugDisplaySettings.ResolveDebugView).
-        public EDebugView debugView;
         internal bool acceptedHiZ;
         internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
         internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;

@@ -41,9 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
                 filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
             };
 
-        void ComputeHiZ(RenderContext renderContext, Camera camera)
+        void ComputeHiZ(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.HiZ))
+            if (!context.features.ShouldRecord(EFrameFeature.HiZ))
             {
                 return;
             }
@@ -51,12 +51,12 @@ namespace InfinityTech.Rendering.Pipeline
             var size = m_RGBuilder.GetTextureDescriptor(depth);
             var closest = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HiZClosestBuffer, HiZDescriptor(size.width, size.height, "HiZClosest"));
             var descriptor = HiZDescriptor(size.width, size.height, "HiZFurthest");
-            var history = m_ActiveFrameState.historyCache;
+            var history = context.historyCache;
             var furthest = m_RGBuilder.ImportTexture(history.GetWriteTexture(HiZPassUtilityData.HistoryFurthest, descriptor));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HiZFurthestBuffer, furthest);
             history.MarkProduced(HiZPassUtilityData.HistoryFurthest);
             RecordHiZ(depth, closest, furthest, size.width, size.height, true, ProfilingSampler.Get(CustomSamplerId.ComputeHiZ));
-            MarkFeatureProduced(EFrameFeature.HiZ);
+            context.features.MarkProduced(EFrameFeature.HiZ);
         }
 
         RGTextureHandle ComputeEarlyFurthestHiZ()

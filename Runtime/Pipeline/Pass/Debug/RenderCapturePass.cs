@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
-        void RecordLightingCapture()
+        void RecordLightingCapture(in CameraRecordContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, "Lighting") < 0)
@@ -82,14 +82,14 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             // Capture the final opaque lighting before ownership moves to scene-color stages.
-            RecordCaptureTransfer(session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RecordCaptureTransfer(context, session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
 
-        void RecordDeferredLightingCapture()
+        void RecordDeferredLightingCapture(in CameraRecordContext context)
         {
             var session = RenderCaptureService.current;
             if (session != null && session.CaptureThisFrame && Array.IndexOf(session.request.buffers, "DeferredLighting") >= 0)
-                RecordCaptureTransfer(session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
+                RecordCaptureTransfer(context, session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
         }
 
         struct CaptureLightMaskPassData
@@ -103,10 +103,10 @@ namespace InfinityTech.Rendering.Pipeline
         int RecordLightMaskCapture()
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
-            var context = renderContext.lightContext;
-            bool local = context.HasLocalLightList();
-            int width = local ? context.TileCount.x * context.TileWordCount : 1;
-            int height = local ? context.TileCount.y : 1;
+            var lightContext = renderContext.lightContext;
+            bool local = lightContext.HasLocalLightList();
+            int width = local ? lightContext.TileCount.x * lightContext.TileWordCount : 1;
+            int height = local ? lightContext.TileCount.y : 1;
             int id = RenderCapturePassUtilityData.Capture_LightTileMaskID;
             var descriptor = new TextureDescriptor(width, height)
             {
@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
                 ref var data = ref pass.GetPassData();
-                data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
+                data.source = pass.ReadBuffer(QueryLightLoop().tileMasks);
                 data.destination = pass.WriteTexture(destination);
                 data.kernel = kernel;
                 data.width = width;
@@ -135,7 +135,7 @@ namespace InfinityTech.Rendering.Pipeline
             return id;
         }
 
-        void RecordNormalFrameCapture(Camera camera)
+        void RecordNormalFrameCapture(in CameraRecordContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame)
@@ -158,14 +158,14 @@ namespace InfinityTech.Rendering.Pipeline
                         buffer == "HiZClosest" ? InfinityShaderIDs.HiZClosestBuffer : InfinityShaderIDs.HiZFurthestBuffer;
                     var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGBuilder.scoper.QueryTexture(key));
                     for (int mip = 0; mip < PyramidMipBatch.MipCount(descriptor.width, descriptor.height); mip++)
-                        RecordCaptureTransfer(session, buffer + "_Mip" + mip, key, mip);
+                        RecordCaptureTransfer(context, session, buffer + "_Mip" + mip, key, mip);
                     continue;
                 }
                 int id;
                 switch (buffer)
                 {
                     case "TemporalColorSource": case "TemporalColorDepth":
-                        if (!m_ActiveFrameState.temporalColorView.valid)
+                        if (!context.state.temporalColorView.valid)
                             throw new InvalidOperationException("Temporal color source capture requires an accepted history.");
                         id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
                         break;
@@ -322,10 +322,10 @@ namespace InfinityTech.Rendering.Pipeline
                     default:
                         throw new InvalidOperationException("Unknown capture buffer: " + buffer);
                 }
-                RecordCaptureTransfer(session, buffer, id);
+                RecordCaptureTransfer(context, session, buffer, id);
             }
             if (session.request.includeConfidence)
-                RecordCaptureTransfer(session, "TAAConfidence", InfinityShaderIDs.TAAConfidenceBuffer);
+                RecordCaptureTransfer(context, session, "TAAConfidence", InfinityShaderIDs.TAAConfidenceBuffer);
         }
 
         struct CaptureDepthPassData
@@ -393,7 +393,7 @@ namespace InfinityTech.Rendering.Pipeline
             return destination;
         }
 
-        void RecordCaptureTransfer(RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
+        void RecordCaptureTransfer(in CameraRecordContext context, RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
             RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(shaderId);
             if (!source.IsValid())
@@ -420,7 +420,7 @@ namespace InfinityTech.Rendering.Pipeline
                 source = ConvertCaptureMetadata(source, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(source);
             }
-            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, m_CameraUniform.historyReset);
+            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.cameraUniform.historyReset);
             staging.evidence.sourceQueue = sourceQueue;
             // External contents predate this graph; their production frame is unknown to this capture.
             if (sourceQueue == "External")

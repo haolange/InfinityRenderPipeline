@@ -105,15 +105,15 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeColorPyramid(RenderContext renderContext, Camera camera)
+        void ComputeColorPyramid(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ColorPyramid))
+            if (!context.features.ShouldRecord(EFrameFeature.ColorPyramid))
             {
                 return;
             }
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             int mipCount = PyramidMipBatch.MipCount(width, height);
 
             TextureDescriptor colorPyramidDsc = CreateColorPyramidDescriptor(width, height, ColorPyramidPassUtilityData.TextureName);
@@ -137,7 +137,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.ColorPyramid);
+            context.features.MarkProduced(EFrameFeature.ColorPyramid);
         }
     }
 }

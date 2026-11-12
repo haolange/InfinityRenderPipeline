@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.Pipeline
             public CombineLutParameterDescriptor combineLutParameterDescriptor;
         }
 
-        void ComputeCombineLuts(CameraFrameState frameState, in CombineLutParameterDescriptor combineLutParameterDescriptor)
+        void ComputeCombineLuts(in CameraRecordContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
             TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32);
             combineLookupTextureDescriptor.dimension = TextureDimension.Tex3D;
@@ -241,7 +241,7 @@ namespace InfinityTech.Rendering.Pipeline
             combineLookupTextureDescriptor.filterMode = FilterMode.Trilinear;
             combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
 
-            frameState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
+            context.state.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
             RGTextureHandle combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
 
@@ -321,7 +321,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            frameState.combineLutCache.MarkProduced();
+            context.state.combineLutCache.MarkProduced();
         }
     }
 }

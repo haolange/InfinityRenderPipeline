@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        ShadowInputs QueryShadowInputs(RenderContext renderContext)
+        ShadowInputs QueryShadowInputs()
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();

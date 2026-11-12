@@ -85,22 +85,22 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricCloud(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeVolumetricCloud(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.VolumetricCloud))
+            if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {
                 return;
             }
 
-            var volCloud = ActiveVolumeStack.GetComponent<VolumetricCloud>();
+            var volCloud = context.volumeStack.GetComponent<VolumetricCloud>();
             if (!VolumeComponentActive(volCloud))
             {
                 return;
             }
             VolumetricCloudSettings cloud = volCloud.Resolve();
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             int cloudWidth = Mathf.Max(1, width >> 1);
             int cloudHeight = Mathf.Max(1, height >> 1);
 
@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle volumetricCloudTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricCloudBuffer, volumetricCloudDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, out bool historyCreated));
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, out bool historyCreated));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyTexture);
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -130,20 +130,20 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = cloud.ambientIntensity;
                 passData.numPrimarySteps = cloud.numPrimarySteps;
                 passData.numLightSteps = cloud.numLightSteps;
-                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : cloud.temporalWeight;
+                passData.temporalWeight = (context.cameraUniform.historyReset || historyCreated) ? 0.0f : cloud.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
-                passData.nearPlane = camera.nearClipPlane;
-                passData.farPlane = camera.farClipPlane;
+                passData.nearPlane = context.camera.nearClipPlane;
+                passData.farPlane = context.camera.farClipPlane;
                 passData.planetRadius = atmosphereParameter.planetRadius;
                 passData.atmosphereHeight = atmosphereParameter.atmosphereHeight;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.worldSpaceCameraPos = camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
+                LightLoopInputs lightLoop = QueryLightLoop();
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs(renderContext);
+                ShadowInputs shadows = QueryShadowInputs();
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -191,7 +191,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.VolumetricCloud);
+            context.features.MarkProduced(EFrameFeature.VolumetricCloud);
         }
 
         struct CopyHistoryVolumetricCloudPassData
@@ -200,18 +200,18 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle history;
         }
 
-        void CopyHistoryVolumetricCloud(HistoryCache historyCache, Camera camera)
+        void CopyHistoryVolumetricCloud(in CameraRecordContext context)
         {
             if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle source))
             {
                 return;
             }
 
-            int cloudWidth = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.x >> 1);
-            int cloudHeight = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.y >> 1);
+            int cloudWidth = Mathf.Max(1, context.dimensions.internalSize.x >> 1);
+            int cloudHeight = Mathf.Max(1, context.dimensions.internalSize.y >> 1);
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
-            historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricCloudBuffer);
+            RGTextureHandle history = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
+            context.historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricCloudBuffer);
 
             using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricCloud)))
             {

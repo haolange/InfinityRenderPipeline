@@ -36,16 +36,16 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle occlusionTexture;
         }
 
-        void TraceOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void TraceOcclusion(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.RTAO))
+            if (!context.features.ShouldRecord(EFrameFeature.RTAO))
             {
                 InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
                 InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;
                 return;
             }
 
-            RayTracingAmbientOcclusion settings = ActiveVolumeStack.GetComponent<RayTracingAmbientOcclusion>();
+            RayTracingAmbientOcclusion settings = context.volumeStack.GetComponent<RayTracingAmbientOcclusion>();
             if (!VolumeComponentActive(settings))
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is marked to produce but the Volume is inactive.");
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: RTAO is active but UnifiedRayTracing accel/shader is not ready: " + InfinityRayTracingEnvironment.lastBlockReason);
             }
 
-            TextureDescriptor occlusionDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            TextureDescriptor occlusionDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             occlusionDsc.name = RTAOPassUtilityData.OcclusionTextureName;
             occlusionDsc.dimension = TextureDimension.Tex2D;
             occlusionDsc.colorFormat = GraphicsFormat.R16_SFloat;
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
                 ref RTAOPassData passData = ref passRef.GetPassData();
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+                passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 RTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;
                 passData.radius = resolved.radius;
@@ -81,11 +81,11 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passRef.SetQueueObserver(env);
                 }
-                passData.invView = m_CameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.invView = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.shader = env.Shader;
                 passData.accel = env.Accel;
                 passData.buildScratch = env.PrepareBuildScratch();
-                passData.traceScratch = env.PrepareTraceScratch((uint)m_ActiveFrameState.dimensions.internalSize.x, (uint)m_ActiveFrameState.dimensions.internalSize.y);
+                passData.traceScratch = env.PrepareTraceScratch((uint)context.dimensions.internalSize.x, (uint)context.dimensions.internalSize.y);
                 passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
                 passData.normalTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.RTAO);
+            context.features.MarkProduced(EFrameFeature.RTAO);
         }
     }
 }

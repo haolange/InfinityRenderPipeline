@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
     internal abstract class PipelineFrameObserver
     {
         internal virtual void BeginFrame(List<Camera> cameras) { }
-        internal virtual void BeforeCamera(Camera camera, CameraFrameState state, InfinityRenderPipelineAsset asset) { }
+        internal virtual void BeforeCamera(in CameraSetup setup) { }
         internal virtual void AfterCamera(Camera camera, bool executed, Exception error) { }
         internal virtual bool LocksHistoryReset(Camera camera) => false;
 
@@ -74,12 +74,12 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal static void BeforeCamera(Camera camera, CameraFrameState state, InfinityRenderPipelineAsset asset)
+        internal static void BeforeCamera(in CameraSetup setup)
         {
-            RenderCaptureService.current?.PrepareCamera(camera, state, asset);
+            RenderCaptureService.current?.PrepareCamera(setup);
             for (int i = 0; i < s_Observers.Count; ++i)
             {
-                s_Observers[i].BeforeCamera(camera, state, asset);
+                s_Observers[i].BeforeCamera(setup);
             }
         }
 

@@ -63,21 +63,21 @@ The Editor discovers Volume types by reflection. A Player builds its registry fr
 
 ## 4. Camera frame
 
-`Render(ScriptableRenderContext, List<Camera>)` is the frame entry. `EPipelineProfileId.RecordRG` is a profiler label around the recording block in `InfinityRenderPipeline.Render`. It is not a method.
+`Render(ScriptableRenderContext, List<Camera>)` is the frame entry; `RenderCamera` runs one camera in four stages. `PrepareCamera` returns a `CameraSetup` holding every decision that does not need culling: render policy, frame settings, dimensions and history reset, the volume update, camera uniforms, debug view, output transform, and the requested features with their support context. `CullCamera` runs Unity camera setup and culling, mesh and terrain LOD, `LightContext.Build` and atlas resolution, and returns a `CameraScene`. `RecordCamera` records the pass list below from a `CameraRecordContext` built from both. `m_RGBuilder.Execute` runs it. `EPipelineProfileId.RecordRG` and `ExecuteRG` are profiler labels around the last two stages.
 
-Before that block the camera updates volumes, resolves frame features, culls, and builds `LightContext`. `ConfigureFrameFeatures` runs from the asset, the camera and the active volumes. `ConfigureContentFeatures` runs after `LightContext.Build` and decides tile masks, moment shadows, atlas updates and contact shadows from the collected lights.
+`ConfigureFrameFeatures` runs inside `PrepareCamera` from the asset, the camera and the active volumes. `ConfigureContentFeatures` runs after `LightContext.Build` and decides tile masks, moment shadows, atlas updates and contact shadows from the collected lights.
 
 Recording order, with the gate that skips a step:
 
 1. **Frame constants.** `UploadLightData`, `ComputeLightCookies`, `ComputeReflectionProbes`, `ComputeCombineLuts`, `ComputeAtmosphericLUT`, `ComputeTemporalColorPyramid`. Cookies, probes and the color pyramid record only when their feature is enabled. The atmosphere lookup requires `atmosphericalProfile`.
 2. **Geometry.** `PrepareMeshOcclusion` when temporal rendering, Hi-Z, GPU indirect drawing, live instances and a valid Hi-Z history are all present. Then `RecordMeshGpuCulls`, the frustum culling pass, and the upload and compaction for the depth and shadow lists. Then `RasterDepth`. When a second occlusion stage exists, recovery culling and the remaining lists' preparation sit before `RasterDepthRecovery`. Optional `RasterDBuffer` when the world contains decals, then `RasterGBuffer`, `RasterMotion`.
 3. **Depth-derived work.** `ComputeHiZ`, `ComputeHalfResDownsample`, `ComputeLightTileMask` when a local light list exists, ray-traced or ground-truth occlusion, `ComputeContactShadow`. When the device supports async compute, screen-space reflection and screen-space indirect diffuse record here.
-4. **Shadows.** `RecordAllocatedShadowCasterSplits`, `FlushShadowCasterCulling`, `RasterCascadeShadow`, `RasterLocalShadow`, `ComputeShadowMoments` when a moment filter is in use.
+4. **Shadows.** `CullShadowCasters` (the camera's allocated cascade and local splits, sorted by light, in one Unity `CullShadowCasters` call), `RasterCascadeShadow`, `RasterLocalShadow`, `ComputeShadowMoments` when a moment filter is in use.
 5. **Lighting.** `ComputeDeferredShading`, optional deferred-lighting capture, `RasterForward`. Without async compute, reflection and indirect diffuse record here. Then `ComputeScreenSpaceComposite`, `ResolveOpaqueSceneColor`, `CopyHistorySSR`, `CopyHistorySSGI`, `ComputeBurleySubsurface`, `ComputeAtmosphericSkyAndFog`, optional lighting capture.
 6. **Translucency.** `RasterTranslucentDepth`, volumetric cloud and its history copy, volumetric fog and its history copy, `ComputeFogComposite`, `ResolveFoggedSceneColor`, translucent T0, `ComputeColorPyramid`, translucent T1, translucent T2.
 7. **Temporal resolve and output.** `ComputeSuperResolution` when the camera policy is temporal and super resolution is active; otherwise `ComputeAntiAliasing` when the policy is temporal. Preview cameras are not temporal. Then `RecordCameraOutput`.
 
-`m_RGBuilder.Execute` runs under the `ExecuteRG` profiler label. Draw-list release is paired with execution. A camera exception rolls the frame state back, discards unproduced shared reservations, and preserves the first exception. Queue-accepted work is still submitted. Physical retirement runs after a successful submit and a known completion fence.
+Draw-list release is paired with execution. A camera exception rolls the frame state back, discards unproduced shared reservations, and preserves the first exception. Queue-accepted work is still submitted. Physical retirement runs after a successful submit and a known completion fence.
 
 Async eligibility is a queue assignment. It is not a measurement of overlap. The current Metal validation host reports no async compute support. Early occlusion recovery and late shading, subsurface, temporal resolve and post stay on the graphics queue because their inputs are the surrounding raster work.
 
@@ -85,6 +85,7 @@ Async eligibility is a queue assignment. It is not a measurement of overlap. The
 
 - Compute kernels (index and thread-group size), compute local keywords and blit shader pass indices are resolved once into `PipelineKernels` and `BlitShaderPasses` when `InfinityRenderPipelineResources` loads, and again in the first frame after an Editor import of a shader or compute shader. `FeatureRegistry` evaluates each feature's kernels and textures at that moment; per camera it adds only temporal, diffusion-profile and RTAO support. A kernel no feature gates, and every blit pass, is required: resolution throws.
 - Volume, asset and dependency configuration run before culling. Recording that depends on scene content is decided after `LightContext.Build`.
+- Per-camera inputs reach a pass only through `CameraRecordContext`, taken by `in` and never stored; no pipeline field holds the active camera. World data comes from the pipeline-wide `renderContext` field, never from a parameter of the same name. The mesh view is passed explicitly, because occlusion preparation replaces it during recording.
 - A missing volume or a disabled optional feature skips recording; so does an optional feature whose kernel is missing, with its reason in the Rendering Debugger. A pass that records trusts the tables: it neither looks a kernel up by name nor checks it again. Lighting, active temporal anti-aliasing and display throw at record when their contract is broken. Execute never contains `if (shader == null) return`.
 - History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer.
 

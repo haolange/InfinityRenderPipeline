@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void ComputeAtmosphericLUT(RenderContext renderContext, Camera camera)
+        void ComputeAtmosphericLUT(in CameraRecordContext context)
         {
             if (pipelineAsset.atmosphericalProfile == null)
             {
@@ -209,7 +209,7 @@ namespace InfinityTech.Rendering.Pipeline
             parameter.ThrowIfInvalid();
 
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
-            Vector3 cameraPosition = camera.transform.position;
+            Vector3 cameraPosition = context.camera.transform.position;
             AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, cameraPosition);
             AtmosphereIBLKey iblKey = AtmosphereIBLKey.Create(parameter, (Vector3)sunDirection);
 
@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.Pipeline
             shDsc.name = AtmosphericLUTPassUtilityData.SkySHName;
 
             m_AtmosphereSharedCache.ResolveShared(parameter, transmittanceDsc, multiScatterDsc, out TextureHandle transmittanceHandle, out TextureHandle multiScatterHandle, out bool sharedHit);
-            m_ActiveFrameState.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
+            context.state.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
             m_AtmosphereSharedCache.ResolveIBL(iblKey, cubemapDsc, prefilterDsc, shDsc, out TextureHandle cubemapHandle, out TextureHandle prefilterHandle, out BufferHandle shHandle, out bool iblHit);
 
             RGTextureHandle transmittanceLUT = m_RGBuilder.ImportTexture(transmittanceHandle);
@@ -276,14 +276,14 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {
                 passRef.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
-                    view = m_ActiveFrameState.atmosphereViewCache, generateShared = generateShared,
+                    view = context.state.atmosphereViewCache, generateShared = generateShared,
                     generateView = generateView, generateIBL = generateIBL });
                 ref AtmosphericLUTPassData passData = ref passRef.GetPassData();
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
                 passData.worldSpaceCameraPos = cameraPosition;
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(context.camera);
                 passData.generateShared = generateShared ? 1 : 0;
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;

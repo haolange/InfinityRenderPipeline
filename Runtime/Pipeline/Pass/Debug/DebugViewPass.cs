@@ -43,9 +43,9 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle postProcessTexture;
         }
 
-        void ComputeDebugView(RenderContext renderContext, Camera camera)
+        void ComputeDebugView(in CameraRecordContext context)
         {
-            EDebugView view = m_ActiveFrameState.debugView;
+            EDebugView view = context.debugView;
             if (view == EDebugView.None)
             {
                 return;
@@ -229,21 +229,13 @@ namespace InfinityTech.Rendering.Pipeline
                     break;
                 case EDebugView.LightComplexity:
                 case EDebugView.ReflectionProbeComplexity:
-                    if (renderContext?.lightContext != null)
-                    {
-                        debugKernel = kernels.debugViewLightLoop;
-                        bindSet = 6;
-                        needLightLoop = true;
-                        parameters.y = Mathf.Max(1, lightingDebug.complexityRange);
-                    }
-                    else
-                    {
-                        debugKernel = kernels.debugViewMissing;
-                        bindSet = 4;
-                    }
+                    debugKernel = kernels.debugViewLightLoop;
+                    bindSet = 6;
+                    needLightLoop = true;
+                    parameters.y = Mathf.Max(1, lightingDebug.complexityRange);
                     break;
                 case EDebugView.ReflectionProbeAtlas:
-                    int probeCount = renderContext?.lightContext != null ? renderContext.lightContext.ReflectionProbeCount : 0;
+                    int probeCount = renderContext.lightContext.ReflectionProbeCount;
                     if (probeCount > 0 && m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out optionalTexture))
                     {
                         debugKernel = kernels.debugViewProbeAtlas;
@@ -272,12 +264,12 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
                 ref DebugViewPassData passData = ref passRef.GetPassData();
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
+                passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
                 passData.mode = (int)view;
                 passData.kernel = debugKernel;
                 passData.bindSet = bindSet;
                 passData.parameters = parameters;
-                passData.invProj = m_CameraUniform.matrix_InvFlipYJitterProj;
+                passData.invProj = context.cameraUniform.matrix_InvFlipYJitterProj;
                 passData.debugViewShader = shaders.debugViewShader;
                 if (needGBuffer)
                 {
@@ -303,7 +295,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (needLightLoop)
                 {
-                    LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                    LightLoopInputs lightLoop = QueryLightLoop();
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                     passData.depthTexture = passRef.ReadTexture(depthTexture);

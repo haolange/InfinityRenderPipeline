@@ -126,23 +126,23 @@ namespace InfinityTech.Rendering.Pipeline
             public float highPercentile;
         }
 
-        void RasterPostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision, in OutputPlan plan, RGTextureHandle target)
+        void RasterPostProcessing(in CameraRecordContext context, in OutputPlan plan, RGTextureHandle target)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
+            context.features.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
             RGTextureHandle sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
 
-            if (!frameState.postProcessingEnabled)
+            if (!context.postProcessingEnabled)
             {
                 if (plan.linearIntermediate)
                 {
                     // Only writers need an independent texture; a read-only capture can alias the source.
-                    if (frameState.debugView == EDebugView.None && (plan.editorDepth || plan.uiOverlay))
+                    if (context.debugView == EDebugView.None && (plan.editorDepth || plan.uiOverlay))
                     {
                         var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
                         descriptor.name = "PostProcessTexture";
                         var output = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
-                        RasterFinalOutput(camera, decision, sceneColorTexture, output, false);
+                        RasterFinalOutput(context, sceneColorTexture, output, false);
                     }
                     else
                     {
@@ -151,9 +151,9 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 else
                 {
-                    RasterFinalOutput(camera, decision, sceneColorTexture, target, true);
+                    RasterFinalOutput(context, sceneColorTexture, target, true);
                 }
-                MarkFeatureProduced(EFrameFeature.PostProcess);
+                context.features.MarkProduced(EFrameFeature.PostProcess);
                 return;
             }
 
@@ -162,10 +162,10 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: PostProcess requires CombineLookupTexture.");
             }
 
-            PostVolumeState volumes = ResolvePostVolumeState(frameState);
+            PostVolumeState volumes = ResolvePostVolumeState(context);
 
-            int width = m_ActiveFrameState.dimensions.displaySize.x;
-            int height = m_ActiveFrameState.dimensions.displaySize.y;
+            int width = context.dimensions.displaySize.x;
+            int height = context.dimensions.displaySize.y;
 
             TextureDescriptor postProcessDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             postProcessDsc.name = PostProcessingPassUtilityData.TextureName;
@@ -201,32 +201,32 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 if (volumes.recordAutoExposure)
                 {
-                    exposureEV = ComputeAutoExposure(camera, frameState, sceneColorTexture, volumes);
+                    exposureEV = ComputeAutoExposure(context, sceneColorTexture, volumes);
                 }
                 else
                 {
-                    exposureEV = ImportIdleExposureEV(frameState);
+                    exposureEV = ImportIdleExposureEV(context);
                 }
 
                 if (volumes.bloomIntensity > 0)
-                    ComputeBloom(camera, sceneColorTexture, bloomTexture, exposureEV, volumes);
-                RasterPostCombine(camera, sceneColorTexture, bloomTexture, combineLUT, exposureEV, postProcessTexture, volumes, decision, !plan.linearIntermediate);
+                    ComputeBloom(context, sceneColorTexture, bloomTexture, exposureEV, volumes);
+                RasterPostCombine(context, sceneColorTexture, bloomTexture, combineLUT, exposureEV, postProcessTexture, volumes, !plan.linearIntermediate);
             }
 
-            MarkFeatureProduced(EFrameFeature.PostProcess);
+            context.features.MarkProduced(EFrameFeature.PostProcess);
         }
 
-        static PostVolumeState ResolvePostVolumeState(CameraFrameState frameState)
+        static PostVolumeState ResolvePostVolumeState(in CameraRecordContext context)
         {
-            VolumeStack stack = frameState.volumeStack;
+            VolumeStack stack = context.volumeStack;
             Exposure exposure = stack.GetComponent<Exposure>();
             Bloom bloom = stack.GetComponent<Bloom>();
             Vignette vignette = stack.GetComponent<Vignette>();
             FilmGrain filmGrain = stack.GetComponent<FilmGrain>();
 
             PostVolumeState state = default;
-            state.recordAutoExposure = frameState.sceneLightingEnabled && ExposureUtility.ShouldRecordAuto(exposure);
-            state.exposureMultiplier = frameState.sceneLightingEnabled ? ExposureUtility.ResolveMultiplier(exposure) : 1;
+            state.recordAutoExposure = context.sceneLightingEnabled && ExposureUtility.ShouldRecordAuto(exposure);
+            state.exposureMultiplier = context.sceneLightingEnabled ? ExposureUtility.ResolveMultiplier(exposure) : 1;
             state.autoExposure = state.recordAutoExposure ? 1.0f : 0.0f;
             if (state.recordAutoExposure)
             {
@@ -270,21 +270,21 @@ namespace InfinityTech.Rendering.Pipeline
             return evDsc;
         }
 
-        RGTextureHandle ImportIdleExposureEV(CameraFrameState frameState)
+        RGTextureHandle ImportIdleExposureEV(in CameraRecordContext context)
         {
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
-            TextureHandle evRead = frameState.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
+            TextureHandle evRead = context.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
             RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureRead);
             return exposureRead;
         }
 
-        RGTextureHandle ComputeAutoExposure(Camera camera, CameraFrameState frameState, in RGTextureHandle sceneColorTexture, in PostVolumeState volumes)
+        RGTextureHandle ComputeAutoExposure(in CameraRecordContext context, in RGTextureHandle sceneColorTexture, in PostVolumeState volumes)
         {
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
 
-            TextureHandle evWrite = frameState.historyCache.GetWriteTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
-            TextureHandle evRead = frameState.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc, out bool created);
+            TextureHandle evWrite = context.historyCache.GetWriteTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
+            TextureHandle evRead = context.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc, out bool created);
             RGTextureHandle exposureWrite = m_RGBuilder.ImportTexture(evWrite);
             RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureWrite);
@@ -302,7 +302,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.exposureClear = kernels.exposureClear;
                 passData.exposureHistogram = kernels.exposureHistogram;
                 passData.exposureReduce = kernels.exposureReduce;
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
+                passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
                 passData.lowPercentile = volumes.lowPercentile;
                 passData.highPercentile = volumes.highPercentile;
                 passData.adapt = adapt;
@@ -348,18 +348,18 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            frameState.historyCache.MarkProduced(InfinityShaderIDs.ExposureEVBuffer);
+            context.historyCache.MarkProduced(InfinityShaderIDs.ExposureEVBuffer);
             return exposureWrite;
         }
 
-        void ComputeBloom(Camera camera, in RGTextureHandle sceneColorTexture, in RGTextureHandle bloomTexture, in RGTextureHandle exposureEV, in PostVolumeState volumes)
+        void ComputeBloom(in CameraRecordContext context, in RGTextureHandle sceneColorTexture, in RGTextureHandle bloomTexture, in RGTextureHandle exposureEV, in PostVolumeState volumes)
         {
             using (var passRef = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom)))
             {
                 ref BloomPassData passData = ref passRef.GetPassData();
                 passData.bloomDownsample = kernels.bloomDownsample;
                 passData.bloomUpsample = kernels.bloomUpsample;
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
+                passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
                 passData.bloomThreshold = volumes.bloomThreshold;
                 passData.bloomScatter = volumes.bloomScatter;
                 passData.exposureMultiplier = volumes.exposureMultiplier;
@@ -423,8 +423,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterPostCombine(Camera camera, RGTextureHandle sceneColor, RGTextureHandle bloom, RGTextureHandle lut,
-            RGTextureHandle exposure, RGTextureHandle target, in PostVolumeState volumes, in OutputTransformDecision decision, bool finalTarget)
+        void RasterPostCombine(in CameraRecordContext context, RGTextureHandle sceneColor, RGTextureHandle bloom, RGTextureHandle lut, RGTextureHandle exposure, RGTextureHandle target, in PostVolumeState volumes, bool finalTarget)
         {
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterPostCombine;
             using (var pass = m_RGBuilder.AddRasterPass<PostCombinePassData>(ProfilingSampler.Get(sampler)))
@@ -434,10 +433,10 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     pass.EnableNativeRenderPass(false);
                 }
-                pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(context.camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData();
-                data.output = PrepareFinalOutput(camera, decision, sceneColor, finalTarget, blitPasses.postCombine);
-                data.resolution = m_ActiveFrameState.dimensions.displaySize;
+                data.output = PrepareFinalOutput(context, sceneColor, finalTarget, blitPasses.postCombine);
+                data.resolution = context.dimensions.displaySize;
                 data.bloomIntensity = volumes.bloomIntensity;
                 data.vignetteIntensity = volumes.vignetteIntensity;
                 data.vignetteSmoothness = volumes.vignetteSmoothness;

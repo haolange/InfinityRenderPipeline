@@ -27,17 +27,17 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle motionMeshDrawList)
+        void RasterMotion(in CameraRecordContext context, in MeshView view, in RGMeshDrawListHandle motionMeshDrawList)
         {
-            if (!ShouldRecordFeature(EFrameFeature.Motion))
+            if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
                 return;
             }
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            var previousTransforms = m_ActiveFrameState.meshMotionHistory.pendingBinding;
+            var previousTransforms = context.state.meshMotionHistory.pendingBinding;
 
-            TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            TextureDescriptor motionTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle motionMetadata = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
-            RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterMotionPass,
+            RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, pipelineAsset));
 
             //Add ObjectMotionPass
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.Motion);
+            context.features.MarkProduced(EFrameFeature.Motion);
         }
 
     }

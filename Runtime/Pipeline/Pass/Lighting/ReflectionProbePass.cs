@@ -34,15 +34,15 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the probe atlas when probes reach this camera's screen, GGX-filters the cubes that are new, changed or
         // realtime (once per frame across cameras), and builds the probe tile masks of the clustered list.
-        void ComputeReflectionProbes(RenderContext renderContext)
+        void ComputeReflectionProbes(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ReflectionProbes))
+            if (!context.features.ShouldRecord(EFrameFeature.ReflectionProbes))
             {
                 return;
             }
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
+            context.features.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
-            LightContext context = renderContext.lightContext;
+            LightContext lightContext = renderContext.lightContext;
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
@@ -83,8 +83,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RecordTileMaskPass(LightShaderIDs.ProbeTileRectBuffer, InfinityShaderIDs.ProbeTileMaskBuffer, ReflectionProbePassUtilityData.ProbeTileMaskBufferName,
-                context.ReflectionProbeCount, context.ProbeTileWordCount, context.TileCount, CustomSamplerId.ComputeProbeTileMask);
-            MarkFeatureProduced(EFrameFeature.ReflectionProbes);
+                lightContext.ReflectionProbeCount, lightContext.ProbeTileWordCount, lightContext.TileCount, CustomSamplerId.ComputeProbeTileMask);
+            context.features.MarkProduced(EFrameFeature.ReflectionProbes);
         }
     }
 }

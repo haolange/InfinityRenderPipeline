@@ -19,17 +19,17 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle rendererList;
         }
 
-        void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle depthMeshDrawList)
+        void RasterDepth(in CameraRecordContext context, in MeshView view, in RGMeshDrawListHandle depthMeshDrawList)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
-            TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
+            TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
             RGTextureHandle depthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDepthPass,
+            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDepthPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
 
             using (var passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.Depth);
+            context.features.MarkProduced(EFrameFeature.Depth);
         }
     }
 }

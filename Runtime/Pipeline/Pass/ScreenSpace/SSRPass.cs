@@ -158,23 +158,23 @@ namespace InfinityTech.Rendering.Pipeline
             public bool runDebug;
         }
 
-        void ComputeScreenSpaceReflection(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeScreenSpaceReflection(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.SSR))
+            if (!context.features.ShouldRecord(EFrameFeature.SSR))
             {
                 return;
             }
 
-            SSRSettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>().Resolve();
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            SSRSettings settings = context.volumeStack.GetComponent<ScreenSpaceReflection>().Resolve();
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
             int2 traceResolution = ScreenSpaceTraceUtility.TraceSize(resolution, settings.halfResolution);
             int workWidth = width, workHeight = height;
             const int divisor = 1;
             int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
             int maxTiles = tileCount.x * tileCount.y;
-            EDebugView debugView = m_ActiveFrameState.debugView;
+            EDebugView debugView = context.debugView;
             bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
             bool runSpatial = settings.spatialPasses > 0;
 
@@ -215,17 +215,17 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
-            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             TextureDescriptor historyVarianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "HistorySSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor);
-            RGTextureHandle historyVariance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceDsc, out bool historyVarianceCreated));
+            RGTextureHandle historyVariance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceDsc, out bool historyVarianceCreated));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVariance);
-            bool historyValid = m_ActiveFrameState.acceptedSSR && !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRVarianceBuffer) > 0;
+            bool historyValid = context.state.acceptedSSR && !(context.cameraUniform.historyReset || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRVarianceBuffer) > 0;
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
@@ -240,17 +240,17 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.historyValid = historyValid ? 1 : 0;
                 passData.debugMode = (int)debugView;
-                passData.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector3 cameraPosition = camera.transform.position;
-                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, camera.orthographic ? 1 : 0);
-                passData.cameraForward = camera.transform.forward;
-                passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
-                passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.matrix_HistoryViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
-                passData.matrix_MotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
-                passData.matrix_LastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
+                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+                Vector3 cameraPosition = context.camera.transform.position;
+                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, context.camera.orthographic ? 1 : 0);
+                passData.cameraForward = context.camera.transform.forward;
+                passData.matrix_Proj = context.cameraUniform.matrix_FlipYJitterProj;
+                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
+                passData.matrix_HistoryViewProj = context.cameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.matrix_MotionViewProj = context.cameraUniform.matrix_ViewFlipYProj;
+                passData.matrix_LastMotionViewProj = context.cameraUniform.matrix_LastViewFlipYProj;
                 passData.ssrShader = shaders.ssrShader;
                 passData.clearArgsKernel = kernels.ssrClearArgs.index;
                 passData.classifyKernel = kernels.ssrClassify.index;
@@ -271,7 +271,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.gBufferA = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA));
                 passData.gBufferB = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = ReadTemporalColorView(passRef, m_ActiveFrameState.temporalColorView);
+                passData.temporalColor = ReadTemporalColorView(passRef, context.state.temporalColorView);
                 passData.motionMetadata = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
@@ -283,7 +283,7 @@ namespace InfinityTech.Rendering.Pipeline
                 TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point, 8 * (settings.halfResolution ? 2 : 1));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RenderCaptureSession capture = RenderCaptureService.current;
-                bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(camera)
+                bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(context.camera)
                     && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
                 // A captured classification must outlive this pass for the graph-owned Transfer readback.
                 passData.tileClass = captureTileClass
@@ -430,7 +430,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.SSR);
+            context.features.MarkProduced(EFrameFeature.SSR);
         }
 
         // Depth and GBuffer inputs shared by every kernel that tests or reconstructs the surface.

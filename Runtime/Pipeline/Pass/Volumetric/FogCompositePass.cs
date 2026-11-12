@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle volumetricCloudTexture;
         }
 
-        void ComputeFogComposite(RenderContext renderContext, Camera camera)
+        void ComputeFogComposite(in CameraRecordContext context)
         {
             bool hasFog = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle volumetricFogTexture);
             bool hasCloud = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle volumetricCloudTexture);
@@ -50,10 +50,10 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
-            var volFog = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.Volume.VolumetricFog>();
+            var volFog = context.volumeStack.GetComponent<InfinityTech.Rendering.Volume.VolumetricFog>();
             maxDistance = volFog.MaxDistance.value;
 
-            TextureDescriptor foggedDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            TextureDescriptor foggedDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
             foggedDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
@@ -69,12 +69,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = kernels.fogComposite;
                 passData.fogKeyword = kernels.fogCompositeFog;
                 passData.cloudKeyword = kernels.fogCompositeCloud;
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+                passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.maxDistance = maxDistance;
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.worldSpaceCameraPos = camera.transform.position;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.fogCompositeShader = shaders.fogCompositeShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.foggedSceneColorTexture = passRef.WriteTexture(foggedSceneColor);

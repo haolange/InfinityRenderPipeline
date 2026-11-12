@@ -78,15 +78,15 @@ namespace InfinityTech.Rendering.Pipeline
             return profileCount;
         }
 
-        void ComputeBurleySubsurface(RenderContext renderContext, Camera camera)
+        void ComputeBurleySubsurface(in CameraRecordContext context)
         {
-            if (!m_ActiveFrameState.subsurfaceEnabled)
+            if (!context.state.subsurfaceEnabled)
             {
                 return;
             }
-            var volume = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
+            var volume = context.volumeStack.GetComponent<SubsurfaceScattering>();
             int count = EnsureDiffusionProfileBuffer(pipelineAsset.diffusionProfiles);
-            int2 size = m_ActiveFrameState.dimensions.internalSize;
+            int2 size = context.dimensions.internalSize;
             int2 halfSize = (size + 1) / 2;
             var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, 2);
             RGTextureHandle filtered = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
@@ -96,8 +96,8 @@ namespace InfinityTech.Rendering.Pipeline
                 ref var data = ref pass.GetPassData();
                 data.burleyKernel = kernels.burleySubsurface;
                 data.composeKernel = kernels.composeSubsurface;
-                data.projection = m_CameraUniform.matrix_FlipYJitterProj;
-                data.inverseProjection = m_CameraUniform.matrix_InvFlipYJitterProj;
+                data.projection = context.cameraUniform.matrix_FlipYJitterProj;
+                data.inverseProjection = context.cameraUniform.matrix_InvFlipYJitterProj;
                 data.resolution = size;
                 data.profileCount = count;
                 data.numSamples = volume.numSamples.value;
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.DispatchCompute(shader, d.composeKernel.index, d.composeKernel.GroupsX(d.resolution.x), d.composeKernel.GroupsY(d.resolution.y), 1);
                 });
             }
-            MarkFeatureProduced(EFrameFeature.SubsurfaceScattering);
+            context.features.MarkProduced(EFrameFeature.SubsurfaceScattering);
         }
 
         static void BindSubsurface(in RGComputeEncoder commands, ComputeShader shader, int kernel, in SubsurfacePassData d)

@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererLists;
         }
 
-        void RasterCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults, RGMeshDrawListHandle[] cascadeMeshDrawLists)
+        void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawLists)
         {
             int shadowMapResolution = pipelineAsset.cascadeShadowMapResolution;
             float shadowDistance = pipelineAsset.shadowDistance;
@@ -85,9 +85,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (lightIndex >= 0)
             {
-                Light shadowLight = cullingResults.visibleLights[lightIndex].light;
+                Light shadowLight = context.cullingResults.visibleLights[lightIndex].light;
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
-                bool hasNativeCasters = cullingResults.GetShadowCasterBounds(lightIndex, out _);
+                bool hasNativeCasters = context.cullingResults.GetShadowCasterBounds(lightIndex, out _);
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
                 {
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         continue;
                     }
-                    ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
+                    ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(context.cullingResults, lightIndex);
                     shadowDrawingSettings.useRenderingLayerMaskTest = true;
                     shadowDrawingSettings.splitIndex = slice.cullingSplitIndex;
                     shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
@@ -126,8 +126,8 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     passData.shadowMapResolution = shadowMapResolution;
                     passData.shadowDistance = shadowDistance;
-                    passData.cameraViewProj = m_CameraUniform.matrix_ViewProj;
-                    passData.cameraViewFlipYProj = m_CameraUniform.matrix_ViewFlipYProj;
+                    passData.cameraViewProj = context.cameraUniform.matrix_ViewProj;
+                    passData.cameraViewFlipYProj = context.cameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.cascadeSplitDistances = cascadeSplitDistances;
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     if (lightIndex >= 0)
                     {
-                        passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
+                        passData.casterLight = -context.cullingResults.visibleLights[lightIndex].light.transform.forward;
                     }
 
                     passData.meshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);

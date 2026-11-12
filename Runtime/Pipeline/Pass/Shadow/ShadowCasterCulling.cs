@@ -17,110 +17,74 @@ namespace InfinityTech.Rendering.Pipeline
             public BatchCullingProjectionType projectionType;
         }
 
-        readonly List<ShadowCasterSplitRecord> m_ShadowCasterSplits = new List<ShadowCasterSplitRecord>(32);
-
-        void RecordShadowCasterSplit(int lightIndex, int splitIndex, in ShadowSplitData split, BatchCullingProjectionType projectionType)
+        struct ShadowCasterSplitOrder : IComparer<ShadowCasterSplitRecord>
         {
-            m_ShadowCasterSplits.Add(new ShadowCasterSplitRecord
+            public int Compare(ShadowCasterSplitRecord a, ShadowCasterSplitRecord b)
             {
-                lightIndex = lightIndex,
-                splitIndex = splitIndex,
-                splitData = split,
-                projectionType = projectionType
-            });
+                int cmp = a.lightIndex.CompareTo(b.lightIndex);
+                return cmp != 0 ? cmp : a.splitIndex.CompareTo(b.splitIndex);
+            }
         }
 
-        void RecordAllocatedShadowCasterSplits(RenderContext renderContext, in CullingResults cullingResults)
+        // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs with this camera's allocated splits.
+        void CullShadowCasters(in CameraRecordContext context)
         {
-            if (renderContext == null || renderContext.lightContext == null)
-            {
-                return;
-            }
-
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            if (allocator == null)
-            {
-                return;
-            }
-
+            CullingResults cullingResults = context.cullingResults;
+            var records = new NativeList<ShadowCasterSplitRecord>(allocator.ActiveCascadeCount + allocator.LocalSliceCount, Allocator.Temp);
             int cascadeLight = allocator.CascadeVisibleLightIndex;
             if (cascadeLight >= 0 && cullingResults.GetShadowCasterBounds(cascadeLight, out _))
             {
                 for (int cascade = 0; cascade < allocator.ActiveCascadeCount; ++cascade)
                 {
                     CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
-                    if (!slice.valid)
-                    {
-                        continue;
-                    }
-
-                    RecordShadowCasterSplit(cascadeLight, slice.cullingSplitIndex, slice.splitData, BatchCullingProjectionType.Orthographic);
+                    if (slice.valid)
+                        records.Add(new ShadowCasterSplitRecord { lightIndex = cascadeLight, splitIndex = slice.cullingSplitIndex,
+                            splitData = slice.splitData, projectionType = BatchCullingProjectionType.Orthographic });
                 }
             }
-
             for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
             {
                 LocalShadowSlice local = allocator.LocalSlices[sliceIndex];
-                if (local.cachedSampling || !local.valid || !cullingResults.GetShadowCasterBounds(local.visibleLightIndex, out _))
-                {
-                    continue;
-                }
-
-                RecordShadowCasterSplit(local.visibleLightIndex, local.face, local.splitData, local.projectionType);
+                if (!local.cachedSampling && local.valid && cullingResults.GetShadowCasterBounds(local.visibleLightIndex, out _))
+                    records.Add(new ShadowCasterSplitRecord { lightIndex = local.visibleLightIndex, splitIndex = local.face,
+                        splitData = local.splitData, projectionType = local.projectionType });
             }
-        }
-
-        void FlushShadowCasterCulling(ScriptableRenderContext context, in CullingResults cullingResults)
-        {
-            int recordCount = m_ShadowCasterSplits.Count;
+            int recordCount = records.Length;
             if (recordCount == 0)
             {
+                records.Dispose();
                 return;
             }
 
-            m_ShadowCasterSplits.Sort(s_CompareShadowCasterSplits);
-
+            records.Sort(new ShadowCasterSplitOrder());
             int visibleLightCount = cullingResults.visibleLights.Length;
-            NativeArray<ShadowSplitData> splitBuffer = new NativeArray<ShadowSplitData>(recordCount, Allocator.Temp);
-            NativeArray<LightShadowCasterCullingInfo> perLightInfos = new NativeArray<LightShadowCasterCullingInfo>(visibleLightCount, Allocator.Temp);
-
-            int bufferIndex = 0;
+            var splitBuffer = new NativeArray<ShadowSplitData>(recordCount, Allocator.Temp);
+            var perLightInfos = new NativeArray<LightShadowCasterCullingInfo>(visibleLightCount, Allocator.Temp);
             int recordIndex = 0;
             while (recordIndex < recordCount)
             {
-                ShadowCasterSplitRecord first = m_ShadowCasterSplits[recordIndex];
-                int rangeStart = bufferIndex;
-                while (recordIndex < recordCount && m_ShadowCasterSplits[recordIndex].lightIndex == first.lightIndex)
+                ShadowCasterSplitRecord first = records[recordIndex];
+                int rangeStart = recordIndex;
+                while (recordIndex < recordCount && records[recordIndex].lightIndex == first.lightIndex)
                 {
-                    splitBuffer[bufferIndex++] = m_ShadowCasterSplits[recordIndex].splitData;
+                    splitBuffer[recordIndex] = records[recordIndex].splitData;
                     recordIndex++;
                 }
-
-                if ((uint)first.lightIndex < (uint)visibleLightCount)
+                perLightInfos[first.lightIndex] = new LightShadowCasterCullingInfo
                 {
-                    perLightInfos[first.lightIndex] = new LightShadowCasterCullingInfo
-                    {
-                        splitRange = new RangeInt(rangeStart, bufferIndex - rangeStart),
-                        projectionType = first.projectionType
-                    };
-                }
+                    splitRange = new RangeInt(rangeStart, recordIndex - rangeStart),
+                    projectionType = first.projectionType
+                };
             }
 
             ShadowCastersCullingInfos infos = default;
             infos.splitBuffer = splitBuffer;
             infos.perLightInfos = perLightInfos;
-            context.CullShadowCasters(cullingResults, infos);
-
+            renderContext.scriptableRenderContext.CullShadowCasters(cullingResults, infos);
             splitBuffer.Dispose();
             perLightInfos.Dispose();
-            m_ShadowCasterSplits.Clear();
-        }
-
-        static readonly System.Comparison<ShadowCasterSplitRecord> s_CompareShadowCasterSplits = CompareShadowCasterSplits;
-        static int CompareShadowCasterSplits(ShadowCasterSplitRecord a, ShadowCasterSplitRecord b)
-        {
-            int cmp = a.lightIndex.CompareTo(b.lightIndex);
-            return cmp != 0 ? cmp : a.splitIndex.CompareTo(b.splitIndex);
+            records.Dispose();
         }
     }
 }

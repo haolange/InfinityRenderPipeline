@@ -120,17 +120,17 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeGroundTruthOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeGroundTruthOcclusion(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.GTAO))
+            if (!context.features.ShouldRecord(EFrameFeature.GTAO))
             {
                 return;
             }
 
-            GTAOSettings ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
+            GTAOSettings ssao = context.volumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
 
-            int fullWidth = m_ActiveFrameState.dimensions.internalSize.x;
-            int fullHeight = m_ActiveFrameState.dimensions.internalSize.y;
+            int fullWidth = context.dimensions.internalSize.x;
+            int fullHeight = context.dimensions.internalSize.y;
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
             int halfHeight = Mathf.Max(1, fullHeight >> 1);
 
@@ -154,14 +154,14 @@ namespace InfinityTech.Rendering.Pipeline
 
             TextureDescriptor historyAODsc = CreateGTAOHistoryAODescriptor(halfWidth, halfHeight);
             TextureDescriptor historyDepthDsc = CreateGTAOHistoryDepthDescriptor(halfWidth, halfHeight);
-            RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, out bool historyAOCreated));
-            RGTextureHandle historyOcclusionDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, out bool historyDepthCreated));
+            RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, out bool historyAOCreated));
+            RGTextureHandle historyOcclusionDepthTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, out bool historyDepthCreated));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyOcclusionTexture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyOcclusionDepthTexture);
-            var pendingOcclusion = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc));
-            var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc));
-            historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionBuffer);
-            historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionDepthBuffer);
+            var pendingOcclusion = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc));
+            var pendingDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc));
+            context.historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionBuffer);
+            context.historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionDepthBuffer);
 
             RGTextureHandle halfResDepthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResDepthBuffer);
             RGTextureHandle halfResNormalTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResNormalBuffer);
@@ -187,29 +187,29 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.intensity = ssao.intensity;
                 passData.sharpeness = ssao.sharpness;
                 passData.temporalScale = ssao.temporalScale;
-                bool resetHistory = m_CameraUniform.historyReset || historyAOCreated || historyDepthCreated;
+                bool resetHistory = context.cameraUniform.historyReset || historyAOCreated || historyDepthCreated;
                 passData.temporalWeight = ssao.temporalWeight;
-                passData.historyValid = m_ActiveFrameState.acceptedGTAO && !resetHistory && historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionBuffer) > 0
-                    && historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionDepthBuffer) > 0;
+                passData.historyValid = context.state.acceptedGTAO && !resetHistory && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionBuffer) > 0
+                    && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionDepthBuffer) > 0;
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.fullResolution = new int2(fullWidth, fullHeight);
 
-                passData.halfProjScale = m_CameraUniform.matrix_FlipYJitterProj.m11 * halfHeight * 0.5f;
+                passData.halfProjScale = context.cameraUniform.matrix_FlipYJitterProj.m11 * halfHeight * 0.5f;
 
                 int temporalIndex = Time.frameCount & 3;
                 passData.temporalOffset = GTAOPassUtilityData.TemporalOffsets[temporalIndex];
                 passData.temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex];
 
-                passData.historyViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
-                passData.motionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
-                passData.lastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
-                passData.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
-                passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_ViewToWorld = m_CameraUniform.matrix_ViewToWorld;
-                passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
+                passData.historyViewProj = context.cameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.motionViewProj = context.cameraUniform.matrix_ViewFlipYProj;
+                passData.lastMotionViewProj = context.cameraUniform.matrix_LastViewFlipYProj;
+                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+                passData.matrix_Proj = context.cameraUniform.matrix_FlipYJitterProj;
+                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
+                passData.matrix_ViewProj = context.cameraUniform.matrix_ViewFlipYJitterProj;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.matrix_ViewToWorld = context.cameraUniform.matrix_ViewToWorld;
+                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.ssaoShader = shaders.ssaoShader;
                 passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.ReadTexture(halfResNormalTexture);
@@ -336,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.GTAO);
+            context.features.MarkProduced(EFrameFeature.GTAO);
         }
 
     }

@@ -33,9 +33,9 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle halfResNormalTexture;
         }
 
-        void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
+        void ComputeHalfResDownsample(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.HalfResDownsample))
+            if (!context.features.ShouldRecord(EFrameFeature.HalfResDownsample))
             {
                 return;
             }
@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.halfRes.shader, passData.halfRes.index, passData.halfRes.GroupsX(passData.halfResolution.x), passData.halfRes.GroupsY(passData.halfResolution.y), 1);
                 });
             }
-            MarkFeatureProduced(EFrameFeature.HalfResDownsample);
+            context.features.MarkProduced(EFrameFeature.HalfResDownsample);
         }
     }
 }

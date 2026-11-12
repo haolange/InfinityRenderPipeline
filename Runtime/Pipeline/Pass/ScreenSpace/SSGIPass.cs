@@ -110,16 +110,16 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle output;
         }
 
-        void ComputeScreenSpaceIndirect(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeScreenSpaceIndirect(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.SSGI))
+            if (!context.features.ShouldRecord(EFrameFeature.SSGI))
             {
                 return;
             }
 
-            SSGISettings settings = ActiveVolumeStack.GetComponent<ScreenSpaceIndirectDiffuse>().Resolve();
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            SSGISettings settings = context.volumeStack.GetComponent<ScreenSpaceIndirectDiffuse>().Resolve();
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
             int2 traceResolution = ScreenSpaceTraceUtility.TraceSize(resolution, true);
             int workWidth = traceResolution.x, workHeight = traceResolution.y;
@@ -148,18 +148,18 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
             TextureDescriptor historyNarrowDsc = historyRadianceDsc;
             historyNarrowDsc.name = "HistorySSGINarrow";
-            RGTextureHandle historyNarrow = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowDsc, out bool historyNarrowCreated));
-            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
+            RGTextureHandle historyNarrow = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowDsc, out bool historyNarrowCreated));
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrow);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMeta);
-            bool historyValid = m_ActiveFrameState.acceptedSSGI && !(m_CameraUniform.historyReset || historyRadianceCreated || historyNarrowCreated || historyMetaCreated)
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIRadianceBuffer) > 0
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGINarrowBuffer) > 0
-                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIMetaBuffer) > 0;
+            bool historyValid = context.state.acceptedSSGI && !(context.cameraUniform.historyReset || historyRadianceCreated || historyNarrowCreated || historyMetaCreated)
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIRadianceBuffer) > 0
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGINarrowBuffer) > 0
+                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIMetaBuffer) > 0;
             bool hasAO = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusion);
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
@@ -173,19 +173,19 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileCount = tileCount;
                 passData.traceScale = 2;
                 passData.frameIndex = Time.frameCount;
-                passData.previousFrameIndex = m_ActiveFrameState.acceptedSSGIFrameIndex;
+                passData.previousFrameIndex = context.state.acceptedSSGIFrameIndex;
                 passData.historyValid = historyValid ? 1 : 0;
-                passData.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector3 cameraPosition = camera.transform.position;
-                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, camera.orthographic ? 1 : 0);
-                passData.cameraForward = camera.transform.forward;
-                passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
-                passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.matrix_HistoryViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
-                passData.matrix_MotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
-                passData.matrix_LastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
+                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+                Vector3 cameraPosition = context.camera.transform.position;
+                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, context.camera.orthographic ? 1 : 0);
+                passData.cameraForward = context.camera.transform.forward;
+                passData.matrix_Proj = context.cameraUniform.matrix_FlipYJitterProj;
+                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
+                passData.matrix_HistoryViewProj = context.cameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.matrix_MotionViewProj = context.cameraUniform.matrix_ViewFlipYProj;
+                passData.matrix_LastMotionViewProj = context.cameraUniform.matrix_LastViewFlipYProj;
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
                 passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
@@ -203,7 +203,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hiZFurthestTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
                 passData.gBufferB = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = ReadTemporalColorView(passRef, m_ActiveFrameState.temporalColorView);
+                passData.temporalColor = ReadTemporalColorView(passRef, context.state.temporalColorView);
                 passData.motionMetadata = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
@@ -323,7 +323,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.SSGI);
+            context.features.MarkProduced(EFrameFeature.SSGI);
         }
 
         static void RecordSSGITemporal(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, ProfilingSampler marker,

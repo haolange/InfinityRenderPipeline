@@ -55,12 +55,12 @@ namespace InfinityTech.Rendering.Pipeline
             public float atmosphereIBLMaxMip;
         }
 
-        void ComputeDeferredShading(RenderContext renderContext, Camera camera)
+        void ComputeDeferredShading(in CameraRecordContext context)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
+            context.features.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             ComputeKernel kernel = kernels.deferredShading;
             int2 groupCount = new int2(kernel.GroupsX(width), kernel.GroupsY(height));
 
@@ -70,13 +70,13 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool hasAO = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusionTexture);
-            if ((ShouldRecordFeature(EFrameFeature.GTAO) || ShouldRecordFeature(EFrameFeature.RTAO)) && !hasAO)
+            if ((context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO)) && !hasAO)
             {
                 throw new System.InvalidOperationException("InfinityRP: AO is recorded this frame but OcclusionBuffer is not registered.");
             }
 
             bool hasContactShadow = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowTexture);
-            if (ShouldRecordFeature(EFrameFeature.ContactShadow) && !hasContactShadow)
+            if (context.features.ShouldRecord(EFrameFeature.ContactShadow) && !hasContactShadow)
             {
                 throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded this frame but ContactShadowBuffer is not registered.");
             }
@@ -92,9 +92,9 @@ namespace InfinityTech.Rendering.Pipeline
             indirectDescriptor.name = "IndirectSpecular";
             RGTextureHandle indirectSpecular = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectSpecularBuffer, indirectDescriptor);
 
-            m_ActiveFrameState.subsurfaceEnabled = ShouldRecordFeature(EFrameFeature.SubsurfaceScattering);
+            context.state.subsurfaceEnabled = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
             RGTextureHandle scatterDiffuse = default;
-            if (m_ActiveFrameState.subsurfaceEnabled)
+            if (context.state.subsurfaceEnabled)
             {
                 indirectDescriptor.name = "ScatterDiffuse";
                 scatterDiffuse = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
-                passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
+                passData.hasSubsurface = context.state.subsurfaceEnabled;
                 if (passData.hasSubsurface)
                 {
                     passData.scatterDiffuse = passRef.WriteTexture(scatterDiffuse);
@@ -115,16 +115,16 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = kernel.index;
                 passData.groupCount = groupCount;
                 passData.resolution = new int2(width, height);
-                passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.worldSpaceCameraPos = camera.transform.position;
+                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
-                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                LightLoopInputs lightLoop = QueryLightLoop();
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                ShadowInputs shadows = QueryShadowInputs(renderContext);
+                ShadowInputs shadows = QueryShadowInputs();
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.deferredShadingShader = kernel.shader;
@@ -195,7 +195,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.DeferredShading);
+            context.features.MarkProduced(EFrameFeature.DeferredShading);
         }
     }
 }

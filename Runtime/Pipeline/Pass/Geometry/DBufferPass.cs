@@ -21,15 +21,15 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle depthTexture;
         }
 
-        void RasterDBuffer(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterDBuffer(in CameraRecordContext context)
         {
-            if (renderContext.WorldDecalCount == 0 || !ShouldRecordFeature(EFrameFeature.DBuffer))
+            if (renderContext.WorldDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
 
             TextureDescriptor dBufferADsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDBufferPass,
+            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDBufferPass,
                 new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, pipelineAsset));
 
             using (var passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.DBuffer);
+            context.features.MarkProduced(EFrameFeature.DBuffer);
         }
     }
 }

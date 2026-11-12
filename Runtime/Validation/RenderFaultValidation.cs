@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class Observer : PipelineFrameObserver, RenderGraph.IRGExecutionObserver
         {
             internal override void BeginFrame(List<Camera> cameras) => Tick(cameras);
-            internal override void BeforeCamera(Camera camera, CameraFrameState state, InfinityRenderPipelineAsset asset) => current?.BeforeCamera(camera, state);
+            internal override void BeforeCamera(in CameraSetup setup) => current?.BeforeCamera(setup.camera, setup.state);
             internal override void AfterCamera(Camera camera, bool executed, Exception error) => current?.CameraResult(camera, executed, error);
             internal override void AfterNativeSubmit() => current?.AfterSubmit();
 

@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle sunBuffer;
         }
 
-        void ComputeAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
+        void ComputeAtmosphericSkyAndFog(in CameraRecordContext context)
         {
             if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
                 !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
@@ -55,10 +55,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
-                passData.worldSpaceCameraPos = camera.transform.position;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsConventions.SampledFarDepth;
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+                passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.compositeKernel = kernels.atmosphereComposite;
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);

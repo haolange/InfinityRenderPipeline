@@ -62,11 +62,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle forwardMeshDrawList)
+        void RasterForward(in CameraRecordContext context, in MeshView view, in RGMeshDrawListHandle forwardMeshDrawList)
         {
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGRendererListHandle forwardRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterForwardPass,
+            RGRendererListHandle forwardRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.OptimizeStateChanges, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, pipelineAsset));
 
             //Add ForwardPass
@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                if (m_ActiveFrameState.subsurfaceEnabled)
+                if (context.state.subsurfaceEnabled)
                 {
                     passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 }
@@ -85,10 +85,10 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref ForwardPassData passData = ref passRef.GetPassData();
                 {
-                    passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
+                    passData.hasSubsurface = context.state.subsurfaceEnabled;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
-                    ShadowInputs shadows = QueryShadowInputs(renderContext);
+                    ShadowInputs shadows = QueryShadowInputs();
                     shadows.Read(passRef);
                     passData.shadows = shadows;
                     passData.hasContactShadow = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowSun);
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                    LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                    LightLoopInputs lightLoop = QueryLightLoop();
                     lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                 }

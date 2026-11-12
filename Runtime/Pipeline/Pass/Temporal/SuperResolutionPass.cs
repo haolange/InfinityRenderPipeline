@@ -44,25 +44,25 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle superResolutionTexture, pendingColor, pendingDepth;
         }
 
-        void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
+        void ComputeSuperResolution(in CameraRecordContext context)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
+            context.features.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
 
-            int width = m_ActiveFrameState.dimensions.displaySize.x;
-            int height = m_ActiveFrameState.dimensions.displaySize.y;
+            int width = context.dimensions.displaySize.x;
+            int height = context.dimensions.displaySize.y;
 
             TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
-            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
+            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
             m_RGBuilder.scoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
-            var pendingColor = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            var pendingColor = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
                 "HistorySuperResolutionDepth", true, ETextureSizingDomain.Display);
-            var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
+            var pendingDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
-            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
-            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
+            context.historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
+            context.historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
 
             TextureDescriptor superResDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             {
@@ -83,10 +83,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref SuperResolutionPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
-                passData.inputResolution = m_ActiveFrameState.dimensions.internalSize;
-                passData.resetHistory = m_CameraUniform.historyReset || historyCreated
-                    || historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
-                passData.jitter = jitter;
+                passData.inputResolution = context.dimensions.internalSize;
+                passData.resetHistory = context.cameraUniform.historyReset || historyCreated
+                    || context.historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
+                passData.jitter = context.cameraUniform.jitter;
                 passData.frameIndex = Time.frameCount;
                 passData.kernel = kernels.superResolution.index;
                 passData.groups = new int2(kernels.superResolution.GroupsX(width), kernels.superResolution.GroupsY(height));
@@ -121,7 +121,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.SuperResolution);
+            context.features.MarkProduced(EFrameFeature.SuperResolution);
         }
 
     }

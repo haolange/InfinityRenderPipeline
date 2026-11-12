@@ -57,17 +57,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Requested in the content phase: the Volume is active and the sun or a local light has Contact Shadows on.
-        void ComputeContactShadow(RenderContext renderContext, Camera camera)
+        void ComputeContactShadow(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ContactShadow))
+            if (!context.features.ShouldRecord(EFrameFeature.ContactShadow))
             {
                 return;
             }
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ContactShadow);
-            ContactShadowSettings settings = ActiveVolumeStack.GetComponent<ContactShadow>().Resolve();
+            context.features.ThrowIfCannotProduce(EFrameFeature.ContactShadow);
+            ContactShadowSettings settings = context.volumeStack.GetComponent<ContactShadow>().Resolve();
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
 
             TextureDescriptor sunDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal)
             {
@@ -89,11 +89,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.settings = settings;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);
-                passData.depthParams = ContactShadowPassUtilityData.DepthParams(camera);
-                passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.worldSpaceCameraPos = camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                passData.depthParams = ContactShadowPassUtilityData.DepthParams(context.camera);
+                passData.matrix_ViewProj = context.cameraUniform.matrix_ViewFlipYJitterProj;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
+                LightLoopInputs lightLoop = QueryLightLoop();
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.ContactShadow);
+            context.features.MarkProduced(EFrameFeature.ContactShadow);
         }
     }
 }

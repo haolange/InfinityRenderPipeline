@@ -87,22 +87,22 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricFog(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeVolumetricFog(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.VolumetricFog))
+            if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {
                 return;
             }
 
-            var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
+            var volFog = context.volumeStack.GetComponent<VolumetricFog>();
             if (!VolumeComponentActive(volFog))
             {
                 return;
             }
             VolumetricFogSettings fog = volFog.Resolve();
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
+            int width = context.dimensions.internalSize.x;
+            int height = context.dimensions.internalSize.y;
             int depthSlices = fog.depthSlices;
             int froxelWidth = Mathf.CeilToInt(width / 8.0f);
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle volumetricFogTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -132,19 +132,19 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = fog.ambientIntensity;
                 passData.depthSlices = depthSlices;
                 passData.maxDistance = fog.maxDistance;
-                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : fog.temporalWeight;
+                passData.temporalWeight = (context.cameraUniform.historyReset || historyCreated) ? 0.0f : fog.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
-                passData.nearPlane = camera.nearClipPlane;
-                passData.farPlane = camera.farClipPlane;
-                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.worldSpaceCameraPos = camera.transform.position;
-                LightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                passData.nearPlane = context.camera.nearClipPlane;
+                passData.farPlane = context.camera.farClipPlane;
+                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
+                passData.worldSpaceCameraPos = context.camera.transform.position;
+                LightLoopInputs lightLoop = QueryLightLoop();
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs(renderContext);
+                ShadowInputs shadows = QueryShadowInputs();
                 shadows.Read(passRef);
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.VolumetricFog);
+            context.features.MarkProduced(EFrameFeature.VolumetricFog);
         }
 
         struct CopyHistoryVolumetricFogPassData
@@ -230,19 +230,19 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle history;
         }
 
-        void CopyHistoryVolumetricFog(HistoryCache historyCache, Camera camera)
+        void CopyHistoryVolumetricFog(in CameraRecordContext context)
         {
             if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle source))
             {
                 return;
             }
 
-            var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
-            int froxelWidth = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.x / 8.0f);
-            int froxelHeight = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.y / 8.0f);
+            var volFog = context.volumeStack.GetComponent<VolumetricFog>();
+            int froxelWidth = Mathf.CeilToInt(context.dimensions.internalSize.x / 8.0f);
+            int froxelHeight = Mathf.CeilToInt(context.dimensions.internalSize.y / 8.0f);
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.Resolve().depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
-            historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
+            RGTextureHandle history = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
+            context.historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
 
             using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
             {

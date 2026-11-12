@@ -46,14 +46,14 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Builds the VSM / EVSM moment atlases for the slices whose light needs them. Each atlas has half the resolution
         // of its depth atlas and the same UV layout; it exists only on frames where a visible shadowed light uses it.
-        void ComputeShadowMoments(RenderContext renderContext)
+        void ComputeShadowMoments(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ShadowMoments))
+            if (!context.features.ShouldRecord(EFrameFeature.ShadowMoments))
             {
                 return;
             }
             // A visible VSM / EVSM light makes the moments a required producer: a blocked feature fails at record time.
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
+            context.features.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
                     atlasSize, count, rects, depthParams, momentParams);
             }
 
-            MarkFeatureProduced(EFrameFeature.ShadowMoments);
+            context.features.MarkProduced(EFrameFeature.ShadowMoments);
         }
 
         void AddShadowMomentPass(RGResourceKey depthKey, RGResourceKey momentKey, string name, int atlasSize, int sliceCount,

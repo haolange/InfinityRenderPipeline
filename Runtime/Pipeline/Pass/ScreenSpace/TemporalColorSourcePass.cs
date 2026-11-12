@@ -33,15 +33,15 @@ namespace InfinityTech.Rendering.Pipeline
                 SourceValid = Shader.PropertyToID("_TemporalSourceValid"), SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst"),
                 Far = Shader.PropertyToID("_TemporalFarDepth");
         }
-        void ComputeTemporalColorPyramid()
+        void ComputeTemporalColorPyramid(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.TemporalColorPyramid))
+            if (!context.features.ShouldRecord(EFrameFeature.TemporalColorPyramid))
             {
                 return;
             }
-            var state = m_ActiveFrameState;
-            bool sr = state.dimensions.superResolution;
-            int2 size = sr ? state.dimensions.displaySize : state.dimensions.internalSize;
+            var state = context.state;
+            bool sr = context.dimensions.superResolution;
+            int2 size = sr ? context.dimensions.displaySize : context.dimensions.internalSize;
             var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
             int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
             int depthID = sr ? SuperResolutionPassUtilityData.HistoryDepthTextureID : AntiAliasingUtilityData.HistoryDepthTextureID;
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.color);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depth);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            RenderCaptureService.current?.RecordTemporalColorState(state.camera, source, sr);
+            RenderCaptureService.current?.RecordTemporalColorState(context.camera, source, sr);
 #endif
             using (var pass = m_RGBuilder.AddComputePass<TemporalColorMipData>(ProfilingSampler.Get(CustomSamplerId.ComputeTemporalColorPyramid)))
             {
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 });
             }
-            MarkFeatureProduced(EFrameFeature.TemporalColorPyramid);
+            context.features.MarkProduced(EFrameFeature.TemporalColorPyramid);
         }
         static TemporalColorView ReadTemporalColorView<TPassData>(RGComputePassHandle<TPassData> pass, TemporalColorView source) where TPassData : struct
         {

@@ -173,12 +173,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        LightLoopInputs QueryLightLoop(RenderContext renderContext)
+        LightLoopInputs QueryLightLoop()
         {
-            LightContext context = renderContext.lightContext;
+            LightContext lightContext = renderContext.lightContext;
             bool hasCookieAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
             bool hasProbeAtlas = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
-            bool hasProbeList = hasProbeAtlas && context.ReflectionProbeCount > 0;
+            bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {
                 probes = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
@@ -188,37 +188,37 @@ namespace InfinityTech.Rendering.Pipeline
                     : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
                 probeAtlas = probeAtlas,
                 hasProbeAtlas = hasProbeAtlas,
-                probeCount = hasProbeList ? context.ReflectionProbeCount : 0,
-                probeTileParams = context.ProbeTileParams,
+                probeCount = hasProbeList ? lightContext.ReflectionProbeCount : 0,
+                probeTileParams = lightContext.ProbeTileParams,
                 cookies = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
                 cookieAtlas = cookieAtlas,
                 hasCookieAtlas = hasCookieAtlas,
                 zBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
-                tileMasks = context.HasLocalLightList()
+                tileMasks = lightContext.HasLocalLightList()
                     ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
                     : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
-                tileParams = context.TileParams,
-                zBinParams = context.ZBinParams,
-                directionalCount = context.DirectionalLightCount,
-                localCount = context.LocalLightCount,
-                sunRecordIndex = context.SunRecordIndex,
+                tileParams = lightContext.TileParams,
+                zBinParams = lightContext.ZBinParams,
+                directionalCount = lightContext.DirectionalLightCount,
+                localCount = lightContext.LocalLightCount,
+                sunRecordIndex = lightContext.SunRecordIndex,
             };
         }
 
-        void ComputeLightTileMask(RenderContext renderContext, Camera camera)
+        void ComputeLightTileMask(in CameraRecordContext context)
         {
-            LightContext context = renderContext?.lightContext;
-            if (context == null || !context.HasLocalLightList())
+            LightContext lightContext = renderContext.lightContext;
+            if (!lightContext.HasLocalLightList())
             {
                 return;
             }
 
             // Visible local lights make the list a required producer: a blocked feature fails at record time.
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.LocalLightList);
+            context.features.ThrowIfCannotProduce(EFrameFeature.LocalLightList);
 
             RecordTileMaskPass(LightShaderIDs.LightTileRectBuffer, InfinityShaderIDs.LightTileMaskBuffer, LightTileMaskPassUtilityData.MaskBufferName,
-                context.LocalLightCount, context.TileWordCount, context.TileCount, CustomSamplerId.ComputeLightTileMask);
-            MarkFeatureProduced(EFrameFeature.LocalLightList);
+                lightContext.LocalLightCount, lightContext.TileWordCount, lightContext.TileCount, CustomSamplerId.ComputeLightTileMask);
+            context.features.MarkProduced(EFrameFeature.LocalLightList);
         }
 
         // Builds tile bitmasks (tiles x words) from per-item tile rectangles: local lights, and reflection probes as the
