@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -10,9 +11,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ShadowMomentPassUtilityData
     {
-        internal const string KernelFromDepth = "MomentFromDepth";
-        internal const string KernelBlurH = "MomentBlurH";
-        internal const string KernelBlurV = "MomentBlurV";
         internal const string CascadeTextureName = "CascadeShadowMoments";
         internal const string LocalTextureName = "LocalShadowMoments";
         // Smallest moment standard deviation in depth units (_ShadowMomentParams.z); hides acne on flat receivers.
@@ -37,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public ComputeShader shader;
             public int sliceCount;
-            // Per slice: rect in moment pixels, depth params, (mode, exponent, 1 / far, blur radius).
+            public ComputeKernel fromDepth, blurH, blurV;
             public Vector4[] rects;
             public Vector4[] depthParams;
             public Vector4[] momentParams;
@@ -131,7 +129,9 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
             {
                 ref ShadowMomentPassData passData = ref passRef.GetPassData<ShadowMomentPassData>();
-                passData.shader = shaders.shadowMomentShader;
+                passData.fromDepth = kernels.momentFromDepth;
+                passData.blurH = kernels.momentBlurH;
+                passData.blurV = kernels.momentBlurV;
                 passData.sliceCount = sliceCount;
                 passData.rects = rects;
                 passData.depthParams = depthParams;
@@ -144,33 +144,31 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ShadowMomentPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ComputeShader shader = passData.shader;
-                    int fromDepth = shader.FindKernel(ShadowMomentPassUtilityData.KernelFromDepth);
-                    int blurH = shader.FindKernel(ShadowMomentPassUtilityData.KernelBlurH);
-                    int blurV = shader.FindKernel(ShadowMomentPassUtilityData.KernelBlurV);
+                    ComputeKernel fromDepth = passData.fromDepth;
+                    ComputeKernel blurH = passData.blurH;
+                    ComputeKernel blurV = passData.blurV;
+                    ComputeShader shader = fromDepth.shader;
                     for (int i = 0; i < passData.sliceCount; ++i)
                     {
                         Vector4 rect = passData.rects[i];
-                        int groupsX = ((int)rect.z + 7) / 8;
-                        int groupsY = ((int)rect.w + 7) / 8;
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentSliceRectID, rect);
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentDepthParamsID, passData.depthParams[i]);
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentParamsID, passData.momentParams[i]);
 
-                        cmdEncoder.SetComputeTextureParam(shader, fromDepth, ShadowMomentPassUtilityData.SRV_ShadowDepthID, passData.depth);
-                        cmdEncoder.SetComputeTextureParam(shader, fromDepth, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
-                        cmdEncoder.DispatchCompute(shader, fromDepth, groupsX, groupsY, 1);
+                        cmdEncoder.SetComputeTextureParam(shader, fromDepth.index, ShadowMomentPassUtilityData.SRV_ShadowDepthID, passData.depth);
+                        cmdEncoder.SetComputeTextureParam(shader, fromDepth.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
+                        cmdEncoder.DispatchCompute(shader, fromDepth.index, fromDepth.GroupsX((int)rect.z), fromDepth.GroupsY((int)rect.w), 1);
 
                         if (passData.momentParams[i].w < 1)
                         {
                             continue;
                         }
-                        cmdEncoder.SetComputeTextureParam(shader, blurH, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.moments);
-                        cmdEncoder.SetComputeTextureParam(shader, blurH, ShadowMomentPassUtilityData.UAV_MomentsID, passData.blurTemp);
-                        cmdEncoder.DispatchCompute(shader, blurH, groupsX, groupsY, 1);
-                        cmdEncoder.SetComputeTextureParam(shader, blurV, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.blurTemp);
-                        cmdEncoder.SetComputeTextureParam(shader, blurV, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
-                        cmdEncoder.DispatchCompute(shader, blurV, groupsX, groupsY, 1);
+                        cmdEncoder.SetComputeTextureParam(shader, blurH.index, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.moments);
+                        cmdEncoder.SetComputeTextureParam(shader, blurH.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.blurTemp);
+                        cmdEncoder.DispatchCompute(shader, blurH.index, blurH.GroupsX((int)rect.z), blurH.GroupsY((int)rect.w), 1);
+                        cmdEncoder.SetComputeTextureParam(shader, blurV.index, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.blurTemp);
+                        cmdEncoder.SetComputeTextureParam(shader, blurV.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
+                        cmdEncoder.DispatchCompute(shader, blurV.index, blurV.GroupsX((int)rect.z), blurV.GroupsY((int)rect.w), 1);
                     }
                 });
             }

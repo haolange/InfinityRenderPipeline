@@ -299,7 +299,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 drawLists.SetRecord(draws.index, record);
                 return;
             }
-            record.tables.version.owner.Record(builder, record.tables.version, world.meshDrawShader, m_ScheduledVersions);
+            record.tables.version.owner.Record(builder, record.tables.version, m_ScheduledVersions);
             if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
             {
                 int visibilityBase = 0;

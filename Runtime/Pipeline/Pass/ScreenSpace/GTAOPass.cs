@@ -11,35 +11,11 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class GTAOPassUtilityData
     {
-        internal static readonly string[] RequiredKernels =
-        {
-            "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"
-        };
         internal static string OcclusionTextureName = "OcclusionTexture";
         internal static string OcclusionHalfTextureName = "OcclusionHalfTexture";
         internal static string SpatialTempTextureName = "SpatialTempTexture";
         internal static string HistoryOcclusionTextureName = "HistoryOcclusionTexture";
         internal static string HistoryOcclusionDepthTextureName = "HistoryOcclusionDepthTexture";
-        internal static int OcclusionTraceKernel;
-        internal static int OcclusionSpatialXKernel;
-        internal static int OcclusionSpatialYKernel;
-        internal static int OcclusionTemporalKernel;
-        internal static int OcclusionUpsampleKernel;
-        static ComputeShader s_KernelShader;
-        internal static void ResolveKernels(ComputeShader shader)
-        {
-            if (s_KernelShader == shader)
-            {
-                return;
-            }
-            OcclusionTraceKernel = shader.FindKernel("OcclusionTrace");
-            OcclusionSpatialXKernel = shader.FindKernel("OcclusionSpatialX");
-            OcclusionSpatialYKernel = shader.FindKernel("OcclusionSpatialY");
-            OcclusionTemporalKernel = shader.FindKernel("OcclusionTemporal");
-            OcclusionUpsampleKernel = shader.FindKernel("OcclusionUpsample");
-            s_KernelShader = shader;
-        }
-
         internal static int NumRayID = Shader.PropertyToID("NumRay");
         internal static int NumStepID = Shader.PropertyToID("NumStep");
         internal static int PowerID = Shader.PropertyToID("Power");
@@ -88,6 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int numRays;
             public bool historyValid;
             public int traceKernel, spatialXKernel, spatialYKernel, temporalKernel, upsampleKernel;
+            public int2 halfGroups, fullGroups;
             public int numSteps;
             public float power;
             public float radius;
@@ -156,10 +133,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             GTAOSettings ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
-            if (!GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, GTAOPassUtilityData.RequiredKernels))
-            {
-                return;
-            }
 
             int fullWidth = m_ActiveFrameState.dimensions.internalSize.x;
             int fullHeight = m_ActiveFrameState.dimensions.internalSize.y;
@@ -194,7 +167,6 @@ namespace InfinityTech.Rendering.Pipeline
             var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionBuffer);
             historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionDepthBuffer);
-            GTAOPassUtilityData.ResolveKernels(shaders.ssaoShader);
 
             RGTextureHandle halfResDepthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HalfResDepthBuffer);
             RGTextureHandle halfResNormalTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HalfResNormalBuffer);
@@ -206,11 +178,13 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref GTAOPassData passData = ref passRef.GetPassData<GTAOPassData>();
                 passData = default;
-                passData.traceKernel = GTAOPassUtilityData.OcclusionTraceKernel;
-                passData.spatialXKernel = GTAOPassUtilityData.OcclusionSpatialXKernel;
-                passData.spatialYKernel = GTAOPassUtilityData.OcclusionSpatialYKernel;
-                passData.temporalKernel = GTAOPassUtilityData.OcclusionTemporalKernel;
-                passData.upsampleKernel = GTAOPassUtilityData.OcclusionUpsampleKernel;
+                passData.traceKernel = kernels.occlusionTrace.index;
+                passData.spatialXKernel = kernels.occlusionSpatialX.index;
+                passData.spatialYKernel = kernels.occlusionSpatialY.index;
+                passData.temporalKernel = kernels.occlusionTemporal.index;
+                passData.upsampleKernel = kernels.occlusionUpsample.index;
+                passData.halfGroups = new int2(kernels.occlusionTrace.GroupsX(halfWidth), kernels.occlusionTrace.GroupsY(halfHeight));
+                passData.fullGroups = new int2(kernels.occlusionUpsample.GroupsX(fullWidth), kernels.occlusionUpsample.GroupsY(fullHeight));
                 passData.numRays = ssao.numRays;
                 passData.numSteps = ssao.numSteps;
                 passData.power = ssao.power;
@@ -297,10 +271,10 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_ViewToWorldID, passData.matrix_ViewToWorld);
                     cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_WorldToViewID, passData.matrix_WorldToView);
 
-                    int halfGroupsX = math.max(1, Mathf.CeilToInt(halfWidth / 16.0f));
-                    int halfGroupsY = math.max(1, Mathf.CeilToInt(halfHeight / 16.0f));
-                    int fullGroupsX = math.max(1, Mathf.CeilToInt(fullWidth / 16.0f));
-                    int fullGroupsY = math.max(1, Mathf.CeilToInt(fullHeight / 16.0f));
+                    int halfGroupsX = passData.halfGroups.x;
+                    int halfGroupsY = passData.halfGroups.y;
+                    int fullGroupsX = passData.fullGroups.x;
+                    int fullGroupsY = passData.fullGroups.y;
 
                     int trace = passData.traceKernel;
                     cmdEncoder.BeginSample(CachedSampler.Get("GTAO_Trace"));

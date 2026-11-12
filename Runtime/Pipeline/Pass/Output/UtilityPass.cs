@@ -38,17 +38,12 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.sizingDomain = ETextureSizingDomain.Display;
             descriptor.viewDivisor = 1;
             RGTextureHandle output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
-            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterUpscaleDepth");
-            if (shaderPass < 0)
-            {
-                throw new System.InvalidOperationException("InfinityRP: required UpscaleDepth shader pass is missing.");
-            }
             using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUpscaleDepthForEditorOverlays)))
             {
                 pass.SetDepthStencilAttachment(output, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 ref var data = ref pass.GetPassData<DisplayDepthPassData>();
                 data.source = pass.ReadTexture(source);
-                data.shaderPass = shaderPass;
+                data.shaderPass = blitPasses.upscaleDepth;
                 pass.SetExecuteFunc((in DisplayDepthPassData data, in RGRasterEncoder commands) =>
                 {
                     commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
@@ -230,7 +225,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         FinalOutputPassData PrepareFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureHandle source,
-            bool finalTarget, string shaderPass)
+            bool finalTarget, int shaderPass)
         {
             var dimensions = m_ActiveFrameState.dimensions;
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
@@ -241,12 +236,8 @@ namespace InfinityTech.Rendering.Pipeline
                 scaleBias = finalTarget && camera.targetTexture == null ? new Vector4(1, -1, 0, 1) : new Vector4(1, 1, 0, 0),
                 outputTransfer = finalTarget ? new Vector4((int)decision.policy, decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0, decision.paperWhiteNits, 0)
                     : new Vector4((int)EOutputEncodePolicy.LinearTarget, 0, 100, 0),
-                shaderPass = GraphicsUtility.BlitMaterial.FindPass(shaderPass)
+                shaderPass = shaderPass
             };
-            if (data.shaderPass < 0)
-            {
-                throw new System.InvalidOperationException("InfinityRP: required output shader pass is missing: " + shaderPass);
-            }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (finalTarget)
             {
@@ -289,7 +280,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 pass.SetColorAttachment(target, 0, finalTarget && !OutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<FinalOutputPassData>();
-                data = PrepareFinalOutput(camera, decision, source, finalTarget, "RasterFinalOutput");
+                data = PrepareFinalOutput(camera, decision, source, finalTarget, blitPasses.finalOutput);
                 data.srcTexture = pass.ReadTexture(source);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (data.displayProbe != null)

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -27,9 +28,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct HiZPassData
         {
-            public int mipCount, kernel;
+            public int mipCount;
             public int2 fullSize, baseSize;
-            public ComputeShader shader;
+            public ComputeKernel kernel;
             public RGTextureHandle depth, closest, furthest;
         }
         internal static TextureDescriptor HiZDescriptor(int width, int height, string name)
@@ -69,18 +70,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecordHiZ(RGTextureHandle depth, RGTextureHandle closest, RGTextureHandle furthest, int width, int height, bool async, ProfilingSampler sampler)
         {
-            var shader = shaders.hiZShader;
-            string name = closest.IsValid() ? "HiZ_Generation" : "HiZ_FurthestGeneration";
-            if (shader == null || !shader.HasKernel(name))
-            {
-                throw new InvalidOperationException("HiZ requires kernel " + name);
-            }
+            ComputeKernel kernel = closest.IsValid() ? kernels.hiZClosest : kernels.hiZFurthest;
             using (var pass = m_RGBuilder.AddComputePass<HiZPassData>(sampler))
             {
                 ref var data = ref pass.GetPassData<HiZPassData>();
                 data = default;
-                data.shader = shader;
-                data.kernel = shader.FindKernel(name);
+                data.kernel = kernel;
                 data.fullSize = new int2(width, height);
                 data.baseSize = (data.fullSize + 1) / 2;
                 data.mipCount = PyramidMipBatch.MipCount(data.baseSize.x, data.baseSize.y);
@@ -100,27 +95,27 @@ namespace InfinityTech.Rendering.Pipeline
                         int2 source = raw ? data.fullSize : math.max(1, data.baseSize >> sourceMip);
                         int2 destination = math.max(1, data.baseSize >> first);
                         int writes = math.min(PyramidMipBatch.HiZMipsPerDispatch, data.mipCount - first);
-                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.SourceMip, sourceMip);
-                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.RawSource, raw ? 1 : 0);
-                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.WriteCount, writes);
-                        commands.SetComputeVectorParam(data.shader, HiZPassUtilityData.SourceSize, new Vector4(source.x, source.y, 1f / source.x, 1f / source.y));
-                        commands.SetComputeVectorParam(data.shader, HiZPassUtilityData.DestinationSize, new Vector4(destination.x, destination.y, 1f / destination.x, 1f / destination.y));
-                        commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.RawDepth, data.depth);
-                        commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.SourceFurthest, raw ? data.depth : data.furthest);
+                        commands.SetComputeIntParam(data.kernel.shader, HiZPassUtilityData.SourceMip, sourceMip);
+                        commands.SetComputeIntParam(data.kernel.shader, HiZPassUtilityData.RawSource, raw ? 1 : 0);
+                        commands.SetComputeIntParam(data.kernel.shader, HiZPassUtilityData.WriteCount, writes);
+                        commands.SetComputeVectorParam(data.kernel.shader, HiZPassUtilityData.SourceSize, new Vector4(source.x, source.y, 1f / source.x, 1f / source.y));
+                        commands.SetComputeVectorParam(data.kernel.shader, HiZPassUtilityData.DestinationSize, new Vector4(destination.x, destination.y, 1f / destination.x, 1f / destination.y));
+                        commands.SetComputeTextureParam(data.kernel.shader, data.kernel.index, HiZPassUtilityData.RawDepth, data.depth);
+                        commands.SetComputeTextureParam(data.kernel.shader, data.kernel.index, HiZPassUtilityData.SourceFurthest, raw ? data.depth : data.furthest);
                         if (data.closest.IsValid())
                         {
-                            commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.SourceClosest, raw ? data.depth : data.closest);
+                            commands.SetComputeTextureParam(data.kernel.shader, data.kernel.index, HiZPassUtilityData.SourceClosest, raw ? data.depth : data.closest);
                         }
                         for (int i = 0; i < PyramidMipBatch.HiZMipsPerDispatch; ++i)
                         {
                             int mip = first + math.min(i, writes - 1);
-                            commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.Furthest[i], data.furthest, mip);
+                            commands.SetComputeTextureParam(data.kernel.shader, data.kernel.index, HiZPassUtilityData.Furthest[i], data.furthest, mip);
                             if (data.closest.IsValid())
                             {
-                                commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.Closest[i], data.closest, mip);
+                                commands.SetComputeTextureParam(data.kernel.shader, data.kernel.index, HiZPassUtilityData.Closest[i], data.closest, mip);
                             }
                         }
-                        commands.DispatchCompute(data.shader, data.kernel, (destination.x + 7) / 8, (destination.y + 7) / 8, 1);
+                        commands.DispatchCompute(data.kernel.shader, data.kernel.index, data.kernel.GroupsX(destination.x), data.kernel.GroupsY(destination.y), 1);
                     }
                 });
             }

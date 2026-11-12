@@ -1,7 +1,9 @@
 using System;
 using UnityEngine;
+using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 
@@ -19,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 resolution, depthParameters, jitter;
             public bool historyValid, diagnostics;
             public int kernel;
+            public int2 groups;
             public ComputeShader shader;
             public RGTextureHandle input, motion, metadata, reactive, historyColor, historyDepth;
             public RGTextureHandle accumulation, temporalDepth, sharpened, confidence, reprojection;
@@ -36,9 +39,6 @@ namespace InfinityTech.Rendering.Pipeline
         void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
-            ComputeShader shader = shaders.taaShader;
-            if (shader == null || !shader.HasKernel("Main") || !shader.HasKernel("MainDebug"))
-                throw new InvalidOperationException("TAA requires its fused accumulation/sharpen and diagnostics kernels.");
             var depthSource = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var depthDescription = m_RGBuilder.GetTextureDescriptor(depthSource);
             int width = depthDescription.width, height = depthDescription.height;
@@ -73,8 +73,10 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 ref var data = ref pass.GetPassData<AntiAliasingPassData>();
-                data.shader = shader;
-                data.kernel = shader.FindKernel(diagnostics ? "MainDebug" : "Main");
+                ComputeKernel temporalKernel = diagnostics ? kernels.temporalAntiAliasingDebug : kernels.temporalAntiAliasing;
+                data.shader = temporalKernel.shader;
+                data.kernel = temporalKernel.index;
+                data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
                 data.resolution = new Vector4(width, height, 1f / width, 1f / height);
                 data.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
@@ -129,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                         commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAADiagnostics"), data.confidence);
                         commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAAReprojection"), data.reprojection);
                     }
-                    commands.DispatchCompute(shader, kernel, ((int)data.resolution.x + 7) / 8, ((int)data.resolution.y + 7) / 8, 1);
+                    commands.DispatchCompute(shader, kernel, data.groups.x, data.groups.y, 1);
                 });
             }
             MarkFeatureProduced(EFrameFeature.TAA);

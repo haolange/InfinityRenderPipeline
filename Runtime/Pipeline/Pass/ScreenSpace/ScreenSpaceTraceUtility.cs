@@ -7,7 +7,6 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class ScreenSpaceTraceUtility
     {
         internal const int TileSize = 8;
-        internal const int ResolveGroupSize = 8;
 
         internal static int2 TraceSize(int2 fullSize, bool halfResolution) =>
             halfResolution ? math.max(new int2(1, 1), (fullSize + 1) / 2) : fullSize;

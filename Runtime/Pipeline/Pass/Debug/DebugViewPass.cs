@@ -9,18 +9,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DebugViewPassUtilityData
     {
-        internal static readonly string[] RequiredKernels =
-        {
-            "DebugViewGBuffer",
-            "DebugViewMotion",
-            "DebugViewSceneColor",
-            "DebugViewOptional",
-            "DebugViewMissing",
-            "DebugViewShadow",
-            "DebugViewLightLoop",
-            "DebugViewProbeAtlas"
-        };
-
         internal static int DV_ResolutionID = Shader.PropertyToID("DV_Resolution");
         internal static int DV_ModeID = Shader.PropertyToID("DV_Mode");
         internal static int DV_ParamsID = Shader.PropertyToID("DV_Params");
@@ -44,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int2 resolution;
             public int mode;
-            public int kernelIndex;
+            public ComputeKernel kernel;
             public int bindSet;
             // x = first probe-atlas slice, y = complexity heat-map range.
             public Vector4 parameters;
@@ -69,11 +57,6 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(shaders.debugViewShader, DebugViewPassUtilityData.RequiredKernels))
-            {
-                throw new InvalidOperationException("InfinityRP: DebugView is active but debugViewShader is missing required kernels (DebugViewGBuffer/Motion/SceneColor/Optional/Missing/Shadow/LightLoop/ProbeAtlas).");
-            }
-
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureHandle postProcessTexture))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView requires PostProcessBuffer, which was never registered this frame.");
@@ -84,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: DebugView requires DepthBuffer, which was never registered this frame.");
             }
 
-            string kernelName;
+            ComputeKernel debugKernel;
             int bindSet;
             bool needGBuffer = false;
             bool needMotion = false;
@@ -109,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.Specular:
                 case EDebugView.ShadingModel:
                 case EDebugView.RenderingLayers:
-                    kernelName = "DebugViewGBuffer";
+                    debugKernel = kernels.debugViewGBuffer;
                     bindSet = 0;
                     needGBuffer = true;
                     RequireTexture(InfinityShaderIDs.GBufferA, "GBufferA", view, out gBufferA);
@@ -119,26 +102,26 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.AO:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
                 case EDebugView.SSR:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
@@ -148,31 +131,31 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.SSRHistoryAge:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRDebugBuffer, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
                 case EDebugView.SSGI:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
                 case EDebugView.MotionMagnitude:
-                    kernelName = "DebugViewMotion";
+                    debugKernel = kernels.debugViewMotion;
                     bindSet = 1;
                     needMotion = true;
                     RequireTexture(InfinityShaderIDs.MotionBuffer, "MotionBuffer", view, out motionTexture);
@@ -180,18 +163,18 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.TAAConfidence:
                     if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     else
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     break;
                 case EDebugView.PreTonemapLuma:
-                    kernelName = "DebugViewSceneColor";
+                    debugKernel = kernels.debugViewSceneColor;
                     bindSet = 2;
                     needSceneColor = true;
                     if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.AntiAliasingBuffer, out sceneColorTexture) &&
@@ -212,26 +195,26 @@ namespace InfinityTech.Rendering.Pipeline
                             || m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out optionalTexture);
                     if (hasAtlas)
                     {
-                        kernelName = "DebugViewShadow";
+                        debugKernel = kernels.debugViewShadow;
                         bindSet = 5;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
                 case EDebugView.LightCookieAtlas:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
@@ -245,13 +228,13 @@ namespace InfinityTech.Rendering.Pipeline
                         : InfinityShaderIDs.ContactShadowBuffer;
                     if (m_RGScoper.TryQueryTexture(optionalId, out optionalTexture))
                     {
-                        kernelName = "DebugViewOptional";
+                        debugKernel = kernels.debugViewOptional;
                         bindSet = 3;
                         needOptional = true;
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
@@ -259,14 +242,14 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.ReflectionProbeComplexity:
                     if (renderContext?.lightContext != null)
                     {
-                        kernelName = "DebugViewLightLoop";
+                        debugKernel = kernels.debugViewLightLoop;
                         bindSet = 6;
                         needLightLoop = true;
                         parameters.y = Mathf.Max(1, lightingDebug.complexityRange);
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
@@ -274,7 +257,7 @@ namespace InfinityTech.Rendering.Pipeline
                     int probeCount = renderContext?.lightContext != null ? renderContext.lightContext.ReflectionProbeCount : 0;
                     if (probeCount > 0 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out optionalTexture))
                     {
-                        kernelName = "DebugViewProbeAtlas";
+                        debugKernel = kernels.debugViewProbeAtlas;
                         bindSet = 7;
                         needOptional = true;
                         // Six faces per probe; the atlas slot of list entry i is its first slice (record parameters.y).
@@ -282,18 +265,12 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     else
                     {
-                        kernelName = "DebugViewMissing";
+                        debugKernel = kernels.debugViewMissing;
                         bindSet = 4;
                     }
                     break;
                 default:
                     throw new InvalidOperationException($"InfinityRP: DebugView '{view}' is not implemented.");
-            }
-
-            int kernelIndex = shaders.debugViewShader.FindKernel(kernelName);
-            if (kernelIndex < 0)
-            {
-                throw new InvalidOperationException($"InfinityRP: DebugView is active but FindKernel({kernelName}) failed.");
             }
 
             var debugDescriptor = m_RGBuilder.GetTextureDescriptor(postProcessTexture);
@@ -308,7 +285,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DebugViewPassData passData = ref passRef.GetPassData<DebugViewPassData>();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.mode = (int)view;
-                passData.kernelIndex = kernelIndex;
+                passData.kernel = debugKernel;
                 passData.bindSet = bindSet;
                 passData.parameters = parameters;
                 passData.invProj = m_CameraUniform.matrix_InvFlipYJitterProj;
@@ -349,7 +326,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.debugViewShader;
-                    int kernel = passData.kernelIndex;
+                    int kernel = passData.kernel.index;
                     cmdEncoder.SetComputeVectorParam(shader, DebugViewPassUtilityData.DV_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeIntParam(shader, DebugViewPassUtilityData.DV_ModeID, passData.mode);
                     cmdEncoder.SetComputeVectorParam(shader, DebugViewPassUtilityData.DV_ParamsID, passData.parameters);
@@ -389,7 +366,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
-                    cmdEncoder.DispatchCompute(shader, kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
         }

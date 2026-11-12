@@ -275,6 +275,8 @@ namespace InfinityTech.Rendering.Pipeline
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
+        internal PipelineKernels kernels => resources.kernels;
+        internal BlitShaderPasses blitPasses => resources.blitPasses;
         public override RenderPipelineGlobalSettings defaultSettings => m_GlobalSettings;
         internal RenderContext renderContext;
         // Read-only access for diagnostics observers that report pool estimates outside the measured scopes.
@@ -359,6 +361,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     BeginContextRendering(scriptableRenderContext, cameras);
                     contextBegan = true;
+#if UNITY_EDITOR
+                    resources.ResolveShadersAfterImport();
+#endif
                     m_AtmosphereSharedCache.BeginFrame();
                     m_LocalShadowCache.BeginFrame();
                     m_LightCookieAtlas.BeginFrame();
@@ -1320,13 +1325,11 @@ namespace InfinityTech.Rendering.Pipeline
 
             m_FeatureSupportContext = new FeatureSupportContext
             {
-                shaders = shaders,
-                textures = resources.textures,
+                resourceReasons = resources.featureResourceReasons,
                 temporal = temporal,
                 hasDiffusionProfiles = pipelineAsset.diffusionProfiles != null && System.Array.Exists(pipelineAsset.diffusionProfiles, profile => profile != null),
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,
-                presentAvailable = GraphicsUtility.BlitMaterial != null && GraphicsUtility.BlitMaterial.FindPass("RasterFinalOutput") >= 0,
             };
             FeatureRegistry.Resolve(features, m_FeatureSupportContext);
             InfinityDebugDisplaySettings.current.rendering.lastFeatures = features;

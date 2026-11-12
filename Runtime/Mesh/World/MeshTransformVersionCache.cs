@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -94,12 +95,25 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly int ID_TransformVersionGenerations = Shader.PropertyToID("_TransformVersionGenerations");
         static readonly int ID_TransformPatchCount = Shader.PropertyToID("_TransformPatchCount");
         static readonly int ID_TransformChanges = Shader.PropertyToID("_TransformChanges");
-        ComputeShader m_KernelShader;
-        int m_InitializeKernel, m_CopyKernel, m_PatchKernel;
+        readonly ComputeKernel m_InitializeKernel, m_CopyKernel, m_PatchKernel;
         static readonly ProfilingSampler s_Upload = new ProfilingSampler("UploadMeshTransformChanges");
         static readonly ProfilingSampler s_Build = new ProfilingSampler("ComputeMeshTransformVersion");
 
-        internal MeshTransformVersionCache(ResourcePool pool) => m_Pool = pool;
+        internal MeshTransformVersionCache(ResourcePool pool, ComputeShader shader)
+        {
+            m_Pool = pool;
+            const string field = "GlobalSettings RuntimeShaders.meshDrawPipelineCS";
+            m_InitializeKernel = ComputeKernel.Resolve(shader, field, "InitializeTransformVersion");
+            m_CopyKernel = ComputeKernel.Resolve(shader, field, "CopyTransformVersion");
+            m_PatchKernel = ComputeKernel.Resolve(shader, field, "PatchTransformVersion");
+            foreach (ComputeKernel kernel in new[] { m_InitializeKernel, m_CopyKernel, m_PatchKernel })
+            {
+                if (!kernel.isValid)
+                {
+                    throw new InvalidOperationException("Mesh transforms require the immutable version kernels: " + kernel.missingReason);
+                }
+            }
+        }
 
         internal void Prepare(MeshWorld world, NativeList<int2> dirtyRuns)
         {
@@ -235,7 +249,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int copyKernel, patchKernel;
             public RGBufferHandle matrices, generations, sourceMatrices, sourceGenerations, patches;
         }
-        internal void Record(RGBuilder graph, MeshTransformVersion version, ComputeShader shader, HashSet<MeshTransformVersion> scheduled, bool externallyObserved = false)
+        internal void Record(RGBuilder graph, MeshTransformVersion version, HashSet<MeshTransformVersion> scheduled, bool externallyObserved = false)
         {
             if (version == null || version.queued || !scheduled.Add(version))
             {
@@ -246,16 +260,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 version.queued = true;
                 return;
             }
-            if (shader == null || !shader.HasKernel("InitializeTransformVersion") || !shader.HasKernel("CopyTransformVersion") || !shader.HasKernel("PatchTransformVersion"))
-                throw new InvalidOperationException("Mesh transforms require the immutable version kernels.");
-            if (m_KernelShader != shader)
-            {
-                m_KernelShader = shader;
-                m_InitializeKernel = shader.FindKernel("InitializeTransformVersion");
-                m_CopyKernel = shader.FindKernel("CopyTransformVersion");
-                m_PatchKernel = shader.FindKernel("PatchTransformVersion");
-            }
-            Record(graph, version.source, shader, scheduled);
+            Record(graph, version.source, scheduled);
             RGBufferHandle patches = default;
             if (version.changeCount > 0)
             {
@@ -283,9 +288,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ref BuildData data = ref pass.GetPassData<BuildData>();
                 data = default;
                 data.version = version;
-                data.shader = shader;
-                data.copyKernel = version.source != null ? m_CopyKernel : m_InitializeKernel;
-                data.patchKernel = m_PatchKernel;
+                data.shader = m_CopyKernel.shader;
+                data.copyKernel = version.source != null ? m_CopyKernel.index : m_InitializeKernel.index;
+                data.patchKernel = m_PatchKernel.index;
                 data.matrices = pass.WriteBuffer(graph.ImportBuffer(version.matrices));
                 data.generations = pass.WriteBuffer(graph.ImportBuffer(version.generations));
                 if (version.source != null)

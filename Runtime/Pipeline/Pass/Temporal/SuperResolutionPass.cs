@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 
@@ -35,6 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             public bool resetHistory;
             public float2 jitter;
             public int frameIndex, kernel;
+            public int2 groups;
             public float sharpness;
             public ComputeShader superResolutionShader;
             public RGTextureHandle sceneColorTexture;
@@ -47,11 +49,6 @@ namespace InfinityTech.Rendering.Pipeline
         void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
-
-            if (shaders.superResolutionShader == null)
-            {
-                throw new InvalidOperationException("InfinityRP: enableSuperResolution is true but superResolutionShader is not assigned.");
-            }
 
             int width = m_ActiveFrameState.dimensions.displaySize.x;
             int height = m_ActiveFrameState.dimensions.displaySize.y;
@@ -92,9 +89,10 @@ namespace InfinityTech.Rendering.Pipeline
                     || historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
                 passData.jitter = jitter;
                 passData.frameIndex = Time.frameCount;
-                passData.kernel = shaders.superResolutionShader.FindKernel("SuperResolutionCS");
+                passData.kernel = kernels.superResolution.index;
+                passData.groups = new int2(kernels.superResolution.GroupsX(width), kernels.superResolution.GroupsY(height));
                 passData.sharpness = 0.5f;
-                passData.superResolutionShader = shaders.superResolutionShader;
+                passData.superResolutionShader = kernels.superResolution.shader;
                 passData.sceneColorTexture = passRef.ReadTexture(lightingTexture);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
@@ -120,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_SuperResolutionTextureID, passData.superResolutionTexture);
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryColorTextureID, passData.pendingColor);
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryDepthTextureID, passData.pendingDepth);
-                    cmdEncoder.DispatchCompute(passData.superResolutionShader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.DispatchCompute(passData.superResolutionShader, passData.kernel, passData.groups.x, passData.groups.y, 1);
                 });
             }
 

@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
@@ -8,9 +9,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class LightCookiePassUtilityData
     {
-        internal const string KernelCopy2D = "CookieCopy2D";
-        internal const string KernelCubeToOctahedral = "CookieCubeToOctahedral";
-        internal const string KernelDownsample = "CookieDownsample";
         internal static readonly int Cookie_BlockID = Shader.PropertyToID("Cookie_Block");
         internal static readonly int Cookie_ChannelsID = Shader.PropertyToID("Cookie_Channels");
         internal static readonly int SRV_CookieSourceID = Shader.PropertyToID("SRV_CookieSource");
@@ -23,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct LightCookiePassData
         {
-            public ComputeShader shader;
+            public ComputeKernel copy2D, cubeToOctahedral, downsample;
             public CookieUpload[] uploads;
             public int uploadCount;
             public RGTextureHandle atlas;
@@ -54,7 +52,9 @@ namespace InfinityTech.Rendering.Pipeline
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
                 {
                     ref LightCookiePassData passData = ref passRef.GetPassData<LightCookiePassData>();
-                    passData.shader = shaders.lightCookieShader;
+                    passData.copy2D = kernels.cookieCopy2D;
+                    passData.cubeToOctahedral = kernels.cookieCubeToOctahedral;
+                    passData.downsample = kernels.cookieDownsample;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.atlas = passRef.WriteTexture(atlas);
@@ -62,10 +62,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passRef.SetQueueObserver(m_CookieProduction);
                     passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
-                        ComputeShader shader = passData.shader;
-                        int copy2D = shader.FindKernel(LightCookiePassUtilityData.KernelCopy2D);
-                        int cubeToOcta = shader.FindKernel(LightCookiePassUtilityData.KernelCubeToOctahedral);
-                        int downsample = shader.FindKernel(LightCookiePassUtilityData.KernelDownsample);
+                        ComputeShader shader = passData.copy2D.shader;
+                        ComputeKernel downsample = passData.downsample;
                         int count = passData.uploadCount;
                         CookieUpload[] recorded = passData.uploads;
                         for (int i = 0; i < count; ++i)
@@ -76,23 +74,23 @@ namespace InfinityTech.Rendering.Pipeline
                                 continue;
                             }
                             bool cube = upload.layout == ECookieLayout.Octahedral;
-                            int kernel = cube ? cubeToOcta : copy2D;
+                            ComputeKernel kernel = cube ? passData.cubeToOctahedral : passData.copy2D;
                             int sourceSize = cube ? 2 * upload.source.width : Mathf.Max(upload.source.width, upload.source.height);
                             float lodBias = Mathf.Log(Mathf.Max(1, sourceSize) / (float)upload.size, 2);
                             cmdEncoder.SetComputeVectorParam(shader, LightCookiePassUtilityData.Cookie_BlockID, new Vector4(upload.position.x, upload.position.y, upload.size, lodBias));
                             cmdEncoder.SetComputeIntParam(shader, LightCookiePassUtilityData.Cookie_ChannelsID, (int)upload.channels);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, cube ? LightCookiePassUtilityData.SRV_CookieCubeID : LightCookiePassUtilityData.SRV_CookieSourceID, upload.source);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, 0);
-                            cmdEncoder.DispatchCompute(shader, kernel, (upload.size + 7) / 8, (upload.size + 7) / 8, 1);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, cube ? LightCookiePassUtilityData.SRV_CookieCubeID : LightCookiePassUtilityData.SRV_CookieSourceID, upload.source);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, 0);
+                            cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(upload.size), kernel.GroupsY(upload.size), 1);
 
                             // The block's mips: mip m covers (position >> m, size >> m) down to one texel.
                             for (int mip = 1; (upload.size >> mip) >= 1; ++mip)
                             {
                                 int size = upload.size >> mip;
                                 cmdEncoder.SetComputeVectorParam(shader, LightCookiePassUtilityData.Cookie_BlockID, new Vector4(upload.position.x >> mip, upload.position.y >> mip, size, 0));
-                                cmdEncoder.SetComputeTextureParam(shader, downsample, LightCookiePassUtilityData.UAV_CookieAtlasSourceID, passData.atlas, mip - 1);
-                                cmdEncoder.SetComputeTextureParam(shader, downsample, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, mip);
-                                cmdEncoder.DispatchCompute(shader, downsample, (size + 7) / 8, (size + 7) / 8, 1);
+                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasSourceID, passData.atlas, mip - 1);
+                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, mip);
+                                cmdEncoder.DispatchCompute(shader, downsample.index, downsample.GroupsX(size), downsample.GroupsY(size), 1);
                             }
                         }
                     });

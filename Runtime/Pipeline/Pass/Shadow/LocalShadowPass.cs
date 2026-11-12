@@ -305,11 +305,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
-            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterCopyShadowDepthTile");
-            if (shaderPass < 0)
-            {
-                throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
-            }
+            int shaderPass = blitPasses.copyShadowDepthTile;
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var keys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(saveCount);

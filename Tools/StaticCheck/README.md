@@ -5,7 +5,7 @@ Editor is available, and they can run in CI.
 
 | Script | What it checks |
 |---|---|
-| `static_check.py` | `.meta` completeness and GUID uniqueness, kernel-name literals vs `#pragma kernel`, `[ResourcePath]` targets, LightMode tags vs `InfinityPassIDs`, Markdown links, C#/HLSL GPU record layouts (`// GPU-RECORD:` markers), Shader Graph string contracts |
+| `static_check.py` | `.meta` completeness and GUID uniqueness, resolved kernel names vs the `#pragma kernel` of the shader they resolve from, `[ResourcePath]` targets, LightMode tags vs `InfinityPassIDs`, Markdown links, C#/HLSL GPU record layouts (`// GPU-RECORD:` markers), Shader Graph string contracts |
 | `shader_check.py` | Compiles every compute kernel and every vertex/fragment entry with DXC (base variant plus one variant per keyword). Needs a DXC binary and the CoreRP package sources. |
 | `new_meta.py` | Writes missing `.meta` files with fresh GUIDs. Never overwrites. |
 

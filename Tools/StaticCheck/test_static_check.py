@@ -74,6 +74,21 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/Pass.cs:4: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD',
                           'Runtime/Pass.cs:6: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'], [o[2] for o in out])
 
+    def test_table_kernel_must_exist_in_its_own_shader(self):
+        self.write('Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs',
+                   '[ResourcePath("Shaders/A.compute")]\n        public ComputeShader aShader;\n'
+                   '[ResourcePath("Shaders/B.compute")]\n        public ComputeShader bShader;')
+        self.write('Shaders/A.compute', '#pragma kernel KernelA\n')
+        self.write('Shaders/B.compute', '#pragma kernel KernelB\n')
+        self.write('Runtime/T.cs', 'a = ComputeKernel.Resolve(shaders.aShader, Source + nameof(X.aShader), "KernelA");\n'
+                                   'm = ComputeKernel.Resolve(shader, field, "KernelB");')
+        out = []
+        static_check.check_kernels(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/U.cs', 'b = ComputeKernel.Resolve(shaders.aShader, Source + nameof(X.aShader), "KernelB");')
+        static_check.check_kernels(str(self.repo), out)
+        self.assertEqual(['Runtime/U.cs: kernel "KernelB" is not declared by shaders.aShader'], [o[2] for o in out])
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

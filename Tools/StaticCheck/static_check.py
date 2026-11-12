@@ -6,7 +6,7 @@ Exit code 1 when any ERROR is found. WARN lines are informational.
 
 Checks
   meta      every asset/folder has a .meta, every .meta has an asset, GUIDs are unique
-  kernels   kernel-name string literals used from C# exist as `#pragma kernel` somewhere
+  kernels   kernel names resolved from C# exist as `#pragma kernel` in the shader they are resolved from
   respath   every [ResourcePath("...")] target exists in the package
   lightmode every LightMode tag used by shaders is declared in InfinityPassIDs (or a known Unity tag)
   links     relative Markdown links resolve
@@ -87,19 +87,26 @@ def all_files(repo, exts):
                 yield os.path.join(dp, f)
 
 def check_kernels(repo, out):
-    kernels = set()
+    kernels, per_file = set(), {}
     for p in all_files(repo, {'.compute'}):
-        kernels |= set(re.findall(r'^\s*#pragma\s+kernel\s+(\w+)', read(p), re.M))
-    pat = re.compile(r'(?:FindKernel|HasKernel)\(\s*"(\w+)"\s*\)|HasRequiredKernels\([^)]*\)|RequiredKernels\s*=\s*\{([^}]*)\}|new\[\]\s*\{([^}]*)\}\s*;\s*//\s*kernels')
+        names = set(re.findall(r'^\s*#pragma\s+kernel\s+(\w+)', read(p), re.M))
+        kernels |= names
+        per_file[os.path.relpath(p, repo).replace(os.sep, '/')] = names
+    shaders = os.path.join(repo, 'Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs')
+    fields = dict((f, path) for path, f in re.findall(r'ResourcePath\("([^"]+)"\)\]\s*public ComputeShader (\w+);', read(shaders))) if os.path.exists(shaders) else {}
     for p in all_files(repo, {'.cs'}):
         t = read(p)
+        rel = os.path.relpath(p, repo)
         for m in re.finditer(r'(?:FindKernel|HasKernel)\(\s*"(\w+)"\s*\)', t):
             if m.group(1) not in kernels:
-                out.append(('ERROR', 'kernels', f'{os.path.relpath(p, repo)}: unknown kernel "{m.group(1)}"'))
-        for m in re.finditer(r'HasRequiredKernels\(([^;]*?)\)\s*[);]', t, re.S):
-            for k in re.findall(r'"(\w+)"', m.group(1)):
-                if k not in kernels:
-                    out.append(('ERROR', 'kernels', f'{os.path.relpath(p, repo)}: unknown kernel "{k}"'))
+                out.append(('ERROR', 'kernels', f'{rel}: unknown kernel "{m.group(1)}"'))
+        # Table entries: the kernel must be declared by the .compute its RuntimeShaders field resolves to.
+        for m in re.finditer(r'ComputeKernel\.Resolve\(\s*([^,]+?)\s*,[^,;]+,\s*"(\w+)"\s*\)', t):
+            source, name = m.group(1), m.group(2)
+            field = re.fullmatch(r'shaders\.(\w+)', source)
+            declared = per_file.get(fields[field.group(1)], set()) if field and field.group(1) in fields else kernels
+            if name not in declared:
+                out.append(('ERROR', 'kernels', f'{rel}: kernel "{name}" is not declared by {source}'))
 
 def check_respath(repo, out):
     for p in all_files(repo, {'.cs'}):

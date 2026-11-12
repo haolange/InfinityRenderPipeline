@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
@@ -9,7 +10,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class LightTileMaskPassUtilityData
     {
-        internal const string KernelName = "BuildTileMask";
         internal const string MaskBufferName = "LightTileMasks";
         internal static readonly int LightTile_LocalCountID = Shader.PropertyToID("LightTile_LocalCount");
         internal static readonly int LightTile_WordCountID = Shader.PropertyToID("LightTile_WordCount");
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int localCount;
             public int wordCount;
             public int2 tileCount;
-            public ComputeShader shader;
+            public ComputeKernel kernel;
             public RGBufferHandle tileRects;
             public RGBufferHandle tileMasks;
         }
@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.localCount = itemCount;
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;
-                passData.shader = shaders.lightTileMaskShader;
+                passData.kernel = kernels.lightTileMask;
                 passData.tileRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(rectsKey));
                 passData.tileMasks = passRef.WriteBuffer(tileMasks);
 
@@ -219,15 +219,15 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ComputeShader shader = passData.shader;
-                    int kernel = shader.FindKernel(LightTileMaskPassUtilityData.KernelName);
+                    ComputeKernel kernel = passData.kernel;
+                    ComputeShader shader = kernel.shader;
                     int total = passData.tileCount.x * passData.tileCount.y * passData.wordCount;
                     cmdEncoder.SetComputeIntParam(shader, LightTileMaskPassUtilityData.LightTile_LocalCountID, passData.localCount);
                     cmdEncoder.SetComputeIntParam(shader, LightTileMaskPassUtilityData.LightTile_WordCountID, passData.wordCount);
                     cmdEncoder.SetComputeVectorParam(shader, LightTileMaskPassUtilityData.LightTile_TileCountID, new Vector4(passData.tileCount.x, passData.tileCount.y, 0, 0));
-                    cmdEncoder.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileRects, passData.tileRects);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasks);
-                    cmdEncoder.DispatchCompute(shader, kernel, (total + 63) / 64, 1, 1);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightTileRects, passData.tileRects);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasks);
+                    cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(total), 1, 1);
                 });
             }
         }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.LightPipeline;
@@ -16,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ReflectionProbeFilterPassData
         {
-            public ComputeShader shader;
+            public ComputeKernel filterCubeToArray;
             public ProbeCubeUpload[] uploads;
             public int uploadCount;
             public int resolution;
@@ -50,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
                     ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData<ReflectionProbeFilterPassData>();
-                    passData.shader = shaders.cubeFilterShader;
+                    passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
@@ -72,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
                             // Intensity and HDR decode stay in the record (params.x), so a changed intensity needs no refilter.
                             for (int mip = 0; mip < passData.mipCount; ++mip)
                             {
-                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.shader, upload.source, 1.0f, passData.atlas,
+                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.filterCubeToArray, upload.source, 1.0f, passData.atlas,
                                     passData.resolution, mip, CubeFilterUtilityData.MipRoughness(mip, passData.mipCount), upload.slot * 6,
                                     ReflectionProbePassUtilityData.FilterSampleCount);
                             }

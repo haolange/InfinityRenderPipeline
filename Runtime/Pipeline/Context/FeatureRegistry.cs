@@ -1,35 +1,19 @@
 using System;
-using UnityEngine;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // Inputs the registry needs to decide whether a requested feature can record this frame.
+    // Per-camera inputs the registry needs to decide whether a requested feature can record this frame.
     internal struct FeatureSupportContext
     {
-        public InfinityRenderPipelineRuntimeShaders shaders;
-        public InfinityRenderPipelineRuntimeTextures textures;
+        // InfinityRenderPipelineResources.featureResourceReasons: support that depends only on resources.
+        public string[] resourceReasons;
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
         public bool temporal;
         public bool hasDiffusionProfiles;
         // RTAO readiness is decided by the UnifiedRayTracing environment before the registry runs.
         public bool rayTracedOcclusionReady;
         public string rayTracedOcclusionReason;
-        // The blit material exposes the Present pass.
-        public bool presentAvailable;
-    }
-
-    internal readonly struct FeatureShaderRequirement
-    {
-        public readonly string shaderField;
-        public readonly Func<InfinityRenderPipelineRuntimeShaders, ComputeShader> shader;
-        public readonly string[] kernels;
-
-        public FeatureShaderRequirement(string shaderField, Func<InfinityRenderPipelineRuntimeShaders, ComputeShader> shader, params string[] kernels)
-        {
-            this.shaderField = shaderField;
-            this.shader = shader;
-            this.kernels = kernels;
-        }
     }
 
     internal sealed class FeatureDescriptor
@@ -37,17 +21,21 @@ namespace InfinityTech.Rendering.Pipeline
         public EFrameFeature id;
         // Features that must record (and be supported) for this one to record. Requesting this feature requests them.
         public EFrameFeature[] dependsOn = Array.Empty<EFrameFeature>();
-        public FeatureShaderRequirement[] shaders = Array.Empty<FeatureShaderRequirement>();
+        // The kernels the feature dispatches; the first missing one is its resource reason.
+        public Func<PipelineKernels, ComputeKernel[]> kernels;
+        // Other resources the feature reads; returns null when they are present, otherwise the reason.
+        public Func<InfinityRenderPipelineRuntimeTextures, string> textures;
         // The feature reads or writes history and needs a temporal camera.
         public bool requiresTemporal;
-        // Extra support predicate; returns null when supported, otherwise the reason.
-        public Func<FeatureSupportContext, string> customSupport;
+        // Per-camera support predicate; returns null when supported, otherwise the reason.
+        public Func<FeatureSupportContext, string> cameraSupport;
     }
 
     // One table describing, for every EFrameFeature, which compute kernels it needs, which features it depends on and
-    // whether it needs a temporal camera. ConfigureFrameFeatures only states what the camera wants; Resolve turns
-    // that into the recorded set, requests dependencies, and keeps a readable reason for everything that cannot
-    // record (shown in the Rendering Debugger). This replaces per-pass kernel checks that ran mid-recording.
+    // whether it needs a temporal camera. ResolveResourceSupport evaluates kernels and textures once when resources
+    // load; ConfigureFrameFeatures only states what the camera wants; Resolve turns that into the recorded set,
+    // requests dependencies, and keeps a readable reason for everything that cannot record (shown in the Rendering
+    // Debugger). A pass that records trusts the table and does not check its kernels again.
     internal static class FeatureRegistry
     {
         static readonly FeatureDescriptor[] s_Descriptors = Build();
@@ -66,140 +54,118 @@ namespace InfinityTech.Rendering.Pipeline
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.DeferredShading,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.deferredShadingShader), s => s.deferredShadingShader, "DeferredShadingCS") }
+                kernels = k => new[] { k.deferredShading }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.HiZ,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.hiZShader), s => s.hiZShader, "HiZ_Generation", "HiZ_FurthestGeneration") }
+                kernels = k => new[] { k.hiZClosest, k.hiZFurthest }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.HalfResDownsample,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.halfResDownsampleShader), s => s.halfResDownsampleShader, "HalfResDownsample") }
+                kernels = k => new[] { k.halfResDownsample }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.ColorPyramid,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader), s => s.colorPyramidShader, "KMain") }
+                kernels = k => new[] { k.colorPyramid }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.TemporalColorPyramid,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader), s => s.colorPyramidShader, "TemporalColorMip") }
+                kernels = k => new[] { k.temporalColorMip }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.GTAO,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HalfResDownsample },
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssaoShader), s => s.ssaoShader,
-                    "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample") }
+                kernels = k => new[] { k.occlusionTrace, k.occlusionSpatialX, k.occlusionSpatialY, k.occlusionTemporal, k.occlusionUpsample }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.RTAO,
-                customSupport = c => c.rayTracedOcclusionReady ? null : (string.IsNullOrEmpty(c.rayTracedOcclusionReason) ? "UnifiedRayTracing is not ready." : c.rayTracedOcclusionReason)
+                cameraSupport = c => c.rayTracedOcclusionReady ? null : (string.IsNullOrEmpty(c.rayTracedOcclusionReason) ? "UnifiedRayTracing is not ready." : c.rayTracedOcclusionReason)
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.ContactShadow,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.contactShadowShader), s => s.contactShadowShader, "ContactShadowCS") }
+                kernels = k => new[] { k.contactShadow }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SubsurfaceScattering,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.subsurfaceShader), s => s.subsurfaceShader, "BurleySubsurfaceCS", "ComposeSubsurfaceCS") },
-                customSupport = c => c.hasDiffusionProfiles ? null : "The RP Asset has no live diffusion profiles."
+                kernels = k => new[] { k.burleySubsurface, k.composeSubsurface },
+                cameraSupport = c => c.hasDiffusionProfiles ? null : "The RP Asset has no live diffusion profiles."
             });
-            var composite = new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.screenSpaceCompositeShader), s => s.screenSpaceCompositeShader, "ScreenSpaceComposite");
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SSR,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
-                shaders = new[]
-                {
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssrShader), s => s.ssrShader, SSRPassUtilityData.RequiredKernels),
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), s => s.utilityShader, ComputeUtility.ClearIndirectArgsKernelName),
-                    composite
-                },
-                customSupport = c => c.textures != null && c.textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures."
+                kernels = k => new[] { k.ssrClearArgs, k.ssrClassify, k.ssrTrace, k.ssrResolve, k.ssrTemporal, k.ssrBilateral, k.ssrDebug, k.screenSpaceComposite },
+                textures = BlueNoiseSupport
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SSGI,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
-                shaders = new[]
-                {
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader), s => s.ssgiShader, SSGIPassUtilityData.RequiredKernels),
-                    composite
-                },
-                customSupport = c => c.textures != null && c.textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures."
+                kernels = k => new[] { k.ssgiTrace, k.ssgiTemporal, k.ssgiSpatial, k.ssgiUpsample, k.ssgiTraceDebug, k.screenSpaceComposite },
+                textures = BlueNoiseSupport
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.TAA,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.taaShader), s => s.taaShader, "Main", "MainDebug") }
+                kernels = k => new[] { k.temporalAntiAliasing, k.temporalAntiAliasingDebug }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SuperResolution,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.superResolutionShader), s => s.superResolutionShader, "SuperResolutionCS") }
+                kernels = k => new[] { k.superResolution }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.VolumetricFog,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.volumetricFogShader), s => s.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal") }
+                kernels = k => new[] { k.fogScatterDensity, k.fogIntegrate, k.fogTemporal, k.fogComposite }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.VolumetricCloud,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.volumetricCloudShader), s => s.volumetricCloudShader, "VolumetricCloudCS") }
+                kernels = k => new[] { k.volumetricCloud, k.fogComposite }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.PostProcess,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.postProcessingShader), s => s.postProcessingShader,
-                    "BloomDownsample", "BloomUpsample", "ExposureClear", "ExposureHistogram", "ExposureReduce") }
+                kernels = k => new[] { k.bloomDownsample, k.bloomUpsample, k.exposureClear, k.exposureHistogram, k.exposureReduce }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.LocalLightList,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), s => s.lightTileMaskShader, LightTileMaskPassUtilityData.KernelName) }
+                kernels = k => new[] { k.lightTileMask }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.ShadowMoments,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.shadowMomentShader), s => s.shadowMomentShader,
-                    ShadowMomentPassUtilityData.KernelFromDepth, ShadowMomentPassUtilityData.KernelBlurH, ShadowMomentPassUtilityData.KernelBlurV) }
+                kernels = k => new[] { k.momentFromDepth, k.momentBlurH, k.momentBlurV }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.LightCookies,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightCookieShader), s => s.lightCookieShader,
-                    LightCookiePassUtilityData.KernelCopy2D, LightCookiePassUtilityData.KernelCubeToOctahedral, LightCookiePassUtilityData.KernelDownsample) }
+                kernels = k => new[] { k.cookieCopy2D, k.cookieCubeToOctahedral, k.cookieDownsample }
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.ReflectionProbes,
-                shaders = new[]
-                {
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.cubeFilterShader), s => s.cubeFilterShader, CubeFilterUtilityData.KernelCubeToArray),
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), s => s.lightTileMaskShader, LightTileMaskPassUtilityData.KernelName),
-                }
+                kernels = k => new[] { k.filterCubeToArray, k.lightTileMask }
             });
-            Add(new FeatureDescriptor
-            {
-                id = EFrameFeature.Display,
-                customSupport = c => c.presentAvailable ? null : "The GlobalSettings blit material has no Present pass."
-            });
+            Add(new FeatureDescriptor { id = EFrameFeature.Display });
 
             for (int i = 0; i < table.Length; ++i)
             {
@@ -207,6 +173,37 @@ namespace InfinityTech.Rendering.Pipeline
                     throw new InvalidOperationException($"FeatureRegistry has no descriptor for {(EFrameFeature)i}.");
             }
             return table;
+        }
+
+        static string BlueNoiseSupport(InfinityRenderPipelineRuntimeTextures textures)
+        {
+            return textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures.";
+        }
+
+        // Resource-only support for every feature, evaluated when resources load or shaders are imported.
+        internal static string[] ResolveResourceSupport(PipelineKernels kernels, InfinityRenderPipelineRuntimeTextures textures)
+        {
+            var reasons = new string[s_Descriptors.Length];
+            for (int i = 0; i < s_Descriptors.Length; ++i)
+            {
+                FeatureDescriptor descriptor = s_Descriptors[i];
+                if (descriptor.kernels != null)
+                {
+                    foreach (ComputeKernel kernel in descriptor.kernels(kernels))
+                    {
+                        if (!kernel.isValid)
+                        {
+                            reasons[i] = kernel.missingReason;
+                            break;
+                        }
+                    }
+                }
+                if (reasons[i] == null && descriptor.textures != null)
+                {
+                    reasons[i] = descriptor.textures(textures);
+                }
+            }
+            return reasons;
         }
 
         // Turns the direct requests in features into the recorded set. A supported feature requests its dependencies;
@@ -271,32 +268,12 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (reason == null)
             {
-                foreach (FeatureShaderRequirement requirement in descriptor.shaders)
-                {
-                    ComputeShader shader = context.shaders != null ? requirement.shader(context.shaders) : null;
-                    if (shader == null)
-                    {
-                        reason = $"GlobalSettings RuntimeShaders.{requirement.shaderField} is not assigned.";
-                        break;
-                    }
-                    foreach (string kernel in requirement.kernels)
-                    {
-                        if (!shader.HasKernel(kernel))
-                        {
-                            reason = $"{shader.name} has no kernel {kernel}.";
-                            break;
-                        }
-                    }
-                    if (reason != null)
-                    {
-                        break;
-                    }
-                }
+                reason = context.resourceReasons[index];
             }
 
-            if (reason == null && descriptor.customSupport != null)
+            if (reason == null && descriptor.cameraSupport != null)
             {
-                reason = descriptor.customSupport(context);
+                reason = descriptor.cameraSupport(context);
             }
 
             if (reason == null)

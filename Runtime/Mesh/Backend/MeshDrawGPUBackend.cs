@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
@@ -79,7 +80,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly int m_CullKernel = -1, m_InitializeArgsKernel = -1, m_CompactKernel = -1;
+        readonly ComputeKernel m_CullKernel, m_InitializeArgsKernel, m_CompactKernel;
+        // Occlusion culling kernels of the same shader; MeshGraphOcclusion records them.
+        internal readonly ComputeKernel cullFirstNoHistory, cullFirstWithHistory, cullOcclusionRecovery;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
         readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
@@ -97,35 +100,23 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_Pool = pool;
             m_Shader = shader;
-            if (shader == null || !DeviceSupportsIndirect)
-            {
-                return;
-            }
-            m_CullKernel = Find(shader, "CullFrustum");
-            m_InitializeArgsKernel = Find(shader, "InitializeIndirectArgs");
-            m_CompactKernel = Find(shader, "Compact");
-            isSupported = m_CullKernel >= 0 && m_InitializeArgsKernel >= 0 && m_CompactKernel >= 0;
+            const string field = "GlobalSettings RuntimeShaders.meshDrawPipelineCS";
+            m_CullKernel = ComputeKernel.Resolve(shader, field, "CullFrustum");
+            m_InitializeArgsKernel = ComputeKernel.Resolve(shader, field, "InitializeIndirectArgs");
+            m_CompactKernel = ComputeKernel.Resolve(shader, field, "Compact");
+            cullFirstNoHistory = ComputeKernel.Resolve(shader, field, "CullFirstNoHistory");
+            cullFirstWithHistory = ComputeKernel.Resolve(shader, field, "CullFirstWithHistory");
+            cullOcclusionRecovery = ComputeKernel.Resolve(shader, field, "CullOcclusionRecovery");
+            isSupported = DeviceSupportsIndirect && m_CullKernel.isValid && m_InitializeArgsKernel.isValid && m_CompactKernel.isValid
+                && cullFirstNoHistory.isValid && cullFirstWithHistory.isValid && cullOcclusionRecovery.isValid;
         }
-
-        static int Find(ComputeShader shader, string kernel) => shader.HasKernel(kernel) ? shader.FindKernel(kernel) : -1;
 
         void RequireSupported()
         {
             if (!isSupported)
             {
-                throw new InvalidOperationException("GPU indirect mesh drawing requires Compute_MeshDrawPipeline with its culling and compaction kernels.");
+                throw new InvalidOperationException("GPU indirect mesh drawing requires Compute_MeshDrawPipeline with its culling, occlusion and compaction kernels.");
             }
-        }
-
-        internal int FindKernel(string kernel)
-        {
-            RequireSupported();
-            int index = Find(m_Shader, kernel);
-            if (index < 0)
-            {
-                throw new InvalidOperationException($"Compute_MeshDrawPipeline has no kernel '{kernel}'.");
-            }
-            return index;
         }
 
         #region Culling
@@ -167,16 +158,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
             commands.SetComputeIntParam(m_Shader, ID_ViewCount, viewCount);
             commands.SetComputeIntParam(m_Shader, ID_EntityStride, stride);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_FrustumViews, viewTable);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsCenter, inputs.boundsCenter);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsExtent, inputs.boundsExtent);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLodChains, inputs.lodChains);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityFlags, inputs.flags);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLayerMask, inputs.layerMask);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityRenderingLayer, inputs.renderingLayers);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_Visibility, visibility);
-            commands.DispatchCompute(m_Shader, m_CullKernel, math.max(1, (inputs.entityCount + 63) / 64), math.max(1, viewCount), 1);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_FrustumViews, viewTable);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityBoundsCenter, inputs.boundsCenter);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityBoundsExtent, inputs.boundsExtent);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityLodChains, inputs.lodChains);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityFlags, inputs.flags);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityLayerMask, inputs.layerMask);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_EntityRenderingLayer, inputs.renderingLayers);
+            commands.SetComputeBufferParam(m_Shader, m_CullKernel.index, ID_Visibility, visibility);
+            commands.DispatchCompute(m_Shader, m_CullKernel.index, math.max(1, (inputs.entityCount + 63) / 64), math.max(1, viewCount), 1);
             stats.gpuCullDispatches++;
         }
         #endregion
@@ -226,9 +217,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             RequireSupported();
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel.index, ID_CommandMeta, payload.commandMeta.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel.index, ID_IndirectArgs, payload.indirectArgs.buffer);
+            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel.index, math.max(1, (commandCount + 63) / 64), 1, 1);
             stats.compactKernelDispatches++;
         }
 
@@ -240,13 +231,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
             commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CandidateTable, cache.candidateBuffer.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_Visibility, visibility);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceToEntity, payload.instanceToEntity.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceFade, payload.instanceFade.buffer);
-            commands.DispatchCompute(m_Shader, m_CompactKernel, math.max(1, (candidateCount + 63) / 64), 1, 1);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_CandidateTable, cache.candidateBuffer.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_Visibility, visibility);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_CommandMeta, payload.commandMeta.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_IndirectArgs, payload.indirectArgs.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_InstanceToEntity, payload.instanceToEntity.buffer);
+            commands.SetComputeBufferParam(m_Shader, m_CompactKernel.index, ID_InstanceFade, payload.instanceFade.buffer);
+            commands.DispatchCompute(m_Shader, m_CompactKernel.index, math.max(1, (candidateCount + 63) / 64), 1, 1);
             stats.compactKernelDispatches++;
             stats.compactDispatches++;
         }

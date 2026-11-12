@@ -25,6 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct CameraMotionPassData
         {
             public RGTextureHandle depthTexture;
+            public int shaderPass;
         }
 
         void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle motionMeshDrawList)
@@ -98,13 +99,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
                 {
                     passData.depthTexture = depthTexture;
+                    passData.shaderPass = blitPasses.cameraMotion;
                 }
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
-                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
+                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
                 });
             }
 

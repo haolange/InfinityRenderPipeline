@@ -6,6 +6,7 @@ using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Volume;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -226,17 +227,13 @@ namespace InfinityTech.Rendering.Pipeline
         struct CombineLutPassData
         {
             public ComputeShader combineLUTShader;
+            public ComputeKernel combineLutKernel;
             public RGTextureHandle combineLookupTexture;
             public CombineLutParameterDescriptor combineLutParameterDescriptor;
         }
 
         void ComputeCombineLuts(CameraFrameState frameState, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
-            if (!GraphicsUtility.HasRequiredKernels(shaders.combineLUTShader, "MainCS"))
-            {
-                throw new InvalidOperationException("InfinityRP: CombineLUT is required but combineLUTShader kernel MainCS is missing.");
-            }
-
             TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32);
             combineLookupTextureDescriptor.dimension = TextureDimension.Tex3D;
             combineLookupTextureDescriptor.name = CombineLutPassUtilityData.CombineLookupTextureName;
@@ -261,6 +258,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 ref CombineLutPassData passData = ref passRef.GetPassData<CombineLutPassData>();
                 passData.combineLUTShader = shaders.combineLUTShader;
+                passData.combineLutKernel = kernels.combineLut;
                 passData.combineLookupTexture = passRef.WriteTexture(combineLookupTexture);
                 passData.combineLutParameterDescriptor = combineLutParameterDescriptor;
 
@@ -319,9 +317,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.InverseGammaID, passData.combineLutParameterDescriptor.InverseGamma);
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorShadowTint2ID, passData.combineLutParameterDescriptor.ColorShadowTint2);
 
-                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, 0, CombineLutPassUtilityData.CombineLookupTextureID, passData.combineLookupTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, CombineLutPassUtilityData.CombineLookupTextureID, passData.combineLookupTexture);
 
-                    cmdEncoder.DispatchCompute(passData.combineLUTShader, 0, 4, 4, 4);
+                    cmdEncoder.DispatchCompute(passData.combineLUTShader, passData.combineLutKernel.index, passData.combineLutKernel.GroupsX(32), passData.combineLutKernel.GroupsY(32), passData.combineLutKernel.GroupsZ(32));
                 });
             }
 

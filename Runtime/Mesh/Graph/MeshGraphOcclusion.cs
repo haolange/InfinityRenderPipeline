@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle visible = OcclusionList(builder, first), final = OcclusionList(builder, view), deferred = OcclusionList(builder, deferredView);
             RegisterOcclusionList(first, visible);
             RegisterOcclusionList(view, final);
-            motion.current.owner.Record(builder, motion.current, world.meshDrawShader, m_ScheduledVersions);
+            motion.current.owner.Record(builder, motion.current, m_ScheduledVersions);
             using (var pass = builder.AddComputePass<MeshOcclusionData>(MeshDrawProfiling.culling))
             {
                 pass.KeepImportedWritesLocal();
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 first.CopyFrustumPlanes(data.frustumPlanes);
                 data.inputs = CullInputs(builder, pass);
                 data.visibility = pass.WriteBuffer(visible);
-                data.kernel = backend.FindKernel(history ? "CullFirstWithHistory" : "CullFirstNoHistory");
+                data.kernel = history ? backend.cullFirstWithHistory.index : backend.cullFirstNoHistory.index;
                 data.history = history;
                 data.final = pass.WriteBuffer(final);
                 data.deferred = pass.WriteBuffer(deferred);
@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.view = lists.final;
                 data.inputs = CullInputs(builder, pass, boundsOnly: true);
                 data.recovery = true;
-                data.kernel = world.gpuBackend.FindKernel("CullOcclusionRecovery");
+                data.kernel = world.gpuBackend.cullOcclusionRecovery.index;
                 data.deferred = pass.ReadBuffer(lists.deferred);
                 data.final = pass.WriteBuffer(m_GPUCullVisibility[new MeshVisibilityKey(lists.final, true)]);
                 data.recovered = pass.WriteBuffer(recovered);

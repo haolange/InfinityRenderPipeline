@@ -20,8 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
         struct TemporalColorMipData
         {
             internal TemporalColorView source;
-            internal ComputeShader shader;
-            internal int kernel, mipCount;
+            internal ComputeKernel kernel;
+            internal int mipCount;
             internal int2 size;
         }
         static class TemporalColorBindings
@@ -79,8 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
                 pass.EnableAsyncCompute(true);
                 ref var data = ref pass.GetPassData<TemporalColorMipData>();
                 data = default;
-                data.shader = shaders.colorPyramidShader;
-                data.kernel = data.shader.FindKernel("TemporalColorMip");
+                data.kernel = kernels.temporalColorMip;
                 data.source = source;
                 data.source.color = pass.ReadTexture(source.color);
                 data.source.depth = pass.ReadTexture(source.depth);
@@ -89,8 +88,9 @@ namespace InfinityTech.Rendering.Pipeline
                 pass.WriteTexture(mips);
                 pass.SetExecuteFunc((in TemporalColorMipData data, in RGComputeEncoder commands) =>
                 {
-                    var shader = data.shader;
-                    int kernel = data.kernel;
+                    ComputeKernel computeKernel = data.kernel;
+                    var shader = computeKernel.shader;
+                    int kernel = computeKernel.index;
                     commands.SetComputeIntParam(shader, TemporalColorBindings.SourceValid, data.source.valid ? 1 : 0);
                     commands.SetComputeFloatParam(shader, TemporalColorBindings.Far, GraphicsConventions.SampledFarDepth);
                     commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.SourceDepth, data.source.depth);
@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
                         commands.SetComputeTextureParam(shader, kernel, ColorPyramidPassUtilityData.SRV_ColorTextureID,
                             mip == 0 ? data.source.color : data.source.mips);
                         commands.SetComputeTextureParam(shader, kernel, ColorPyramidPassUtilityData.UAV_ColorPyramidID, data.source.mips, mip);
-                        commands.DispatchCompute(shader,kernel,(outputSize.x+7)/8,(outputSize.y+7)/8,1);
+                        commands.DispatchCompute(shader,kernel,computeKernel.GroupsX(outputSize.x),computeKernel.GroupsY(outputSize.y),1);
                         inputSize = outputSize;
                     }
                 });

@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -18,7 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int ColorPyramid_DstSizeID = Shader.PropertyToID("_DstSize");
         internal static int ColorPyramid_MipWriteCountID = Shader.PropertyToID("_MipWriteCount");
         internal static int ColorPyramid_SrcScaleID = Shader.PropertyToID("_SrcScale");
-        internal const int KernelMain = 0;
 
         static readonly System.Collections.Generic.Dictionary<int, string> s_MipLabels = new System.Collections.Generic.Dictionary<int, string>();
         static string MipLabel(int first, int last)
@@ -32,9 +32,9 @@ namespace InfinityTech.Rendering.Pipeline
             return label;
         }
 
-        internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, ComputeShader shader, RGTextureHandle sourceTexture, RGTextureHandle pyramidTexture, int2 resolution, int mipCount)
+        internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, in ComputeKernel kernel, RGTextureHandle sourceTexture, RGTextureHandle pyramidTexture, int2 resolution, int mipCount)
         {
-            int kernel = KernelMain;
+            ComputeShader shader = kernel.shader;
             int batchCount = PyramidMipBatch.ColorPyramidBatchCount(mipCount);
 
             for (int batch = 0; batch < batchCount; ++batch)
@@ -47,8 +47,8 @@ namespace InfinityTech.Rendering.Pipeline
                 int srcHeight = copySource ? resolution.y : PyramidMipBatch.MipSize(resolution.y, srcMip);
                 int outWidth = PyramidMipBatch.MipSize(resolution.x, startMip);
                 int outHeight = PyramidMipBatch.MipSize(resolution.y, startMip);
-                int groupsX = math.max(1, Mathf.CeilToInt(outWidth / 8.0f));
-                int groupsY = math.max(1, Mathf.CeilToInt(outHeight / 8.0f));
+                int groupsX = kernel.GroupsX(outWidth);
+                int groupsY = kernel.GroupsY(outHeight);
                 int lastMip = startMip + writeCount - 1;
                 string mipMarker = MipLabel(startMip, lastMip);
 
@@ -60,17 +60,17 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdEncoder.SetComputeVectorParam(shader, ColorPyramid_DstSizeID, new Vector4(outWidth, outHeight, 1.0f / outWidth, 1.0f / outHeight));
                 if (copySource)
                 {
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, SRV_ColorTextureID, sourceTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, SRV_ColorTextureID, sourceTexture);
                 }
                 else
                 {
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, SRV_ColorTextureID, pyramidTexture, srcMip);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, SRV_ColorTextureID, pyramidTexture, srcMip);
                 }
 
-                cmdEncoder.SetComputeTextureParam(shader, kernel, UAV_ColorPyramidID, pyramidTexture, startMip);
+                cmdEncoder.SetComputeTextureParam(shader, kernel.index, UAV_ColorPyramidID, pyramidTexture, startMip);
                 int secondMip = writeCount > 1 ? startMip + 1 : startMip;
-                cmdEncoder.SetComputeTextureParam(shader, kernel, UAV_ColorPyramid1ID, pyramidTexture, secondMip);
-                cmdEncoder.DispatchCompute(shader, kernel, groupsX, groupsY, 1);
+                cmdEncoder.SetComputeTextureParam(shader, kernel.index, UAV_ColorPyramid1ID, pyramidTexture, secondMip);
+                cmdEncoder.DispatchCompute(shader, kernel.index, groupsX, groupsY, 1);
                 cmdEncoder.EndSample(mipSample);
             }
         }
@@ -82,7 +82,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int mipCount;
             public int2 resolution;
-            public ComputeShader colorPyramidShader;
+            public ComputeKernel kernel;
             public RGTextureHandle lightingTexture;
             public RGTextureHandle colorPyramidTexture;
         }
@@ -109,11 +109,6 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain"))
-            {
-                return;
-            }
-
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
             int mipCount = PyramidMipBatch.MipCount(width, height);
@@ -128,14 +123,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref ColorPyramidPassData passData = ref passRef.GetPassData<ColorPyramidPassData>();
                 passData.mipCount = mipCount;
                 passData.resolution = new int2(width, height);
-                passData.colorPyramidShader = shaders.colorPyramidShader;
+                passData.kernel = kernels.colorPyramid;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.colorPyramidTexture = passRef.WriteTexture(colorPyramidTexture);
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ColorPyramidPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ColorPyramidPassUtilityData.DispatchMipBatches(cmdEncoder, passData.colorPyramidShader, passData.lightingTexture, passData.colorPyramidTexture, passData.resolution, passData.mipCount);
+                    ColorPyramidPassUtilityData.DispatchMipBatches(cmdEncoder, passData.kernel, passData.lightingTexture, passData.colorPyramidTexture, passData.resolution, passData.mipCount);
                 });
             }
 

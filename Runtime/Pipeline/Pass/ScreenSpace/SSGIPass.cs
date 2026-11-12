@@ -12,28 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
     // One 8x8 group traces its own pixels, then two temporal-then-world-space denoise stages, then a full-resolution upsample.
     internal static class SSGIPassUtilityData
     {
-        internal static readonly string[] RequiredKernels =
-        {
-            "SSGITrace", "SSGITemporal", "SSGISpatial", "SSGIUpsample", "SSGITraceDebug"
-        };
-
-        static ComputeShader s_KernelShader;
-        static int[] s_Kernels;
-        internal static int[] ResolveKernels(ComputeShader shader)
-        {
-            if (s_KernelShader != shader || s_Kernels == null)
-            {
-                var kernels = new int[RequiredKernels.Length];
-                for (int i = 0; i < kernels.Length; ++i)
-                {
-                    kernels[i] = shader.FindKernel(RequiredKernels[i]);
-                }
-                s_KernelShader = shader;
-                s_Kernels = kernels;
-            }
-            return s_Kernels;
-        }
-
         internal static readonly int SSGI_ResolutionID = Shader.PropertyToID("SSGI_Resolution");
         internal static readonly int SSGI_TraceResolutionID = Shader.PropertyToID("SSGI_TraceResolution");
         internal static readonly int SSGI_TraceScaleID = Shader.PropertyToID("SSGI_TraceScale");
@@ -84,7 +62,13 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 traceResolution;
             public int2 tileCount;
             public int traceScale;
-            public int[] kernels;
+            public int traceKernel;
+            public int traceDebugKernel;
+            public int temporalKernel;
+            public int spatialKernel;
+            public int upsampleKernel;
+            public int2 denoiseGroups;
+            public int2 upsampleGroups;
             public int frameIndex;
             public int previousFrameIndex;
             public float historyValid;
@@ -207,7 +191,13 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_MotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
                 passData.matrix_LastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
                 passData.ssgiShader = shaders.ssgiShader;
-                passData.kernels = SSGIPassUtilityData.ResolveKernels(shaders.ssgiShader);
+                passData.traceKernel = kernels.ssgiTrace.index;
+                passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
+                passData.temporalKernel = kernels.ssgiTemporal.index;
+                passData.spatialKernel = kernels.ssgiSpatial.index;
+                passData.upsampleKernel = kernels.ssgiUpsample.index;
+                passData.denoiseGroups = new int2(kernels.ssgiTemporal.GroupsX(traceResolution.x), kernels.ssgiTemporal.GroupsY(traceResolution.y));
+                passData.upsampleGroups = new int2(kernels.ssgiUpsample.GroupsX(resolution.x), kernels.ssgiUpsample.GroupsY(resolution.y));
                 passData.rankingTile = textures.blueNoiseRankingTile;
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
@@ -276,11 +266,11 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, Shader.PropertyToID("SSGI_FrameAngle"), (passData.frameIndex & 63) * 2.39996323f);
                     cmdEncoder.SetComputeIntParam(shader, Shader.PropertyToID("SSGI_HasAO"), passData.hasAO);
                     cmdEncoder.BeginSample(CachedSampler.Get("SSGI_Trace"));
-                    int trace = passData.kernels[0];
+                    int trace = passData.traceKernel;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (passData.captureRayHit)
                     {
-                        trace = passData.kernels[4];
+                        trace = passData.traceDebugKernel;
                     }
 #endif
                     BindSSGISurface(cmdEncoder, shader, trace, passData);
@@ -306,10 +296,10 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.traceSnapshot.Record(cmdEncoder, passData.traceRadiance);
 #endif
 
-                    int groupsX = (traceResolution.x + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
-                    int groupsY = (traceResolution.y + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
-                    int temporalKernel = passData.kernels[1];
-                    int spatialKernel = passData.kernels[2];
+                    int groupsX = passData.denoiseGroups.x;
+                    int groupsY = passData.denoiseGroups.y;
+                    int temporalKernel = passData.temporalKernel;
+                    int spatialKernel = passData.spatialKernel;
                     RecordSSGITemporal(cmdEncoder, shader, temporalKernel, CachedSampler.Get("SSGI_Temporal1"), passData.traceRadiance, passData.historyRadiance, passData.temporal, passData);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(CachedSampler.Get("SSGI_Temporal1"));
@@ -324,12 +314,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.EndSample(CachedSampler.Get("SSGI_SpatialNarrow"));
 
                     cmdEncoder.BeginSample(CachedSampler.Get("SSGI_Upsample"));
-                    int upsample = passData.kernels[3];
+                    int upsample = passData.upsampleKernel;
                     BindSSGISurface(cmdEncoder, shader, upsample, passData);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_Filtered"), passData.combinerNarrow);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_Meta"), passData.meta);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.UAV_OutputID, passData.output);
-                    cmdEncoder.DispatchCompute(shader, upsample, (resolution.x + 7) / 8, (resolution.y + 7) / 8, 1);
+                    cmdEncoder.DispatchCompute(shader, upsample, passData.upsampleGroups.x, passData.upsampleGroups.y, 1);
                     cmdEncoder.EndSample(CachedSampler.Get("SSGI_Upsample"));
 
 

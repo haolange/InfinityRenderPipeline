@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -11,7 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ContactShadowPassUtilityData
     {
-        internal const string KernelName = "ContactShadowCS";
         internal static string SunTextureName = "ContactShadowSun";
         internal static string MaskTextureName = "ContactShadowMask";
         internal static int ContactShadow_NumStepsID = Shader.PropertyToID("ContactShadow_NumSteps");
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 worldSpaceCameraPos;
             public LightLoopInputs lightLoop;
             public RGBufferHandle lightRecordBuffer;
-            public ComputeShader contactShadowShader;
+            public ComputeKernel kernel;
             public RGTextureHandle depthTexture;
             public RGTextureHandle sunTexture;
             public RGTextureHandle maskTexture;
@@ -98,7 +98,7 @@ namespace InfinityTech.Rendering.Pipeline
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.contactShadowShader = shaders.contactShadowShader;
+                passData.kernel = kernels.contactShadow;
                 passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
                 passData.sunTexture = passRef.WriteTexture(sunTexture);
                 passData.maskTexture = passRef.WriteTexture(maskTexture);
@@ -107,8 +107,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ComputeShader shader = passData.contactShadowShader;
-                    int kernel = shader.FindKernel(ContactShadowPassUtilityData.KernelName);
+                    ComputeKernel kernel = passData.kernel;
+                    ComputeShader shader = kernel.shader;
                     ContactShadowSettings s = passData.settings;
                     cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_NumStepsID, s.numSteps);
                     cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_SunNumStepsID, s.sunNumSteps);
@@ -122,12 +122,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_ViewProj"), passData.matrix_ViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    passData.lightLoop.Bind(cmdEncoder, shader, kernel);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, ContactShadowPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, ContactShadowPassUtilityData.UAV_ContactShadowSunID, passData.sunTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, ContactShadowPassUtilityData.UAV_ContactShadowMaskID, passData.maskTexture);
-                    cmdEncoder.DispatchCompute(shader, kernel, (passData.resolution.x + 7) / 8, (passData.resolution.y + 7) / 8, 1);
+                    passData.lightLoop.Bind(cmdEncoder, shader, kernel.index);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowSunID, passData.sunTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowMaskID, passData.maskTexture);
+                    cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(passData.resolution.x), kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
 

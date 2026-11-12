@@ -22,6 +22,29 @@ namespace InfinityTech.Rendering.Pipeline
         {
             get;
         }
+        internal PipelineKernels kernels
+        {
+            get;
+            private set;
+        }
+        internal BlitShaderPasses blitPasses
+        {
+            get;
+            private set;
+        }
+        // Why each feature cannot record for reasons that depend only on these resources (null when it can).
+        internal string[] featureResourceReasons
+        {
+            get;
+            private set;
+        }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        internal CaptureKernels captureKernels
+        {
+            get;
+            private set;
+        }
+#endif
 
         public InfinityRenderPipelineResources()
         {
@@ -44,6 +67,47 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: GlobalSettings RuntimeMaterials.blitMaterial is required.");
             if (!DefaultVolumeProfileFactory.HasRequiredDefaultComponents(defaultVolumeProfile))
                 throw new InvalidOperationException("InfinityRP: default Volume profile is incomplete or its required component overrides are disabled.");
+            ResolveShaders();
         }
+
+        // Resolves kernels, blit passes and resource-only feature support together, then publishes them at once.
+        void ResolveShaders()
+        {
+            var resolvedKernels = new PipelineKernels(shaders);
+            resolvedKernels.RequireUngatedKernels();
+            var resolvedPasses = new BlitShaderPasses(materials.blitMaterial);
+            string[] reasons = FeatureRegistry.ResolveResourceSupport(resolvedKernels, textures);
+            kernels = resolvedKernels;
+            blitPasses = resolvedPasses;
+            featureResourceReasons = reasons;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            captureKernels = new CaptureKernels(shaders);
+#endif
+#if UNITY_EDITOR
+            m_ResolvedImportEpoch = s_ImportEpoch;
+#endif
+        }
+
+#if UNITY_EDITOR
+        static int s_ImportEpoch;
+        int m_ResolvedImportEpoch;
+
+        // An import can renumber kernels and passes or remove them; the next frame resolves the tables again.
+        internal static void NotifyShadersImported()
+        {
+            unchecked
+            {
+                ++s_ImportEpoch;
+            }
+        }
+
+        internal void ResolveShadersAfterImport()
+        {
+            if (m_ResolvedImportEpoch != s_ImportEpoch)
+            {
+                ResolveShaders();
+            }
+        }
+#endif
     }
 }

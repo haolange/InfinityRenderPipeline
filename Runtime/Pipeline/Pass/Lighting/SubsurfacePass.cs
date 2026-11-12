@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -30,10 +31,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int numSamples;
             public int profileCount;
-            public int kernel, composeKernel;
+            public ComputeKernel burleyKernel, composeKernel;
             public Matrix4x4 projection, inverseProjection;
             public int2 resolution;
-            public ComputeShader subsurfaceShader;
             public RGBufferHandle profileBuffer;
             public RGTextureHandle lightingTexture;
             public RGTextureHandle sceneColor;
@@ -97,9 +97,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
             {
                 ref var data = ref pass.GetPassData<SubsurfacePassData>();
-                data.subsurfaceShader = shaders.subsurfaceShader;
-                data.kernel = shaders.subsurfaceShader.FindKernel("BurleySubsurfaceCS");
-                data.composeKernel = shaders.subsurfaceShader.FindKernel("ComposeSubsurfaceCS");
+                data.burleyKernel = kernels.burleySubsurface;
+                data.composeKernel = kernels.composeSubsurface;
                 data.projection = m_CameraUniform.matrix_FlipYJitterProj;
                 data.inverseProjection = m_CameraUniform.matrix_InvFlipYJitterProj;
                 data.resolution = size;
@@ -115,19 +114,19 @@ namespace InfinityTech.Rendering.Pipeline
                 data.sceneColor = pass.WriteTexture(color);
                 pass.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands) =>
                 {
-                    var shader = d.subsurfaceShader;
+                    var shader = d.burleyKernel.shader;
                     commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));
                     commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_Proj"), d.projection);
                     commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), d.inverseProjection);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_NumSamplesID, d.numSamples);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_ProfileCountID, d.profileCount);
-                    BindSubsurface(commands, shader, d.kernel, d);
-                    commands.SetComputeTextureParam(shader, d.kernel, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTexture);
-                    commands.DispatchCompute(shader, d.kernel, ((d.resolution.x+1)/2+7)/8, ((d.resolution.y+1)/2+7)/8, 1);
-                    BindSubsurface(commands, shader, d.composeKernel, d);
-                    commands.SetComputeTextureParam(shader, d.composeKernel, Shader.PropertyToID("SRV_FilteredSubsurface"), d.subsurfaceTexture);
-                    commands.SetComputeTextureParam(shader, d.composeKernel, Shader.PropertyToID("UAV_SceneColor"), d.sceneColor);
-                    commands.DispatchCompute(shader, d.composeKernel, (d.resolution.x+7)/8, (d.resolution.y+7)/8, 1);
+                    BindSubsurface(commands, shader, d.burleyKernel.index, d);
+                    commands.SetComputeTextureParam(shader, d.burleyKernel.index, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTexture);
+                    commands.DispatchCompute(shader, d.burleyKernel.index, d.burleyKernel.GroupsX((d.resolution.x+1)/2), d.burleyKernel.GroupsY((d.resolution.y+1)/2), 1);
+                    BindSubsurface(commands, shader, d.composeKernel.index, d);
+                    commands.SetComputeTextureParam(shader, d.composeKernel.index, Shader.PropertyToID("SRV_FilteredSubsurface"), d.subsurfaceTexture);
+                    commands.SetComputeTextureParam(shader, d.composeKernel.index, Shader.PropertyToID("UAV_SceneColor"), d.sceneColor);
+                    commands.DispatchCompute(shader, d.composeKernel.index, d.composeKernel.GroupsX(d.resolution.x), d.composeKernel.GroupsY(d.resolution.y), 1);
                 });
             }
             MarkFeatureProduced(EFrameFeature.SubsurfaceScattering);

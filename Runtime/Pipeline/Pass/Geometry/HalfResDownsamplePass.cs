@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -25,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int2 fullResolution;
             public int2 halfResolution;
-            public ComputeShader halfResShader;
+            public ComputeKernel halfRes;
             public RGTextureHandle depthTexture;
             public RGTextureHandle normalTexture;
             public RGTextureHandle halfResDepthTexture;
@@ -74,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref HalfResDownsamplePassData passData = ref passRef.GetPassData<HalfResDownsamplePassData>();
                 passData.fullResolution = new int2(fullWidth, fullHeight);
                 passData.halfResolution = new int2(halfWidth, halfHeight);
-                passData.halfResShader = shaders.halfResDownsampleShader;
+                passData.halfRes = kernels.halfResDownsample;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.halfResDepthTexture = passRef.WriteTexture(halfResDepthTexture);
@@ -85,13 +86,13 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in HalfResDownsamplePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.SRV_FullResDepthID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.SRV_FullResNormalID, passData.normalTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResDepthID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResNormalID, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeVectorParam(passData.halfResShader, HalfResDownsamplePassUtilityData.HalfRes_FullResolutionID, new Vector4(passData.fullResolution.x, passData.fullResolution.y, 1.0f / passData.fullResolution.x, 1.0f / passData.fullResolution.y));
-                    cmdEncoder.SetComputeVectorParam(passData.halfResShader, HalfResDownsamplePassUtilityData.HalfRes_HalfResolutionID, new Vector4(passData.halfResolution.x, passData.halfResolution.y, 1.0f / passData.halfResolution.x, 1.0f / passData.halfResolution.y));
-                    cmdEncoder.DispatchCompute(passData.halfResShader, 0, Mathf.CeilToInt(passData.halfResolution.x / 8.0f), Mathf.CeilToInt(passData.halfResolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.SRV_FullResDepthID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.SRV_FullResNormalID, passData.normalTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.UAV_HalfResDepthID, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.UAV_HalfResNormalID, passData.halfResNormalTexture);
+                    cmdEncoder.SetComputeVectorParam(passData.halfRes.shader, HalfResDownsamplePassUtilityData.HalfRes_FullResolutionID, new Vector4(passData.fullResolution.x, passData.fullResolution.y, 1.0f / passData.fullResolution.x, 1.0f / passData.fullResolution.y));
+                    cmdEncoder.SetComputeVectorParam(passData.halfRes.shader, HalfResDownsamplePassUtilityData.HalfRes_HalfResolutionID, new Vector4(passData.halfResolution.x, passData.halfResolution.y, 1.0f / passData.halfResolution.x, 1.0f / passData.halfResolution.y));
+                    cmdEncoder.DispatchCompute(passData.halfRes.shader, passData.halfRes.index, passData.halfRes.GroupsX(passData.halfResolution.x), passData.halfRes.GroupsY(passData.halfResolution.y), 1);
                 });
             }
             MarkFeatureProduced(EFrameFeature.HalfResDownsample);

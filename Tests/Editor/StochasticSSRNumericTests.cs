@@ -319,7 +319,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public uint[] Classify()
             {
                 m_Args.SetData(new uint[] { 0, 1, 1 });
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.ClassifyKernelName);
+                int kernel = m_Shader.FindKernel("SSRClassify");
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "UAV_TileArgs", m_Args);
                 m_Shader.SetBuffer(kernel, "UAV_TileList", m_TileList);
@@ -348,7 +348,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 using (var cmd = new CommandBuffer())
                 {
-                    int kernel = m_Shader.FindKernel(SSRPassUtilityData.TraceKernelName);
+                    int kernel = m_Shader.FindKernel("SSRTrace");
                     BindSurface(kernel);
                     cmd.SetComputeBufferParam(m_Shader, kernel, "SRV_TileList", m_TileList);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TileClass", m_TileClass);
@@ -409,7 +409,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             void DispatchResolve()
             {
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.ResolveKernelName);
+                int kernel = m_Shader.FindKernel("SSRResolve");
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "SRV_Samples", m_Samples);
                 m_Shader.SetTexture(kernel, "UAV_Resolved", m_Resolved);
@@ -424,7 +424,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetFloat("SSR_HistoryValid", 1);
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                int kernel = m_Shader.FindKernel("SSRTemporal");
                 m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", Solid(m_Width, m_Height, current, false));
@@ -448,7 +448,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                int kernel = m_Shader.FindKernel("SSRTemporal");
                 m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", m_Resolved);
@@ -471,7 +471,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public float[] Spatial(Color input)
             {
                 RenderTexture output = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.BilateralKernelName);
+                int kernel = m_Shader.FindKernel("SSRBilateral");
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Width, m_Height, input, false));
                 m_Shader.SetTexture(kernel, "SRV_Variance", Solid(m_Width, m_Height, Color.clear, false));

@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -16,18 +17,15 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
         internal static int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
         internal static int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
-        internal const string FogKeyword = "FOG_COMPOSITE_FOG";
-        internal const string CloudKeyword = "FOG_COMPOSITE_CLOUD";
     }
 
     public partial class InfinityRenderPipeline
     {
-        ComputeShader m_FogCompositeKernelShader;
-        int m_FogCompositeKernel;
-
         struct FogCompositePassData
         {
-            public int kernel;
+            public ComputeKernel kernel;
+            public LocalKeyword fogKeyword;
+            public LocalKeyword cloudKeyword;
             public int2 resolution;
             public float maxDistance;
             public int hasFog;
@@ -51,17 +49,6 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(shaders.fogCompositeShader, "FogComposite"))
-            {
-                throw new System.InvalidOperationException("InfinityRP: Volumetric fog/cloud produced this frame but fogCompositeShader kernel FogComposite is missing.");
-            }
-
-            if (m_FogCompositeKernelShader != shaders.fogCompositeShader)
-            {
-                m_FogCompositeKernel = shaders.fogCompositeShader.FindKernel("FogComposite");
-                m_FogCompositeKernelShader = shaders.fogCompositeShader;
-            }
-
             RGTextureHandle sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
@@ -81,7 +68,9 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
             {
                 ref FogCompositePassData passData = ref passRef.GetPassData<FogCompositePassData>();
-                passData.kernel = m_FogCompositeKernel;
+                passData.kernel = kernels.fogComposite;
+                passData.fogKeyword = kernels.fogCompositeFog;
+                passData.cloudKeyword = kernels.fogCompositeCloud;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.maxDistance = maxDistance;
                 passData.hasFog = hasFog ? 1 : 0;
@@ -109,20 +98,20 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, FogCompositePassUtilityData.FogComposite_MaxDistanceID, passData.maxDistance);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    shader.SetKeyword(new LocalKeyword(shader, FogCompositePassUtilityData.FogKeyword), passData.hasFog != 0);
-                    shader.SetKeyword(new LocalKeyword(shader, FogCompositePassUtilityData.CloudKeyword), passData.hasCloud != 0);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    shader.SetKeyword(passData.fogKeyword, passData.hasFog != 0);
+                    shader.SetKeyword(passData.cloudKeyword, passData.hasCloud != 0);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, FogCompositePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, FogCompositePassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
                     if (passData.hasFog != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, FogCompositePassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
                     }
                     if (passData.hasCloud != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, FogCompositePassUtilityData.SRV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.UAV_FoggedSceneColorTextureID, passData.foggedSceneColorTexture);
-                    cmdEncoder.DispatchCompute(shader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, FogCompositePassUtilityData.UAV_FoggedSceneColorTextureID, passData.foggedSceneColorTexture);
+                    cmdEncoder.DispatchCompute(shader, passData.kernel.index, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
         }

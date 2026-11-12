@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_World = world;
             m_Pool = pool;
-            transformVersions = new MeshTransformVersionCache(pool);
+            transformVersions = new MeshTransformVersionCache(pool, world.meshDrawShader);
         }
 
         internal MeshWorldGPUTables Snapshot() => new MeshWorldGPUTables(this, m_World.entityHighWater);

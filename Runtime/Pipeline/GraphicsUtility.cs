@@ -20,31 +20,6 @@ namespace InfinityTech.Rendering.Pipeline
             return component.active;
         }
 
-        internal static bool HasRequiredKernels(ComputeShader shader, string kernelName) => shader != null && shader.HasKernel(kernelName);
-
-        internal static bool HasRequiredKernels(ComputeShader shader, string[] kernelNames)
-        {
-            if (shader == null)
-            {
-                return false;
-            }
-
-            if (kernelNames == null || kernelNames.Length == 0)
-            {
-                return true;
-            }
-
-            for (int i = 0; i < kernelNames.Length; ++i)
-            {
-                if (!shader.HasKernel(kernelNames[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         internal static Material s_BlitMaterial;
 
         internal static Material BlitMaterial

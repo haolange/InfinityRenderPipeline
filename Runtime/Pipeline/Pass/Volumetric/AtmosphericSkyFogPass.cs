@@ -16,7 +16,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_SunBufferID = Shader.PropertyToID("SRV_SunBuffer");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
         internal static int Atmo_FarDepthID = Shader.PropertyToID("Atmo_FarDepth");
-        internal static int KernelComposite = 6;
     }
 
     public partial class InfinityRenderPipeline
@@ -30,6 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public float farDepth;
             public int2 resolution;
+            public ComputeKernel compositeKernel;
             public ComputeShader atmosphericLUTShader;
             public RGTextureHandle lightingTexture;
             public RGTextureHandle depthTexture;
@@ -40,10 +40,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
         {
-            if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader, "AtmosphereComposite"))
-            {
-                throw new System.InvalidOperationException("InfinityRP: Atmosphere is designed on but AtmosphereComposite kernel is missing.");
-            }
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT) ||
@@ -67,6 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsConventions.SampledFarDepth;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+                passData.compositeKernel = kernels.atmosphereComposite;
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passRef.WriteTexture(lightingTexture);
@@ -89,12 +86,12 @@ namespace InfinityTech.Rendering.Pipeline
                     };
                     BindAtmosphereParameters(lutData, cmdEncoder);
                     cmdEncoder.SetComputeFloatParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.Atmo_FarDepthID, passData.farDepth);
-                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, AtmosphericSkyFogPassUtilityData.SRV_SkyViewLUTID, passData.skyViewLUT);
-                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, AtmosphericSkyFogPassUtilityData.SRV_AerialPerspectiveLUTID, passData.aerialPerspectiveLUT);
-                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, AtmosphericSkyFogPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeBufferParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, AtmosphericSkyFogPassUtilityData.SRV_SunBufferID, passData.sunBuffer);
-                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, AtmosphericSkyFogPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
-                    cmdEncoder.DispatchCompute(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.KernelComposite, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, AtmosphericSkyFogPassUtilityData.SRV_SkyViewLUTID, passData.skyViewLUT);
+                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, AtmosphericSkyFogPassUtilityData.SRV_AerialPerspectiveLUTID, passData.aerialPerspectiveLUT);
+                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, AtmosphericSkyFogPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeBufferParam(passData.atmosphericLUTShader, passData.compositeKernel.index, AtmosphericSkyFogPassUtilityData.SRV_SunBufferID, passData.sunBuffer);
+                    cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, AtmosphericSkyFogPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
+                    cmdEncoder.DispatchCompute(passData.atmosphericLUTShader, passData.compositeKernel.index, passData.compositeKernel.GroupsX(passData.resolution.x), passData.compositeKernel.GroupsY(passData.resolution.y), 1);
                 });
             }
         }

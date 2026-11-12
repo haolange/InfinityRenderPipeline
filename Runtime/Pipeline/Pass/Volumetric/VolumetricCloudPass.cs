@@ -7,6 +7,7 @@ using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Volume;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -65,6 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
             public ComputeShader volumetricCloudShader;
+            public ComputeKernel cloudKernel;
             public RGTextureHandle depthTexture;
             public RGTextureHandle transmittanceLUT;
             public RGTextureHandle historyTexture;
@@ -93,10 +95,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             var volCloud = ActiveVolumeStack.GetComponent<VolumetricCloud>();
             if (!VolumeComponentActive(volCloud))
-            {
-                return;
-            }
-            if (!GraphicsUtility.HasRequiredKernels(shaders.volumetricCloudShader, "VolumetricCloudCS"))
             {
                 return;
             }
@@ -151,6 +149,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.volumetricCloudShader = shaders.volumetricCloudShader;
+                passData.cloudKernel = kernels.volumetricCloud;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.transmittanceLUT = passRef.ReadTexture(transmittanceLUT);
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
@@ -179,16 +178,16 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_WorldToView"), passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    passData.lightLoop.Bind(cmdEncoder, shader, 0);
-                    passData.shadows.Bind(cmdEncoder, shader, 0);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.cloudKernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
+                    passData.lightLoop.Bind(cmdEncoder, shader, passData.cloudKernel.index);
+                    passData.shadows.Bind(cmdEncoder, shader, passData.cloudKernel.index);
 
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
                     cmdEncoder.BeginSample(CachedSampler.Get("VolCloud_Trace"));
-                    cmdEncoder.DispatchCompute(shader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.DispatchCompute(shader, passData.cloudKernel.index, passData.cloudKernel.GroupsX(passData.resolution.x), passData.cloudKernel.GroupsY(passData.resolution.y), 1);
                     cmdEncoder.EndSample(CachedSampler.Get("VolCloud_Trace"));
                 });
             }
