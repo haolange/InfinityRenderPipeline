@@ -336,7 +336,7 @@ Translucent depth is followed by clouds, fog, fog composite, T0, the color pyram
 
 ## 13. Temporal resolve and output
 
-`UNITY_MATRIX_VP` is `Matrix_ViewJitterProj`. Depth and GBuffer are rasterized in jittered clip space. Reconstruction from a depth buffer uses the jittered inverse view-projection. `FlipY` in this package means `GL.GetGPUProjectionMatrix` with `renderIntoTexture = false`. Motion vectors use the jittered position for coverage and the unjittered clip positions for velocity.
+`UNITY_MATRIX_VP` is `Matrix_ViewJitterProj`. `ViewUniform` declares only the camera matrices some shader reads; `CameraUniform.SetUniformData` uploads exactly those. Depth and GBuffer are rasterized in jittered clip space. Reconstruction from a depth buffer uses the jittered inverse view-projection. `FlipY` in this package means `GL.GetGPUProjectionMatrix` with `renderIntoTexture = false`. Motion vectors use the jittered position for coverage and the unjittered clip positions for velocity.
 
 Temporal anti-aliasing reads the current frame at the texel center with point sampling. It does not bilinear-sample at `uv - jitter`. Color history is reprojected by motion. Depth history is reprojected by motion plus the change in jitter. Neighborhood clipping uses reversible luminance compression. Sharpening scales RGB together. The sharpen constant in `Compute_TemporalAntiAliasing.compute` is 0.35. One 8×8 dispatch with a one-pixel halo writes unsharpened `RGBA16F` color and sample age, and `R32` surface depth, to pending history. Sharpened color is display-only. Halo lanes participate in the group barrier.
 
@@ -407,4 +407,5 @@ These are properties of the current implementation that no subsystem section sta
 - Ray-traced ambient occlusion Player shader load is unverified.
 - Combine LUT writes Rec.709 linear and dispatches only when the grading key changes. The key holds only film and grading parameters: no output setting reaches the LUT shader.
 - Image-regression baselines are per graphics API, not per GPU vendor, and are absent until recorded on a verified Editor.
+- Camera matrices are global shader properties in the `ViewUniform` cbuffer, set per camera. Shadow passes overwrite `Matrix_ViewProj` and `Matrix_ViewFlipYProj` with the light matrix around their draws and restore the camera's, and compute passes receive camera matrices per dispatch under the same names with a pass-specific variant (often the flipped, jittered one).
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is not established.

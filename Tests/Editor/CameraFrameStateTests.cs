@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var data = new CameraUniform();
                 data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera);
                 Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
-                Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
+                Assert.AreEqual(data.matrix_ViewFlipYProj, data.matrix_LastViewFlipYProj);
                 Assert.AreEqual(data.matrix_ViewFlipYJitterProj, data.matrix_LastViewFlipYJitterProj);
                 Assert.IsFalse(data.hasCommittedView, "A preparation is not a committed frame.");
                 data.Commit();
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreNotEqual(Unity.Mathematics.float2.zero, data.jitter);
                 data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.CameraCut);
                 Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
-                Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
+                Assert.AreEqual(data.matrix_ViewFlipYProj, data.matrix_LastViewFlipYProj);
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }
