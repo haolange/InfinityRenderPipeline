@@ -32,8 +32,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void AttachmentLoad_DeclaresPreviousContentsAsInput(RenderBufferLoadAction load, bool readsPrevious)
         {
             var pass = new RGRasterPass<ConsumerPassData>();
-            var color = new RGTextureHandle(0);
-            var depth = new RGTextureHandle(1);
+            var color = new RGTextureHandle(0, 1);
+            var depth = new RGTextureHandle(1, 1);
             pass.SetColorAttachment(color, 0, load, RenderBufferStoreAction.Store);
             pass.SetDepthStencilAttachment(depth, load, RenderBufferStoreAction.Store, EDepthAccess.Write);
             Assert.AreEqual(readsPrevious, pass.resourceReadLists[(int)ERGResourceType.Texture].Contains(color.handle));

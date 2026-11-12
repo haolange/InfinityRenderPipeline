@@ -361,7 +361,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         type = (ERGResourceType)type, index = i, name = resourceName, imported = imported, description = description,
                         firstUse = -1, lastUse = -1, createPass = -1, releasePass = -1,
                         aliasSlot = compiled.aliasSlot, aliasGroup = compiled.aliasGroup, estimatedBytes = compiled.estimatedBytes,
-                        memoryless = type == (int)ERGResourceType.Texture && m_Resources.GetTextureDescriptor(new RGResourceHandle(i, ERGResourceType.Texture)).memoryless != RenderTextureMemoryless.None
+                        memoryless = type == (int)ERGResourceType.Texture && m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, i)).memoryless != RenderTextureMemoryless.None
                     });
                 }
             }

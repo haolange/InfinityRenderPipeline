@@ -167,12 +167,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
         static bool SameTextureRef(in RGTextureHandle a, in RGTextureHandle b)
         {
-            return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
+            return a.IsValid() && a.handle.Equals(b.handle);
         }
 
         static bool SameBufferRef(in RGBufferHandle a, in RGBufferHandle b)
         {
-            return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
+            return a.IsValid() && a.handle.Equals(b.handle);
         }
     }
 }

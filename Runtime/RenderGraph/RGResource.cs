@@ -23,10 +23,10 @@ namespace InfinityTech.Rendering.RenderGraph
         Max = 2
     }
 
-    internal struct RGResourceHandle
+    // A graph resource reference. It is valid exactly when its generation is nonzero; the generation must match the live
+    // slot, so a handle from an earlier graph is rejected. Two handles name the same resource when all three fields match.
+    internal struct RGResourceHandle : IEquatable<RGResourceHandle>
     {
-        readonly bool m_IsValid;
-
         public int index
         {
             get;
@@ -44,23 +44,24 @@ namespace InfinityTech.Rendering.RenderGraph
         }
         public int iType { get { return (int)type; } }
 
-        internal RGResourceHandle(int value, ERGResourceType type, ushort generation = 0)
+        internal RGResourceHandle(int value, ERGResourceType type, ushort generation)
         {
             index = value;
             this.type = type;
             this.generation = generation;
-            m_IsValid = true;
         }
 
-        public static implicit operator int(RGResourceHandle resourceRef) => resourceRef.index;
-        public bool IsValid() => m_IsValid;
+        public bool IsValid() => generation != 0;
+        public bool Equals(RGResourceHandle other) => index == other.index && type == other.type && generation == other.generation;
+        public override bool Equals(object obj) => obj is RGResourceHandle other && Equals(other);
+        public override int GetHashCode() => ((int)type << 24) ^ (index << 8) ^ generation;
     }
 
     public struct RGBufferHandle
     {
         internal RGResourceHandle handle;
 
-        internal RGBufferHandle(int handle, ushort generation = 0)
+        internal RGBufferHandle(int handle, ushort generation)
         {
             this.handle = new RGResourceHandle(handle, ERGResourceType.Buffer, generation);
         }
@@ -128,7 +129,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal RGResourceHandle handle;
 
-        internal RGTextureHandle(int handle, ushort generation = 0)
+        internal RGTextureHandle(int handle, ushort generation)
         {
             this.handle = new RGResourceHandle(handle, ERGResourceType.Texture, generation);
         }
@@ -259,9 +260,8 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly Dictionary<RenderTargetIdentifier, int> m_ImportedTextures = new Dictionary<RenderTargetIdentifier, int>();
         RTHandle m_Backbuffer;
         RenderTargetIdentifier m_BackbufferIdentifier;
+        // Slot objects survive Clear with their generation, so a slot reused next frame cannot match a handle from the previous graph.
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
-        // Survives Clear so a slot reused next frame cannot match a handle from the previous graph.
-        readonly List<ushort>[] m_Generations = new List<ushort>[(int)ERGResourceType.Max];
 
         public RGResourceFactory(ResourcePool pool = null)
         {
@@ -270,9 +270,19 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_Resources[i] = new DynamicArray<IRGResource>();
-                m_Generations[i] = new List<ushort>(64);
             }
         }
+
+        // The one checked lookup: every handle-taking accessor resolves through it.
+        IRGResource Resolve(in RGResourceHandle handle, string api)
+        {
+            RequireLive(handle, api);
+            return m_Resources[handle.iType][handle.index];
+        }
+
+        // A handle to the live slot, for compile code that walks resources by index.
+        internal RGResourceHandle LiveHandle(ERGResourceType type, int index)
+            => new RGResourceHandle(index, type, m_Resources[(int)type][index].generation);
 
         internal void RequireLive(in RGResourceHandle handle, string api)
         {
@@ -286,22 +296,6 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        ushort NextGeneration(int type, int index)
-        {
-            List<ushort> generations = m_Generations[type];
-            while (generations.Count <= index)
-            {
-                generations.Add(0);
-            }
-            ushort generation = (ushort)(generations[index] + 1);
-            if (generation == 0)
-            {
-                generation = 1;
-            }
-            generations[index] = generation;
-            return generation;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ComputeBuffer GetBuffer(in RGBufferHandle bufferHandle)
         {
@@ -312,7 +306,6 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RTHandle GetTexture(in RGTextureHandle textureHandle)
         {
-            RequireLive(textureHandle.handle, "RGTextureHandle");
             return GetTextureResource(textureHandle.handle).resource;
         }
 
@@ -446,13 +439,13 @@ namespace InfinityTech.Rendering.RenderGraph
 
             outRes = resourceArray[result] as ResType;
             outRes.Reset();
-            outRes.generation = NextGeneration(type, result);
+            // Zero is the invalid generation; wrapping skips it.
+            outRes.generation = outRes.generation == ushort.MaxValue ? (ushort)1 : (ushort)(outRes.generation + 1);
             return result;
         }
 
         internal RGBuffer ResolveBuffer(in RGBufferHandle bufferHandle)
         {
-            RequireLive(bufferHandle.handle, "RGBufferHandle");
             RGBuffer buffer = GetBufferResource(bufferHandle.handle);
             if (buffer.resource == null && buffer.graphicsResource == null)
                 throw new InvalidOperationException($"Graph buffer '{buffer.GetName()}' has no live resource.");
@@ -464,7 +457,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGBufferHandle(index, m_Resources[(int)ERGResourceType.Buffer][index].generation);
         }
 
-        RGTextureHandle TextureHandle(int index)
+        internal RGTextureHandle TextureHandle(int index)
         {
             return new RGTextureHandle(index, m_Resources[(int)ERGResourceType.Texture][index].generation);
         }
@@ -520,7 +513,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         RGBuffer GetBufferResource(in RGResourceHandle handle)
         {
-            return m_Resources[(int)ERGResourceType.Buffer][handle] as RGBuffer;
+            return (RGBuffer)Resolve(handle, "RGBufferHandle");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -634,13 +627,13 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         RGTexture GetTextureResource(in RGResourceHandle handle)
         {
-            return m_Resources[(int)ERGResourceType.Texture][handle] as RGTexture;
+            return (RGTexture)Resolve(handle, "RGTextureHandle");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TextureDescriptor GetTextureDescriptor(in RGResourceHandle handle)
         {
-            return (m_Resources[(int)ERGResourceType.Texture][handle] as RGTexture).descriptor;
+            return GetTextureResource(handle).descriptor;
         }
 
         internal void SetTextureDescriptor(int index, in TextureDescriptor descriptor)

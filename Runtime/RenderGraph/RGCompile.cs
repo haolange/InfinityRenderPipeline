@@ -206,23 +206,23 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     foreach (var resource in passInfo.pass.resourceReadLists[type])
                     {
-                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource.index];
                         info.consumers.Add(passIndex);
                         info.refCount++;
                     }
 
                     foreach (var resource in passInfo.pass.resourceWriteLists[type])
                     {
-                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource.index];
                         info.producers.Add(passIndex);
                         passInfo.refCount++;
                         if (passInfo.pass.importedWritesAreSideEffects && m_Resources.IsResourceImported(resource))
                             passInfo.hasSideEffect = true;
                     }
 
-                    foreach (int resourceIndex in passInfo.pass.temporalResourceList[type])
+                    foreach (RGResourceHandle temporal in passInfo.pass.temporalResourceList[type])
                     {
-                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resourceIndex];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][temporal.index];
                         info.refCount++;
                         info.consumers.Add(passIndex);
                         info.producers.Add(passIndex);
@@ -266,8 +266,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         foreach (RGResourceHandle resource in pass.resourceReadLists[type])
                             CloseRead(type, resource.index);
-                        foreach (int resource in pass.temporalResourceList[type])
-                            CloseRead(type, resource);
+                        foreach (RGResourceHandle resource in pass.temporalResourceList[type])
+                            CloseRead(type, resource.index);
                     }
                 }
             }
@@ -377,10 +377,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
                     var resourcesInfo = m_ResourcesCompileInfos[type];
-                    foreach (int resource in passInfo.pass.resourceReadLists[type])
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource], false);
-                    foreach (int resource in passInfo.pass.resourceWriteLists[type])
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource], true);
+                    foreach (RGResourceHandle resource in passInfo.pass.resourceReadLists[type])
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource.index], false);
+                    foreach (RGResourceHandle resource in passInfo.pass.resourceWriteLists[type])
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource.index], true);
                 }
             }
 
@@ -404,7 +404,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         continue;
                     }
                     m_PassCompileInfos[lastUse].resourceReleaseList[type].Add(i);
-                    var handle = new RGResourceHandle(i, (ERGResourceType)type);
+                    var handle = m_Resources.LiveHandle((ERGResourceType)type, i);
                     if ((hasAsync || m_AsyncComputeSupported && m_Resources.IsPoolTracked(handle))
                         && (!m_Resources.IsResourceImported(handle) || m_Resources.IsPoolTracked(handle)))
                     {
@@ -497,14 +497,14 @@ namespace InfinityTech.Rendering.RenderGraph
 
         static bool SameResource(in RGTextureHandle a, in RGTextureHandle b)
         {
-            return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.generation == b.handle.generation;
+            return a.IsValid() && a.handle.Equals(b.handle);
         }
 
         bool Samples(IRGPass pass, in RGTextureHandle texture)
         {
             foreach (RGResourceHandle handle in pass.sampledResources)
             {
-                if (handle.type == ERGResourceType.Texture && handle.index == texture.handle.index && handle.generation == texture.handle.generation)
+                if (handle.Equals(texture.handle))
                     return true;
             }
             return false;
@@ -806,7 +806,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 for (int index = 0; index < m_ResourcesCompileInfos[type].size; ++index)
                 {
-                    var handle = new RGResourceHandle(index, (ERGResourceType)type);
+                    var handle = m_Resources.LiveHandle((ERGResourceType)type, index);
                     if (m_Resources.IsResourceImported(handle))
                     {
                         continue;
@@ -912,12 +912,12 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             if (a.type == (int)ERGResourceType.Buffer)
             {
-                BufferDescriptor left = m_Resources.GetBufferDescriptor(new RGResourceHandle(a.index, ERGResourceType.Buffer));
-                BufferDescriptor right = m_Resources.GetBufferDescriptor(new RGResourceHandle(b.index, ERGResourceType.Buffer));
+                BufferDescriptor left = m_Resources.GetBufferDescriptor(m_Resources.LiveHandle(ERGResourceType.Buffer, a.index));
+                BufferDescriptor right = m_Resources.GetBufferDescriptor(m_Resources.LiveHandle(ERGResourceType.Buffer, b.index));
                 return left.Equals(right);
             }
-            TextureDescriptor leftTexture = m_Resources.GetTextureDescriptor(new RGResourceHandle(a.index, ERGResourceType.Texture)).PhysicalDescriptor();
-            TextureDescriptor rightTexture = m_Resources.GetTextureDescriptor(new RGResourceHandle(b.index, ERGResourceType.Texture)).PhysicalDescriptor();
+            TextureDescriptor leftTexture = m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, a.index)).PhysicalDescriptor();
+            TextureDescriptor rightTexture = m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, b.index)).PhysicalDescriptor();
             return leftTexture.Equals(rightTexture);
         }
 
@@ -925,10 +925,10 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (type == (int)ERGResourceType.Buffer)
             {
-                BufferDescriptor buffer = m_Resources.GetBufferDescriptor(new RGResourceHandle(index, ERGResourceType.Buffer));
+                BufferDescriptor buffer = m_Resources.GetBufferDescriptor(m_Resources.LiveHandle(ERGResourceType.Buffer, index));
                 return (long)buffer.count * buffer.stride;
             }
-            TextureDescriptor texture = m_Resources.GetTextureDescriptor(new RGResourceHandle(index, ERGResourceType.Texture));
+            TextureDescriptor texture = m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, index));
             int texelBytes = 4;
             if (texture.colorFormat != GraphicsFormat.None)
                 texelBytes = (int)Math.Max(1u, GraphicsFormatUtility.GetBlockSize(texture.colorFormat));
@@ -1175,7 +1175,7 @@ namespace InfinityTech.Rendering.RenderGraph
             int type = (int)ERGResourceType.Texture;
             for (int index = 0; index < m_ResourcesCompileInfos[type].size; ++index)
             {
-                if (m_Resources.IsResourceImported(new RGResourceHandle(index, ERGResourceType.Texture)))
+                if (m_Resources.IsResourceImported(m_Resources.LiveHandle(ERGResourceType.Texture, index)))
                 {
                     continue;
                 }
@@ -1190,7 +1190,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         continue;
                     }
-                    if (Samples(info.pass, new RGTextureHandle(index, GenerationOfTexture(index))))
+                    if (Samples(info.pass, m_Resources.TextureHandle(index)))
                     {
                         attachmentOnly = false;
                         break;
@@ -1219,7 +1219,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     continue;
                 }
-                RGTextureHandle texture = new RGTextureHandle(index, GenerationOfTexture(index));
+                RGTextureHandle texture = m_Resources.TextureHandle(index);
                 RenderBufferStoreAction declared = depth
                     ? m_PassCompileInfos[lastPass].pass.depthBufferAction.storeAction
                     : StoreOfColor(m_PassCompileInfos[lastPass].pass, index);
@@ -1227,7 +1227,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     continue;
                 }
-                TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(new RGResourceHandle(index, ERGResourceType.Texture));
+                TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, index));
                 // Unity drops memoryless color when the texture is also a UAV.
                 if (!depth && descriptor.enableRandomWrite)
                 {
@@ -1241,39 +1241,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 descriptor.memoryless = memoryless;
                 SetTextureDescriptor(index, descriptor);
             }
-        }
-
-        ushort GenerationOfTexture(int index)
-        {
-            for (int passIndex = 0; passIndex < m_PassList.Count; ++passIndex)
-            {
-                IRGPass pass = m_PassList[passIndex];
-                if (pass.depthBuffer.IsValid() && pass.depthBuffer.handle.index == index)
-                {
-                    return pass.depthBuffer.handle.generation;
-                }
-                for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                    if (pass.colorBuffers[i].IsValid() && pass.colorBuffers[i].handle.index == index)
-                    {
-                        return pass.colorBuffers[i].handle.generation;
-                    }
-                foreach (RGResourceHandle handle in pass.sampledResources)
-                    if (handle.type == ERGResourceType.Texture && handle.index == index)
-                    {
-                        return handle.generation;
-                    }
-                foreach (RGResourceHandle handle in pass.resourceReadLists[(int)ERGResourceType.Texture])
-                    if (handle.index == index)
-                    {
-                        return handle.generation;
-                    }
-                foreach (RGResourceHandle handle in pass.resourceWriteLists[(int)ERGResourceType.Texture])
-                    if (handle.index == index)
-                    {
-                        return handle.generation;
-                    }
-            }
-            return 0;
         }
 
         static RenderBufferStoreAction StoreOfColor(IRGPass pass, int textureIndex)
@@ -1378,7 +1345,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 foreach (RGResourceHandle temporal in m_PassCompileInfos[other].pass.temporalResourceList[handle.iType])
                 {
-                    if (temporal.index == handle.index && temporal.generation == handle.generation)
+                    if (temporal.Equals(handle))
                         throw new InvalidOperationException($"Pass-local resource {m_Resources.GetResourceName(handle)} is used by '{m_PassCompileInfos[passIndex].pass.name}' but belongs to '{m_PassCompileInfos[other].pass.name}'.");
                 }
             }
@@ -1448,7 +1415,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_DuplicateSeen.Clear();
             foreach (RGResourceHandle handle in pass.sampledResources)
             {
-                int key = (handle.iType << 24) ^ (handle.index << 8) ^ handle.generation;
+                int key = handle.GetHashCode();
                 if (!m_DuplicateSeen.Add(key))
                     throw new InvalidOperationException($"'{pass.name}' declares {m_Resources.GetResourceName(handle)} more than once.");
             }

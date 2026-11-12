@@ -394,7 +394,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < pass.sampledResources.Count; ++i)
             {
                 RGResourceHandle existing = pass.sampledResources[i];
-                if (existing.index == handle.index && existing.type == handle.type && existing.generation == handle.generation)
+                if (existing.Equals(handle))
                     return;
             }
             pass.sampledResources.Add(handle);

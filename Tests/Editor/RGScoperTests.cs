@@ -55,8 +55,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             var scoper = new RGScoper(null);
             try
             {
-                scoper.RegisterTexture(7, new RGTextureHandle(1));
-                Assert.Throws<InvalidOperationException>(() => scoper.RegisterTexture(7, new RGTextureHandle(2)));
+                scoper.RegisterTexture(7, new RGTextureHandle(1, 1));
+                Assert.Throws<InvalidOperationException>(() => scoper.RegisterTexture(7, new RGTextureHandle(2, 1)));
             }
             finally
             {
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             var scoper = new RGScoper(null);
             try
             {
-                var textureHandle = new RGTextureHandle(3);
+                var textureHandle = new RGTextureHandle(3, 1);
                 scoper.RegisterTexture(9, textureHandle);
                 Assert.DoesNotThrow(() => scoper.RegisterTexture(9, textureHandle));
             }
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             var scoper = new RGScoper(null);
             try
             {
-                scoper.RegisterTexture(1, new RGTextureHandle(10));
+                scoper.RegisterTexture(1, new RGTextureHandle(10, 1));
                 scoper.MoveTexture(1, 2);
                 Assert.IsFalse(scoper.TryQueryTexture(1, out _));
                 Assert.IsTrue(scoper.TryQueryTexture(2, out RGTextureHandle moved));
@@ -105,8 +105,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             var scoper = new RGScoper(null);
             try
             {
-                scoper.RegisterTexture(1, new RGTextureHandle(10));
-                scoper.RegisterTexture(2, new RGTextureHandle(20));
+                scoper.RegisterTexture(1, new RGTextureHandle(10, 1));
+                scoper.RegisterTexture(2, new RGTextureHandle(20, 1));
                 Assert.Throws<InvalidOperationException>(() => scoper.MoveTexture(1, 2));
             }
             finally
