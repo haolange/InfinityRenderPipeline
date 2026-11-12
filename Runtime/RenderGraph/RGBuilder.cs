@@ -175,6 +175,13 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 this.m_ResourcesCompileInfos[i] = new DynamicArray<RGResourceCompileInfo>();
             }
+            scoper = new RGScoper(this);
+        }
+
+        // Semantic names of this graph's resources; they live exactly as long as the recorded graph and clear with it.
+        public RGScoper scoper
+        {
+            get;
         }
 
         public void SetTextureCapacity(TextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
@@ -622,6 +629,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void ClearPass()
         {
             Exception failure = null;
+            scoper.Clear();
             try
             {
                 extension?.Clear();
@@ -717,6 +725,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             finally
             {
+                scoper.Dispose();
                 m_Resources.Dispose();
             }
         }

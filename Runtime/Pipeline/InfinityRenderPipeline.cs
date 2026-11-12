@@ -216,6 +216,7 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
+        // The graph builder owns the scoper; this is the same object, held for brevity in pass code.
         private RGScoper m_RGScoper;
         private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
@@ -315,7 +316,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ResourcePool = new ResourcePool();
                 renderContext = new RenderContext(m_ResourcePool, shaders.meshDrawPipelineCS);
                 m_RGBuilder = new RGBuilder("RenderGraph", m_ResourcePool);
-                m_RGScoper = new RGScoper(m_RGBuilder);
+                m_RGScoper = m_RGBuilder.scoper;
                 m_CameraStates = new Dictionary<int, CameraFrameState>();
                 m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
                 m_RGBuilder.SetMeshWorld(renderContext.meshWorld);
@@ -763,8 +764,6 @@ namespace InfinityTech.Rendering.Pipeline
                             EndCameraRendering(scriptableRenderContext, camera);
                         }
 
-                        m_RGScoper.Clear();
-
                     }
 
                 }
@@ -815,7 +814,6 @@ namespace InfinityTech.Rendering.Pipeline
                     finally
                     {
                         m_ActiveFrameState = null;
-                        m_RGScoper.Clear();
                         try { cmdBuffer.Clear(); }
                         catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
                         try { CommandBufferPool.Release(cmdBuffer); }
@@ -1165,7 +1163,6 @@ namespace InfinityTech.Rendering.Pipeline
             Release(() => m_ReflectionProbeAtlas?.Dispose());
             m_ReflectionProbeAtlas = null;
             Release(() => renderContext?.Dispose());
-            Release(() => m_RGScoper?.Dispose());
             Release(() => m_RGBuilder?.Dispose());
             if (m_DiffusionProfileBuffer.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBuffer));
             m_DiffusionProfileBuffer = default;

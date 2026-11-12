@@ -67,6 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
             history.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
             history.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
             var sharpened = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
+            m_RGScoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
             var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
             bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

@@ -130,12 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.AntiAliasingBuffer, out RGTextureHandle sceneColorTexture) &&
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.SuperResolutionBuffer, out sceneColorTexture) &&
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer, out sceneColorTexture))
-            {
-                throw new InvalidOperationException("InfinityRP: PostProcess has no scene color input (AntiAliasing/SuperResolution/FoggedSceneColor).");
-            }
+            RGTextureHandle sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
 
             if (!frameState.postProcessingEnabled)
             {

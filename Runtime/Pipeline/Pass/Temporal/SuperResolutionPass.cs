@@ -73,6 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
                 superResDsc.enableRandomWrite = true;
             }
             RGTextureHandle superResolutionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
+            m_RGScoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, superResolutionTexture);
 
             RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);

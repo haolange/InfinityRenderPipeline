@@ -144,6 +144,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey TemporalColorDepthBuffer = new RGResourceKey("_TemporalColorDepthTexture");
         public static readonly RGResourceKey OpaqueSceneColorBuffer = new RGResourceKey("_OpaqueSceneColorTexture");
         public static readonly RGResourceKey FoggedSceneColorBuffer = new RGResourceKey("_FoggedSceneColorTexture");
+        // Role: scene color after fog, translucency and temporal resolve. Its latest producer publishes it; post reads it.
+        public static readonly RGResourceKey ResolvedSceneColor = new RGResourceKey("ResolvedSceneColor");
         public static readonly RGResourceKey ReactiveMaskBuffer = new RGResourceKey("_ReactiveMaskTexture");
         public static readonly RGResourceKey HistoryVolumetricFogBuffer = new RGResourceKey("_HistoryVolumetricFogTexture");
         public static readonly RGResourceKey HistoryVolumetricCloudBuffer = new RGResourceKey("_HistoryVolumetricCloudTexture");

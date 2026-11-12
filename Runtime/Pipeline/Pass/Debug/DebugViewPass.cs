@@ -171,12 +171,7 @@ namespace InfinityTech.Rendering.Pipeline
                     debugKernel = kernels.debugViewSceneColor;
                     bindSet = 2;
                     needSceneColor = true;
-                    if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.AntiAliasingBuffer, out sceneColorTexture) &&
-                        !m_RGScoper.TryQueryTexture(InfinityShaderIDs.SuperResolutionBuffer, out sceneColorTexture) &&
-                        !m_RGScoper.TryQueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer, out sceneColorTexture))
-                    {
-                        throw new InvalidOperationException("InfinityRP: DebugView PreTonemapLuma requires AntiAliasingBuffer/SuperResolutionBuffer/FoggedSceneColorBuffer, none of which were registered this frame.");
-                    }
+                    sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
                     break;
                 case EDebugView.CascadeShadowAtlas:
                 case EDebugView.LocalShadowAtlas:

@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.RenderGraph
         RGResourceMap<RGBufferHandle> m_BufferMap;
         RGResourceMap<RGTextureHandle> m_TextureMap;
 
-        public RGScoper(RGBuilder graphBuilder)
+        internal RGScoper(RGBuilder graphBuilder)
         {
             m_RGBuilder = graphBuilder;
             m_BufferMap = new RGResourceMap<RGBufferHandle>();
@@ -130,6 +130,17 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             m_TextureMap.Set(handle, textureHandle);
+        }
+
+        // A role (for example the scene color that post processing reads) names whatever its latest producer published:
+        // each producer in order replaces it, and a consumer reads the one role instead of probing producers.
+        public void PublishTextureRole(int role, in RGTextureHandle textureHandle)
+        {
+            if (!textureHandle.IsValid())
+            {
+                throw new InvalidOperationException($"RGScoper.PublishTextureRole: {RGResourceKey.NameOf(role)} needs a valid texture.");
+            }
+            m_TextureMap.Set(role, textureHandle);
         }
 
         public void MoveTexture(int from, int to)
