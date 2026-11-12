@@ -3,8 +3,8 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // Renderer lists of a camera's culling result. One place builds drawing and filtering settings, including the batching
-    // the pipeline asset chooses: GPU instancing and dynamic batching apply to draws the SRP Batcher does not take.
+    // Renderer lists of a camera's culling result. One place builds drawing and filtering settings, including the GPU
+    // instancing the pipeline asset chooses for draws the SRP Batcher does not take.
     internal static class CameraRendererLists
     {
         internal static readonly ShaderTagId UnlitPass = new ShaderTagId("SRPDefaultUnlit");
@@ -30,9 +30,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             drawing.perObjectData = perObjectData;
             drawing.enableInstancing = asset.enableInstanceBatch;
-            // Dynamic batching pre-transforms vertices on the CPU and drops each object's previous matrix, so a list that
-            // writes motion vectors never batches dynamically.
-            drawing.enableDynamicBatching = asset.enableDynamicBatch && (perObjectData & PerObjectData.MotionVectors) == 0;
             var filtering = new FilteringSettings(queues, camera.cullingMask, uint.MaxValue);
             return new RendererListParams(cullingResults, drawing, filtering);
         }
