@@ -50,7 +50,6 @@ namespace InfinityTech.Rendering.Editor
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
         {
             base.AssignNewShaderToMaterial(material, oldShader, newShader);
-            InfinityMaterialMigration.Migrate(material);
             MaterialRouteUtility.ApplyPassState(material);
         }
 

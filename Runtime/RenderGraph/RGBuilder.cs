@@ -739,11 +739,6 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    struct RGProfilingScopePassData
-    {
-        public ProfilingSampler sampler;
-    }
-
     public struct RGProfilingScope : IDisposable
     {
         RGBuilder m_Builder;

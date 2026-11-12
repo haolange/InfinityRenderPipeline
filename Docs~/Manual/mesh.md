@@ -69,4 +69,3 @@ Ordinary material properties need no notification.
 - LOD selection works per object. There is no per-submesh or per-cluster LOD.
 - Receive Shadow and Affect Indirect Lighting are stored on the entity, but no pass reads them yet.
 
-Projects from 0.4 migrate with the steps in [Upgrade 0.4 to 0.5](upgrade-0.4-to-0.5.md).

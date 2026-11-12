@@ -20,6 +20,8 @@ Checks
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
   agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
   docfacts         no sentence of 80 or more characters appears in both AGENTS.md and ARCHITECTURE.md
+  legacyresidue    no [Obsolete], FormerlySerializedAs or Legacy/Deprecated/Compat/Migrate identifier in package code
+  unusedtypes      every type declared in Runtime is referenced outside its declaration
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -496,6 +498,60 @@ def check_doc_facts(repo, out):
         out.append(('ERROR', 'docfacts', 'stated in both AGENTS.md and ARCHITECTURE.md: ' + sentence[:120]))
 
 
+# Unity concept names that contain a flagged word but are not compatibility residue.
+LEGACY_ALLOWED = {'LegacyLightProbes', 'BuiltinLegacy'}
+# Members a Unity interface still requires although Unity marks them obsolete.
+ENGINE_OBSOLETE_MEMBERS = {'probeVolumeSceneData'}
+LEGACY_IDENTIFIER = re.compile(r'\b\w*(?:Legacy|Deprecated|Migrat|Compat(?![a-z]))\w*\b')
+
+
+def code_only(text):
+    return re.sub(r'"(?:\\.|[^"\\\n])*"', '""', without_comments(text))
+
+
+def check_legacy_residue(repo, out):
+    for root in ('Runtime', 'Editor', 'Shaders', 'Tests'):
+        for p in all_files(os.path.join(repo, root), {'.cs', '.hlsl', '.shader', '.compute'}):
+            rel = os.path.relpath(p, repo).replace('\\', '/')
+            if LEGACY_IDENTIFIER.search(os.path.basename(p)):
+                out.append(('ERROR', 'legacyresidue', rel + ': compatibility-residue file name'))
+            text = code_only(read(p))
+            obsolete = [m.group(1) for m in re.finditer(r'\[\s*(?:System\.)?Obsolete\b[^\]]*\]\s*[\w<>.\s]*?\b(\w+)\s*(?:=>|\{|\(|;)', text)]
+            if any(name not in ENGINE_OBSOLETE_MEMBERS for name in obsolete) or 'FormerlySerializedAs' in text:
+                out.append(('ERROR', 'legacyresidue', rel + ': [Obsolete] or FormerlySerializedAs'))
+            for name in sorted({m.group(0) for m in LEGACY_IDENTIFIER.finditer(text)} - LEGACY_ALLOWED):
+                out.append(('ERROR', 'legacyresidue', f'{rel}: compatibility-residue identifier {name}'))
+
+
+# Types created by Unity or by reflection have no textual caller.
+UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|BaseComponent|RenderPipelineAsset|'
+                               r'RenderPipelineGlobalSettings|IRenderPipelineResources|IRenderPipelineGraphicsSettings|InfinityVolumeComponent)\b')
+# In-development features (AGENTS R15) keep types that have no caller yet.
+UNUSED_TYPE_DIRECTORIES = ('Runtime/Terrain/',)
+
+
+def check_unused_types(repo, out):
+    sources = {}
+    for root in ('Runtime', 'Editor', 'Tests', 'Shaders'):
+        for p in all_files(os.path.join(repo, root), {'.cs', '.hlsl', '.shader', '.compute'}):
+            sources[os.path.relpath(p, repo).replace('\\', '/')] = code_only(read(p))
+    declaration = re.compile(r'(\bstatic\s+)?\b(?:class|struct|enum|interface)\s+(\w+)([^{;]*)')
+    for rel, text in sources.items():
+        if not rel.startswith('Runtime/') or not rel.endswith('.cs') or rel.startswith(UNUSED_TYPE_DIRECTORIES):
+            continue
+        for match in declaration.finditer(text):
+            name, tail = match.group(2), match.group(3)
+            if UNUSED_TYPE_BASES.search(tail):
+                continue
+            if match.group(1) and re.search(r'\(\s*this\s', text):
+                continue  # extension-method holder, used through its methods
+            word = re.compile(r'\b' + name + r'\b')
+            ctor = re.compile(r'(?:public|internal|private|protected|static)\s+' + name + r'\s*\(|~' + name + r'\s*\(')
+            uses = sum(len(word.findall(t)) - len(ctor.findall(t)) for t in sources.values())
+            if uses <= 1:
+                out.append(('ERROR', 'unusedtypes', f'{rel}: type {name} has no reference outside its declaration'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -507,7 +563,8 @@ def main():
                      ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
-                     ('agentsize', check_agents_size), ('docfacts', check_doc_facts)):
+                     ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
+                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

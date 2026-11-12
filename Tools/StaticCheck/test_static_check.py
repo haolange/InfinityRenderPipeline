@@ -31,6 +31,25 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
+    def test_compatibility_residue_fails_and_unity_concept_names_pass(self):
+        self.write('Runtime/A.cs', 'enum ELightProbeSystem { LegacyLightProbes }\n// legacy comment\nvar s = "Legacy Shaders/Diffuse";')
+        out = []
+        static_check.check_legacy_residue(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/B.cs', '[System.Obsolete] class LegacyConverter { void MigrateOld() {} }')
+        static_check.check_legacy_residue(str(self.repo), out)
+        self.assertEqual({'legacyresidue'}, {o[1] for o in out})
+        self.assertEqual(3, len(out))
+
+    def test_unreferenced_runtime_type_fails(self):
+        self.write('Runtime/A.cs', 'struct Used { } struct Orphan { public Orphan(int x) { } } class Host { Used used; }')
+        self.write('Runtime/Terrain/T.cs', 'struct TerrainDraft { }')
+        self.write('Runtime/C.cs', 'class Marker : MonoBehaviour { } static class Ext { public static void Go(this Used u) { } }')
+        out = []
+        static_check.check_unused_types(str(self.repo), out)
+        self.assertEqual(['Runtime/A.cs: type Host has no reference outside its declaration',
+                          'Runtime/A.cs: type Orphan has no reference outside its declaration'], sorted(o[2] for o in out))
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

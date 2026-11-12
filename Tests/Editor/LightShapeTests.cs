@@ -196,7 +196,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
-        public void LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
+        public void NativeDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
         {
             Light light = NewLight(LightType.Disc, out GameObject go);
             try
@@ -235,7 +235,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight()
+        public void InspectorAdoption_UndoRedoRestoresNativeShapeWithoutChangingNativeLight()
         {
             var originalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
             bool originalDirty = originalScene.isDirty;
