@@ -12,6 +12,12 @@ namespace InfinityTech.Rendering.Pipeline
     // One 8x8 group traces its own pixels, then two temporal-then-world-space denoise stages, then a full-resolution upsample.
     internal static class SSGIPassUtilityData
     {
+        internal static readonly ProfilingSampler SSGITraceSampler = new ProfilingSampler("SSGI_Trace");
+        internal static readonly ProfilingSampler SSGITemporal1Sampler = new ProfilingSampler("SSGI_Temporal1");
+        internal static readonly ProfilingSampler SSGISpatialWideSampler = new ProfilingSampler("SSGI_SpatialWide");
+        internal static readonly ProfilingSampler SSGITemporal2Sampler = new ProfilingSampler("SSGI_Temporal2");
+        internal static readonly ProfilingSampler SSGISpatialNarrowSampler = new ProfilingSampler("SSGI_SpatialNarrow");
+        internal static readonly ProfilingSampler SSGIUpsampleSampler = new ProfilingSampler("SSGI_Upsample");
         internal static readonly int SSGI_ResolutionID = Shader.PropertyToID("SSGI_Resolution");
         internal static readonly int SSGI_TraceResolutionID = Shader.PropertyToID("SSGI_TraceResolution");
         internal static readonly int SSGI_TraceScaleID = Shader.PropertyToID("SSGI_TraceScale");
@@ -265,7 +271,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeFloatParam(shader, Shader.PropertyToID("SSGI_FrameAngle"), (passData.frameIndex & 63) * 2.39996323f);
                     cmdEncoder.SetComputeIntParam(shader, Shader.PropertyToID("SSGI_HasAO"), passData.hasAO);
-                    cmdEncoder.BeginSample(CachedSampler.Get("SSGI_Trace"));
+                    cmdEncoder.BeginSample(SSGIPassUtilityData.SSGITraceSampler);
                     int trace = passData.traceKernel;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (passData.captureRayHit)
@@ -291,7 +297,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.UAV_TraceRadianceID, passData.traceRadiance);
                     cmdEncoder.SetComputeTextureParam(shader, trace, Shader.PropertyToID("UAV_HitDistance"), passData.hitDistance);
                     cmdEncoder.DispatchCompute(shader, trace, tileCount.x, tileCount.y, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_Trace"));
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGITraceSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     passData.traceSnapshot.Record(cmdEncoder, passData.traceRadiance);
 #endif
@@ -300,27 +306,27 @@ namespace InfinityTech.Rendering.Pipeline
                     int groupsY = passData.denoiseGroups.y;
                     int temporalKernel = passData.temporalKernel;
                     int spatialKernel = passData.spatialKernel;
-                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, CachedSampler.Get("SSGI_Temporal1"), passData.traceRadiance, passData.historyRadiance, passData.temporal, passData);
+                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal1Sampler, passData.traceRadiance, passData.historyRadiance, passData.temporal, passData);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_Temporal1"));
-                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, CachedSampler.Get("SSGI_SpatialWide"), 0, passData.temporal, passData.combinerWide, passData);
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGITemporal1Sampler);
+                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialWideSampler, 0, passData.temporal, passData.combinerWide, passData);
                     cmdEncoder.DispatchCompute(shader, spatialKernel, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_SpatialWide"));
-                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, CachedSampler.Get("SSGI_Temporal2"), passData.combinerWide, passData.historyNarrow, passData.temporalNarrow, passData);
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGISpatialWideSampler);
+                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal2Sampler, passData.combinerWide, passData.historyNarrow, passData.temporalNarrow, passData);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_Temporal2"));
-                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, CachedSampler.Get("SSGI_SpatialNarrow"), 1, passData.temporalNarrow, passData.combinerNarrow, passData);
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGITemporal2Sampler);
+                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialNarrowSampler, 1, passData.temporalNarrow, passData.combinerNarrow, passData);
                     cmdEncoder.DispatchCompute(shader, spatialKernel, groupsX, groupsY, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_SpatialNarrow"));
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGISpatialNarrowSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("SSGI_Upsample"));
+                    cmdEncoder.BeginSample(SSGIPassUtilityData.SSGIUpsampleSampler);
                     int upsample = passData.upsampleKernel;
                     BindSSGISurface(cmdEncoder, shader, upsample, passData);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_Filtered"), passData.combinerNarrow);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_Meta"), passData.meta);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.UAV_OutputID, passData.output);
                     cmdEncoder.DispatchCompute(shader, upsample, passData.upsampleGroups.x, passData.upsampleGroups.y, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("SSGI_Upsample"));
+                    cmdEncoder.EndSample(SSGIPassUtilityData.SSGIUpsampleSampler);
 
 
 

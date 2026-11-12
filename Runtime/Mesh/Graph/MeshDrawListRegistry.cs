@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
-            ProfilingSampler consumer = MeshDrawProfiling.ConsumerSampler(record.view, record.cache.desc.lightMode);
+            ProfilingSampler consumer = MeshDrawProfiling.ConsumerSampler(record.view, record.cache.passSampler);
             consumer.Begin(commands);
             try
             {
@@ -246,11 +246,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
             ProfilingSampler group = record.view.isShadow
-                ? CachedSampler.Get(MeshDrawProfiling.ShadowGroup(record.view.kind))
-                : MeshDrawProfiling.ConsumerSampler(record.view, record.cache.desc.lightMode);
+                ? MeshDrawProfiling.ShadowGroupSampler(record.view.kind)
+                : MeshDrawProfiling.ConsumerSampler(record.view, record.cache.passSampler);
             ProfilingSampler slice = record.view.isShadow ? MeshDrawProfiling.SliceSampler(record.view.subviewIndex) : null;
-            ProfilingSampler initialize = CachedSampler.Get("InitializeIndirectArgs");
-            ProfilingSampler compact = CachedSampler.Get("Compact");
+            ProfilingSampler initialize = MeshDrawProfiling.initializeIndirectArgs;
+            ProfilingSampler compact = MeshDrawProfiling.compact;
             group.Begin(commands);
             slice?.Begin(commands);
             initialize.Begin(commands);

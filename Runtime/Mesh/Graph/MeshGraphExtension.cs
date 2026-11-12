@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshFrustumView[] views;
         public int viewCount;
         public int stride;
-        public string sampleName;
+        public ProfilingSampler sampler;
         public MeshCullInputs inputs;
         public RGBufferHandle visibility;
         public ComputeBuffer viewTable;
@@ -171,7 +171,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 else
                     depth = true;
             }
-            m_FrustumBinding = RecordFrustumBatch(builder, m_FrustumSources.Count, MeshDrawProfiling.FrustumGroup(depth, shadows));
+            m_FrustumBinding = RecordFrustumBatch(builder, m_FrustumSources.Count, MeshDrawProfiling.FrustumGroupSampler(depth, shadows));
             m_PendingFrustum.Clear();
             m_PendingFrustumKeys.Clear();
         }
@@ -217,7 +217,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return false;
         }
 
-        GpuVisibilityBinding RecordFrustumBatch(RGBuilder builder, int viewCount, string sampleName)
+        GpuVisibilityBinding RecordFrustumBatch(RGBuilder builder, int viewCount, ProfilingSampler sampler)
         {
             if (!world.gpuBackend.isSupported)
             {
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.views = stored;
                 data.viewCount = viewCount;
                 data.stride = stride;
-                data.sampleName = sampleName;
+                data.sampler = sampler;
                 data.inputs = CullInputs(builder, pass);
                 data.visibility = pass.WriteBuffer(visibility);
                 data.viewTable = world.gpuVisibility.frustumViews.buffer;
@@ -255,7 +255,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         commands.SetBufferData(data.viewTable, data.views, 0, 0, data.viewCount);
                     }
-                    ProfilingSampler sample = CachedSampler.Get(data.sampleName);
+                    ProfilingSampler sample = data.sampler;
                     commands.BeginSample(sample);
                     try
                     {

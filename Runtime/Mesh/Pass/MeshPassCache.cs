@@ -71,6 +71,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public const int MetaStride = 5;
 
         public readonly MeshPassDesc desc;
+        internal readonly ProfilingSampler passSampler;
         readonly uint m_RouteMask;
         NativeList<uint2> m_Candidates;
         NativeList<byte> m_CanFade;
@@ -124,6 +125,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new ArgumentException("queueMin exceeds queueMax.", nameof(desc));
             }
             this.desc = desc;
+            passSampler = MeshDrawProfiling.PassSampler(desc.lightMode);
             for (int route = 0; route <= 1; ++route)
                 for (int stage = 0; stage <= 3; ++stage)
                     if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode))

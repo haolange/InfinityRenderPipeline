@@ -13,6 +13,9 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class VolumetricFogPassUtilityData
     {
+        internal static readonly ProfilingSampler VolFogScatterSampler = new ProfilingSampler("VolFog_Scatter");
+        internal static readonly ProfilingSampler VolFogIntegrateSampler = new ProfilingSampler("VolFog_Integrate");
+        internal static readonly ProfilingSampler VolFogTemporalSampler = new ProfilingSampler("VolFog_Temporal");
         internal static readonly string TextureName = "VolumetricFogTexture";
         internal static readonly string HistoryTextureName = "HistoryVolumetricFog";
         internal static readonly int VolFog_ResolutionID = Shader.PropertyToID("VolFog_Resolution");
@@ -206,20 +209,20 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, VolumetricFogPassUtilityData.SRV_AerialPerspectiveLUTID, passData.aerialPerspectiveLUT);
                     }
                     cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
-                    cmdEncoder.BeginSample(CachedSampler.Get("VolFog_Scatter"));
+                    cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogScatterSampler);
                     cmdEncoder.DispatchCompute(shader, passData.scatterDensityKernel.index, passData.scatterDensityKernel.GroupsX(passData.froxelResolution.x), passData.scatterDensityKernel.GroupsY(passData.froxelResolution.y), 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("VolFog_Scatter"));
+                    cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogScatterSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("VolFog_Integrate"));
+                    cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogIntegrateSampler);
                     cmdEncoder.SetComputeTextureParam(shader, passData.integrateKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
                     cmdEncoder.DispatchCompute(shader, passData.integrateKernel.index, passData.integrateKernel.GroupsX(passData.froxelResolution.x), passData.integrateKernel.GroupsY(passData.froxelResolution.y), 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("VolFog_Integrate"));
+                    cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogIntegrateSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("VolFog_Temporal"));
+                    cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogTemporalSampler);
                     cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.SRV_HistoryVolumetricFogID, passData.historyTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
                     cmdEncoder.DispatchCompute(shader, passData.temporalKernel.index, passData.temporalKernel.GroupsX(passData.froxelResolution.x), passData.temporalKernel.GroupsY(passData.froxelResolution.y), 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("VolFog_Temporal"));
+                    cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogTemporalSampler);
                 });
             }
 

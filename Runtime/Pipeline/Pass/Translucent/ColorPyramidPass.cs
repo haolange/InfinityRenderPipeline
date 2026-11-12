@@ -20,16 +20,22 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int ColorPyramid_MipWriteCountID = Shader.PropertyToID("_MipWriteCount");
         internal static readonly int ColorPyramid_SrcScaleID = Shader.PropertyToID("_SrcScale");
 
-        static readonly System.Collections.Generic.Dictionary<int, string> s_MipLabels = new System.Collections.Generic.Dictionary<int, string>();
-        static string MipLabel(int first, int last)
+        // One sampler per (batch, mips written), named by the first and last mip; 8 batches cover 16 mips.
+        const int MaxBatchCount = 8;
+        static readonly ProfilingSampler[] s_BatchSamplers = CreateBatchSamplers();
+
+        static ProfilingSampler[] CreateBatchSamplers()
         {
-            int key = first * 32 + last;
-            if (!s_MipLabels.TryGetValue(key, out string label))
+            var samplers = new ProfilingSampler[MaxBatchCount * PyramidMipBatch.ColorPyramidMipsPerDispatch];
+            for (int batch = 0; batch < MaxBatchCount; ++batch)
             {
-                label = $"ColorPyramid_Mip{first}-{last}";
-                s_MipLabels.Add(key, label);
+                for (int written = 1; written <= PyramidMipBatch.ColorPyramidMipsPerDispatch; ++written)
+                {
+                    int first = batch * PyramidMipBatch.ColorPyramidMipsPerDispatch;
+                    samplers[batch * PyramidMipBatch.ColorPyramidMipsPerDispatch + written - 1] = new ProfilingSampler($"ColorPyramid_Mip{first}-{first + written - 1}");
+                }
             }
-            return label;
+            return samplers;
         }
 
         internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, in ComputeKernel kernel, RGTextureHandle sourceTexture, RGTextureHandle pyramidTexture, int2 resolution, int mipCount)
@@ -49,10 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int outHeight = PyramidMipBatch.MipSize(resolution.y, startMip);
                 int groupsX = kernel.GroupsX(outWidth);
                 int groupsY = kernel.GroupsY(outHeight);
-                int lastMip = startMip + writeCount - 1;
-                string mipMarker = MipLabel(startMip, lastMip);
-
-                ProfilingSampler mipSample = CachedSampler.Get(mipMarker);
+                ProfilingSampler mipSample = s_BatchSamplers[batch * PyramidMipBatch.ColorPyramidMipsPerDispatch + writeCount - 1];
                 cmdEncoder.BeginSample(mipSample);
                 cmdEncoder.SetComputeIntParam(shader, ColorPyramid_MipWriteCountID, writeCount);
                 cmdEncoder.SetComputeIntParam(shader, ColorPyramid_SrcScaleID, copySource ? 1 : 2);

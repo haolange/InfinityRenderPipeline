@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             using var cpuDraw = MeshDrawProfiling.Cpu("Draw", view, cache.desc.lightMode).Auto();
-            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(view.kind, false));
+            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(view.kind, false);
             marker.Begin(commands);
             bool dithering = false;
             try

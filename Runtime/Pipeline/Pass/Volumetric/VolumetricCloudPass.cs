@@ -13,6 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class VolumetricCloudPassUtilityData
     {
+        internal static readonly ProfilingSampler VolCloudTraceSampler = new ProfilingSampler("VolCloud_Trace");
         internal static readonly string TextureName = "VolumetricCloudTexture";
         internal static readonly string HistoryTextureName = "HistoryVolumetricCloud";
         internal static readonly int VolCloud_ResolutionID = Shader.PropertyToID("VolCloud_Resolution");
@@ -186,9 +187,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
                     cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
-                    cmdEncoder.BeginSample(CachedSampler.Get("VolCloud_Trace"));
+                    cmdEncoder.BeginSample(VolumetricCloudPassUtilityData.VolCloudTraceSampler);
                     cmdEncoder.DispatchCompute(shader, passData.cloudKernel.index, passData.cloudKernel.GroupsX(passData.resolution.x), passData.cloudKernel.GroupsY(passData.resolution.y), 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("VolCloud_Trace"));
+                    cmdEncoder.EndSample(VolumetricCloudPassUtilityData.VolCloudTraceSampler);
                 });
             }
 

@@ -259,7 +259,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount,
             in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
         {
-            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(viewKind, true));
+            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(viewKind, true);
             marker.Begin(commands);
             bool dithering = false;
             try

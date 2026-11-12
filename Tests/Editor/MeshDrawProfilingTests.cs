@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Tests
         [TestCase(EMeshViewKind.LocalShadow, "Shadows")]
         public void ViewDomain_SelectsDrawNames(EMeshViewKind kind, string domain)
         {
-            Assert.AreEqual(domain + ".DrawMeshDirect", MeshDrawProfiling.Draw(kind, false));
-            Assert.AreEqual(domain + ".DrawMeshIndirect", MeshDrawProfiling.Draw(kind, true));
+            Assert.AreEqual(domain + ".DrawMeshDirect", MeshDrawProfiling.DrawSampler(kind, false).name);
+            Assert.AreEqual(domain + ".DrawMeshIndirect", MeshDrawProfiling.DrawSampler(kind, true).name);
         }
 
         [Test]
@@ -60,6 +60,8 @@ namespace InfinityTech.Rendering.Tests
             MeshView depth = MeshTestUtility.CameraView(1);
             depth.visibilityPhase = EMeshVisibilityPhase.Prediction;
             Assert.AreEqual("DepthPrediction", MeshDrawProfiling.Consumer(depth, "RasterDepthPass"));
+            Assert.AreSame(MeshDrawProfiling.depthPrediction, MeshDrawProfiling.ConsumerSampler(depth, MeshDrawProfiling.PassSampler("RasterDepthPass")));
+            Assert.AreEqual("GBuffer", MeshDrawProfiling.ConsumerSampler(depth, MeshDrawProfiling.PassSampler("RasterGBufferPass")).name);
             depth.visibilityPhase = EMeshVisibilityPhase.Recovered;
             Assert.AreEqual("DepthRecovery", MeshDrawProfiling.Consumer(depth, "RasterDepthPass"));
             depth.visibilityPhase = EMeshVisibilityPhase.Final;
@@ -67,10 +69,12 @@ namespace InfinityTech.Rendering.Tests
             MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 1, depth.CopyPlanes(), depth.viewPosition, ~0,
                 (uint)ERenderingLayer.Everything, 2, ulong.MaxValue, MeshTestUtility.Lod);
             Assert.AreEqual("CascadeShadow.Slice2", MeshDrawProfiling.Consumer(shadow, "RasterShadowPass"));
-            Assert.AreEqual("DepthAndShadows", MeshDrawProfiling.FrustumGroup(true, true));
-            Assert.AreEqual("Shadows", MeshDrawProfiling.FrustumGroup(false, true));
-            Assert.AreEqual("Depth", MeshDrawProfiling.FrustumGroup(true, false));
-            Assert.AreEqual("Slice2", MeshDrawProfiling.Slice(EMeshViewKind.CascadeShadow, 2));
+            Assert.AreEqual("DepthAndShadows", MeshDrawProfiling.FrustumGroupSampler(true, true).name);
+            Assert.AreEqual("Shadows", MeshDrawProfiling.FrustumGroupSampler(false, true).name);
+            Assert.AreEqual("Depth", MeshDrawProfiling.FrustumGroupSampler(true, false).name);
+            Assert.AreEqual("LocalShadow", MeshDrawProfiling.ShadowGroupSampler(EMeshViewKind.LocalShadow).name);
+            Assert.AreEqual("CascadeShadow", MeshDrawProfiling.ShadowGroupSampler(EMeshViewKind.CascadeShadow).name);
+            Assert.AreEqual("Slice2", MeshDrawProfiling.SliceSampler(2).name);
         }
 
         [Test]

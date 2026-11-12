@@ -340,7 +340,7 @@ def check_mesh_submit(repo, out):
             continue
         for token in ('DispatchCompute(', 'SetBufferData(', 'SetData(', 'GetBuffer(', 'RentPayload(', 'AllocateInstances('):
             if token in body: out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList calls {token.rstrip("(")}'))
-        if 'MeshDrawProfiling.Draw(' not in body:
+        if 'MeshDrawProfiling.DrawSampler(' not in body:
             out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList does not open the MeshDrawProfiling draw marker'))
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):

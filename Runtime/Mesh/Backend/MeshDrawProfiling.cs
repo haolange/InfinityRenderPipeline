@@ -20,6 +20,21 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal static readonly ProfilerMarker cpuCleanup = new ProfilerMarker("MeshCPU.CleanupComplete");
 
+        internal static readonly ProfilingSampler depthPrediction = new ProfilingSampler("DepthPrediction");
+        internal static readonly ProfilingSampler depthRecovery = new ProfilingSampler("DepthRecovery");
+        internal static readonly ProfilingSampler initializeIndirectArgs = new ProfilingSampler("InitializeIndirectArgs");
+        internal static readonly ProfilingSampler compact = new ProfilingSampler("Compact");
+        static readonly ProfilingSampler s_DepthPass = new ProfilingSampler("Depth");
+        static readonly ProfilingSampler s_CascadeShadowGroup = new ProfilingSampler("CascadeShadow");
+        static readonly ProfilingSampler s_LocalShadowGroup = new ProfilingSampler("LocalShadow");
+        static readonly ProfilingSampler s_FrustumDepthAndShadows = new ProfilingSampler("DepthAndShadows");
+        static readonly ProfilingSampler s_FrustumShadows = new ProfilingSampler("Shadows");
+        static readonly ProfilingSampler s_FrustumDepth = new ProfilingSampler("Depth");
+        static readonly ProfilingSampler s_ShadowDrawDirect = new ProfilingSampler("Shadows.DrawMeshDirect");
+        static readonly ProfilingSampler s_ShadowDrawIndirect = new ProfilingSampler("Shadows.DrawMeshIndirect");
+        static readonly ProfilingSampler s_RenderLoopDrawDirect = new ProfilingSampler("RenderLoop.DrawMeshDirect");
+        static readonly ProfilingSampler s_RenderLoopDrawIndirect = new ProfilingSampler("RenderLoop.DrawMeshIndirect");
+
         static readonly Dictionary<string, ProfilerMarker> s_Markers = new Dictionary<string, ProfilerMarker>();
 
         internal static ProfilerMarker Marker(string name)
@@ -63,15 +78,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             return pass;
         }
 
-        internal static string FrustumGroup(bool depth, bool shadows)
+        internal static ProfilingSampler FrustumGroupSampler(bool depth, bool shadows)
         {
             if (depth && shadows)
-                return "DepthAndShadows";
-            return shadows ? "Shadows" : "Depth";
+                return s_FrustumDepthAndShadows;
+            return shadows ? s_FrustumShadows : s_FrustumDepth;
         }
 
-        internal static string ShadowGroup(EMeshViewKind kind)
-            => kind == EMeshViewKind.LocalShadow ? "LocalShadow" : "CascadeShadow";
+        internal static ProfilingSampler ShadowGroupSampler(EMeshViewKind kind)
+            => kind == EMeshViewKind.LocalShadow ? s_LocalShadowGroup : s_CascadeShadowGroup;
 
         static readonly List<ProfilingSampler> s_CascadeConsumers = new List<ProfilingSampler>(4);
         static readonly List<ProfilingSampler> s_LocalConsumers = new List<ProfilingSampler>(8);
@@ -90,18 +105,22 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal static ProfilingSampler SliceSampler(int index) => Named(s_Slices, index, "Slice");
 
-        internal static ProfilingSampler ConsumerSampler(in MeshView view, string lightMode)
+        // A pass cache resolves its sampler once, named by the PassToken of its LightMode.
+        internal static ProfilingSampler PassSampler(string lightMode)
+            => lightMode == "RasterDepthPass" ? s_DepthPass : new ProfilingSampler(PassToken(lightMode));
+
+        internal static ProfilingSampler ConsumerSampler(in MeshView view, ProfilingSampler passSampler)
         {
             if (view.kind == EMeshViewKind.CascadeShadow)
                 return Named(s_CascadeConsumers, view.subviewIndex, "CascadeShadow.Slice");
             if (view.kind == EMeshViewKind.LocalShadow)
                 return Named(s_LocalConsumers, view.subviewIndex, "LocalShadow.Slice");
-            string pass = PassToken(lightMode);
-            if (pass == "Depth" && view.visibilityPhase == EMeshVisibilityPhase.Prediction)
-                return CachedSampler.Get("DepthPrediction");
-            if (pass == "Depth" && view.visibilityPhase == EMeshVisibilityPhase.Recovered)
-                return CachedSampler.Get("DepthRecovery");
-            return CachedSampler.Get(pass);
+            bool depth = ReferenceEquals(passSampler, s_DepthPass);
+            if (depth && view.visibilityPhase == EMeshVisibilityPhase.Prediction)
+                return depthPrediction;
+            if (depth && view.visibilityPhase == EMeshVisibilityPhase.Recovered)
+                return depthRecovery;
+            return passSampler;
         }
 
         readonly struct CpuMarkerKey : System.IEquatable<CpuMarkerKey>
@@ -154,19 +173,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             return marker;
         }
 
-        internal static string Slice(EMeshViewKind kind, int index)
-        {
-            if (kind != EMeshViewKind.CascadeShadow && kind != EMeshViewKind.LocalShadow)
-                throw new System.ArgumentOutOfRangeException(nameof(kind), kind, "Slice markers belong to shadow views.");
-            return "Slice" + index;
-        }
-
         static bool IsShadow(EMeshViewKind kind)
             => kind == EMeshViewKind.CascadeShadow || kind == EMeshViewKind.LocalShadow;
 
-        internal static string Draw(EMeshViewKind kind, bool indirect)
+        internal static ProfilingSampler DrawSampler(EMeshViewKind kind, bool indirect)
             => IsShadow(kind)
-                ? (indirect ? "Shadows.DrawMeshIndirect" : "Shadows.DrawMeshDirect")
-                : (indirect ? "RenderLoop.DrawMeshIndirect" : "RenderLoop.DrawMeshDirect");
+                ? (indirect ? s_ShadowDrawIndirect : s_ShadowDrawDirect)
+                : (indirect ? s_RenderLoopDrawIndirect : s_RenderLoopDrawDirect);
     }
 }

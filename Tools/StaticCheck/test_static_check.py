@@ -149,9 +149,9 @@ class StaticCheckTests(unittest.TestCase):
     def test_mesh_submit_only_draws(self):
         root = 'Runtime/Mesh/'
         self.write(root + 'Backend/MeshDrawCPUBackend.cs',
-                   'class A { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
+                   'class A { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, false); c.SetBufferData(b, d); } }')
         self.write(root + 'Backend/MeshDrawGPUBackend.cs',
-                   'class B { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
+                   'class B { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
         self.write(root + 'Graph/MeshGraphExtension.cs', 'InsertDrawListPreparation MeshDrawProfiling.upload MeshDrawProfiling.compaction')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)

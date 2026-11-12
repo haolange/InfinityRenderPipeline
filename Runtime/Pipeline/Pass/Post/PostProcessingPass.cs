@@ -13,6 +13,11 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class PostProcessingPassUtilityData
     {
+        internal static readonly ProfilingSampler ExposureClearSampler = new ProfilingSampler("ExposureClear");
+        internal static readonly ProfilingSampler ExposureHistogramSampler = new ProfilingSampler("ExposureHistogram");
+        internal static readonly ProfilingSampler ExposureReduceSampler = new ProfilingSampler("ExposureReduce");
+        internal static readonly ProfilingSampler BloomDownsampleSampler = new ProfilingSampler("BloomDownsample");
+        internal static readonly ProfilingSampler BloomUpsampleSampler = new ProfilingSampler("BloomUpsample");
         internal static readonly string TextureName = "PostProcessTexture";
         internal static readonly string BloomTextureName = "BloomTexture";
         internal static readonly string ExposureEVName = "ExposureEV";
@@ -329,23 +334,23 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_ExposureAdaptID, passData.adapt);
                     cmdEncoder.SetComputeIntParam(shader, PostProcessingPassUtilityData.PP_ExposureResetID, passData.resetHistory);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("ExposureClear"));
+                    cmdEncoder.BeginSample(PostProcessingPassUtilityData.ExposureClearSampler);
                     cmdEncoder.SetComputeBufferParam(shader, passData.exposureClear.index, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
                     cmdEncoder.DispatchCompute(shader, passData.exposureClear.index, 4, 1, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("ExposureClear"));
+                    cmdEncoder.EndSample(PostProcessingPassUtilityData.ExposureClearSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("ExposureHistogram"));
+                    cmdEncoder.BeginSample(PostProcessingPassUtilityData.ExposureHistogramSampler);
                     cmdEncoder.SetComputeTextureParam(shader, passData.exposureHistogram.index, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
                     cmdEncoder.SetComputeBufferParam(shader, passData.exposureHistogram.index, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
                     cmdEncoder.DispatchCompute(shader, passData.exposureHistogram.index, passData.exposureHistogram.GroupsX(passData.resolution.x), passData.exposureHistogram.GroupsY(passData.resolution.y), 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("ExposureHistogram"));
+                    cmdEncoder.EndSample(PostProcessingPassUtilityData.ExposureHistogramSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("ExposureReduce"));
+                    cmdEncoder.BeginSample(PostProcessingPassUtilityData.ExposureReduceSampler);
                     cmdEncoder.SetComputeBufferParam(shader, passData.exposureReduce.index, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
                     cmdEncoder.SetComputeTextureParam(shader, passData.exposureReduce.index, PostProcessingPassUtilityData.SRV_ExposureHistoryEVID, passData.exposureHistory);
                     cmdEncoder.SetComputeTextureParam(shader, passData.exposureReduce.index, PostProcessingPassUtilityData.UAV_ExposureEVID, passData.exposureEV);
                     cmdEncoder.DispatchCompute(shader, passData.exposureReduce.index, 1, 1, 1);
-                    cmdEncoder.EndSample(CachedSampler.Get("ExposureReduce"));
+                    cmdEncoder.EndSample(PostProcessingPassUtilityData.ExposureReduceSampler);
                 });
             }
 
@@ -383,7 +388,7 @@ namespace InfinityTech.Rendering.Pipeline
                     int bloomHeight = Mathf.Max(1, passData.resolution.y >> 1);
                     int numBloomMips = Mathf.Min(PostProcessingPassUtilityData.MaxBloomMips, (int)math.floor(math.log2(math.max(bloomWidth, bloomHeight))));
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("BloomDownsample"));
+                    cmdEncoder.BeginSample(PostProcessingPassUtilityData.BloomDownsampleSampler);
                     cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.BloomMipSizeID, new Vector4(bloomWidth, bloomHeight, 1.0f / bloomWidth, 1.0f / bloomHeight));
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomPrefilterID, 1.0f);
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.bloomDownsample.index, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.sceneColorTexture);
@@ -406,9 +411,9 @@ namespace InfinityTech.Rendering.Pipeline
                         prevWidth = mipWidth;
                         prevHeight = mipHeight;
                     }
-                    cmdEncoder.EndSample(CachedSampler.Get("BloomDownsample"));
+                    cmdEncoder.EndSample(PostProcessingPassUtilityData.BloomDownsampleSampler);
 
-                    cmdEncoder.BeginSample(CachedSampler.Get("BloomUpsample"));
+                    cmdEncoder.BeginSample(PostProcessingPassUtilityData.BloomUpsampleSampler);
                     for (int mip = numBloomMips - 2; mip >= 0; --mip)
                     {
                         int mipWidth = Mathf.Max(1, bloomWidth >> mip);
@@ -419,7 +424,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.bloomUpsample.index, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, mip);
                         cmdEncoder.DispatchCompute(passData.postProcessingShader, passData.bloomUpsample.index, passData.bloomUpsample.GroupsX(mipWidth), passData.bloomUpsample.GroupsY(mipHeight), 1);
                     }
-                    cmdEncoder.EndSample(CachedSampler.Get("BloomUpsample"));
+                    cmdEncoder.EndSample(PostProcessingPassUtilityData.BloomUpsampleSampler);
                 });
             }
         }
