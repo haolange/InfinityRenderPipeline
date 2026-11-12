@@ -55,13 +55,13 @@ namespace InfinityTech.Rendering.Pipeline
             int width = depthDescription.width, height = depthDescription.height;
             var colorDescriptor = TemporalColorDescriptor(width, height, "HistoryColorTexture", true);
             var depthDescriptor = TemporalDepthDescriptor(width, height, "HistoryDepthTexture", true);
-            var historyColor = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, out bool colorCreated));
-            var historyDepth = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, out bool depthCreated));
-            var writeColor = TemporalColorDescriptor(width, height, "HistoryColorTexture", true);
-            var writeDepth = TemporalDepthDescriptor(width, height, "HistoryDepthTexture", true);
-            // Both sides of the ping-pong history have identical physical usage flags.
-            var accumulation = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, writeColor));
-            var temporalDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, writeDepth));
+            HistoryRead colorRead = context.historyCache.Read(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, context.resetsHistory);
+            HistoryRead depthRead = context.historyCache.Read(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, context.resetsHistory);
+            var historyColor = m_RGBuilder.ImportTexture(colorRead.texture);
+            var historyDepth = m_RGBuilder.ImportTexture(depthRead.texture);
+            // One descriptor per history: both sides of the ping-pong pair share it.
+            var accumulation = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor));
+            var temporalDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, accumulation);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TAADepthBuffer, temporalDepth);
             context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
@@ -93,9 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(context.cameraUniform.matrix_FlipYJitterProj, context.cameraUniform.matrix_FlipYProj);
                 data.jitter = new Vector4(currentJitter.x, currentJitter.y, context.cameraUniform.previousJitterUV.x, context.cameraUniform.previousJitterUV.y);
-                data.historyValid = !context.resetsHistory && !colorCreated && !depthCreated
-                    && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0
-                    && context.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
+                data.historyValid = colorRead.valid && depthRead.valid;
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
                 data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));

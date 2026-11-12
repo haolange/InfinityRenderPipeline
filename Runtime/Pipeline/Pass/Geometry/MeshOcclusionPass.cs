@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Rendering.GPUResource;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.RenderGraph;
@@ -23,16 +24,13 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return false;
             }
-            var previous = history.GetTexture(HiZPassUtilityData.HistoryFurthest,
-                HiZDescriptor(size.x, size.y, "HiZFurthest"), out bool created);
-            bool valid = !created && history.TextureGeneration(HiZPassUtilityData.HistoryFurthest) > 0
-                && context.state.acceptedHiZ;
-            if (!valid)
+            HistoryRead previous = history.Read(HiZPassUtilityData.HistoryFurthest, HiZDescriptor(size.x, size.y, "HiZFurthest"), context.resetsHistory);
+            if (!previous.valid || !context.state.acceptedHiZ)
             {
                 return false;
             }
             lists = m_RGBuilder.RecordMeshOcclusionPrediction(view, motion,
-                m_RGBuilder.ImportTexture(previous),
+                m_RGBuilder.ImportTexture(previous.texture),
                 context.cameraUniform.matrix_LastViewFlipYJitterProj, size,
                 (ulong)history.TextureGeneration(HiZPassUtilityData.HistoryFurthest));
             view = lists.final;

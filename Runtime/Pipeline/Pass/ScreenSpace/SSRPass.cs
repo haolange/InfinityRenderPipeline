@@ -215,17 +215,17 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
-            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             TextureDescriptor historyVarianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "HistorySSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor);
-            RGTextureHandle historyVariance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceDsc, out bool historyVarianceCreated));
+            HistoryRead radianceRead = context.historyCache.Read(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, context.resetsHistory);
+            HistoryRead metaRead = context.historyCache.Read(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, context.resetsHistory);
+            HistoryRead varianceRead = context.historyCache.Read(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceDsc, context.resetsHistory);
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(radianceRead.texture);
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(metaRead.texture);
+            RGTextureHandle historyVariance = m_RGBuilder.ImportTexture(varianceRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVariance);
-            bool historyValid = context.state.acceptedSSR && !(context.resetsHistory || historyRadianceCreated || historyMetaCreated || historyVarianceCreated)
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRVarianceBuffer) > 0;
+            bool historyValid = context.state.acceptedSSR && radianceRead.valid && metaRead.valid && varianceRead.valid;
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 

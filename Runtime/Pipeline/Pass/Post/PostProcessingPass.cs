@@ -283,9 +283,10 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
 
             TextureHandle evWrite = context.historyCache.GetWriteTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
-            TextureHandle evRead = context.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc, out bool created);
+            // Exposure adapts across camera cuts, so only a missing or relaid-out history resets it.
+            HistoryRead evRead = context.historyCache.Read(InfinityShaderIDs.ExposureEVBuffer, evDsc, false);
             RGTextureHandle exposureWrite = m_RGBuilder.ImportTexture(evWrite);
-            RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead);
+            RGTextureHandle exposureRead = m_RGBuilder.ImportTexture(evRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ExposureEVBuffer, exposureWrite);
 
             BufferDescriptor histogramDsc = new BufferDescriptor(ExposureUtility.HistogramBinCount, sizeof(uint), GraphicsBuffer.Target.Structured);
@@ -305,7 +306,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lowPercentile = volumes.lowPercentile;
                 passData.highPercentile = volumes.highPercentile;
                 passData.adapt = adapt;
-                passData.resetHistory = created ? 1 : 0;
+                passData.resetHistory = evRead.valid ? 0 : 1;
                 passData.postProcessingShader = shaders.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.exposureHistory = passRef.ReadTexture(exposureRead);

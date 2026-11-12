@@ -148,18 +148,18 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
             TextureDescriptor historyNarrowDsc = historyRadianceDsc;
             historyNarrowDsc.name = "HistorySSGINarrow";
-            RGTextureHandle historyNarrow = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowDsc, out bool historyNarrowCreated));
-            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
+            HistoryRead radianceRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, context.resetsHistory);
+            HistoryRead narrowRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowDsc, context.resetsHistory);
+            HistoryRead metaRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, context.resetsHistory);
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(radianceRead.texture);
+            RGTextureHandle historyNarrow = m_RGBuilder.ImportTexture(narrowRead.texture);
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(metaRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadiance);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrow);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMeta);
-            bool historyValid = context.state.acceptedSSGI && !(context.resetsHistory || historyRadianceCreated || historyNarrowCreated || historyMetaCreated)
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIRadianceBuffer) > 0
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGINarrowBuffer) > 0
-                && context.historyCache.TextureGeneration(InfinityShaderIDs.HistorySSGIMetaBuffer) > 0;
+            bool historyValid = context.state.acceptedSSGI && radianceRead.valid && narrowRead.valid && metaRead.valid;
             bool hasAO = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusion);
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;

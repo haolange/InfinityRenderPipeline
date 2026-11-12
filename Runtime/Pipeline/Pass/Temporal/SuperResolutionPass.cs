@@ -53,7 +53,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
-            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
+            HistoryRead colorRead = context.historyCache.Read(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, context.resetsHistory);
+            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(colorRead.texture);
             m_RGBuilder.scoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
             var pendingColor = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
@@ -84,8 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref SuperResolutionPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
                 passData.inputResolution = context.dimensions.internalSize;
-                passData.resetHistory = context.resetsHistory || historyCreated
-                    || context.historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
+                passData.resetHistory = !colorRead.valid;
                 passData.jitter = context.cameraUniform.jitter;
                 passData.frameIndex = Time.frameCount;
                 passData.kernel = kernels.superResolution.index;

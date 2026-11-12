@@ -111,7 +111,8 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle volumetricFogTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
+            HistoryRead historyRead = context.historyCache.Read(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, context.resetsHistory);
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -130,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = fog.ambientIntensity;
                 passData.depthSlices = depthSlices;
                 passData.maxDistance = fog.maxDistance;
-                passData.temporalWeight = (context.resetsHistory || historyCreated) ? 0.0f : fog.temporalWeight;
+                passData.temporalWeight = historyRead.valid ? fog.temporalWeight : 0.0f;
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);

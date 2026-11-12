@@ -3,6 +3,19 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
+    // A committed history texture and whether it holds an earlier frame's contents of the requested layout.
+    internal readonly struct HistoryRead
+    {
+        internal readonly TextureHandle texture;
+        internal readonly bool valid;
+
+        internal HistoryRead(in TextureHandle texture, bool valid)
+        {
+            this.texture = texture;
+            this.valid = valid;
+        }
+    }
+
     // Double-buffered history per id: one committed and one pending acquisition from the resource pool. A replaced or
     // discarded acquisition is retired and returned to the pool with the frame's reuse fence; the pool owns physical
     // lifetime, so history never allocates or destroys a resource itself.
@@ -117,6 +130,15 @@ namespace InfinityTech.Rendering.GPUResource
                 created = !requestedLogical.Equals(committedLogical);
             }
             return slot.committed;
+        }
+
+        // The one validity rule for history: the committed texture has the requested logical layout, was committed at least
+        // once, and the camera did not discard its history this frame. A feature that may skip frames also checks that it
+        // produced in the last committed frame.
+        public HistoryRead Read(in int id, in TextureDescriptor descriptor, bool resetHistory)
+        {
+            TextureHandle texture = GetTexture(id, descriptor, out bool created);
+            return new HistoryRead(texture, !resetHistory && !created && TextureGeneration(id) > 0);
         }
 
         public TextureHandle GetWriteTexture(in int id, in TextureDescriptor requestedDescriptor)

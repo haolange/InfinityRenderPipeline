@@ -45,10 +45,10 @@ namespace InfinityTech.Rendering.Pipeline
             var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
             int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
             int depthID = sr ? SuperResolutionPassUtilityData.HistoryDepthTextureID : AntiAliasingUtilityData.HistoryDepthTextureID;
-            var color = state.historyCache.GetTexture(colorID, TemporalColorDescriptor(size.x, size.y,
-                sr ? "HistorySuperResolutionColor" : "HistoryColorTexture", true, domain), out bool colorCreated);
-            var depth = state.historyCache.GetTexture(depthID, TemporalDepthDescriptor(size.x, size.y,
-                sr ? "HistorySuperResolutionDepth" : "HistoryDepthTexture", true, domain), out bool depthCreated);
+            HistoryRead colorRead = context.historyCache.Read(colorID, TemporalColorDescriptor(size.x, size.y,
+                sr ? "HistorySuperResolutionColor" : "HistoryColorTexture", true, domain), context.resetsHistory);
+            HistoryRead depthRead = context.historyCache.Read(depthID, TemporalDepthDescriptor(size.x, size.y,
+                sr ? "HistorySuperResolutionDepth" : "HistoryDepthTexture", true, domain), context.resetsHistory);
             int2 baseSize = math.max(1, size / 2);
             var descriptor = TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
             descriptor.viewDivisor = 2;
@@ -59,14 +59,12 @@ namespace InfinityTech.Rendering.Pipeline
             Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
             var source = new TemporalColorView
             {
-                color = m_RGBuilder.ImportTexture(color), depth = m_RGBuilder.ImportTexture(depth), mips = mips,
+                color = m_RGBuilder.ImportTexture(colorRead.texture), depth = m_RGBuilder.ImportTexture(depthRead.texture), mips = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
                 jitterDelta = new Vector4(state.cameraUniform.previousJitterUV.x - currentJitter.x,
                     state.cameraUniform.previousJitterUV.y - currentJitter.y, 0, 0),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
-                valid = state.acceptedTemporalColor && state.acceptedTemporalColorIsSR == sr
-                    && !context.resetsHistory && !colorCreated && !depthCreated
-                    && state.historyCache.TextureGeneration(colorID) > 0 && state.historyCache.TextureGeneration(depthID) > 0
+                valid = state.acceptedTemporalColor && state.acceptedTemporalColorIsSR == sr && colorRead.valid && depthRead.valid
             };
             state.temporalColorView = source;
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.color);

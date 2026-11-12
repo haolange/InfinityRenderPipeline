@@ -154,8 +154,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             TextureDescriptor historyAODsc = CreateGTAOHistoryAODescriptor(halfWidth, halfHeight);
             TextureDescriptor historyDepthDsc = CreateGTAOHistoryDepthDescriptor(halfWidth, halfHeight);
-            RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, out bool historyAOCreated));
-            RGTextureHandle historyOcclusionDepthTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, out bool historyDepthCreated));
+            HistoryRead occlusionRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, context.resetsHistory);
+            HistoryRead occlusionDepthRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, context.resetsHistory);
+            RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(occlusionRead.texture);
+            RGTextureHandle historyOcclusionDepthTexture = m_RGBuilder.ImportTexture(occlusionDepthRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyOcclusionTexture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyOcclusionDepthTexture);
             var pendingOcclusion = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc));
@@ -187,10 +189,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.intensity = ssao.intensity;
                 passData.sharpeness = ssao.sharpness;
                 passData.temporalScale = ssao.temporalScale;
-                bool resetHistory = context.resetsHistory || historyAOCreated || historyDepthCreated;
                 passData.temporalWeight = ssao.temporalWeight;
-                passData.historyValid = context.state.acceptedGTAO && !resetHistory && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionBuffer) > 0
-                    && context.historyCache.TextureGeneration(InfinityShaderIDs.HistoryOcclusionDepthBuffer) > 0;
+                passData.historyValid = context.state.acceptedGTAO && occlusionRead.valid && occlusionDepthRead.valid;
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.fullResolution = new int2(fullWidth, fullHeight);
 

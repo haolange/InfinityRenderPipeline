@@ -108,7 +108,8 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle volumetricCloudTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricCloudBuffer, volumetricCloudDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(context.historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, out bool historyCreated));
+            HistoryRead historyRead = context.historyCache.Read(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, context.resetsHistory);
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyRead.texture);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyTexture);
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -129,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ambientIntensity = cloud.ambientIntensity;
                 passData.numPrimarySteps = cloud.numPrimarySteps;
                 passData.numLightSteps = cloud.numLightSteps;
-                passData.temporalWeight = (context.resetsHistory || historyCreated) ? 0.0f : cloud.temporalWeight;
+                passData.temporalWeight = historyRead.valid ? cloud.temporalWeight : 0.0f;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
                 passData.nearPlane = context.camera.nearClipPlane;
