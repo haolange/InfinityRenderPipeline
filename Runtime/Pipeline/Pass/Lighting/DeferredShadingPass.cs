@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.deferredShadingShader;
-                    shader.SetKeyword(passData.subsurfaceKeyword, passData.hasSubsurface);
+                    cmdEncoder.SetKeyword(shader, passData.subsurfaceKeyword, passData.hasSubsurface);
                     if (passData.hasSubsurface)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_ScatterDiffuse, passData.scatterDiffuse);
@@ -175,12 +175,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferB);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
-                    shader.SetKeyword(passData.occlusionKeyword, passData.hasAO != 0);
+                    cmdEncoder.SetKeyword(shader, passData.occlusionKeyword, passData.hasAO != 0);
                     if (passData.hasAO != 0)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionTexture);
                     }
-                    shader.SetKeyword(passData.contactShadowKeyword, passData.hasContactShadow != 0);
+                    cmdEncoder.SetKeyword(shader, passData.contactShadowKeyword, passData.hasContactShadow != 0);
                     if (passData.hasContactShadow != 0)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ContactShadowPassUtilityData.SRV_ContactShadowSunID, passData.contactShadowTexture);

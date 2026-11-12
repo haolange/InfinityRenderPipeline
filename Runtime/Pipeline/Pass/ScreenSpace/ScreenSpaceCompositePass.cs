@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.compositeShader;
-                    shader.SetKeyword(passData.subsurfaceKeyword, passData.hasSubsurface);
+                    cmdEncoder.SetKeyword(shader, passData.subsurfaceKeyword, passData.hasSubsurface);
                     if (passData.hasSubsurface && passData.hasSSGI != 0)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_ScatterDiffuse, passData.scatterDiffuse);
@@ -121,8 +121,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
-                    shader.SetKeyword(passData.ssrKeyword, passData.hasSSR != 0);
-                    shader.SetKeyword(passData.ssgiKeyword, passData.hasSSGI != 0);
+                    cmdEncoder.SetKeyword(shader, passData.ssrKeyword, passData.hasSSR != 0);
+                    cmdEncoder.SetKeyword(shader, passData.ssgiKeyword, passData.hasSSGI != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_LightingTexture, passData.lightingTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferB);

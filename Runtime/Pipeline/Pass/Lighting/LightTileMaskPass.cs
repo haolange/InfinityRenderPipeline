@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Bound for SRV_ReflectionProbeAtlas when no probe is in use (shaders never read it then).
         static Texture2DArray s_EmptyProbeAtlas;
-        static RenderTargetIdentifier EmptyProbeAtlas
+        static Texture2DArray EmptyProbeAtlas
         {
             get
             {
@@ -97,11 +97,25 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probes);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasks);
-            commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, hasProbeAtlas ? (RenderTargetIdentifier)probeAtlas : EmptyProbeAtlas);
+            if (hasProbeAtlas)
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+            }
+            else
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, EmptyProbeAtlas, TextureView.Whole(EmptyProbeAtlas));
+            }
             commands.SetComputeIntParam(shader, LightShaderIDs.ReflectionProbeCount, probeCount);
             commands.SetComputeVectorParam(shader, LightShaderIDs.ProbeTileParams, probeTileParams);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookies);
-            commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
+            if (hasCookieAtlas)
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, cookieAtlas);
+            }
+            else
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, Texture2D.whiteTexture, TextureView.Whole(Texture2D.whiteTexture));
+            }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasks);
             commands.SetComputeVectorParam(shader, LightShaderIDs.LightTileParams, tileParams);
@@ -116,11 +130,25 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probes);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasks);
-            commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, hasProbeAtlas ? (RenderTargetIdentifier)probeAtlas : EmptyProbeAtlas);
+            if (hasProbeAtlas)
+            {
+                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+            }
+            else
+            {
+                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, EmptyProbeAtlas, TextureView.Whole(EmptyProbeAtlas));
+            }
             commands.SetGlobalInt(LightShaderIDs.ReflectionProbeCount, probeCount);
             commands.SetGlobalVector(LightShaderIDs.ProbeTileParams, probeTileParams);
             commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookies);
-            commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
+            if (hasCookieAtlas)
+            {
+                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, cookieAtlas);
+            }
+            else
+            {
+                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, Texture2D.whiteTexture, TextureView.Whole(Texture2D.whiteTexture));
+            }
             commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBins);
             commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasks);
             commands.SetGlobalVector(LightShaderIDs.LightTileParams, tileParams);

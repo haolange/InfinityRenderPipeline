@@ -82,8 +82,8 @@ namespace InfinityTech.Rendering.Tests
         {
             string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RenderGraph/RGEncoder.cs");
             Assert.IsFalse(source.Contains("RasterRendererList"));
-            Assert.IsTrue(source.Contains("m_CommandBuffer.DrawRendererList(rendererList);"));
-            Assert.IsTrue(source.Contains("m_RendererLists?.Submit(m_CommandBuffer, rendererList);"));
+            Assert.IsTrue(source.Contains("m_Core.commands.DrawRendererList(rendererList);"));
+            Assert.IsTrue(source.Contains("m_RendererLists?.Submit(m_Core.commands, rendererList);"));
         }
     }
 }

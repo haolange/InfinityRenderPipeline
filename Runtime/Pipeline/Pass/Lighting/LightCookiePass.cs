@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
                             float lodBias = Mathf.Log(Mathf.Max(1, sourceSize) / (float)upload.size, 2);
                             cmdEncoder.SetComputeVectorParam(shader, LightCookiePassUtilityData.Cookie_BlockID, new Vector4(upload.position.x, upload.position.y, upload.size, lodBias));
                             cmdEncoder.SetComputeIntParam(shader, LightCookiePassUtilityData.Cookie_ChannelsID, (int)upload.channels);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, cube ? LightCookiePassUtilityData.SRV_CookieCubeID : LightCookiePassUtilityData.SRV_CookieSourceID, upload.source);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, cube ? LightCookiePassUtilityData.SRV_CookieCubeID : LightCookiePassUtilityData.SRV_CookieSourceID, upload.source, TextureView.Whole(upload.source));
                             cmdEncoder.SetComputeTextureParam(shader, kernel.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, 0);
                             cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(upload.size), kernel.GroupsY(upload.size), 1);
 

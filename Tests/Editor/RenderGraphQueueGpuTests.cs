@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             internal int kernel, value;
             internal RGBufferHandle input, output;
             internal List<ComputeBuffer> physical;
+            internal RGResourceFactory resources;
         }
 
         static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle input, RGBufferHandle output,
@@ -36,13 +37,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
                 data.value = value;
                 data.physical = physical;
+                data.resources = (RGResourceFactory)typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
                 data.input = copy ? pass.ReadBuffer(input) : default;
                 data.output = pass.WriteBuffer(output);
                 pass.SetExecuteFunc((in Data d, in RGComputeEncoder commands) =>
                 {
-                    d.physical?.Add(d.output);
-                    commands.SetComputeIntParam(d.shader, "Count", Count);
-                    commands.SetComputeIntParam(d.shader, "Value", d.value);
+                    d.physical?.Add(d.resources.ResolveBuffer(d.output).resource);
+                    commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Count"), Count);
+                    commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Value"), d.value);
                     if (d.input.IsValid()) commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
                     commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.output);
                     commands.DispatchCompute(d.shader, d.kernel, Count / 64, 1, 1);

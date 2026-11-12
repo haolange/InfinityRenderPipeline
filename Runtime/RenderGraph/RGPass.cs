@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGTransferEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGTransferEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -274,7 +274,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGComputeEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGComputeEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -298,7 +298,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGRaytracingEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGRaytracingEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -322,7 +322,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.rendererLists, graphContext.extension));
+            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.resources, graphContext.rendererLists, graphContext.extension));
         }
 
         public override void Release(RGObjectPool objectPool)

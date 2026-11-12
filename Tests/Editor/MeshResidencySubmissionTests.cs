@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.output = pass.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, 4), output)));
                 pass.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands) =>
                 {
-                    commands.SetComputeIntParam(d.shader, "Count", 1);
+                    commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Count"), 1);
                     commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
                     commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.output);
                     commands.DispatchCompute(d.shader, d.kernel, 1, 1, 1);

@@ -395,7 +395,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ref MeshDrawPreparePassData data = ref upload.GetPassData<MeshDrawPreparePassData>();
                 data.lists = drawLists;
                 data.index = drawIndex;
-                upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands) => data.lists.Upload(data.index, commands.m_CommandBuffer));
+                upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands) => data.lists.Upload(data.index, commands.m_Core.commands));
             }
             if (!gpu)
             {
@@ -421,7 +421,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
                 data.lists = drawLists;
                 data.index = drawIndex;
-                compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_CommandBuffer));
+                compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_Core.commands));
             }
             RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(3);
             outputs[0] = instances;
@@ -514,7 +514,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new InvalidOperationException("This pass's builder has no MeshWorld.");
             }
-            owner.drawLists.SubmitMeshDrawList(encoder.m_CommandBuffer, draws);
+            owner.drawLists.SubmitMeshDrawList(encoder.m_Core.commands, draws);
         }
 
         internal static MeshOcclusionLists RecordMeshOcclusionPrediction(this RGBuilder builder, MeshView view, MeshMotionBinding motion,

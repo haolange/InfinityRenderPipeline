@@ -17,6 +17,8 @@ namespace InfinityTech.Rendering.GPUResource
             this.size = size;
             this.capacity = capacity;
         }
+        // The view of a texture outside the graph: its whole extent is both logical size and capacity.
+        public static TextureView Whole(Texture texture) => new TextureView(new int2(texture.width, texture.height), new int2(texture.width, texture.height));
         public Vector4 shaderValue => new Vector4(size.x, size.y, capacity.x, capacity.y);
         public Vector4 uvScale => new Vector4((float)size.x / capacity.x, (float)size.y / capacity.y, 0, 0);
     }

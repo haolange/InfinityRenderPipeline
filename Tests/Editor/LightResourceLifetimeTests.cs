@@ -43,20 +43,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     RGBufferHandle handle = factory.ImportBuffer(native, "NativeLightRecords");
                     factory.BeginRender();
-                    Assert.AreSame(native, handle.Resolve().graphicsResource);
-                    Assert.AreEqual(native.target, handle.Resolve().graphicsTarget);
-                    Assert.AreEqual(3, handle.Resolve().descriptor.count);
-                    Assert.AreEqual(16, handle.Resolve().descriptor.stride);
-                    Assert.Throws<InvalidOperationException>(() => { ComputeBuffer invalid = handle; });
-                    new CommandBufferCommands(commands).SetGlobalBuffer(Shader.PropertyToID("TestLightRecords"), handle);
+                    Assert.AreSame(native, factory.ResolveBuffer(handle).graphicsResource);
+                    Assert.AreEqual(native.target, factory.ResolveBuffer(handle).graphicsTarget);
+                    Assert.AreEqual(3, factory.ResolveBuffer(handle).descriptor.count);
+                    Assert.AreEqual(16, factory.ResolveBuffer(handle).descriptor.stride);
+                    Assert.Throws<InvalidOperationException>(() => factory.GetBuffer(handle));
+                    // The encoder binds the handle through the graph's own factory, the path a recorded pass takes.
+                    var encoder = new RGRasterEncoder(commands, factory);
+                    encoder.SetGlobalBuffer(Shader.PropertyToID("TestLightRecords"), handle);
                     Assert.Greater(commands.sizeInBytes, 0);
                     commands.Clear();
-                    factory.EndRender();
                     factory.Clear();
+                    Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalBuffer(Shader.PropertyToID("TestLightRecords"), handle),
+                        "A handle from a cleared graph must be rejected where it is bound.");
+                    Assert.AreEqual(0, commands.sizeInBytes);
                     factory.FlushRetired();
                     Assert.IsTrue(native.IsValid(), "Imported native ownership must remain with LightContext.");
                 }
-                finally { factory.EndRender(); factory.Dispose(); }
+                finally { factory.Dispose(); }
                 Assert.IsTrue(native.IsValid());
             }
         }

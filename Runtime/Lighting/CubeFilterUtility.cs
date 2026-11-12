@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static float MipRoughness(int mip, int mipCount) => mipCount > 1 ? mip / (float)(mipCount - 1) : 0.0f;
 
         // The sky: a cube array without mips (pipeline face layout) into the target's slices [baseSlice, baseSlice + 6).
-        internal static void FilterArrayToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, RenderTargetIdentifier source,
-            RenderTargetIdentifier target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
+        internal static void FilterArrayToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, RGTextureHandle source,
+            RGTextureHandle target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
         {
             ComputeShader shader = kernel.shader;
             commands.SetComputeVectorParam(shader, s_Params, new Vector4(size, mip, roughness, baseSlice));
@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // A TextureCube (with its own mips) into the target's slices [baseSlice, baseSlice + 6), scaled by intensity.
         internal static void FilterCubeToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, Texture source, float intensity,
-            RenderTargetIdentifier target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
+            RGTextureHandle target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
         {
             ComputeShader shader = kernel.shader;
             commands.SetComputeVectorParam(shader, s_Params, new Vector4(size, mip, roughness, baseSlice));

@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public void OnQueueFailed() { }
             public Exception error;
             public RenderTexture allocated;
+            public RGResourceFactory resources;
         }
         struct FailurePassData
         {
@@ -105,7 +106,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = new RGBuilder("FailureContract");
             var resources = new ResourcePool();
             var frameCommands = new CommandBuffer();
-            var observed = new Observation { error = new InvalidOperationException("Injected original graph failure") };
+            var observed = new Observation
+            {
+                error = new InvalidOperationException("Injected original graph failure"),
+                resources = (RGResourceFactory)typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph)
+            };
             try
             {
                 var descriptor = new TextureDescriptor(17, 13)
@@ -124,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     data.texture = pass.WriteTexture(texture);
                     pass.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands) =>
                     {
-                        parameters.observation.allocated = parameters.texture;
+                        parameters.observation.allocated = parameters.observation.resources.ResolveTexture(parameters.texture).resource.rt;
                         InjectFailure(parameters.observation.error);
                     });
                 }
@@ -139,7 +144,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(0, observed.queued, "A failed recording must not publish production or capture ownership.");
                 StringAssert.Contains(nameof(InjectFailure), actual.StackTrace);
                 Assert.AreEqual(0, frameCommands.sizeInBytes, "Failed pass commands must not contaminate the enclosing frame buffer.");
-                Assert.IsNull(RGResourceFactory.current);
                 Assert.IsNotNull(observed.allocated);
                 Assert.IsTrue(observed.allocated.IsCreated());
                 Assert.AreEqual(1, graph.RetiredResourceCount);

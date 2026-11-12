@@ -14,6 +14,8 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         public RGObjectPool objectPool;
         internal CommandBuffer cmdBuffer;
+        // The graph's own factory: every encoder resolves graph handles through it, never through a global.
+        internal RGResourceFactory resources;
         public ScriptableRenderContext scriptableRenderContext;
         internal RGRendererListContext rendererLists;
         internal IRGGraphExtension extension;
@@ -553,7 +555,7 @@ namespace InfinityTech.Rendering.RenderGraph
             graphCommands.SetExecutionFlags(CommandBufferExecutionFlags.None);
             RGContext graphContext = new RGContext
             {
-                cmdBuffer = graphCommands, objectPool = m_ObjectPool,
+                cmdBuffer = graphCommands, resources = m_Resources, objectPool = m_ObjectPool,
                 scriptableRenderContext = scriptableRenderContext,
                 rendererLists = m_RendererListRecords,
                 extension = extension
@@ -603,7 +605,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 finally
                 {
-                    m_Resources.EndRender();
                     try
                     {
                         m_ObjectPool.ReleaseAllTempAlloc();

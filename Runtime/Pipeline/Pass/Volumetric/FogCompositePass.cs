@@ -96,8 +96,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, FogCompositePassUtilityData.FogComposite_MaxDistanceID, passData.maxDistance);
                     cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
-                    shader.SetKeyword(passData.fogKeyword, passData.hasFog != 0);
-                    shader.SetKeyword(passData.cloudKeyword, passData.hasCloud != 0);
+                    cmdEncoder.SetKeyword(shader, passData.fogKeyword, passData.hasFog != 0);
+                    cmdEncoder.SetKeyword(shader, passData.cloudKeyword, passData.hasCloud != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTexture);
                     if (passData.hasFog != 0)
