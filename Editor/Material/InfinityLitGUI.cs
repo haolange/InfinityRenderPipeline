@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Editor
 
             InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
             int index = (int)material.GetFloat("_SSSProfileIndex");
-            DiffusionProfile[] profiles = asset != null ? asset.diffusionProfiles : null;
+            DiffusionProfile[] profiles = asset != null ? asset.ResolveSettings().diffusionProfiles : null;
             if (profiles == null || index < 0 || index >= profiles.Length)
             {
                 EditorGUILayout.HelpBox("SSS profile index is outside the RP Asset Diffusion Profile list.", MessageType.Warning);

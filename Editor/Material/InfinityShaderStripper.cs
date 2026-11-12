@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Editor.Build
                 {
                     continue;
                 }
-                if (asset.probeVolumeSHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
+                if (asset.maxSHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
                 {
                     l2 = true;
                 }

@@ -38,9 +38,10 @@ namespace InfinityTech.Rendering.Editor
             InfinityInspectorGUI.EndFoldout();
 
             InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            if (asset != null && asset.diffusionProfiles != null)
+            DiffusionProfile[] profiles = asset != null ? asset.ResolveSettings().diffusionProfiles : null;
+            if (profiles != null)
             {
-                int index = System.Array.IndexOf(asset.diffusionProfiles, target);
+                int index = System.Array.IndexOf(profiles, target);
                 if (index >= 0)
                     EditorGUILayout.HelpBox("RP Asset list index: " + index, MessageType.Info);
                 else

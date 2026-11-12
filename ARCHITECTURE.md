@@ -61,6 +61,7 @@ The Editor discovers Volume types by reflection. A Player builds its registry fr
 - A Volume feature exposes `quality` plus its low-level parameters; `Resolve()` returns `F<Feature>Settings`. Atmosphere, deferred shading and temporal anti-aliasing are not Volume features.
 - Runtime resources live only in Global Settings `IRenderPipelineResources` containers with `[ResourcePath]`. The pipeline asset never references runtime shaders; its material fields are optional overrides for objects created from the GameObject menu. A missing required resource fails at record or setup. `ResolveDefaultVolumeProfile` throws when the Global Settings slot is empty. There is no `Resources.Load` fallback. Player shader stripping lives in `Editor/Material/`.
 - Debug state is runtime and owned by `InfinityDebugDisplaySettings`; `debugView` is not serialized on the pipeline asset. A debugger control exists only with a consumer.
+- The pipeline reads its asset only through `InfinityRenderPipelineAsset.Settings`, one snapshot taken at construction and normalized once (clamps, cascade ratios, resolved shadow filter). An Inspector edit recreates the pipeline through `RenderPipelineAsset.OnValidate`. Runtime code never writes the asset; Editor tools edit it through `SerializedProperty`. Static renderer poses refresh once per pipeline instance (in the Editor only when `updateProxy` is set).
 
 ## 4. Camera frame
 

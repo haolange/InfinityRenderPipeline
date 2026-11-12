@@ -53,8 +53,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawLists)
         {
-            int shadowMapResolution = pipelineAsset.cascadeShadowMapResolution;
-            float shadowDistance = pipelineAsset.shadowDistance;
+            int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
+            float shadowDistance = m_Settings.shadowDistance;
             int cascadeCount = ShadowAllocator.CascadeCount;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
 

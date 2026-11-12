@@ -426,7 +426,7 @@ namespace InfinityTech.Rendering.Pipeline
                 LightmapSettings.lightmapsMode = lightingScenario == 1 ? LightmapsMode.CombinedDirectional : LightmapsMode.NonDirectional;
                 QualitySettings.shadowmaskMode = (distanceMode || casters) ? ShadowmaskMode.DistanceShadowmask : ShadowmaskMode.Shadowmask;
                 m_Light.intensity = lightingScenario < 2 ? 0 : 1;
-                float shadowDistance = (GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset).shadowDistance;
+                float shadowDistance = ((InfinityRenderPipeline)RenderPipelineManager.currentPipeline).settings.shadowDistance;
                 float distance = far ? shadowDistance * 1.1f : distanceMode ? shadowDistance * 0.5f : 8;
                 if (lightingScenario >= 13 && lightingScenario <= 15)
                 {
@@ -452,7 +452,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         return;
                     }
-                    var allocator = (GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset).renderPipeline.renderContext.lightContext.ShadowAllocator;
+                    var allocator = ((InfinityRenderPipeline)RenderPipelineManager.currentPipeline).renderContext.lightContext.ShadowAllocator;
                     Vector4 sphere = allocator.CascadeSpheres[boundary];
                     Vector3 receiver = m_Receivers[0].transform.position;
                     float radial = sphere.w - Mathf.Pow(receiver.x - sphere.x, 2) - Mathf.Pow(receiver.y - sphere.y, 2);

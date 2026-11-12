@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterLocalShadow(in CameraRecordContext context, RGMeshDrawListHandle[] preparedLists)
         {
-            int shadowMapResolution = pipelineAsset.localShadowMapResolution;
+            int shadowMapResolution = m_Settings.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);

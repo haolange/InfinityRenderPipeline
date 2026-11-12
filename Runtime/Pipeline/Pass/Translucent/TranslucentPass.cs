@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle translucentDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
 
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterTranslucentDepthPass,
-                InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
+                InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, m_Settings.enableInstanceBatch));
 
             using (var passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
@@ -124,9 +124,9 @@ namespace InfinityTech.Rendering.Pipeline
             // T2 also draws materials that only have Unity's unlit pass.
             RendererListParams listParameters = samplerId == CustomSamplerId.RasterTranslucentT2
                 ? CameraRendererLists.CreateWithUnlit(context.cullingResults, context.camera, lightMode, InfinityRenderQueue.k_RenderQueue_AllTransparent,
-                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, pipelineAsset)
+                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch)
                 : CameraRendererLists.Create(context.cullingResults, context.camera, lightMode, InfinityRenderQueue.k_RenderQueue_AllTransparent,
-                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, pipelineAsset);
+                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch);
             RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(listParameters);
 
             using (var passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))

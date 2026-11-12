@@ -93,15 +93,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(0.5f, asset.renderScale);
                 asset.renderScale = 2.0f;
                 Assert.AreEqual(1.0f, asset.renderScale);
-                asset.enableSuperResolution = true;
                 asset.renderScale = 0.7f;
                 var cameraObject = new GameObject("ScaleCam");
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.cameraType = CameraType.Game;
-                CameraDimensionDescriptor game = CameraDimensionDescriptor.FromCamera(camera, asset, null);
+                CameraDimensionDescriptor game = CameraDimensionDescriptor.FromCamera(camera, true, asset.renderScale, null);
                 Assert.IsTrue(game.superResolution);
                 camera.cameraType = CameraType.SceneView;
-                CameraDimensionDescriptor scene = CameraDimensionDescriptor.FromCamera(camera, asset, null);
+                CameraDimensionDescriptor scene = CameraDimensionDescriptor.FromCamera(camera, true, asset.renderScale, null);
                 Assert.IsFalse(scene.superResolution);
                 UnityEngine.Object.DestroyImmediate(cameraObject);
             }

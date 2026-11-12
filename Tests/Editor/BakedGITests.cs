@@ -15,8 +15,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Assert.IsFalse(asset.supportProbeVolume, "Light Probe Groups by default");
                 Assert.AreEqual(ProbeVolumeSHBands.SphericalHarmonicsL1, asset.maxSHBands);
-                asset.lightProbeSystem = ELightProbeSystem.ProbeVolumes;
-                asset.probeVolumeSHBands = ProbeVolumeSHBands.SphericalHarmonicsL2;
+                var serialized = new UnityEditor.SerializedObject(asset);
+                serialized.FindProperty("lightProbeSystem").intValue = (int)ELightProbeSystem.ProbeVolumes;
+                serialized.FindProperty("probeVolumeSHBands").intValue = (int)ProbeVolumeSHBands.SphericalHarmonicsL2;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
                 Assert.IsTrue(asset.supportProbeVolume);
                 Assert.AreEqual(ProbeVolumeSHBands.SphericalHarmonicsL2, asset.maxSHBands);
             }
@@ -29,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void ProbeVolumeIntegration_DisabledWithoutProbeVolumes()
         {
-            using (var integration = new ProbeVolumeIntegration(null))
+            using (var integration = new ProbeVolumeIntegration(default))
             {
                 Assert.IsFalse(integration.Enabled);
             }

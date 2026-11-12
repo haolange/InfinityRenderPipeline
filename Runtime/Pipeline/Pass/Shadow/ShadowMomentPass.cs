@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = m_Settings.shadowFilter;
 
             if (allocator.CascadeUsesMoments)
             {
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                     momentParams[count] = new Vector4(mode, filter.evsmExponent, 1, filter.momentBlurRadius);
                     count++;
                 }
-                int atlasSize = math.max(1, pipelineAsset.cascadeShadowMapResolution);
+                int atlasSize = math.max(1, m_Settings.cascadeShadowMapResolution);
                 AddShadowMomentPass(InfinityShaderIDs.CascadeShadowMap, InfinityShaderIDs.CascadeShadowMoments, ShadowMomentPassUtilityData.CascadeTextureName,
                     atlasSize, count, rects, depthParams, momentParams);
             }
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                     momentParams[count] = new Vector4(ShadowMomentPassUtilityData.Mode(slice.shadowFilter), filter.evsmExponent, gpu.momentParams.x, filter.momentBlurRadius);
                     count++;
                 }
-                int atlasSize = math.max(1, pipelineAsset.localShadowMapResolution / 2);
+                int atlasSize = math.max(1, m_Settings.localShadowMapResolution / 2);
                 AddShadowMomentPass(InfinityShaderIDs.LocalShadowMap, InfinityShaderIDs.LocalShadowMoments, ShadowMomentPassUtilityData.LocalTextureName,
                     atlasSize, count, rects, depthParams, momentParams);
             }

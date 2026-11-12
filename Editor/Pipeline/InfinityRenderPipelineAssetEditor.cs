@@ -124,17 +124,9 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 }
                 if (GUILayout.Button("Copy Preset To Custom"))
                 {
-                    foreach (Object asset in targets)
-                    {
-                        if (asset is InfinityRenderPipelineAsset pipelineAsset)
-                        {
-                            Undo.RecordObject(pipelineAsset, "Copy Shadow Filter Preset");
-                            pipelineAsset.customShadowFilter = preset;
-                            pipelineAsset.shadowFilterQuality = EQualityLevel.Custom;
-                            EditorUtility.SetDirty(pipelineAsset);
-                        }
-                    }
-                    serializedObject.Update();
+                    m_CustomShadowFilter.boxedValue = preset;
+                    m_ShadowFilterQuality.intValue = (int)EQualityLevel.Custom;
+                    serializedObject.ApplyModifiedProperties();
                 }
             }
             --EditorGUI.indentLevel;
@@ -172,13 +164,11 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             {
                 EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"));
                 EditorGUILayout.PropertyField(m_DiffusionProfiles, new GUIContent("Diffusion Profiles"), true);
-                InfinityRenderPipelineAsset asset = target as InfinityRenderPipelineAsset;
-                if (asset != null && asset.diffusionProfiles != null)
+                if (!m_DiffusionProfiles.hasMultipleDifferentValues)
                 {
-                    for (int i = 0; i < asset.diffusionProfiles.Length; ++i)
+                    for (int i = 0; i < m_DiffusionProfiles.arraySize; ++i)
                     {
-                        DiffusionProfile profile = asset.diffusionProfiles[i];
-                        if (profile == null)
+                        if (m_DiffusionProfiles.GetArrayElementAtIndex(i).objectReferenceValue == null)
                             EditorGUILayout.HelpBox("Diffusion profile slot " + i + " is empty.", MessageType.Warning);
                     }
                 }

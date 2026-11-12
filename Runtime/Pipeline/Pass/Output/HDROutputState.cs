@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void UpdateHdrTonemapping()
         {
-            if (pipelineAsset.outputMode != EOutputMode.HDR)
+            if (m_Settings.outputMode != EOutputMode.HDR)
             {
                 RestoreHdrTonemapping();
                 return;

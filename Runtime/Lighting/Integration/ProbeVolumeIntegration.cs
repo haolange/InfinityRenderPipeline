@@ -32,23 +32,23 @@ namespace InfinityTech.Rendering.Pipeline
 
         public bool Enabled => m_Enabled;
 
-        public ProbeVolumeIntegration(InfinityRenderPipelineAsset asset)
+        internal ProbeVolumeIntegration(in InfinityRenderPipelineAsset.Settings settings)
         {
-            m_Enabled = asset != null && asset.lightProbeSystem == ELightProbeSystem.ProbeVolumes;
-            m_Bands = asset != null ? asset.probeVolumeSHBands : ProbeVolumeSHBands.SphericalHarmonicsL1;
+            m_Enabled = settings.supportProbeVolume;
+            m_Bands = settings.probeVolumeSHBands;
             if (m_Enabled)
             {
                 if (ProbeReferenceVolume.instance.isInitialized)
                     throw new InvalidOperationException("APV already has a pipeline owner; dispose it before initializing another integration.");
                 ProbeReferenceVolume.instance.Initialize(new ProbeVolumeSystemParameters
                 {
-                    memoryBudget = asset.probeVolumeMemoryBudget,
-                    blendingMemoryBudget = asset.probeVolumeBlendingMemoryBudget,
-                    shBands = asset.probeVolumeSHBands,
-                    supportGPUStreaming = asset.supportProbeVolumeGPUStreaming,
-                    supportDiskStreaming = asset.supportProbeVolumeDiskStreaming,
-                    supportScenarios = asset.supportProbeVolumeScenarios,
-                    supportScenarioBlending = asset.supportProbeVolumeScenarioBlending,
+                    memoryBudget = settings.probeVolumeMemoryBudget,
+                    blendingMemoryBudget = settings.probeVolumeBlendingMemoryBudget,
+                    shBands = settings.probeVolumeSHBands,
+                    supportGPUStreaming = settings.supportProbeVolumeGPUStreaming,
+                    supportDiskStreaming = settings.supportProbeVolumeDiskStreaming,
+                    supportScenarios = settings.supportProbeVolumeScenarios,
+                    supportScenarioBlending = settings.supportProbeVolumeScenarioBlending,
                 });
                 s_ResourceOwner = this;
             }

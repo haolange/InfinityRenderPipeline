@@ -124,16 +124,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var go = new GameObject("DimensionCamera");
             var target = new RenderTexture(641, 479, 0);
-            var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
             try
             {
                 var camera = go.AddComponent<Camera>();
                 camera.enabled = false;
                 camera.targetTexture = target;
                 camera.cameraType = type;
-                asset.enableSuperResolution = true;
-                asset.renderScale = .5f;
-                var dimensions = CameraDimensionDescriptor.FromCamera(camera, asset, null);
+                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, .5f, null);
                 Assert.IsFalse(dimensions.superResolution);
                 Assert.AreEqual(dimensions.displaySize, dimensions.internalSize);
             }
@@ -141,7 +138,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(target);
-                Object.DestroyImmediate(asset);
             }
         }
 
@@ -150,7 +146,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var go = new GameObject("DimensionCamera");
             var target = new RenderTexture(641, 479, 0);
-            var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
             try
             {
                 var camera = go.AddComponent<Camera>();
@@ -158,9 +153,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.targetTexture = target;
                 var additional = go.AddComponent<InfinityAdditionalCameraData>();
                 additional.superResolutionOverride = ESuperResolutionOverride.Off;
-                asset.enableSuperResolution = true;
-                asset.renderScale = .5f;
-                var dimensions = CameraDimensionDescriptor.FromCamera(camera, asset, additional);
+                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, .5f, additional);
                 Assert.IsFalse(dimensions.superResolution);
                 Assert.AreEqual(dimensions.displaySize, dimensions.internalSize);
                 Assert.AreEqual(camera.pixelRect, dimensions.outputViewport);
@@ -169,7 +162,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(target);
-                Object.DestroyImmediate(asset);
             }
         }
 

@@ -134,10 +134,10 @@ namespace InfinityTech.Rendering.Pipeline
         ShadowInputs QueryShadowInputs()
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = m_Settings.shadowFilter;
             // The cascade atlas holds 2x2 tiles of cascadeShadowMapResolution.
-            float cascadeSize = pipelineAsset.cascadeShadowMapResolution * 2;
-            float localSize = pipelineAsset.localShadowMapResolution;
+            float cascadeSize = m_Settings.cascadeShadowMapResolution * 2;
+            float localSize = m_Settings.localShadowMapResolution;
             var inputs = new ShadowInputs
             {
                 cascadeMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline
                 filterParams = CascadeShadowPassUtilityData.FilterParams(filter),
                 momentParams = ShadowMomentPassUtilityData.SamplingParams(filter),
                 shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
-                shadowDistance = pipelineAsset.shadowDistance,
+                shadowDistance = m_Settings.shadowDistance,
             };
             inputs.hasCascadeMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out inputs.cascadeMoments);
             inputs.hasLocalMoments = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out inputs.localMoments);

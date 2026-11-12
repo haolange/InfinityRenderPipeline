@@ -262,7 +262,7 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_OwnsVolumeManager;
         bool m_ResourcesDisposed;
 
-        InfinityRenderPipelineAsset m_PipelineAsset;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
@@ -272,24 +272,21 @@ namespace InfinityTech.Rendering.Pipeline
         internal RenderContext renderContext;
         // Read-only access for diagnostics observers that report pool estimates outside the measured scopes.
         internal ResourcePool resourcePool => m_ResourcePool;
-        internal InfinityRenderPipelineAsset pipelineAsset
-        {
-            get
-            {
-                return m_PipelineAsset;
-            }
-        }
+        // The asset snapshot this pipeline instance renders with (diagnostics read it outside the measured scopes).
+        internal InfinityRenderPipelineAsset.Settings settings => m_Settings;
 
         public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
             // Pooled and retired resources are reused or destroyed only after their GPU completion fence passes.
             if (!SystemInfo.supportsGraphicsFence)
                 throw new NotSupportedException("InfinityRP requires graphics fences.");
-            m_PipelineAsset = asset;
+            if (asset == null)
+                throw new ArgumentNullException(nameof(asset));
+            m_Settings = asset.ResolveSettings();
+            if (m_Settings.atmosphericalProfile == null)
+                throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
             m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources();
-            if (asset == null || asset.atmosphericalProfile == null)
-                throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
             try
             {
                 CaptureGraphicsState();
@@ -313,7 +310,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_LocalShadowCache = new LocalShadowCache(m_ResourcePool);
                 m_LightCookieAtlas = new LightCookieAtlas(m_ResourcePool);
                 m_CookieProduction = new CookieProduction { atlas = m_LightCookieAtlas };
-                m_ProbeVolumes = new ProbeVolumeIntegration(asset);
+                m_ProbeVolumes = new ProbeVolumeIntegration(m_Settings);
                 m_ReflectionProbeAtlas = new ReflectionProbeAtlas(m_ResourcePool);
                 m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas };
             }
@@ -505,10 +502,10 @@ namespace InfinityTech.Rendering.Pipeline
             bool newlyCreated, int previousSeenFrame)
         {
             CameraRenderPolicy policy = CameraRenderPolicy.For(camera.cameraType);
-            ResolvedFrameSettings frameSettings = FrameSettingsUtility.Resolve(pipelineAsset.defaultFrameSettings, pipelineAsset.reflectionFrameSettings,
+            ResolvedFrameSettings frameSettings = FrameSettingsUtility.Resolve(m_Settings.defaultFrameSettings, m_Settings.reflectionFrameSettings,
                 camera.cameraType == CameraType.Reflection, cameraData != null && cameraData.customFrameSettings,
                 cameraData != null ? cameraData.frameSettings : default);
-            CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera, pipelineAsset, cameraData);
+            CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera, m_Settings.enableSuperResolution, m_Settings.renderScale, cameraData);
             EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, Time.frameCount, dimensions);
             ETemporalResolve temporalResolve = !policy.temporal ? ETemporalResolve.None
                 : dimensions.superResolution ? ETemporalResolve.SuperResolution : ETemporalResolve.TAA;
@@ -523,7 +520,7 @@ namespace InfinityTech.Rendering.Pipeline
             ResolveVolumeSelection(camera, cameras, cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask);
             VolumeManager.instance.Update(state.volumeStack, volumeTrigger, volumeLayerMask);
             VolumeSnapshot volumes = VolumeSnapshot.Capture(state.volumeStack);
-            AtmosphereParameter atmosphere = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
+            AtmosphereParameter atmosphere = AtmosphereParameter.FromProfile(m_Settings.atmosphericalProfile);
             atmosphere.ThrowIfInvalid();
             state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
 
@@ -546,7 +543,7 @@ namespace InfinityTech.Rendering.Pipeline
         OutputTransformDecision ResolveOutputDecision(Camera camera, CameraFrameState state)
         {
             UpdateHdrTonemapping();
-            OutputTransformDecision decision = OutputTransformUtility.ResolveFromHardware(pipelineAsset.outputMode, pipelineAsset.hdrEncoding, camera,
+            OutputTransformDecision decision = OutputTransformUtility.ResolveFromHardware(m_Settings.outputMode, m_Settings.hdrEncoding, camera,
                 state.hasResolvedBackbufferFormat, state.lastResolvedBackbufferFormat);
             state.lastResolvedBackbufferFormat = decision.backbufferFormat;
             state.hasResolvedBackbufferFormat = decision.backbufferFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None;
@@ -586,12 +583,12 @@ namespace InfinityTech.Rendering.Pipeline
                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                 {
                     camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                    cullingParameters.shadowDistance = Mathf.Max(0.0f, pipelineAsset.shadowDistance);
+                    cullingParameters.shadowDistance = m_Settings.shadowDistance;
                     cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting |
                         CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
-                    BeginMeshCamera(camera, pipelineAsset.meshBackendPolicy);
+                    BeginMeshCamera(camera, m_Settings.meshBackendPolicy);
                     mainView = MeshView.FromCamera(camera, ref cullingParameters);
                     setup.state.meshViewKey = mainView.viewKey;
                 }
@@ -617,24 +614,24 @@ namespace InfinityTech.Rendering.Pipeline
                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                 {
                     ShadowAllocatorSettings shadowSettings;
-                    shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
-                    shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
-                    shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
-                    shadowSettings.cascadeRatios = ShadowAllocator.ValidateCascadeRatios(pipelineAsset.cascadeSplitRatios);
-                    shadowSettings.maxLocalLights = Mathf.Clamp(pipelineAsset.maxShadowedLocalLights, 1, 64);
-                    shadowSettings.cascadeCount = Mathf.Clamp(pipelineAsset.cascadeCount, 1, ShadowAllocator.CascadeCount);
-                    shadowSettings.cascadeBlendWidth = pipelineAsset.cascadeBlendWidth;
-                    shadowSettings.filterGuardTexels = pipelineAsset.ResolveShadowFilter().pcfRadius + 1;
-                    m_LocalShadowCache.Configure(Mathf.Max(0, pipelineAsset.cachedShadowAtlasWidth),
-                        pipelineAsset.localShadowMapResolution, Mathf.Max(1, pipelineAsset.localShadowMapResolution / 4));
+                    shadowSettings.cascadeMapResolution = m_Settings.cascadeShadowMapResolution;
+                    shadowSettings.localMapResolution = m_Settings.localShadowMapResolution;
+                    shadowSettings.shadowDistance = m_Settings.shadowDistance;
+                    shadowSettings.cascadeRatios = m_Settings.cascadeSplitRatios;
+                    shadowSettings.maxLocalLights = m_Settings.maxShadowedLocalLights;
+                    shadowSettings.cascadeCount = m_Settings.cascadeCount;
+                    shadowSettings.cascadeBlendWidth = m_Settings.cascadeBlendWidth;
+                    shadowSettings.filterGuardTexels = m_Settings.shadowFilter.pcfRadius + 1;
+                    m_LocalShadowCache.Configure(m_Settings.cachedShadowAtlasWidth,
+                        m_Settings.localShadowMapResolution, Mathf.Max(1, m_Settings.localShadowMapResolution / 4));
                     if (m_LocalShadowCache.SlotCount > 0) m_LocalShadowCache.GetAtlas();
                     LightContext lightContext = renderContext.lightContext;
                     lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, setup.dimensions.internalSize, renderContext.meshWorld, m_LocalShadowCache);
-                    m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
+                    m_LightCookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
                     // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
                     lightContext.ResolveCookies(setup.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
                         cullingResults, renderContext.GetWorldLight(), Time.frameCount);
-                    m_ReflectionProbeAtlas.Configure(pipelineAsset.reflectionProbeResolution, pipelineAsset.maxReflectionProbes);
+                    m_ReflectionProbeAtlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
                     lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
                         cullingResults, Time.frameCount);
                     ConfigureContentFeatures(setup);
@@ -1002,7 +999,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected void SetGraphicsSetting()
         {
             // Resolve dependencies and allocate the feature declaration before any global write.
-            m_InstalledBatching = m_PipelineAsset.enableSRPBatch;
+            m_InstalledBatching = m_Settings.enableSRPBatch;
             m_InstalledBlitMaterial = resources.materials.blitMaterial;
             m_InstalledBestFitTexture = resources.textures.bestFitNormalTexture;
             var installedFeatures = new SupportedRenderingFeatures()
@@ -1015,8 +1012,8 @@ namespace InfinityTech.Rendering.Pipeline
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed | LightmapBakeType.Realtime,
                 lightmapsModes = LightmapsMode.NonDirectional | LightmapsMode.CombinedDirectional,
                 lightProbeProxyVolumes = true,
-                overridesLightProbeSystem = m_PipelineAsset.supportProbeVolume,
-                skyOcclusion = m_PipelineAsset.supportProbeVolume,
+                overridesLightProbeSystem = m_Settings.supportProbeVolume,
+                skyOcclusion = m_Settings.supportProbeVolume,
                 motionVectors = true,
                 receiveShadows = true,
                 reflectionProbes = true,
@@ -1105,15 +1102,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
+        // Static poses refresh once per pipeline instance; in the Editor only when the asset asks for it.
         bool ConsumeStaticPoseRefresh()
         {
-#if UNITY_EDITOR
-            if (!pipelineAsset.updateProxy) return false;
-            pipelineAsset.updateProxy = false;
-            return true;
-#else
             if (!m_UpdateInit) return false;
             m_UpdateInit = false;
+#if UNITY_EDITOR
+            return m_Settings.updateProxy;
+#else
             return true;
 #endif
         }
@@ -1253,13 +1249,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             var rtao = volumes.rayTracingAmbientOcclusion;
             string rtaoReason = null;
-            if (!pipelineAsset.enableRayTrace)
+            if (!m_Settings.enableRayTrace)
                 rtaoReason = RtaoAssetDisabled;
             else if (!frameSettings.IsEnabled(EFrameSetting.RayTracedAmbientOcclusion))
                 rtaoReason = RtaoFrameSettings;
             else if (!VolumeComponentActive(rtao))
                 rtaoReason = RtaoVolumeInactive;
-            else if (!InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders))
+            else if (!InfinityRayTracingEnvironment.CanRecord(shaders))
                 rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? RtaoNotReady : InfinityRayTracingEnvironment.lastBlockReason;
             else
             {
@@ -1304,7 +1300,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 resourceReasons = resources.featureResourceReasons,
                 temporal = temporal,
-                hasDiffusionProfiles = pipelineAsset.diffusionProfiles != null && System.Array.Exists(pipelineAsset.diffusionProfiles, profile => profile != null),
+                hasDiffusionProfiles = m_Settings.hasDiffusionProfiles,
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,
             };

@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
             RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
-                new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, pipelineAsset));
+                new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch));
 
             //Add ObjectMotionPass
             using (var passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
