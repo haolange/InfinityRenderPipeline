@@ -14,13 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int DV_ParamsID = Shader.PropertyToID("DV_Params");
         internal static readonly int DV_InvProjID = Shader.PropertyToID("DV_InvProj");
         internal static readonly int DV_FarDepthID = Shader.PropertyToID("DV_FarDepth");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static readonly int SRV_ProbeAtlasTextureID = Shader.PropertyToID("SRV_ProbeAtlasTexture");
-        internal static readonly int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
-        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static readonly int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
-        internal static readonly int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
         internal static readonly int SRV_OptionalTextureID = Shader.PropertyToID("SRV_OptionalTexture");
         internal static readonly int SRV_ShadowAtlasTextureID = Shader.PropertyToID("SRV_ShadowAtlasTexture");
         internal static readonly int UAV_PostProcessTextureID = Shader.PropertyToID("UAV_PostProcessTexture");
@@ -333,17 +327,17 @@ namespace InfinityTech.Rendering.Pipeline
 
                     if (passData.bindSet == 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferA);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferB);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
                     }
                     else if (passData.bindSet == 1)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
                     }
                     else if (passData.bindSet == 2)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTexture);
                     }
                     else if (passData.bindSet == 3)
                     {
@@ -357,7 +351,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetComputeMatrixParam(shader, DebugViewPassUtilityData.DV_InvProjID, passData.invProj);
                         cmdEncoder.SetComputeFloatParam(shader, DebugViewPassUtilityData.DV_FarDepthID, GraphicsConventions.SampledFarDepth);
-                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                         passData.lightLoop.Bind(cmdEncoder, shader, kernel);
                     }
                     else if (passData.bindSet == 7)

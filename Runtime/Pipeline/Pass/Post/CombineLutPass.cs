@@ -13,8 +13,6 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class CombineLutPassUtilityData
     {
         internal static readonly string CombineLookupTextureName = "CombineLookupTexture";
-        internal static readonly int CombineLookupTextureID = Shader.PropertyToID("CombineLookupTexture");
-
         internal static readonly int WhiteBalanceTempID = Shader.PropertyToID("WhiteTemp");
         internal static readonly int WhiteBalanceTintID = Shader.PropertyToID("WhiteTint");
 
@@ -317,7 +315,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.InverseGammaID, passData.combineLutParameterDescriptor.InverseGamma);
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorShadowTint2ID, passData.combineLutParameterDescriptor.ColorShadowTint2);
 
-                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, CombineLutPassUtilityData.CombineLookupTextureID, passData.combineLookupTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, InfinityShaderIDs.CombineLookupTexture, passData.combineLookupTexture);
 
                     cmdEncoder.DispatchCompute(passData.combineLUTShader, passData.combineLutKernel.index, passData.combineLutKernel.GroupsX(32), passData.combineLutKernel.GroupsY(32), passData.combineLutKernel.GroupsZ(32));
                 });

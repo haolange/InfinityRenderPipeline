@@ -15,11 +15,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
         internal static readonly int RadiusID = Shader.PropertyToID("RTAO_Radius");
         internal static readonly int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
-        internal static readonly int InvViewID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_NormalTextureID = Shader.PropertyToID("SRV_NormalTexture");
-        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static readonly int UAV_OcclusionTextureID = Shader.PropertyToID("UAV_OcclusionTexture");
     }
 
     public partial class InfinityRenderPipeline
@@ -107,11 +102,11 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetUnifiedInt(passData.shader, RTAOPassUtilityData.NumRaysID, passData.numRays);
                     cmdEncoder.SetUnifiedFloat(passData.shader, RTAOPassUtilityData.RadiusID, passData.radius);
                     cmdEncoder.SetUnifiedVector(passData.shader, RTAOPassUtilityData.ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetUnifiedMatrix(passData.shader, RTAOPassUtilityData.InvViewID, passData.invView);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_NormalTextureID, passData.normalTexture);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.UAV_OcclusionTextureID, passData.occlusionTexture);
+                    cmdEncoder.SetUnifiedMatrix(passData.shader, CameraUniform.ID_Matrix_InvViewFlipYJitterProj, passData.invView);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_NormalTexture, passData.normalTexture);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionTexture);
                     cmdEncoder.DispatchUnified(passData.shader, passData.traceScratch, (uint)passData.resolution.x, (uint)passData.resolution.y, 1u);
                 });
             }

@@ -11,6 +11,8 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class GTAOPassUtilityData
     {
+        internal static readonly int SRV_HalfResDepthTextureID = Shader.PropertyToID("SRV_HalfResDepthTexture");
+        internal static readonly int SRV_HalfResNormalTextureID = Shader.PropertyToID("SRV_HalfResNormalTexture");
         internal static readonly ProfilingSampler GTAOTraceSampler = new ProfilingSampler("GTAO_Trace");
         internal static readonly ProfilingSampler GTAOSpatialXSampler = new ProfilingSampler("GTAO_SpatialX");
         internal static readonly ProfilingSampler GTAOSpatialYSampler = new ProfilingSampler("GTAO_SpatialY");
@@ -34,19 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int TemporalWeightID = Shader.PropertyToID("TemporalWeight");
         internal static readonly int ResolutionID = Shader.PropertyToID("Resolution");
         internal static readonly int UpsampleSizeID = Shader.PropertyToID("UpsampleSize");
-        internal static readonly int Matrix_ProjID = Shader.PropertyToID("Matrix_Proj");
-        internal static readonly int Matrix_InvProjID = Shader.PropertyToID("Matrix_InvProj");
-        internal static readonly int Matrix_ViewProjID = Shader.PropertyToID("Matrix_ViewProj");
-        internal static readonly int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static readonly int Matrix_ViewToWorldID = Shader.PropertyToID("Matrix_ViewToWorld");
-        internal static readonly int Matrix_WorldToViewID = Shader.PropertyToID("Matrix_WorldToView");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_NormalTextureID = Shader.PropertyToID("SRV_NormalTexture");
-        internal static readonly int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
         internal static readonly int SRV_HistoryTextureID = Shader.PropertyToID("SRV_HistoryTexture");
-        internal static readonly int SRV_HistoryDepthTextureID = Shader.PropertyToID("SRV_HistoryDepthTexture");
-        internal static readonly int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
-        internal static readonly int UAV_OcclusionTextureID = Shader.PropertyToID("UAV_OcclusionTexture");
         internal static readonly int UAV_SpatialTextureID = Shader.PropertyToID("UAV_SpatialTexture");
         internal static readonly int UAV_AccumulationTextureID = Shader.PropertyToID("UAV_AccumulationTexture");
         internal static readonly int HistoryValidID = Shader.PropertyToID("GTAOHistoryValid");
@@ -247,10 +237,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssaoShader;
-                    cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), passData.depthParameters);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_HistoryViewProj"), passData.historyViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_MotionViewProj"), passData.motionViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_LastMotionViewProj"), passData.lastMotionViewProj);
+                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_HistoryViewProj, passData.historyViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_MotionViewProj, passData.motionViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_LastMotionViewProj, passData.lastMotionViewProj);
                     int halfWidth = passData.halfResolution.x;
                     int halfHeight = passData.halfResolution.y;
                     int fullWidth = passData.fullResolution.x;
@@ -269,12 +259,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalWeightID, passData.temporalWeight);
                     cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.ResolutionID, new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight));
                     cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.UpsampleSizeID, new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight));
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_ProjID, passData.matrix_Proj);
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_InvProjID, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_ViewProjID, passData.matrix_ViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_ViewToWorldID, passData.matrix_ViewToWorld);
-                    cmdEncoder.SetComputeMatrixParam(shader, GTAOPassUtilityData.Matrix_WorldToViewID, passData.matrix_WorldToView);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, passData.matrix_Proj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, passData.matrix_InvProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_ViewProj, passData.matrix_ViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_ViewToWorld, passData.matrix_ViewToWorld);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
 
                     int halfGroupsX = passData.halfGroups.x;
                     int halfGroupsY = passData.halfGroups.y;
@@ -283,9 +273,9 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int trace = passData.traceKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOTraceSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, GTAOPassUtilityData.SRV_DepthTextureID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, GTAOPassUtilityData.SRV_NormalTextureID, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, GTAOPassUtilityData.UAV_OcclusionTextureID, passData.occlusionHalfTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionHalfTexture);
                     cmdEncoder.DispatchCompute(shader, trace, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOTraceSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -294,8 +284,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int spatialX = passData.spatialXKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOSpatialXSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialX, GTAOPassUtilityData.SRV_DepthTextureID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialX, GTAOPassUtilityData.SRV_OcclusionTextureID, passData.occlusionHalfTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTexture);
                     cmdEncoder.SetComputeTextureParam(shader, spatialX, GTAOPassUtilityData.UAV_SpatialTextureID, passData.spatialTempTexture);
                     cmdEncoder.DispatchCompute(shader, spatialX, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOSpatialXSampler);
@@ -305,8 +295,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int spatialY = passData.spatialYKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOSpatialYSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialY, GTAOPassUtilityData.SRV_DepthTextureID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialY, GTAOPassUtilityData.SRV_OcclusionTextureID, passData.spatialTempTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTexture);
                     cmdEncoder.SetComputeTextureParam(shader, spatialY, GTAOPassUtilityData.UAV_SpatialTextureID, passData.occlusionHalfTexture);
                     cmdEncoder.DispatchCompute(shader, spatialY, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOSpatialYSampler);
@@ -316,12 +306,12 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int temporal = passData.temporalKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOTemporalSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_DepthTextureID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_NormalTextureID, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_OcclusionTextureID, passData.occlusionHalfTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTexture);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_HistoryTextureID, passData.historyOcclusionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_HistoryDepthTextureID, passData.historyOcclusionDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_HistoryDepthTexture, passData.historyOcclusionDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.UAV_AccumulationTextureID, passData.spatialTempTexture);
                     cmdEncoder.SetComputeIntParam(shader, GTAOPassUtilityData.HistoryValidID, passData.historyValid ? 1 : 0);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.MotionMetadataID, passData.motionMetadata);
@@ -335,11 +325,11 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int upsample = passData.upsampleKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOUpsampleSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_HalfResDepthTexture"), passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, Shader.PropertyToID("SRV_HalfResNormalTexture"), passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_DepthTextureID, passData.fullResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_NormalTextureID, passData.fullResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_OcclusionTextureID, passData.spatialTempTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResDepthTextureID, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResNormalTextureID, passData.halfResNormalTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_DepthTexture, passData.fullResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_NormalTexture, passData.fullResNormalTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTexture);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.UAV_UpsampleTextureID, passData.occlusionTexture);
                     cmdEncoder.DispatchCompute(shader, upsample, fullGroupsX, fullGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOUpsampleSampler);

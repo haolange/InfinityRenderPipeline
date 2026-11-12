@@ -13,14 +13,11 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class SubsurfacePassUtilityData
     {
+        internal static readonly int SRV_FilteredSubsurfaceID = Shader.PropertyToID("SRV_FilteredSubsurface");
         internal static readonly string TextureName = "SubsurfaceTexture";
         internal static readonly int SSS_ResolutionID = Shader.PropertyToID("SSS_Resolution");
         internal static readonly int SSS_NumSamplesID = Shader.PropertyToID("SSS_NumSamples");
         internal static readonly int SSS_ProfileCountID = Shader.PropertyToID("SSS_ProfileCount");
-        internal static readonly int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
         internal static readonly int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
         internal static readonly int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
     }
@@ -116,16 +113,16 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     var shader = d.burleyKernel.shader;
                     commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));
-                    commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_Proj"), d.projection);
-                    commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), d.inverseProjection);
+                    commands.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, d.projection);
+                    commands.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, d.inverseProjection);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_NumSamplesID, d.numSamples);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_ProfileCountID, d.profileCount);
                     BindSubsurface(commands, shader, d.burleyKernel.index, d);
                     commands.SetComputeTextureParam(shader, d.burleyKernel.index, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTexture);
                     commands.DispatchCompute(shader, d.burleyKernel.index, d.burleyKernel.GroupsX((d.resolution.x+1)/2), d.burleyKernel.GroupsY((d.resolution.y+1)/2), 1);
                     BindSubsurface(commands, shader, d.composeKernel.index, d);
-                    commands.SetComputeTextureParam(shader, d.composeKernel.index, Shader.PropertyToID("SRV_FilteredSubsurface"), d.subsurfaceTexture);
-                    commands.SetComputeTextureParam(shader, d.composeKernel.index, Shader.PropertyToID("UAV_SceneColor"), d.sceneColor);
+                    commands.SetComputeTextureParam(shader, d.composeKernel.index, SubsurfacePassUtilityData.SRV_FilteredSubsurfaceID, d.subsurfaceTexture);
+                    commands.SetComputeTextureParam(shader, d.composeKernel.index, PassShaderIDs.UAV_SceneColor, d.sceneColor);
                     commands.DispatchCompute(shader, d.composeKernel.index, d.composeKernel.GroupsX(d.resolution.x), d.composeKernel.GroupsY(d.resolution.y), 1);
                 });
             }
@@ -135,10 +132,10 @@ namespace InfinityTech.Rendering.Pipeline
         static void BindSubsurface(in RGComputeEncoder commands, ComputeShader shader, int kernel, in SubsurfacePassData d)
         {
             commands.SetComputeBufferParam(shader,kernel,SubsurfacePassUtilityData.SRV_DiffusionProfilesID,d.profileBuffer);
-            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_LightingTextureID,d.lightingTexture);
-            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_DepthTextureID,d.depthTexture);
-            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_GBufferTextureBID,d.gBufferB);
-            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_GBufferTextureCID,d.gBufferC);
+            commands.SetComputeTextureParam(shader,kernel,PassShaderIDs.SRV_LightingTexture,d.lightingTexture);
+            commands.SetComputeTextureParam(shader,kernel,PassShaderIDs.SRV_DepthTexture,d.depthTexture);
+            commands.SetComputeTextureParam(shader,kernel,PassShaderIDs.SRV_GBufferTextureB,d.gBufferB);
+            commands.SetComputeTextureParam(shader,kernel,PassShaderIDs.SRV_GBufferTextureC,d.gBufferC);
         }
     }
 }

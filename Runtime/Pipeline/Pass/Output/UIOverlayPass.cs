@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetViewport(passData.viewport);
-                    cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
+                    cmdEncoder.SetGlobalVector(PassShaderIDs.ScreenParams, passData.screenParams);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

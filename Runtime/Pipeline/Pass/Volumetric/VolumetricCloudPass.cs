@@ -32,8 +32,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int VolCloud_FrameIndexID = Shader.PropertyToID("VolCloud_FrameIndex");
         internal static readonly int VolCloud_PlanetRadiusID = Shader.PropertyToID("VolCloud_PlanetRadius");
         internal static readonly int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_TransmittanceLUTID = Shader.PropertyToID("SRV_TransmittanceLUT");
         internal static readonly int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
         internal static readonly int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
     }
@@ -176,15 +174,15 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_PlanetRadiusID, passData.planetRadius);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AtmosphereHeightID, passData.atmosphereHeight);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_WorldToView"), passData.matrix_WorldToView);
-                    cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
+                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeBufferParam(shader, passData.cloudKernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.cloudKernel.index);
                     passData.shadows.Bind(cmdEncoder, shader, passData.cloudKernel.index);
 
-                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
                     cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.cloudKernel.index, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
                     cmdEncoder.BeginSample(VolumetricCloudPassUtilityData.VolCloudTraceSampler);

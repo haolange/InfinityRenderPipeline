@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DBufferKeyword, passData.bindDBuffer);
-                    cmdEncoder.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), passData.hasProbes);
+                    cmdEncoder.SetGlobalInt(PassShaderIDs.InfinityHasProbes, passData.hasProbes);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, passData.directionalLightmap);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, passData.shadowmask);
                     if (passData.bindDBuffer)

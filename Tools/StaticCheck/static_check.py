@@ -25,6 +25,7 @@ Checks
   diagnostics      runtime code reaches capture and diagnostics symbols only inside #if UNITY_EDITOR || DEVELOPMENT_BUILD
   layering         lower runtime layers never name an upper layer's namespace (dependencies point down)
   staticid         setup-time IDs, tags, keywords and samplers are static readonly, never mutable statics
+  hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -633,6 +634,28 @@ def check_static_ids(repo, out):
                 out.append(('ERROR', 'staticid', f'{os.path.relpath(p, repo)}: {m.group(1)} is a mutable static; make it static readonly'))
 
 
+HOT_PATH_DIRS = ('Runtime/Pipeline/Pass', 'Runtime/Mesh', 'Runtime/Lighting')
+HOT_PATH_LOOKUPS = re.compile(r'\b(FindKernel|HasKernel|FindPass)\s*\(|\bnew\s+LocalKeyword\s*\(')
+DIAGNOSTICS_FILE = re.compile(r'^\ufeff?#if UNITY_EDITOR \|\| DEVELOPMENT_BUILD\s*$', re.M)
+
+def check_hot_path_lookups(repo, out):
+    for top in HOT_PATH_DIRS:
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            text = without_comments(read(p))
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            for m in HOT_PATH_LOOKUPS.finditer(text):
+                out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: {m.group(0).strip()} belongs in a setup-time table'))
+            # A diagnostics-only file builds request-rate capture names; only literal names must be hoisted there.
+            diagnostics = DIAGNOSTICS_FILE.match(read(p).lstrip('\ufeff')) is not None
+            for m in re.finditer(r'Shader\.PropertyToID\(', text):
+                start = max(text.rfind(';', 0, m.start()), text.rfind('}', 0, m.start()))
+                if re.search(r'\bstatic\s+readonly\b', text[start + 1:m.start()]):
+                    continue
+                if diagnostics and not re.match(r'\s*"[^"]*"\s*\)', text[m.end():]):
+                    continue
+                out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: Shader.PropertyToID outside a static readonly initializer'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -660,7 +683,8 @@ def main():
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
-                     ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids)):
+                     ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
+                     ('hotpathlookup', check_hot_path_lookups)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

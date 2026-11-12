@@ -13,18 +13,15 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class LocalShadowPassUtilityData
     {
+        internal static readonly int InfinityDepthCopyOffsetID = Shader.PropertyToID("_InfinityDepthCopyOffset");
         // Viewport and Texture.Load use matching integer atlas pixel coordinates.
         internal static Vector4 DepthCopyOffset(Vector4 source, Vector4 destination) =>
             new Vector4(source.x - destination.x, source.y - destination.y, 0, 0);
 
         internal static readonly string TextureName = "LocalShadowMapTexture";
-        internal static readonly int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
         internal static readonly int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
         internal static readonly int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
         internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
-        internal static readonly int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
-        internal static readonly int ShadowCasterBiasID = Shader.PropertyToID("_ShadowCasterBias");
-        internal static readonly int ShadowCasterLightID = Shader.PropertyToID("_ShadowCasterLight");
     }
 
     public partial class InfinityRenderPipeline
@@ -222,7 +219,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalInt(LocalShadowPassUtilityData.LocalShadowCountID, passData.lightCount);
-                    cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.LocalShadowMapSizeID, new Vector4(
+                    cmdEncoder.SetGlobalVector(ShadowShaderIDs.LocalShadowMapSize, new Vector4(
                         passData.shadowMapResolution,
                         passData.shadowMapResolution,
                         1.0f / passData.shadowMapResolution,
@@ -244,8 +241,8 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.EndSample(faceMarker);
                     }
 
-                    cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);
-                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.cameraViewFlipYProj);
+                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, passData.cameraViewProj);
+                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, passData.cameraViewFlipYProj);
                 });
             }
 
@@ -257,10 +254,10 @@ namespace InfinityTech.Rendering.Pipeline
         {
             cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
             cmdEncoder.SetGlobalDepthBias(0, 0);
-            cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterBiasID, casterBias);
-            cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterLightID, casterLight);
-            cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, shadowMatrix);
-            cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, shadowMatrix);
+            cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterBias, casterBias);
+            cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterLight, casterLight);
+            cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, shadowMatrix);
+            cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, shadowMatrix);
             if (draws.IsValid)
             {
                 cmdEncoder.SubmitMeshDrawList(draws);
@@ -353,12 +350,12 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 pass.SetExecuteFunc((in CopyCachedLocalShadowPassData data, in RGRasterEncoder commands) =>
                 {
-                    commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
+                    commands.SetGlobalTexture(PassShaderIDs.InfinitySourceDepth, data.source);
                     for (int i = 0; i < data.count; ++i)
                     {
                         Vector4 rect = data.destinationRects[i];
                         commands.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
-                        commands.SetGlobalVector(Shader.PropertyToID("_InfinityDepthCopyOffset"),
+                        commands.SetGlobalVector(LocalShadowPassUtilityData.InfinityDepthCopyOffsetID,
                             LocalShadowPassUtilityData.DepthCopyOffset(data.sourceRects[i], rect));
                         commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
                     }

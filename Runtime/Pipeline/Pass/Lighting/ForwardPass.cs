@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ForwardPassUtilityData
     {
+        internal static readonly int SRV_ForwardOcclusionID = Shader.PropertyToID("SRV_ForwardOcclusion");
         internal static readonly GlobalKeyword SubsurfaceKeyword = GlobalKeyword.Create("INFINITY_SSS_OUTPUT");
         internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
@@ -42,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetKeyword(ForwardPassUtilityData.OcclusionKeyword, hasOcclusion);
                 if (hasOcclusion)
                 {
-                    commands.SetGlobalTexture(Shader.PropertyToID("SRV_ForwardOcclusion"), occlusion);
+                    commands.SetGlobalTexture(ForwardPassUtilityData.SRV_ForwardOcclusionID, occlusion);
                 }
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
                 commands.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, shadowmask);
@@ -53,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSun);
                     commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowMaskID, contactShadowMask);
                 }
-                commands.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), hasProbes);
+                commands.SetGlobalInt(PassShaderIDs.InfinityHasProbes, hasProbes);
                 lightLoop.BindGlobal(commands);
                 commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecords);
                 commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGX);

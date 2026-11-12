@@ -11,6 +11,17 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class AntiAliasingUtilityData
     {
+        internal static readonly int SRV_AliasingColorTextureID = Shader.PropertyToID("SRV_AliasingColorTexture");
+        internal static readonly int SRV_MotionMetadataID = Shader.PropertyToID("SRV_MotionMetadata");
+        internal static readonly int SRV_ReactiveMaskTextureID = Shader.PropertyToID("SRV_ReactiveMaskTexture");
+        internal static readonly int TAA_JitterUVID = Shader.PropertyToID("TAA_JitterUV");
+        internal static readonly int TAA_ResetBlendID = Shader.PropertyToID("TAA_ResetBlend");
+        internal static readonly int TAA_ResolutionID = Shader.PropertyToID("TAA_Resolution");
+        internal static readonly int UAV_AccumulateColorTextureID = Shader.PropertyToID("UAV_AccumulateColorTexture");
+        internal static readonly int UAV_SharpenedColorTextureID = Shader.PropertyToID("UAV_SharpenedColorTexture");
+        internal static readonly int UAV_TAADiagnosticsID = Shader.PropertyToID("UAV_TAADiagnostics");
+        internal static readonly int UAV_TAAReprojectionID = Shader.PropertyToID("UAV_TAAReprojection");
+        internal static readonly int UAV_TemporalDepthTextureID = Shader.PropertyToID("UAV_TemporalDepthTexture");
         internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
         internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
     }
@@ -113,23 +124,23 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
                     int kernel = data.kernel;
                     var shader = data.shader;
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("TAA_Resolution"), data.resolution);
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), data.depthParameters);
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("TAA_JitterUV"), data.jitter);
-                    commands.SetComputeFloatParam(shader, Shader.PropertyToID("TAA_ResetBlend"), data.historyValid ? 1 : 0);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_AliasingColorTexture"), data.input);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_HistoryColorTexture"), data.historyColor);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_HistoryDepthTexture"), data.historyDepth);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_MotionTexture"), data.motion);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_MotionMetadata"), data.metadata);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_ReactiveMaskTexture"), data.reactive);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_AccumulateColorTexture"), data.accumulation);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TemporalDepthTexture"), data.temporalDepth);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_SharpenedColorTexture"), data.sharpened);
+                    commands.SetComputeVectorParam(shader, AntiAliasingUtilityData.TAA_ResolutionID, data.resolution);
+                    commands.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, data.depthParameters);
+                    commands.SetComputeVectorParam(shader, AntiAliasingUtilityData.TAA_JitterUVID, data.jitter);
+                    commands.SetComputeFloatParam(shader, AntiAliasingUtilityData.TAA_ResetBlendID, data.historyValid ? 1 : 0);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_AliasingColorTextureID, data.input);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryColorTexture, data.historyColor);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryDepthTexture, data.historyDepth);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, data.motion);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_MotionMetadataID, data.metadata);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_ReactiveMaskTextureID, data.reactive);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_AccumulateColorTextureID, data.accumulation);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TemporalDepthTextureID, data.temporalDepth);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_SharpenedColorTextureID, data.sharpened);
                     if (data.diagnostics)
                     {
-                        commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAADiagnostics"), data.confidence);
-                        commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAAReprojection"), data.reprojection);
+                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAADiagnosticsID, data.confidence);
+                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAAReprojectionID, data.reprojection);
                     }
                     commands.DispatchCompute(shader, kernel, data.groups.x, data.groups.y, 1);
                 });

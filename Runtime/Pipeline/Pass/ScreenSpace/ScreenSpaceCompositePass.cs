@@ -9,18 +9,12 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ScreenSpaceCompositePassUtilityData
     {
+        internal static readonly int SRV_IndirectDiffuseID = Shader.PropertyToID("SRV_IndirectDiffuse");
+        internal static readonly int SRV_IndirectSpecularID = Shader.PropertyToID("SRV_IndirectSpecular");
         internal static readonly string TextureName = "ScreenSpaceComposite";
         internal static readonly int Composite_ResolutionID = Shader.PropertyToID("Composite_Resolution");
-        internal static readonly int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
-        internal static readonly int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
-        internal static readonly int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static readonly int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static readonly int SRV_SSRTextureID = Shader.PropertyToID("SRV_SSRTexture");
         internal static readonly int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
-        internal static readonly int UAV_SceneColorID = Shader.PropertyToID("UAV_SceneColor");
-        internal static readonly int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static readonly int WorldSpaceCameraPosID = Shader.PropertyToID("_WorldSpaceCameraPos");
     }
 
     public partial class InfinityRenderPipeline
@@ -120,20 +114,20 @@ namespace InfinityTech.Rendering.Pipeline
                     shader.SetKeyword(passData.subsurfaceKeyword, passData.hasSubsurface);
                     if (passData.hasSubsurface && passData.hasSSGI != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_ScatterDiffuse"), passData.scatterDiffuse);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_ScatterDiffuse, passData.scatterDiffuse);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_IndirectDiffuse"), passData.indirectDiffuse);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_IndirectSpecular"), passData.indirectSpecular);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectDiffuseID, passData.indirectDiffuse);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectSpecularID, passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeMatrixParam(shader, ScreenSpaceCompositePassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.WorldSpaceCameraPosID, passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     shader.SetKeyword(passData.ssrKeyword, passData.hasSSR != 0);
                     shader.SetKeyword(passData.ssgiKeyword, passData.hasSSGI != 0);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_LightingTextureID, passData.lightingTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_LightingTexture, passData.lightingTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferA);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                     if (passData.hasSSR != 0)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_SSRTextureID, passData.ssrTexture);
@@ -142,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_SSGITextureID, passData.ssgiTexture);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.UAV_SceneColorID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_SceneColor, passData.sceneColorTexture);
                     cmdEncoder.DispatchCompute(shader, passData.kernel, passData.groups.x, passData.groups.y, 1);
                 });
             }

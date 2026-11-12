@@ -40,31 +40,31 @@ namespace InfinityTech.Rendering.Pipeline
 
     internal class CameraUniform
     {
-        private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
-        private static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
-        private static readonly int ID_Matrix_WorldToView = Shader.PropertyToID("Matrix_WorldToView");
-        private static readonly int ID_Matrix_ViewToWorld = Shader.PropertyToID("Matrix_ViewToWorld");
-        private static readonly int ID_Matrix_Proj = Shader.PropertyToID("Matrix_Proj");
-        private static readonly int ID_Matrix_InvProj = Shader.PropertyToID("Matrix_InvProj");
-        private static readonly int ID_Matrix_JitterProj = Shader.PropertyToID("Matrix_JitterProj");
-        private static readonly int ID_Matrix_InvJitterProj = Shader.PropertyToID("Matrix_InvJitterProj");
-        private static readonly int ID_Matrix_FlipYProj = Shader.PropertyToID("Matrix_FlipYProj");
-        private static readonly int ID_Matrix_InvFlipYProj = Shader.PropertyToID("Matrix_InvFlipYProj");
-        private static readonly int ID_Matrix_FlipYJitterProj = Shader.PropertyToID("Matrix_FlipYJitterProj");
-        private static readonly int ID_Matrix_InvFlipYJitterProj = Shader.PropertyToID("Matrix_InvFlipYJitterProj");
-        private static readonly int ID_Matrix_ViewProj = Shader.PropertyToID("Matrix_ViewProj");
-        private static readonly int ID_Matrix_InvViewProj = Shader.PropertyToID("Matrix_InvViewProj");
-        private static readonly int ID_Matrix_ViewFlipYProj = Shader.PropertyToID("Matrix_ViewFlipYProj");
-        private static readonly int ID_Matrix_InvViewFlipYProj = Shader.PropertyToID("Matrix_InvViewFlipYProj");
-        private static readonly int ID_Matrix_ViewJitterProj = Shader.PropertyToID("Matrix_ViewJitterProj");
-        private static readonly int ID_Matrix_InvViewJitterProj = Shader.PropertyToID("Matrix_InvViewJitterProj");
-        private static readonly int ID_Matrix_ViewFlipYJitterProj = Shader.PropertyToID("Matrix_ViewFlipYJitterProj");
-        private static readonly int ID_Matrix_InvViewFlipYJitterProj = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
-        private static readonly int ID_LastFrameIndex = Shader.PropertyToID("Prev_FrameIndex");
-        private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_LastViewProj");
-        private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_LastViewFlipYProj");
-        private static readonly int ID_Matrix_LastViewJitterProj = Shader.PropertyToID("Matrix_LastViewJitterProj");
-        private static readonly int ID_Matrix_LastViewFlipYJitterProj = Shader.PropertyToID("Matrix_LastViewFlipYJitterProj");
+        internal static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
+        internal static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
+        internal static readonly int ID_Matrix_WorldToView = Shader.PropertyToID("Matrix_WorldToView");
+        internal static readonly int ID_Matrix_ViewToWorld = Shader.PropertyToID("Matrix_ViewToWorld");
+        internal static readonly int ID_Matrix_Proj = Shader.PropertyToID("Matrix_Proj");
+        internal static readonly int ID_Matrix_InvProj = Shader.PropertyToID("Matrix_InvProj");
+        internal static readonly int ID_Matrix_JitterProj = Shader.PropertyToID("Matrix_JitterProj");
+        internal static readonly int ID_Matrix_InvJitterProj = Shader.PropertyToID("Matrix_InvJitterProj");
+        internal static readonly int ID_Matrix_FlipYProj = Shader.PropertyToID("Matrix_FlipYProj");
+        internal static readonly int ID_Matrix_InvFlipYProj = Shader.PropertyToID("Matrix_InvFlipYProj");
+        internal static readonly int ID_Matrix_FlipYJitterProj = Shader.PropertyToID("Matrix_FlipYJitterProj");
+        internal static readonly int ID_Matrix_InvFlipYJitterProj = Shader.PropertyToID("Matrix_InvFlipYJitterProj");
+        internal static readonly int ID_Matrix_ViewProj = Shader.PropertyToID("Matrix_ViewProj");
+        internal static readonly int ID_Matrix_InvViewProj = Shader.PropertyToID("Matrix_InvViewProj");
+        internal static readonly int ID_Matrix_ViewFlipYProj = Shader.PropertyToID("Matrix_ViewFlipYProj");
+        internal static readonly int ID_Matrix_InvViewFlipYProj = Shader.PropertyToID("Matrix_InvViewFlipYProj");
+        internal static readonly int ID_Matrix_ViewJitterProj = Shader.PropertyToID("Matrix_ViewJitterProj");
+        internal static readonly int ID_Matrix_InvViewJitterProj = Shader.PropertyToID("Matrix_InvViewJitterProj");
+        internal static readonly int ID_Matrix_ViewFlipYJitterProj = Shader.PropertyToID("Matrix_ViewFlipYJitterProj");
+        internal static readonly int ID_Matrix_InvViewFlipYJitterProj = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
+        internal static readonly int ID_LastFrameIndex = Shader.PropertyToID("Prev_FrameIndex");
+        internal static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_LastViewProj");
+        internal static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_LastViewFlipYProj");
+        internal static readonly int ID_Matrix_LastViewJitterProj = Shader.PropertyToID("Matrix_LastViewJitterProj");
+        internal static readonly int ID_Matrix_LastViewFlipYJitterProj = Shader.PropertyToID("Matrix_LastViewFlipYJitterProj");
 
         public int frameIndex;
         public int lastFrameIndex;
@@ -184,7 +184,7 @@ namespace InfinityTech.Rendering.Pipeline
         public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize)
         {
             float2 resolution = renderSize;
-            cmdBuffer.SetGlobalVector("_ScreenParams", new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
+            cmdBuffer.SetGlobalVector(PassShaderIDs.ScreenParams, new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
             cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
             cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
             cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(jitter.x / resolution.x, jitter.y / resolution.y, lastJitter.x / resolution.x, lastJitter.y / resolution.y));

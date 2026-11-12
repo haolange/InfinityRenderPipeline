@@ -23,7 +23,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int ContactShadow_FadeDistanceID = Shader.PropertyToID("ContactShadow_FadeDistance");
         internal static readonly int ContactShadow_ResolutionID = Shader.PropertyToID("ContactShadow_Resolution");
         internal static readonly int ContactShadow_DepthParamsID = Shader.PropertyToID("ContactShadow_DepthParams");
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static readonly int UAV_ContactShadowSunID = Shader.PropertyToID("UAV_ContactShadowSun");
         internal static readonly int UAV_ContactShadowMaskID = Shader.PropertyToID("UAV_ContactShadowMask");
         // Consumers compile contact resources only in their enabled Deferred or Forward variant.
@@ -119,12 +118,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_FadeDistanceID, s.fadeDistance);
                     cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_DepthParamsID, passData.depthParams);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_ViewProj"), passData.matrix_ViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_ViewProj, passData.matrix_ViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     passData.lightLoop.Bind(cmdEncoder, shader, kernel.index);
                     cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowSunID, passData.sunTexture);
                     cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowMaskID, passData.maskTexture);
                     cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(passData.resolution.x), kernel.GroupsY(passData.resolution.y), 1);

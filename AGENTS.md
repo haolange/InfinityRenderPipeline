@@ -63,7 +63,7 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | Job | `*Job` suffix | `MeshInstanceCullingJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
 | Static field | `s_` prefix; IDs, keywords and samplers are `static readonly` | `s_Shader` |
-| Shader property IDs | `ID_` or a name on `InfinityShaderIDs`, grouped by HLSL include | `TransformBuffer` |
+| Shader property IDs | One ID per property name; shared names on a `*ShaderIDs` holder | `PassShaderIDs.SRV_DepthTexture` |
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
 - A name says what a type holds or does. Do not borrow a type prefix from another engine. On a collision choose a more descriptive name; never add a prefix or a number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.

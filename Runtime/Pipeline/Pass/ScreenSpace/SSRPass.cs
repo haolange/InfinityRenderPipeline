@@ -13,6 +13,13 @@ namespace InfinityTech.Rendering.Pipeline
     // -> temporal -> optional spatial. Kernel contracts are documented at the top of Compute_ScreenSpaceReflection.
     internal static class SSRPassUtilityData
     {
+        internal static readonly int SRV_HistoryVarianceID = Shader.PropertyToID("SRV_HistoryVariance");
+        internal static readonly int SRV_HitDevID = Shader.PropertyToID("SRV_HitDev");
+        internal static readonly int SRV_HitMeanID = Shader.PropertyToID("SRV_HitMean");
+        internal static readonly int SRV_VarianceID = Shader.PropertyToID("SRV_Variance");
+        internal static readonly int UAV_HitDevID = Shader.PropertyToID("UAV_HitDev");
+        internal static readonly int UAV_HitMeanID = Shader.PropertyToID("UAV_HitMean");
+        internal static readonly int UAV_VarianceID = Shader.PropertyToID("UAV_Variance");
         internal static readonly ProfilingSampler SSRClassifySampler = new ProfilingSampler("SSR_Classify");
         internal static readonly ProfilingSampler SSRTraceSampler = new ProfilingSampler("SSR_Trace");
         internal static readonly ProfilingSampler SSRResolveSampler = new ProfilingSampler("SSR_Resolve");
@@ -46,45 +53,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SSR_DebugModeID = Shader.PropertyToID("SSR_DebugMode");
         internal static readonly int SSR_CameraPositionID = Shader.PropertyToID("SSR_CameraPosition");
         internal static readonly int SSR_CameraForwardID = Shader.PropertyToID("SSR_CameraForward");
-        internal static readonly int ScreenSpaceDepthParamsID = Shader.PropertyToID("ScreenSpaceDepthParams");
-        internal static readonly int Matrix_ProjID = Shader.PropertyToID("Matrix_Proj");
-        internal static readonly int Matrix_InvProjID = Shader.PropertyToID("Matrix_InvProj");
-        internal static readonly int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static readonly int Matrix_WorldToViewID = Shader.PropertyToID("Matrix_WorldToView");
-        internal static readonly int Matrix_HistoryViewProjID = Shader.PropertyToID("Matrix_HistoryViewProj");
-        internal static readonly int Matrix_MotionViewProjID = Shader.PropertyToID("Matrix_MotionViewProj");
-        internal static readonly int Matrix_LastMotionViewProjID = Shader.PropertyToID("Matrix_LastMotionViewProj");
         internal static readonly int RankingTileID = Shader.PropertyToID("_Ranking_Tile");
         internal static readonly int ScramblingTileID = Shader.PropertyToID("_Scrambled_Tile");
         internal static readonly int OwenScrambledSobolID = Shader.PropertyToID("_ScrambledOwen_Noise");
-
-        internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_HiZClosestTextureID = Shader.PropertyToID("SRV_HiZClosestTexture");
         internal static readonly int SRV_HiZFurthestTextureID = Shader.PropertyToID("SRV_HiZFurthestTexture");
         internal static readonly int SRV_GBufferAID = Shader.PropertyToID("SRV_GBufferA");
-        internal static readonly int SRV_GBufferBID = Shader.PropertyToID("SRV_GBufferB");
-        internal static readonly int SRV_GBufferCID = Shader.PropertyToID("SRV_GBufferC");
-        internal static readonly int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
-        internal static readonly int SRV_HistoryRadianceID = Shader.PropertyToID("SRV_HistoryRadiance");
-        internal static readonly int SRV_HistoryMetaID = Shader.PropertyToID("SRV_HistoryMeta");
         internal static readonly int SRV_RayHitID = Shader.PropertyToID("SRV_RayHit");
         internal static readonly int SRV_ResolvedID = Shader.PropertyToID("SRV_Resolved");
         internal static readonly int SRV_HitDistanceID = Shader.PropertyToID("SRV_HitDistance");
-        internal static readonly int SRV_TemporalID = Shader.PropertyToID("SRV_Temporal");
-        internal static readonly int SRV_MetaID = Shader.PropertyToID("SRV_Meta");
         internal static readonly int SRV_TileClassID = Shader.PropertyToID("SRV_TileClass");
-        internal static readonly int SRV_TileListID = Shader.PropertyToID("SRV_TileList");
-        internal static readonly int UAV_TileArgsID = Shader.PropertyToID("UAV_TileArgs");
-        internal static readonly int UAV_TileListID = Shader.PropertyToID("UAV_TileList");
         internal static readonly int UAV_TileClassID = Shader.PropertyToID("UAV_TileClass");
-        internal static readonly int UAV_RayHitID = Shader.PropertyToID("UAV_RayHit");
         internal static readonly int UAV_SamplesID = Shader.PropertyToID("UAV_Samples");
         internal static readonly int SRV_SamplesID = Shader.PropertyToID("SRV_Samples");
         internal static readonly int UAV_ResolvedID = Shader.PropertyToID("UAV_Resolved");
-        internal static readonly int UAV_HitDistanceID = Shader.PropertyToID("UAV_HitDistance");
-        internal static readonly int UAV_TemporalID = Shader.PropertyToID("UAV_Temporal");
-        internal static readonly int UAV_MetaID = Shader.PropertyToID("UAV_Meta");
-        internal static readonly int UAV_OutputID = Shader.PropertyToID("UAV_Output");
         internal static readonly int UAV_DebugID = Shader.PropertyToID("UAV_Debug");
 
         internal const string RayHitName = "SSRRayHit";
@@ -304,7 +285,7 @@ namespace InfinityTech.Rendering.Pipeline
                     && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
                 // A captured classification must outlive this pass for the graph-owned Transfer readback.
                 passData.tileClass = captureTileClass
-                    ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID("Capture_SSRTileClass"), tileClassDescriptor))
+                    ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(PassShaderIDs.Capture_SSRTileClass, tileClassDescriptor))
                     : passRef.CreatePassLocalTexture(tileClassDescriptor);
 #else
                 passData.tileClass = passRef.CreatePassLocalTexture(tileClassDescriptor);
@@ -356,25 +337,25 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_DebugModeID, passData.debugMode);
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraPositionID, passData.cameraPosition);
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraForwardID, passData.cameraForward);
-                    cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.ScreenSpaceDepthParamsID, passData.depthParameters);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_ProjID, passData.matrix_Proj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvProjID, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_WorldToViewID, passData.matrix_WorldToView);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_HistoryViewProjID, passData.matrix_HistoryViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_MotionViewProjID, passData.matrix_MotionViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_LastMotionViewProjID, passData.matrix_LastMotionViewProj);
+                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, passData.matrix_Proj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, passData.matrix_InvProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_HistoryViewProj, passData.matrix_HistoryViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_MotionViewProj, passData.matrix_MotionViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_LastMotionViewProj, passData.matrix_LastMotionViewProj);
 
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRClassifySampler);
                     int clearArgs = passData.clearArgsKernel;
-                    cmdEncoder.SetComputeBufferParam(shader, clearArgs, SSRPassUtilityData.UAV_TileArgsID, passData.tileArgs);
+                    cmdEncoder.SetComputeBufferParam(shader, clearArgs, PassShaderIDs.UAV_TileArgs, passData.tileArgs);
                     cmdEncoder.DispatchCompute(shader, clearArgs, 1, 1, 1);
                     int classify = passData.classifyKernel;
                     BindSSRSurface(cmdEncoder, shader, classify, passData);
-                    cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_TileArgsID, passData.tileArgs);
-                    cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_TileListID, passData.tileList);
+                    cmdEncoder.SetComputeBufferParam(shader, classify, PassShaderIDs.UAV_TileArgs, passData.tileArgs);
+                    cmdEncoder.SetComputeBufferParam(shader, classify, PassShaderIDs.UAV_TileList, passData.tileList);
                     cmdEncoder.SetComputeTextureParam(shader, classify, SSRPassUtilityData.UAV_TileClassID, passData.tileClass);
-                    cmdEncoder.SetComputeTextureParam(shader, classify, SSRPassUtilityData.UAV_RayHitID, passData.rayHit);
+                    cmdEncoder.SetComputeTextureParam(shader, classify, PassShaderIDs.UAV_RayHit, passData.rayHit);
                     cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_SamplesID, passData.samples);
                     cmdEncoder.DispatchCompute(shader, classify, tileCount.x, tileCount.y, 1);
                     cmdEncoder.EndSample(SSRPassUtilityData.SSRClassifySampler);
@@ -392,9 +373,9 @@ namespace InfinityTech.Rendering.Pipeline
                     BindSSRSurface(cmdEncoder, shader, resolve, passData);
                     cmdEncoder.SetComputeBufferParam(shader, resolve, SSRPassUtilityData.SRV_SamplesID, passData.samples);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_ResolvedID, passData.resolved);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, Shader.PropertyToID("UAV_HitMean"), passData.hitMean);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, Shader.PropertyToID("UAV_HitDev"), passData.hitDev);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitDistanceID, passData.hitDistance);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitMeanID, passData.hitMean);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitDevID, passData.hitDev);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, PassShaderIDs.UAV_HitDistance, passData.hitDistance);
                     cmdEncoder.DispatchCompute(shader, resolve, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSRPassUtilityData.SSRResolveSampler);
 
@@ -402,18 +383,18 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRTemporalSampler);
                     int temporalKernel = passData.temporalKernel;
                     BindSSRSurface(cmdEncoder, shader, temporalKernel, passData);
-                    cmdEncoder.SetComputeTextureParam(shader,temporalKernel,Shader.PropertyToID("SRV_HitMotionMetadata"),passData.motionMetadata);
+                    cmdEncoder.SetComputeTextureParam(shader,temporalKernel,PassShaderIDs.SRV_HitMotionMetadata,passData.motionMetadata);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_ResolvedID, passData.resolved);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, Shader.PropertyToID("SRV_HitMean"), passData.hitMean);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, Shader.PropertyToID("SRV_HitDev"), passData.hitDev);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitMeanID, passData.hitMean);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitDevID, passData.hitDev);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitDistanceID, passData.hitDistance);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, Shader.PropertyToID("SRV_HistoryVariance"), passData.historyVariance);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, Shader.PropertyToID("UAV_Variance"), passData.variance);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HistoryRadianceID, passData.historyRadiance);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HistoryMetaID, passData.historyMeta);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_TemporalID, passData.temporal);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_MetaID, passData.meta);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HistoryVarianceID, passData.historyVariance);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_VarianceID, passData.variance);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, PassShaderIDs.SRV_HistoryRadiance, passData.historyRadiance);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, PassShaderIDs.SRV_HistoryMeta, passData.historyMeta);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, PassShaderIDs.UAV_Temporal, passData.temporal);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, PassShaderIDs.UAV_Meta, passData.meta);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSRPassUtilityData.SSRTemporalSampler);
 
@@ -422,9 +403,9 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.BeginSample(SSRPassUtilityData.SSRBilateralSampler);
                         int bilateral = passData.bilateralKernel;
                         BindSSRSurface(cmdEncoder, shader, bilateral, passData);
-                        cmdEncoder.SetComputeTextureParam(shader, bilateral, SSRPassUtilityData.SRV_TemporalID, passData.temporal);
-                        cmdEncoder.SetComputeTextureParam(shader, bilateral, Shader.PropertyToID("SRV_Variance"), passData.variance);
-                        cmdEncoder.SetComputeTextureParam(shader, bilateral, SSRPassUtilityData.UAV_OutputID, passData.filtered);
+                        cmdEncoder.SetComputeTextureParam(shader, bilateral, PassShaderIDs.SRV_Temporal, passData.temporal);
+                        cmdEncoder.SetComputeTextureParam(shader, bilateral, SSRPassUtilityData.SRV_VarianceID, passData.variance);
+                        cmdEncoder.SetComputeTextureParam(shader, bilateral, PassShaderIDs.UAV_Output, passData.filtered);
                         cmdEncoder.DispatchCompute(shader, bilateral, groupsX, groupsY, 1);
                         cmdEncoder.EndSample(SSRPassUtilityData.SSRBilateralSampler);
                     }
@@ -439,7 +420,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_TileClassID, passData.tileClass);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_RayHitID, passData.rayHit);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_ResolvedID, passData.resolved);
-                        cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_MetaID, passData.meta);
+                        cmdEncoder.SetComputeTextureParam(shader, debugKernel, PassShaderIDs.SRV_Meta, passData.meta);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.UAV_DebugID, passData.debug);
                         cmdEncoder.DispatchCompute(shader, debugKernel, passData.debugGroups.x, passData.debugGroups.y, 1);
                         cmdEncoder.EndSample(SSRPassUtilityData.SSRDebugSampler);
@@ -453,27 +434,27 @@ namespace InfinityTech.Rendering.Pipeline
         // Depth and GBuffer inputs shared by every kernel that tests or reconstructs the surface.
         static void BindSSRSurface(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, in SSRPassData passData)
         {
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_GBufferAID, passData.gBufferA);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_GBufferBID, passData.gBufferB);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_GBufferCID, passData.gBufferC);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferB, passData.gBufferB);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferC, passData.gBufferC);
         }
 
         static void RecordSSRTrace(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, in SSRPassData passData)
         {
             BindSSRSurface(cmdEncoder, shader, kernel, passData);
-            cmdEncoder.SetComputeBufferParam(shader, kernel, SSRPassUtilityData.SRV_TileListID, passData.tileList);
+            cmdEncoder.SetComputeBufferParam(shader, kernel, PassShaderIDs.SRV_TileList, passData.tileList);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_TileClassID, passData.tileClass);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_HiZClosestTextureID, passData.hiZTexture);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HiZClosestTexture, passData.hiZTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_HiZFurthestTextureID, passData.hiZFurthestTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.RankingTileID, passData.rankingTile);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.ScramblingTileID, passData.scramblingTile);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.OwenScrambledSobolID, passData.owenScrambledSobol);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.UAV_RayHitID, passData.rayHit);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_RayHit, passData.rayHit);
             cmdEncoder.SetComputeBufferParam(shader, kernel, SSRPassUtilityData.UAV_SamplesID, passData.samples);
             BindTemporalColorView(cmdEncoder, shader, kernel, passData.temporalColor);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_HitMotionMetadata"), passData.motionMetadata);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadata);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
             cmdEncoder.DispatchComputeIndirect(shader, kernel, passData.tileArgs, 0);
         }
     }

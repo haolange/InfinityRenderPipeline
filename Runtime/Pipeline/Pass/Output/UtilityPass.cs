@@ -13,6 +13,11 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class UtilityPassUtilityData
+    {
+        internal static readonly int InfinityOutputTransferID = Shader.PropertyToID("_InfinityOutputTransfer");
+    }
+
     public partial class InfinityRenderPipeline
     {
 #if UNITY_EDITOR
@@ -46,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.shaderPass = blitPasses.upscaleDepth;
                 pass.SetExecuteFunc((in DisplayDepthPassData data, in RGRasterEncoder commands) =>
                 {
-                    commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
+                    commands.SetGlobalTexture(PassShaderIDs.InfinitySourceDepth, data.source);
                     commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
                 });
             }
@@ -82,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
+                    cmdEncoder.SetGlobalVector(PassShaderIDs.ScreenParams, passData.screenParams);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
@@ -120,7 +125,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder) =>
                     {
-                        cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
+                        cmdEncoder.SetGlobalVector(PassShaderIDs.ScreenParams, passData.screenParams);
                         cmdEncoder.DrawRendererList(passData.rendererList);
                     });
                 }
@@ -254,7 +259,7 @@ namespace InfinityTech.Rendering.Pipeline
         static void BindFinalOutput(in FinalOutputPassData data, in RGRasterEncoder commands)
         {
             commands.SetViewport(data.viewport);
-            commands.SetGlobalVector(Shader.PropertyToID("_InfinityOutputTransfer"), data.outputTransfer);
+            commands.SetGlobalVector(UtilityPassUtilityData.InfinityOutputTransferID, data.outputTransfer);
             commands.SetGlobalVector(InfinityShaderIDs.ScaleBias, data.scaleBias);
         }
 

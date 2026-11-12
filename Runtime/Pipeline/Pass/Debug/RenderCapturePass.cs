@@ -10,6 +10,21 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class RenderCapturePassUtilityData
+    {
+        internal static readonly int CaptureBufferSizeID = Shader.PropertyToID("CaptureBufferSize");
+        internal static readonly int CaptureSizeID = Shader.PropertyToID("CaptureSize");
+        internal static readonly int Capture_LightTileMaskID = Shader.PropertyToID("Capture_LightTileMask");
+        internal static readonly int Capture_SSGITraceRadianceID = Shader.PropertyToID("Capture_SSGITraceRadiance");
+        internal static readonly int SRV_CaptureID = Shader.PropertyToID("SRV_Capture");
+        internal static readonly int SRV_CaptureMetadataID = Shader.PropertyToID("SRV_CaptureMetadata");
+        internal static readonly int SRV_CaptureUIntID = Shader.PropertyToID("SRV_CaptureUInt");
+        internal static readonly int SRV_DepthID = Shader.PropertyToID("SRV_Depth");
+        internal static readonly int UAV_CaptureID = Shader.PropertyToID("UAV_Capture");
+        internal static readonly int UAV_CaptureUIntBytesID = Shader.PropertyToID("UAV_CaptureUIntBytes");
+        internal static readonly int UAV_DepthID = Shader.PropertyToID("UAV_Depth");
+    }
+
     public partial class InfinityRenderPipeline
     {
         struct CaptureStageSnapshot
@@ -25,9 +40,9 @@ namespace InfinityTech.Rendering.Pipeline
                     return;
                 }
                 ComputeShader shader = kernel.shader;
-                commands.SetComputeVectorParam(shader, Shader.PropertyToID("CaptureSize"), new Vector4(width, height, 0, 0));
-                commands.SetComputeTextureParam(shader, kernel.index, Shader.PropertyToID("SRV_Capture"), source);
-                commands.SetComputeTextureParam(shader, kernel.index, Shader.PropertyToID("UAV_Capture"), texture);
+                commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(width, height, 0, 0));
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.SRV_CaptureID, source);
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.UAV_CaptureID, texture);
                 commands.DispatchCompute(shader, kernel.index, kernel.GroupsX(width), kernel.GroupsY(height), 1);
             }
         }
@@ -92,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
             bool local = context.HasLocalLightList();
             int width = local ? context.TileCount.x * context.TileWordCount : 1;
             int height = local ? context.TileCount.y : 1;
-            int id = Shader.PropertyToID("Capture_LightTileMask");
+            int id = RenderCapturePassUtilityData.Capture_LightTileMaskID;
             var descriptor = new TextureDescriptor(width, height)
             {
                 name = "Capture_LightTileMask", dimension = TextureDimension.Tex2D,
@@ -111,9 +126,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = data.kernel.shader;
                     int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("CaptureBufferSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeBufferParam(shader, kernel, Shader.PropertyToID("SRV_CaptureUInt"), data.source);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_CaptureUIntBytes"), data.destination);
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureBufferSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeBufferParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureUIntID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureUIntBytesID, data.destination);
                     commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }
@@ -215,13 +230,13 @@ namespace InfinityTech.Rendering.Pipeline
                         id = InfinityShaderIDs.SSRMetaBuffer;
                         break;
                     case "SSRTileClass":
-                        id = Shader.PropertyToID("Capture_SSRTileClass");
+                        id = PassShaderIDs.Capture_SSRTileClass;
                         break;
                     case "SSGIRayHit":
                         id = InfinityShaderIDs.SSGIRayHitBuffer;
                         break;
                     case "SSGITraceRadiance":
-                        id = Shader.PropertyToID("Capture_SSGITraceRadiance");
+                        id = RenderCapturePassUtilityData.Capture_SSGITraceRadianceID;
                         break;
                     case "SSGITemporal":
                         id = InfinityShaderIDs.SSGITemporalBuffer;
@@ -341,9 +356,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = data.kernel.shader;
                     int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_Depth"), data.source);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_Depth"), data.destination);
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_DepthID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_DepthID, data.destination);
                     commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }
@@ -369,9 +384,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = data.kernel.shader;
                     int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_CaptureMetadata"), data.source);
-                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_Capture"), data.destination);
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureMetadataID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureID, data.destination);
                     commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }

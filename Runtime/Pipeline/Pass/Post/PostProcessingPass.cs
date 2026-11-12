@@ -33,7 +33,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int PP_FrameIndexID = Shader.PropertyToID("PP_FrameIndex");
         internal static readonly int PP_ExposureMultiplierID = Shader.PropertyToID("PP_ExposureMultiplier");
         internal static readonly int PP_AutoExposureID = Shader.PropertyToID("PP_AutoExposure");
-        internal static readonly int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
         internal static readonly int SRV_CombineLUTID = Shader.PropertyToID("SRV_CombineLUT");
         internal static readonly int SRV_ExposureEVID = Shader.PropertyToID("SRV_ExposureEV");
 
@@ -340,7 +339,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.EndSample(PostProcessingPassUtilityData.ExposureClearSampler);
 
                     cmdEncoder.BeginSample(PostProcessingPassUtilityData.ExposureHistogramSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.exposureHistogram.index, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.exposureHistogram.index, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTexture);
                     cmdEncoder.SetComputeBufferParam(shader, passData.exposureHistogram.index, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
                     cmdEncoder.DispatchCompute(shader, passData.exposureHistogram.index, passData.exposureHistogram.GroupsX(passData.resolution.x), passData.exposureHistogram.GroupsY(passData.resolution.y), 1);
                     cmdEncoder.EndSample(PostProcessingPassUtilityData.ExposureHistogramSampler);
@@ -479,7 +478,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_ExposureMultiplierID, data.exposureMultiplier);
                     commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_AutoExposureID, data.autoExposure);
                     commands.SetGlobalInt(PostProcessingPassUtilityData.PP_FrameIndexID, data.frameIndex);
-                    commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_SceneColorTextureID, data.sceneColorTexture);
+                    commands.SetGlobalTexture(PassShaderIDs.SRV_SceneColorTexture, data.sceneColorTexture);
                     if (data.hasBloom)
                     {
                         commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_BloomTextureID, data.bloomTexture);

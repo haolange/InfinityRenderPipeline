@@ -100,6 +100,19 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_static_ids(str(self.repo), out)
         self.assertEqual(['SRV_DepthID', 's_Sampler'], sorted(o[2].split(': ')[1].split(' ')[0] for o in out))
 
+    def test_hot_path_lookup_fails_and_table_initializers_pass(self):
+        self.write('Runtime/Pipeline/Pass/A.cs', 'static class AData {\n    static readonly int ID_A = Shader.PropertyToID("A");\n'
+                                                 '    static readonly int[] s_B = { Shader.PropertyToID("B0"), Shader.PropertyToID("B1") };\n}\n'
+                                                 'void Record() { Bind(AData.ID_A); } // FindKernel("x") in a comment')
+        self.write('Runtime/Pipeline/Pass/D.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nvoid Capture(string n) { int id = Shader.PropertyToID("Capture_" + n); }\n#endif')
+        out = []
+        static_check.check_hot_path_lookups(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/M.cs', 'void Execute() {\n    int k = shader.FindKernel("Cull");\n    int id = Shader.PropertyToID("X");\n'
+                                        '    var w = new LocalKeyword(shader, "W");\n}')
+        static_check.check_hot_path_lookups(str(self.repo), out)
+        self.assertEqual(['Runtime/Mesh/M.cs:2', 'Runtime/Mesh/M.cs:3', 'Runtime/Mesh/M.cs:4'], sorted(o[2].split(': ')[0] for o in out))
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

@@ -15,8 +15,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword VolumetricFogKeyword = GlobalKeyword.Create("_VOLUMETRIC_FOG");
         internal static readonly GlobalKeyword AerialKeyword = GlobalKeyword.Create("_AERIAL_PERSPECTIVE");
         internal static readonly GlobalKeyword RefractionKeyword = GlobalKeyword.Create("_REFRACTION_PYRAMID");
-        internal static readonly int VolFog_MaxDistanceID = Shader.PropertyToID("VolFog_MaxDistance");
-        internal static readonly int VolFog_AerialDistanceID = Shader.PropertyToID("VolFog_AerialDistance");
     }
 
     public partial class InfinityRenderPipeline
@@ -203,8 +201,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.VolumetricFogKeyword, passData.bindFog);
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.AerialKeyword, passData.bindAerial);
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.RefractionKeyword, passData.bindPyramid);
-                    cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_MaxDistanceID, passData.fogMaxDistance);
-                    cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_AerialDistanceID, passData.aerialDistance);
+                    cmdEncoder.SetGlobalFloat(PassShaderIDs.VolFog_MaxDistance, passData.fogMaxDistance);
+                    cmdEncoder.SetGlobalFloat(PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
                     if (passData.bindFog)
                     {
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.VolumetricFogBuffer, passData.volumetricFog);

@@ -18,10 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int CascadeMatricesID = Shader.PropertyToID("_CascadeMatrices");
         internal static readonly int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
         internal static readonly int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
-        internal static readonly int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
         // Shadow-caster shaders (ShadowPass / ShadowCaster) project with Matrix_ViewFlipYProj; the shadow passes set it
         // to the shadow matrix (a renderIntoTexture GPU projection) and restore the camera's afterwards.
-        internal static readonly int MatrixViewFlipYProjID = Shader.PropertyToID("Matrix_ViewFlipYProj");
         internal static readonly int CascadeShadowParamsID = Shader.PropertyToID("_CascadeShadowParams");
         internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
 
@@ -177,10 +175,10 @@ namespace InfinityTech.Rendering.Pipeline
                         Vector4 rect = passData.tileRects[cascade];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
                         cmdEncoder.SetGlobalDepthBias(0, 0);
-                        cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterBias"), passData.casterBias[cascade]);
-                        cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterLight"), passData.casterLight);
-                        cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewProjID, passData.shadowMatrices[cascade]);
-                        cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.shadowMatrices[cascade]);
+                        cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterBias, passData.casterBias[cascade]);
+                        cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterLight, passData.casterLight);
+                        cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, passData.shadowMatrices[cascade]);
+                        cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, passData.shadowMatrices[cascade]);
 
                         if (passData.meshDrawLists != null && cascade < passData.meshDrawLists.Length && passData.meshDrawLists[cascade].IsValid)
                         {
@@ -197,8 +195,8 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     cmdEncoder.SetViewport(new Rect(0, 0, halfRes * 2, halfRes * 2));
-                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);
-                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.cameraViewFlipYProj);
+                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, passData.cameraViewProj);
+                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, passData.cameraViewFlipYProj);
                 });
             }
         }
