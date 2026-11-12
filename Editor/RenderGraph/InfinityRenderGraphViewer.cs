@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Editor
 
             List<int> passes = VisiblePasses(graph);
             List<int> resources = VisibleResources(graph);
-            EditorGUILayout.LabelField($"Frame {graph.frame}: {graph.passes.Count} passes ({graph.CountCulled()} culled, {graph.CountAsync()} async, {graph.segmentCount} segments), {graph.resources.Count} resources, peak {graph.peakAliasBytes / 1024} KiB", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"Frame {graph.frame}: {graph.passes.Count} passes ({graph.CountCulled()} culled, {graph.CountAsync()} async, {graph.segmentCount} segments), {graph.resources.Count} resources, peak live {graph.peakLiveBytes / 1024} KiB", EditorStyles.miniLabel);
 
             float detailHeight = Mathf.Min(180f, position.height * 0.35f);
             Rect gridArea = GUILayoutUtility.GetRect(position.width, position.height - detailHeight - 60f);
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.LabelField(resource.name, EditorStyles.boldLabel);
                 EditorGUILayout.LabelField("Kind", resource.type + (resource.imported ? " (imported)" : " (pooled)"));
                 EditorGUILayout.LabelField("Size", resource.description + (resource.estimatedBytes > 0 ? " (~" + resource.estimatedBytes / 1024 + " KiB)" : ""));
-                if (resource.aliasSlot >= 0) EditorGUILayout.LabelField("Physical slot", "group " + resource.aliasGroup + " slot " + resource.aliasSlot + (resource.memoryless ? " memoryless" : ""));
+                if (resource.memoryless) EditorGUILayout.LabelField("Memory", "memoryless");
                 EditorGUILayout.LabelField("Used", resource.firstUse < 0 ? "Never (all users culled)" : PassName(graph, resource.firstUse) + " → " + PassName(graph, resource.lastUse));
                 if (resource.createPass >= 0) EditorGUILayout.LabelField("Allocated by", PassName(graph, resource.createPass));
                 if (resource.releasePass >= 0) EditorGUILayout.LabelField("Released after", PassName(graph, resource.releasePass));

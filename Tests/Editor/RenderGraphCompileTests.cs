@@ -98,22 +98,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void AliasPlan_ReusesOneSlotForNonOverlappingTextures()
+        public void Segment_SplitsWhereACreateWouldTakeAnAllocationReleasedInTheSameSegment()
         {
             var graph = Graph();
             try
             {
-                RGTextureHandle first = graph.CreateTexture(Color("AliasA"));
-                RGTextureHandle second = graph.CreateTexture(Color("AliasB"));
+                RGTextureHandle first = graph.CreateTexture(Color("ReuseA"));
+                RGTextureHandle second = graph.CreateTexture(Color("ReuseB"));
                 WriteThenRead(graph, "WriteA", "ReadA", first);
                 WriteThenRead(graph, "WriteB", "ReadB", second);
                 Compile(graph);
                 RGGraphSnapshot snapshot = graph.CaptureDebugSnapshot();
-                RGResourceSnapshot a = snapshot.resources.Find(resource => resource.name == "AliasA");
-                RGResourceSnapshot b = snapshot.resources.Find(resource => resource.name == "AliasB");
-                Assert.GreaterOrEqual(a.aliasSlot, 0);
-                Assert.AreEqual(a.aliasSlot, b.aliasSlot);
-                Assert.AreEqual(a.aliasGroup, b.aliasGroup);
+                int readA = snapshot.passes.FindIndex(pass => pass.name == "ReadA");
+                int writeB = snapshot.passes.FindIndex(pass => pass.name == "WriteB");
+                Assert.Greater(snapshot.passes[writeB].segment, snapshot.passes[readA].segment,
+                    "ReuseB has ReuseA's physical descriptor; the pool would hand it the allocation ReadA released.");
+                RGResourceSnapshot a = snapshot.resources.Find(resource => resource.name == "ReuseA");
+                Assert.Greater(a.estimatedBytes, 0);
+                Assert.AreEqual(a.estimatedBytes, snapshot.peakLiveBytes, "The two textures are never live at the same pass.");
             }
             finally { graph.Dispose(); }
         }

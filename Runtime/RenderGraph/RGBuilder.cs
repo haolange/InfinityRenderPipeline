@@ -96,11 +96,7 @@ namespace InfinityTech.Rendering.RenderGraph
     internal struct RGResourceCompileInfo
     {
         public int refCount;
-        public bool resourceCreated;
         public int lastGraphicsUse, lastComputeUse;
-        public int aliasSlot;
-        public int aliasGroup;
-        public long estimatedBytes;
         public bool cullClosed;
         public List<int> consumers;
         public List<int> producers;
@@ -114,11 +110,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
             producers.Clear();
             consumers.Clear();
-            resourceCreated = false;
             lastGraphicsUse = lastComputeUse = -1;
-            aliasSlot = -1;
-            aliasGroup = -1;
-            estimatedBytes = 0;
             cullClosed = false;
             refCount = 0;
         }
@@ -357,13 +349,14 @@ namespace InfinityTech.Rendering.RenderGraph
                 for (int i = 0; i < count; ++i)
                 {
                     m_Resources.DescribeResource(type, i, out string resourceName, out bool imported, out string description);
-                    ref RGResourceCompileInfo compiled = ref m_ResourcesCompileInfos[type][i];
+                    RGResourceHandle handle = m_Resources.LiveHandle((ERGResourceType)type, i);
+                    TextureDescriptor texture = type == (int)ERGResourceType.Texture ? m_Resources.GetTextureDescriptor(handle) : default;
                     snapshot.resources.Add(new RGResourceSnapshot
                     {
                         type = (ERGResourceType)type, index = i, name = resourceName, imported = imported, description = description,
                         firstUse = -1, lastUse = -1, createPass = -1, releasePass = -1,
-                        aliasSlot = compiled.aliasSlot, aliasGroup = compiled.aliasGroup, estimatedBytes = compiled.estimatedBytes,
-                        memoryless = type == (int)ERGResourceType.Texture && m_Resources.GetTextureDescriptor(m_Resources.LiveHandle(ERGResourceType.Texture, i)).memoryless != RenderTextureMemoryless.None
+                        estimatedBytes = imported ? 0 : type == (int)ERGResourceType.Texture ? texture.EstimateBytes() : m_Resources.GetBufferDescriptor(handle).EstimateBytes(),
+                        memoryless = type == (int)ERGResourceType.Texture && texture.memoryless != RenderTextureMemoryless.None
                     });
                 }
             }
@@ -413,27 +406,21 @@ namespace InfinityTech.Rendering.RenderGraph
                     }
                 }
             }
+            // Peak of the bytes of graph-owned resources live at the same pass; the pool may reuse allocations below it.
             long peak = 0;
-            var physical = new HashSet<long>();
-            for (int i = 0; i < snapshot.resources.Count; ++i)
+            for (int passIndex = 0; passIndex < snapshot.passes.Count; ++passIndex)
             {
-                RGResourceSnapshot resource = snapshot.resources[i];
-                if (resource.imported || resource.firstUse < 0)
+                long live = 0;
+                foreach (RGResourceSnapshot resource in snapshot.resources)
                 {
-                    continue;
+                    if (!resource.imported && resource.firstUse >= 0 && resource.firstUse <= passIndex && passIndex <= resource.lastUse)
+                    {
+                        live += resource.estimatedBytes;
+                    }
                 }
-                if (resource.aliasSlot < 0)
-                {
-                    peak += resource.estimatedBytes;
-                    continue;
-                }
-                long key = ((long)resource.aliasGroup << 32) | (uint)resource.aliasSlot;
-                if (physical.Add(key))
-                {
-                    peak += resource.estimatedBytes;
-                }
+                peak = System.Math.Max(peak, live);
             }
-            snapshot.peakAliasBytes = peak;
+            snapshot.peakLiveBytes = peak;
             return snapshot;
         }
 
@@ -734,7 +721,6 @@ namespace InfinityTech.Rendering.RenderGraph
             finally
             {
                 m_Resources.Dispose();
-                DisposeCompileScratch();
             }
         }
     }

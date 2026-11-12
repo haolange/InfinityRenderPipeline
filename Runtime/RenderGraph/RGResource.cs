@@ -544,9 +544,6 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 var desc = resource.descriptor;
 
-                if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
-
                 BufferHandle pooled = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
                 resource.resource = pooled.buffer;
                 resource.poolLease = pooled.lease;
@@ -580,9 +577,6 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!resource.imported)
             {
                 var desc = resource.descriptor;
-
-                if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
                 TextureHandle pooled = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
                 resource.resource = pooled.texture;

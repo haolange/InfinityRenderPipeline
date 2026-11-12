@@ -25,6 +25,9 @@ namespace InfinityTech.Rendering.GPUResource
 
     public struct BufferDescriptor : IEquatable<BufferDescriptor>
     {
+        // Format estimate of the allocation size, the one estimate the pool and the graph report.
+        public long EstimateBytes() => (long)count * stride;
+
         public string name;
 
         public int count;
@@ -70,6 +73,25 @@ namespace InfinityTech.Rendering.GPUResource
     [Serializable]
     public struct TextureDescriptor : IEquatable<TextureDescriptor>
     {
+        // Format estimate of the physical allocation including mips, slices and MSAA samples; not driver residency.
+        public long EstimateBytes()
+        {
+            long bytes = 0;
+            var format = colorFormat != GraphicsFormat.None ? colorFormat : GraphicsFormat.D32_SFloat;
+            int width = physicalWidth, height = physicalHeight;
+            do
+            {
+                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, slices) * Math.Max(1, (int)msaaSamples);
+                if (!useMipMap || (width == 1 && height == 1))
+                {
+                    break;
+                }
+                width = Math.Max(1, width / 2);
+                height = Math.Max(1, height / 2);
+            } while (true);
+            return bytes;
+        }
+
         public string name;
 
         public int width;
@@ -480,27 +502,11 @@ namespace InfinityTech.Rendering.GPUResource
     public sealed class BufferCache : GPUResourceCache<ComputeBuffer, BufferDescriptor>
     {
         protected override void ReleaseInternalResource(ComputeBuffer resource) => resource.Release();
-        protected override long EstimateBytes(in BufferDescriptor descriptor) => (long)descriptor.count * descriptor.stride;
+        protected override long EstimateBytes(in BufferDescriptor descriptor) => descriptor.EstimateBytes();
     }
     public sealed class TextureCache : GPUResourceCache<RTHandle, TextureDescriptor>
     {
         protected override void ReleaseInternalResource(RTHandle resource) => resource.Release();
-        protected override long EstimateBytes(in TextureDescriptor descriptor)
-        {
-            long bytes = 0;
-            var format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat : GraphicsFormat.D32_SFloat;
-            int width = descriptor.physicalWidth, height = descriptor.physicalHeight;
-            do
-            {
-                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, descriptor.slices) * Math.Max(1, (int)descriptor.msaaSamples);
-                if (!descriptor.useMipMap || (width == 1 && height == 1))
-                {
-                    break;
-                }
-                width = Math.Max(1, width / 2);
-                height = Math.Max(1, height / 2);
-            } while (true);
-            return bytes;
-        }
+        protected override long EstimateBytes(in TextureDescriptor descriptor) => descriptor.EstimateBytes();
     }
 }

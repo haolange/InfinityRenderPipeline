@@ -40,8 +40,6 @@ namespace InfinityTech.Rendering.RenderGraph
         // Pass that allocates it from the pool and pass after which it returns there (-1: imported or never live).
         public int createPass;
         public int releasePass;
-        public int aliasSlot;
-        public int aliasGroup;
         public long estimatedBytes;
         public bool memoryless;
     }
@@ -52,7 +50,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public string label;
         public int frame;
         public int segmentCount;
-        public long peakAliasBytes;
+        public long peakLiveBytes;
         public readonly List<RGPassSnapshot> passes = new List<RGPassSnapshot>();
         public readonly List<RGResourceSnapshot> resources = new List<RGResourceSnapshot>();
 
