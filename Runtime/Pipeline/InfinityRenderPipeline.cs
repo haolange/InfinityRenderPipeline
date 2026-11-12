@@ -291,6 +291,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
+            // Pooled and retired resources are reused or destroyed only after their GPU completion fence passes.
+            if (!SystemInfo.supportsGraphicsFence)
+                throw new NotSupportedException("InfinityRP requires graphics fences.");
             m_PipelineAsset = asset;
             m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources();
@@ -316,12 +319,12 @@ namespace InfinityTech.Rendering.Pipeline
                 m_CameraStates = new Dictionary<int, CameraFrameState>();
                 m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
                 m_RGBuilder.SetMeshWorld(renderContext.meshWorld);
-                m_AtmosphereSharedCache = new AtmosphereSharedCache();
-                m_LocalShadowCache = new LocalShadowCache();
-                m_LightCookieAtlas = new LightCookieAtlas();
+                m_AtmosphereSharedCache = new AtmosphereSharedCache(m_ResourcePool);
+                m_LocalShadowCache = new LocalShadowCache(m_ResourcePool);
+                m_LightCookieAtlas = new LightCookieAtlas(m_ResourcePool);
                 m_CookieProduction = new CookieProduction { atlas = m_LightCookieAtlas };
                 m_ProbeVolumes = new ProbeVolumeIntegration(asset);
-                m_ReflectionProbeAtlas = new ReflectionProbeAtlas();
+                m_ReflectionProbeAtlas = new ReflectionProbeAtlas(m_ResourcePool);
                 m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas };
             }
             catch (Exception constructionFailure)
@@ -770,16 +773,11 @@ namespace InfinityTech.Rendering.Pipeline
                     if (firstCameraException == null) firstCameraException = exception;
                 }
 
-                GraphicsFence poolFence = default;
-                ResourceReuseFence retiredReuseFence = default;
-                if (SystemInfo.supportsGraphicsFence)
+                GraphicsFence poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+                var retiredReuseFence = new ResourceReuseFence
                 {
-                    poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
-                    retiredReuseFence = new ResourceReuseFence
-                    {
-                        hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
-                    };
-                }
+                    hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
+                };
                 frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
                     cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
 
@@ -796,7 +794,7 @@ namespace InfinityTech.Rendering.Pipeline
                     if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
                     {
                         FlushFrameRetirement(retiredReuseFence);
-                        if (SystemInfo.supportsGraphicsFence) m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
+                        m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
                         RecycleUnseenCameraStates(Time.frameCount);
                     }
                 }
@@ -1157,6 +1155,15 @@ namespace InfinityTech.Rendering.Pipeline
                 foreach (CameraFrameState state in m_CameraStates.Values) Release(state.Dispose);
                 m_CameraStates.Clear();
             }
+            // History owners return their acquisitions to the pool, so they dispose before the pool does.
+            Release(() => m_AtmosphereSharedCache?.Dispose());
+            m_AtmosphereSharedCache = null;
+            Release(() => m_LocalShadowCache?.Dispose());
+            m_LocalShadowCache = null;
+            Release(() => m_LightCookieAtlas?.Dispose());
+            m_LightCookieAtlas = null;
+            Release(() => m_ReflectionProbeAtlas?.Dispose());
+            m_ReflectionProbeAtlas = null;
             Release(() => renderContext?.Dispose());
             Release(() => m_RGScoper?.Dispose());
             Release(() => m_RGBuilder?.Dispose());
@@ -1170,16 +1177,8 @@ namespace InfinityTech.Rendering.Pipeline
                 ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
             m_OwnsVolumeManager = false;
             m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
-            Release(() => m_AtmosphereSharedCache?.Dispose());
-            m_AtmosphereSharedCache = null;
-            Release(() => m_LocalShadowCache?.Dispose());
-            m_LocalShadowCache = null;
-            Release(() => m_LightCookieAtlas?.Dispose());
-            m_LightCookieAtlas = null;
             Release(() => m_ProbeVolumes?.Dispose());
             m_ProbeVolumes = null;
-            Release(() => m_ReflectionProbeAtlas?.Dispose());
-            m_ReflectionProbeAtlas = null;
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);
@@ -1213,7 +1212,7 @@ namespace InfinityTech.Rendering.Pipeline
             created = !m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState);
             if (created)
             {
-                frameState = new CameraFrameState(cameraId);
+                frameState = new CameraFrameState(cameraId, m_ResourcePool);
                 m_CameraStates.Add(cameraId, frameState);
             }
 

@@ -8,12 +8,14 @@ namespace InfinityTech.Rendering.GPUResource
     internal sealed class ResourceUsage
     {
         internal bool returned;
+        // Advances on every acquisition; a returned handle must carry the current lease.
+        internal int lease;
         internal UnityEngine.RenderTexture textureIdentity;
         internal bool uncertain => m_Uncertain;
         int m_RecordReferences, m_Queues;
         readonly HashSet<int> m_PendingEpochs = new HashSet<int>();
         internal bool pending => m_Pending;
-        bool m_Pending, m_Uncertain, m_HasSubmittedUse, m_HasCompletion, m_Completed;
+        bool m_Pending, m_Uncertain, m_HasSubmittedUse, m_Completed;
         GraphicsFence m_Completion;
         ResourceReuseFence m_Tail, m_SubmittedTail, m_ReturnFence;
 
@@ -48,7 +50,7 @@ namespace InfinityTech.Rendering.GPUResource
                 {
                     return true;
                 }
-                if (!m_HasCompletion || !m_Completion.passed)
+                if (!m_Completion.passed)
                 {
                     return false;
                 }
@@ -130,7 +132,7 @@ namespace InfinityTech.Rendering.GPUResource
             }
         }
         internal void MarkUncertain() => m_Uncertain = true;
-        internal void Submitted(int epoch, GraphicsFence completion, bool hasCompletion, ResourceReuseFence joinedTail)
+        internal void Submitted(int epoch, GraphicsFence completion, ResourceReuseFence joinedTail)
         {
             if (!m_PendingEpochs.Remove(epoch))
             {
@@ -145,7 +147,6 @@ namespace InfinityTech.Rendering.GPUResource
             }
             m_Pending = m_Uncertain = false;
             m_HasSubmittedUse = true;
-            m_HasCompletion = hasCompletion;
             m_Completion = completion;
             m_Completed = false;
             m_SubmittedTail = joinedTail.hasGraphics || joinedTail.hasCompute ? joinedTail : m_Tail;

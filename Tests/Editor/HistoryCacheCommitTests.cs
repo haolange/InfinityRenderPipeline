@@ -8,21 +8,24 @@ namespace InfinityTech.Rendering.GPUResource.Tests
 {
     public class HistoryCacheCommitTests
     {
+        ResourcePool m_Pool;
         HistoryCache m_Cache;
 
         [SetUp]
         public void SetUp()
         {
             RTHandles.Initialize(64, 64);
-            m_Cache = new HistoryCache();
+            m_Pool = new ResourcePool();
+            m_Cache = new HistoryCache(m_Pool);
         }
 
         [TearDown]
         public void TearDown()
         {
-            m_Cache?.Release();
-            m_Cache?.ForceFlushForTeardown();
+            m_Cache?.Dispose();
             m_Cache = null;
+            m_Pool?.Dispose();
+            m_Pool = null;
         }
 
         static TextureDescriptor MakeDescriptor(int width, int height, string name)

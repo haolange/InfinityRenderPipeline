@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.LightPipeline
             public SourceState pendingSource;
         }
 
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         readonly Dictionary<CookieKey, Entry> m_Entries = new Dictionary<CookieKey, Entry>();
         readonly List<CookieKey> m_Scratch = new List<CookieKey>();
         readonly List<CookieUpload> m_Uploads = new List<CookieUpload>();
@@ -423,10 +423,14 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
 
+        public LightCookieAtlas(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
+
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
             m_Entries.Clear();
         }
     }

@@ -164,7 +164,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public bool imported;
         internal ResourceUsage usage;
         internal bool recordingLease;
-        public int cachedHash;
+        // Acquisition generation of the pooled resource; returned with it so the pool rejects a stale return.
+        internal int poolLease;
         internal ushort generation;
 
         public virtual void Reset()
@@ -172,7 +173,7 @@ namespace InfinityTech.Rendering.RenderGraph
             imported = false;
             usage = null;
             recordingLease = false;
-            cachedHash = -1;
+            poolLease = 0;
         }
 
         public virtual string GetName()
@@ -655,15 +656,15 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!resource.imported)
             {
                 var desc = resource.descriptor;
-                int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence).buffer;
+                BufferHandle pooled = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooled.buffer;
+                resource.poolLease = pooled.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.BufferUsage(resource.resource));
-                resource.cachedHash = hashCode;
             }
         }
 
@@ -678,8 +679,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 ReleaseRecording(resource);
-                m_Pool.ReleaseBuffer(new BufferHandle(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
-                resource.cachedHash = -1;
+                m_Pool.ReleaseBuffer(new BufferHandle(resource.poolLease, resource.descriptor, resource.resource), reuseFence);
+                resource.poolLease = 0;
                 resource.resource = null;
             }
         }
@@ -692,15 +693,15 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!resource.imported)
             {
                 var desc = resource.descriptor;
-                int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence).texture;
+                TextureHandle pooled = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooled.texture;
+                resource.poolLease = pooled.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.TextureUsage(resource.resource));
-                resource.cachedHash = hashCode;
             }
         }
 
@@ -715,8 +716,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 ReleaseRecording(resource);
-                m_Pool.ReleaseTexture(new TextureHandle(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
-                resource.cachedHash = -1;
+                m_Pool.ReleaseTexture(new TextureHandle(resource.poolLease, resource.descriptor, resource.resource), reuseFence);
+                resource.poolLease = 0;
                 resource.resource = null;
             }
         }
@@ -734,7 +735,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 RGTexture texture = (RGTexture)m_Resources[(int)ERGResourceType.Texture][i];
                 if (!texture.imported && texture.resource != null)
                 {
-                    m_RetiredTextures.Add(new TextureHandle(texture.cachedHash, texture.descriptor, texture.resource));
+                    m_RetiredTextures.Add(new TextureHandle(texture.poolLease, texture.descriptor, texture.resource));
                     texture.resource = null;
                 }
             }
@@ -743,7 +744,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 RGBuffer buffer = (RGBuffer)m_Resources[(int)ERGResourceType.Buffer][i];
                 if (!buffer.imported && buffer.resource != null)
                 {
-                    m_RetiredBuffers.Add(new BufferHandle(buffer.cachedHash, buffer.descriptor, buffer.resource));
+                    m_RetiredBuffers.Add(new BufferHandle(buffer.poolLease, buffer.descriptor, buffer.resource));
                     buffer.resource = null;
                 }
             }

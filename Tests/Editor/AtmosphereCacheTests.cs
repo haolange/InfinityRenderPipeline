@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class AtmosphereCacheTests
     {
+        ResourcePool m_Pool;
         AtmosphereSharedCache m_Shared;
         AtmosphereViewCache m_View;
 
@@ -17,8 +18,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SetUp()
         {
             RTHandles.Initialize(64, 64);
-            m_Shared = new AtmosphereSharedCache();
-            m_View = new AtmosphereViewCache();
+            m_Pool = new ResourcePool();
+            m_Shared = new AtmosphereSharedCache(m_Pool);
+            m_View = new AtmosphereViewCache(m_Pool);
         }
 
         [TearDown]
@@ -28,6 +30,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View?.Dispose();
             m_Shared = null;
             m_View = null;
+            m_Pool?.Dispose();
+            m_Pool = null;
         }
 
         [Test]
@@ -70,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var descriptor = MakeLut(8, 8, "CameraHistory");
                 for (int i = 0; i < 2; i++)
                 {
-                    var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess };
+                    var state = new CameraFrameState(90 + i, m_Pool) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess };
                     states.Add(i, state);
                     state.historyCache.GetTexture(123, descriptor);
                     state.historyCache.GetWriteTexture(123, descriptor);
@@ -104,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
-            var inactive = new CameraFrameState(92) { lastSeenFrame = 50, preparedThisRender = false };
+            var inactive = new CameraFrameState(92, m_Pool) { lastSeenFrame = 50, preparedThisRender = false };
             try
             {
                 var states = new Dictionary<int, CameraFrameState> { { 92, inactive } };

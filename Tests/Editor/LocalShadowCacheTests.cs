@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -11,13 +12,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [SetUp]
         public void SetUp()
         {
-            m_Cache = new LocalShadowCache();
+            m_Pool = new ResourcePool();
+            m_Cache = new LocalShadowCache(m_Pool);
             // 2 x 1 slots of 512.
             m_Cache.Configure(1024, 512, 512);
         }
 
         [TearDown]
-        public void TearDown() => m_Cache.Dispose();
+        public void TearDown()
+        {
+            m_Cache.Dispose();
+            m_Pool.Dispose();
+        }
 
         static readonly ShadowCacheKey A = new ShadowCacheKey(1, 0);
         static readonly ShadowCacheKey B = new ShadowCacheKey(2, 0);

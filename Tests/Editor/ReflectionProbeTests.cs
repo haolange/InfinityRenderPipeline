@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -54,7 +55,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void TakeUploads_ReusesTheArray_AndMarksProduced()
         {
-            var atlas = new ReflectionProbeAtlas();
+            var pool = new ResourcePool();
+            var atlas = new ReflectionProbeAtlas(pool);
             Cubemap cube = CreateCube();
             try
             {
@@ -84,6 +86,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
                 UnityEngine.Object.DestroyImmediate(cube);
             }
         }
@@ -91,7 +94,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Atlas_FiltersOnce_RefiltersOnChange_RollsBackOnFailure()
         {
-            var atlas = new ReflectionProbeAtlas();
+            var pool = new ResourcePool();
+            var atlas = new ReflectionProbeAtlas(pool);
             Cubemap cube = CreateCube();
             try
             {
@@ -128,6 +132,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
                 UnityEngine.Object.DestroyImmediate(cube);
             }
         }
@@ -135,7 +140,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Atlas_RealtimeProbe_FiltersOncePerFrameAcrossCameras()
         {
-            var atlas = new ReflectionProbeAtlas();
+            var pool = new ResourcePool();
+            var atlas = new ReflectionProbeAtlas(pool);
             Cubemap cube = CreateCube();
             try
             {
@@ -154,6 +160,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
                 UnityEngine.Object.DestroyImmediate(cube);
             }
         }
@@ -161,7 +168,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Atlas_EvictsLeastRecentlyUsed_NeverThisFrame()
         {
-            var atlas = new ReflectionProbeAtlas();
+            var pool = new ResourcePool();
+            var atlas = new ReflectionProbeAtlas(pool);
             Cubemap cube = CreateCube();
             try
             {
@@ -191,6 +199,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
                 UnityEngine.Object.DestroyImmediate(cube);
             }
         }
@@ -198,7 +207,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Atlas_DisabledOrReconfigured()
         {
-            var atlas = new ReflectionProbeAtlas();
+            var pool = new ResourcePool();
+            var atlas = new ReflectionProbeAtlas(pool);
             try
             {
                 atlas.Configure(0, 8);
@@ -217,6 +227,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
             }
         }
     }

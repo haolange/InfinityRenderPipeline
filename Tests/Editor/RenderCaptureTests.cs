@@ -112,7 +112,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
-            var state = new CameraFrameState(43);
+            var historyPool = new ResourcePool();
+            var state = new CameraFrameState(43, historyPool);
             var commands = new CommandBuffer();
             RenderCaptureSession session = null;
             try
@@ -155,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 AsyncGPUReadback.WaitAllRequests();
                 session?.AfterSubmit();
                 session?.Cancel();
-                commands.Dispose(); state.Dispose();
+                commands.Dispose(); state.Dispose(); historyPool.Dispose();
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
@@ -185,7 +186,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
-            var state = new CameraFrameState(43);
+            var historyPool = new ResourcePool();
+            var state = new CameraFrameState(43, historyPool);
             var commands = new CommandBuffer();
             RenderCaptureSession session = null;
             try
@@ -234,7 +236,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 AsyncGPUReadback.WaitAllRequests();
                 session?.AfterSubmit();
                 session?.Cancel();
-                commands.Dispose(); state.Dispose();
+                commands.Dispose(); state.Dispose(); historyPool.Dispose();
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
@@ -262,7 +264,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
-            var state = new CameraFrameState(43);
+            var historyPool = new ResourcePool();
+            var state = new CameraFrameState(43, historyPool);
             var commands = new CommandBuffer();
             RenderCaptureSession session = null;
             try
@@ -292,7 +295,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 AsyncGPUReadback.WaitAllRequests();
                 session?.AfterSubmit();
                 session?.Cancel();
-                commands.Dispose(); state.Dispose();
+                commands.Dispose(); state.Dispose(); historyPool.Dispose();
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
                 UnityEngine.Object.DestroyImmediate(cameraObject);
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);

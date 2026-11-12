@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -16,11 +17,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (ownsInitialization)
                 manager.Initialize(null, null);
             GameObject go = new GameObject("TAATestCamera");
+            var pool = new ResourcePool();
             CameraFrameState frameState = null;
             try
             {
                 Camera camera = go.AddComponent<Camera>();
-                frameState = new CameraFrameState(7);
+                frameState = new CameraFrameState(7, pool);
                 frameState.cameraUniform.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
 
                 Assert.IsTrue(frameState.cameraUniform.historyReset);
@@ -32,6 +34,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 frameState?.Dispose();
+                pool.Dispose();
                 Object.DestroyImmediate(go);
                 if (ownsInitialization)
                     manager.Deinitialize();

@@ -63,6 +63,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void StaleHandle_IsRejectedAfterTheAllocationIsAcquiredAgain()
+        {
+            var pool = new ResourcePool();
+            var descriptor = new BufferDescriptor(8, 4);
+            var first = pool.GetBuffer(descriptor);
+            pool.ReleaseBuffer(first);
+            var second = pool.GetBuffer(descriptor);
+            try
+            {
+                Assert.AreSame(first.buffer, second.buffer, "An idle allocation is acquired again.");
+                var failure = Assert.Throws<System.InvalidOperationException>(() => pool.ReleaseBuffer(first));
+                StringAssert.Contains("earlier acquisition", failure.Message);
+                Assert.IsFalse(pool.BufferUsage(second.buffer).returned, "A rejected stale return leaves the current owner's lease intact.");
+            }
+            finally { pool.ReleaseBuffer(second); pool.Dispose(); }
+        }
+
+        [Test]
         public void PoolDisposal_DoesNotDestroyAnUnsubmittedRecordedBuffer()
         {
             var pool = new ResourcePool();

@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.LightPipeline
         long m_NextProduction;
         public long NextProduction() => ++m_NextProduction;
 
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         readonly Dictionary<ShadowCacheKey, Entry> m_Entries = new Dictionary<ShadowCacheKey, Entry>();
         readonly List<ShadowCacheKey> m_Scratch = new List<ShadowCacheKey>();
         readonly Stack<int> m_FreeSlots = new Stack<int>();
@@ -431,10 +431,14 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
 
+        public LocalShadowCache(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
+
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
             m_Entries.Clear();
         }
     }

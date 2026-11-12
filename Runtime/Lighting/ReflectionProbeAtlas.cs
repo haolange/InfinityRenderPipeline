@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.LightPipeline
             public int pendingFrame;
         }
 
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         readonly Dictionary<ProbeCubeKey, Entry> m_Entries = new Dictionary<ProbeCubeKey, Entry>();
         readonly List<ProbeCubeKey> m_Scratch = new List<ProbeCubeKey>();
         readonly Stack<int> m_FreeSlots = new Stack<int>();
@@ -399,10 +399,14 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
 
+        public ReflectionProbeAtlas(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
+
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
             m_Entries.Clear();
         }
     }

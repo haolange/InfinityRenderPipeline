@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_CompletedUses.Clear();
             foreach (var usage in m_PendingUses)
             {
-                usage.Submitted(epoch, completion, SystemInfo.supportsGraphicsFence, joinedTail);
+                usage.Submitted(epoch, completion, joinedTail);
                 if (!usage.pending)
                 {
                     m_CompletedUses.Add(usage);
@@ -153,18 +153,17 @@ namespace InfinityTech.Rendering.GPUResource
                 EnsureRecording();
             }
             ComputeBuffer buffer;
-            int handle = descriptor.GetHashCode();
 
-            if (!buffers.Pull(handle, descriptor, commandUse, asyncCompute, m_RecordingEpoch, out buffer, out reuseFence))
+            if (!buffers.Pull(descriptor.GetHashCode(), descriptor, commandUse, asyncCompute, m_RecordingEpoch, out buffer, out reuseFence))
             {
                 buffer = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
                 buffer.name = descriptor.name;
                 buffers.RecordAllocation(descriptor);
                 m_BufferUses.Add(buffer, new ResourceUsage());
             }
-            m_BufferUses[buffer].returned = false;
-
-            return new BufferHandle(handle, descriptor, buffer);
+            ResourceUsage acquired = m_BufferUses[buffer];
+            acquired.returned = false;
+            return new BufferHandle(++acquired.lease, descriptor, buffer);
         }
 
         public void ReleaseBuffer(in BufferHandle bufferHandle) => ReleaseBuffer(bufferHandle, default);
@@ -172,13 +171,13 @@ namespace InfinityTech.Rendering.GPUResource
         internal void ReleaseBuffer(in BufferHandle bufferHandle, ResourceReuseFence reuseFence)
         {
             var usage = BufferUsage(bufferHandle.buffer) ?? throw new InvalidOperationException("Cannot return a buffer owned by another pool.");
-            if (usage.returned)
+            if (usage.returned || usage.lease != bufferHandle.lease)
             {
-                throw new InvalidOperationException("Buffer returned twice.");
+                throw new InvalidOperationException(usage.returned ? "Buffer returned twice." : "Buffer returned through a handle of an earlier acquisition.");
             }
             usage.SetTail(reuseFence);
             usage.returned = true;
-            buffers.Push(bufferHandle.handle, bufferHandle.descriptor, bufferHandle.buffer, usage);
+            buffers.Push(bufferHandle.descriptor.GetHashCode(), bufferHandle.descriptor, bufferHandle.buffer, usage);
         }
 
         public TextureHandle GetTexture(in TextureDescriptor descriptor)
@@ -196,9 +195,8 @@ namespace InfinityTech.Rendering.GPUResource
             }
             RTHandle texture;
             var physical = descriptor.PhysicalDescriptor();
-            int handle = physical.GetHashCode();
 
-            if (!textures.Pull(handle, physical, commandUse, asyncCompute, m_RecordingEpoch, out texture, out reuseFence))
+            if (!textures.Pull(physical.GetHashCode(), physical, commandUse, asyncCompute, m_RecordingEpoch, out texture, out reuseFence))
             {
                 texture = RTHandles.Alloc(descriptor.physicalWidth, descriptor.physicalHeight, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                           descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, descriptor.memoryless, VRTextureUsage.None, descriptor.name);
@@ -207,9 +205,9 @@ namespace InfinityTech.Rendering.GPUResource
                 m_TextureUses.Add(texture, usage);
                 m_TexturePhysicalUses.Add(texture.rt, usage);
             }
-            m_TextureUses[texture].returned = false;
-
-            return new TextureHandle(handle, descriptor, texture);
+            ResourceUsage acquired = m_TextureUses[texture];
+            acquired.returned = false;
+            return new TextureHandle(++acquired.lease, descriptor, texture);
         }
 
         public void ReleaseTexture(in TextureHandle textureHandle) => ReleaseTexture(textureHandle, default);
@@ -217,9 +215,9 @@ namespace InfinityTech.Rendering.GPUResource
         internal void ReleaseTexture(in TextureHandle textureHandle, ResourceReuseFence reuseFence)
         {
             var usage = TextureUsage(textureHandle.texture) ?? throw new InvalidOperationException("Cannot return a texture owned by another pool.");
-            if (usage.returned)
+            if (usage.returned || usage.lease != textureHandle.lease)
             {
-                throw new InvalidOperationException("Texture returned twice.");
+                throw new InvalidOperationException(usage.returned ? "Texture returned twice." : "Texture returned through a handle of an earlier acquisition.");
             }
             usage.SetTail(reuseFence);
             usage.returned = true;

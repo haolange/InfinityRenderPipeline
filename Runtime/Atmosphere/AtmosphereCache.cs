@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal sealed class AtmosphereSharedCache : IDisposable
     {
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         AtmosphereParameter m_SharedKey;
         AtmosphereParameter m_PendingSharedKey;
         AtmosphereIBLKey m_IBLKey;
@@ -17,6 +17,11 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_HasIBL;
         bool m_SharedProducedThisFrame;
         bool m_IBLProducedThisFrame;
+
+        public AtmosphereSharedCache(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
 
         public int RetiredQueuedCount => m_History.RetiredQueuedCount;
 
@@ -160,18 +165,22 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
         }
     }
 
     internal sealed class AtmosphereViewCache : IDisposable
     {
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         AtmosphereViewKey m_Key;
         AtmosphereViewKey m_PendingKey;
         bool m_HasKey;
         bool m_ProducedThisFrame;
+
+        public AtmosphereViewCache(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
 
         public int RetiredQueuedCount => m_History.RetiredQueuedCount;
 
@@ -245,8 +254,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
         }
     }
 }

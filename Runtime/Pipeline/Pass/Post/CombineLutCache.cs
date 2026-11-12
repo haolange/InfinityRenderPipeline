@@ -5,11 +5,16 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal sealed class CombineLutCache : IDisposable
     {
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         CombineLutParameterDescriptor m_Key;
         CombineLutParameterDescriptor m_PendingKey;
         bool m_HasKey;
         bool m_ProducedThisFrame;
+
+        public CombineLutCache(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
 
         public int RetiredQueuedCount => m_History.RetiredQueuedCount;
 
@@ -69,8 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose();
         }
     }
 }

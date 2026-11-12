@@ -51,15 +51,15 @@ namespace InfinityTech.Rendering.Pipeline
             return newlyCreated || (cameraType != CameraType.SceneView && frameCount - lastSeenFrame > 1);
         }
 
-        public CameraFrameState(int cameraId)
+        public CameraFrameState(int cameraId, ResourcePool pool)
         {
             this.cameraId = cameraId;
             cameraUniform = new CameraUniform();
             volumeStack = VolumeManager.instance.CreateStack();
-            historyCache = new HistoryCache();
+            historyCache = new HistoryCache(pool);
             features = new FrameFeatureSet();
-            atmosphereViewCache = new AtmosphereViewCache();
-            combineLutCache = new CombineLutCache();
+            atmosphereViewCache = new AtmosphereViewCache(pool);
+            combineLutCache = new CombineLutCache(pool);
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
@@ -118,8 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (historyCache != null)
             {
-                historyCache.Release();
-                historyCache.ForceFlushForTeardown();
+                historyCache.Dispose();
                 historyCache = null;
             }
 

@@ -26,6 +26,7 @@ Checks
   layering         lower runtime layers never name an upper layer's namespace (dependencies point down)
   staticid         setup-time IDs, tags, keywords and samplers are static readonly, never mutable statics
   hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
+  physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -656,6 +657,22 @@ def check_hot_path_lookups(repo, out):
                 out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: Shader.PropertyToID outside a static readonly initializer'))
 
 
+PHYSICAL_ALLOC = re.compile(r'RTHandles\.Alloc\(|new\s+ComputeBuffer\(|new\s+GraphicsBuffer\(|new\s+RenderTexture\(|RenderTexture\.GetTemporary\(')
+
+def check_physical_alloc(repo, out):
+    for top in ('Runtime/GPUResource', 'Runtime/RenderGraph'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            if rel == 'Runtime/GPUResource/ResourcePool.cs':
+                continue
+            text = without_comments(read(p))
+            for m in PHYSICAL_ALLOC.finditer(text):
+                # Wrapping an existing render target (identifier plus name) allocates nothing.
+                if m.group(0) == 'RTHandles.Alloc(' and re.match(r'\s*\w+\s*,\s*"[^"]*"\s*\)', text[m.end():]):
+                    continue
+                out.append(('ERROR', 'physicalalloc', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: {m.group(0)} allocates outside ResourcePool'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -684,7 +701,7 @@ def main():
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
-                     ('hotpathlookup', check_hot_path_lookups)):
+                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

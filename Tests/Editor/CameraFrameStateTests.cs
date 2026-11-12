@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -134,10 +135,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var manager = VolumeManager.instance;
             bool initialize = !manager.isInitialized;
             if (initialize) manager.Initialize(null, null);
+            var pool = new ResourcePool();
             CameraFrameState state = null;
             try
             {
-                state = new CameraFrameState(73);
+                state = new CameraFrameState(73, pool);
                 state.features.MarkProduced(EFrameFeature.SSR);
                 state.features.MarkProduced(EFrameFeature.SSGI);
                 state.features.MarkProduced(EFrameFeature.GTAO);
@@ -154,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 state.CommitFrame();
                 Assert.IsFalse(state.acceptedSSR || state.acceptedSSGI || state.acceptedGTAO, "A successfully rendered disabled frame breaks effect-history continuity.");
             }
-            finally { state?.Dispose(); if (initialize) manager.Deinitialize(); }
+            finally { state?.Dispose(); pool.Dispose(); if (initialize) manager.Deinitialize(); }
         }
 
         [Test]
@@ -165,10 +167,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (ownsInitialization)
                 manager.Initialize(null, null);
             var existingStack = manager.stack;
+            var pool = new ResourcePool();
             CameraFrameState frameState = null;
             try
             {
-                frameState = new CameraFrameState(42);
+                frameState = new CameraFrameState(42, pool);
                 Assert.AreEqual(42, frameState.cameraId);
                 Assert.IsNotNull(frameState.volumeStack);
                 Assert.IsNotNull(frameState.historyCache);
@@ -187,6 +190,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 frameState?.Dispose();
+                pool.Dispose();
                 if (ownsInitialization)
                     manager.Deinitialize();
             }

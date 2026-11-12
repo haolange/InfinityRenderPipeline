@@ -1,12 +1,14 @@
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class LightCookieTransactionTests
     {
         Texture2D m_Texture;
+        ResourcePool m_Pool;
         LightCookieAtlas m_Atlas;
         const ulong TextureId = 17;
         static CookieKey Key => new CookieKey(TextureId, ECookieLayout.Projected);
@@ -15,7 +17,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SetUp()
         {
             m_Texture = new Texture2D(16, 16, TextureFormat.RGBA32, false, true);
-            m_Atlas = new LightCookieAtlas();
+            m_Pool = new ResourcePool();
+            m_Atlas = new LightCookieAtlas(m_Pool);
             m_Atlas.Configure(64, 16);
             m_Atlas.BeginFrame();
         }
@@ -24,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void TearDown()
         {
             try { m_Atlas.Dispose(); }
-            finally { Object.DestroyImmediate(m_Texture); }
+            finally { m_Pool.Dispose(); Object.DestroyImmediate(m_Texture); }
         }
 
         Vector4 Acquire(uint version, int frame = 1)

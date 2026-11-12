@@ -199,15 +199,17 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct BufferHandle
+    // One acquisition of a pooled buffer. lease is the acquisition generation; returning a handle from an older
+    // acquisition of the same buffer is rejected.
+    public readonly struct BufferHandle
     {
-        internal int handle;
-        internal BufferDescriptor descriptor;
-        public ComputeBuffer buffer;
+        internal readonly int lease;
+        internal readonly BufferDescriptor descriptor;
+        public readonly ComputeBuffer buffer;
 
-        public BufferHandle(in int handle, in BufferDescriptor descriptor, ComputeBuffer buffer)
+        internal BufferHandle(int lease, in BufferDescriptor descriptor, ComputeBuffer buffer)
         {
-            this.handle = handle;
+            this.lease = lease;
             this.descriptor = descriptor;
             this.buffer = buffer;
         }
@@ -215,15 +217,16 @@ namespace InfinityTech.Rendering.GPUResource
         public static implicit operator ComputeBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
     }
 
-    public struct TextureHandle
+    // One acquisition of a pooled texture; lease works as for BufferHandle.
+    public readonly struct TextureHandle
     {
-        internal int handle;
-        internal TextureDescriptor descriptor;
-        public RTHandle texture;
+        internal readonly int lease;
+        internal readonly TextureDescriptor descriptor;
+        public readonly RTHandle texture;
 
-        internal TextureHandle(in int handle, in TextureDescriptor descriptor, RTHandle texture)
+        internal TextureHandle(int lease, in TextureDescriptor descriptor, RTHandle texture)
         {
-            this.handle = handle;
+            this.lease = lease;
             this.descriptor = descriptor;
             this.texture = texture;
         }
