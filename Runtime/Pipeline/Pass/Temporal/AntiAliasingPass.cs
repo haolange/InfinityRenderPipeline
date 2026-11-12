@@ -33,12 +33,6 @@ namespace InfinityTech.Rendering.Pipeline
             => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R32_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
 
-        internal static Vector2 ProjectionJitterUV(Matrix4x4 jittered, Matrix4x4 unjittered)
-        {
-            Vector4 point = new Vector4(0, 0, -1, 1);
-            Vector4 a = jittered * point, b = unjittered * point;
-            return new Vector2(a.x / a.w - b.x / b.w, a.y / a.w - b.y / b.w) * 0.5f;
-        }
         void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
@@ -83,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.kernel = shader.FindKernel(diagnostics ? "MainDebug" : "Main");
                 data.resolution = new Vector4(width, height, 1f / width, 1f / height);
                 data.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector2 currentJitter = ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
+                Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
                 data.jitter = new Vector4(currentJitter.x, currentJitter.y, uniform.previousJitterUV.x, uniform.previousJitterUV.y);
                 data.historyValid = !uniform.historyReset && !colorCreated && !depthCreated
                     && history.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0

@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.MeshPipeline
@@ -270,10 +269,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 NativeArray<uint> meta = cache.GetCommandMeta();
                 NativeArray<int> order = cache.GetCommandOrder();
                 m_Properties.Clear();
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceFade, payload.instanceFade.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, payload.instanceFade.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 NativeArray<MeshDrawCommand> records = cache.commands;
                 bool anyFading = false;
@@ -317,7 +316,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 cache.ReportMissing(command);
                 return;
             }
-            m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, (int)meta[command * MeshPassCache.MetaStride + 3 + range]);
+            m_Properties.SetInt(MeshShaderIDs.InstanceOffset, (int)meta[command * MeshPassCache.MetaStride + 3 + range]);
             commands.DrawMeshInstancedIndirect(binding.mesh, binding.submesh, binding.material, binding.passIndex,
                 payload.indirectArgs.buffer, (command * 2 + range) * k_ArgsStride * sizeof(uint), m_Properties);
         }

@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.Pipeline
                 // No previous camera sample exists after a reset. Seed the upload without
                 // committing last-camera state; successful frame completion still owns that.
                 lastJitter = jitter; lastFrameIndex = frameIndex;
-                previousJitterUV = InfinityRenderPipeline.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+                previousJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
                 matrix_LastViewProj = matrix_ViewProj;
                 matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
                 matrix_LastViewJitterProj = matrix_ViewJitterProj;
@@ -176,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_LastCameraPosition = m_PreparedPosition;
             m_LastCameraRotation = m_PreparedRotation;
             m_LastProjection = m_PreparedProjection;
-            previousJitterUV = InfinityRenderPipeline.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+            previousJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
             m_CommittedFrames++;
             m_HasLastView = true;
         }

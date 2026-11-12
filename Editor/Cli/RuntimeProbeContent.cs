@@ -3,6 +3,7 @@ using UnityEngine;
 using InfinityTech.Component;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {

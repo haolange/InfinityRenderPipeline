@@ -275,7 +275,6 @@ MESH_SHADERS = ('Shaders/Library/GPUScene.hlsl',
                 'Shaders/Library/MeshLOD.hlsl',
                 'Shaders/Mesh/Compute_MeshDrawPipeline.compute',
                 'Shaders/Mesh/MeshOcclusion.hlsl')
-MESH_ID_SOURCES = ('Runtime/Pipeline/PipelineIDs.cs',)
 HLSL_GLOBAL = re.compile(r'^(?:RW)?(?:StructuredBuffer|Texture2D)<[^>]+>\s+([\w\s,]+);|^(?:uint|int|float|float2|float3|float4|float4x4)\s+([\w\s,\[\]0-9]+);', re.M)
 PROPERTY_ID = re.compile(r'PropertyToID\("(\w+)"\)')
 
@@ -302,12 +301,6 @@ def check_mesh_bindings(repo, out):
         runtime_ids |= ids
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel.startswith(MESH_DIR): mesh_ids |= ids
-    for rel in MESH_ID_SOURCES:
-        path = os.path.join(repo, rel)
-        if os.path.exists(path):
-            text = without_comments(read(path))
-            section = text[text.find('Mesh entity interface'):] if 'Mesh entity interface' in text else ''
-            mesh_ids |= set(PROPERTY_ID.findall(section[:section.find('\n\n')] if section else ''))
     for name in sorted(shader_names - runtime_ids):
         out.append(('ERROR', 'meshbindings', f'mesh shader global {name} has no C# PropertyToID binding'))
     for name in sorted(mesh_ids - shader_names):
@@ -612,7 +605,11 @@ LAYERS = {
     'Runtime/Core/': UPPER,
     'Runtime/GPUResource/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
     'Runtime/RenderGraph/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere'),
+    'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
 }
+# The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
+for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList'):
+    LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
 
 
 def check_layering(repo, out):

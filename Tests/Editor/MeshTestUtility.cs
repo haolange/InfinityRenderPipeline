@@ -10,6 +10,7 @@ using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.RenderGraph;
 using Object = UnityEngine.Object;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
 {

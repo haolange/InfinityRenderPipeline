@@ -7,6 +7,7 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Unity.Pipeline.Commands;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {

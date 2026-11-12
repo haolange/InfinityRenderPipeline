@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Component;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {

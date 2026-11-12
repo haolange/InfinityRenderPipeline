@@ -7,6 +7,7 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Component;
 using InfinityTech.Rendering.Editor;
 using InfinityTech.Rendering.Volume;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
@@ -100,7 +101,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             material.SetFloat("_Roughness", 1.0f);
             material.SetFloat("_SpecularLevel", 0.0f);
             material.SetColor("_EmissionColor", emission);
-            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(material);
+            MaterialRouteUtility.ApplyPassState(material);
             AssetDatabase.CreateAsset(material, assetPath);
             return material;
         }

@@ -8,7 +8,6 @@ using UnityEngine;
 using UnityEngine.Jobs;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {

@@ -7,6 +7,7 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Component;
 using InfinityTech.Rendering.Editor;
 using InfinityTech.Rendering.Volume;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
@@ -60,7 +61,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             groundMaterial.SetColor("_BaseColor", new Color(0.65f, 0.65f, 0.62f, 1.0f));
             groundMaterial.SetFloat("_Roughness", 0.45f);
             groundMaterial.SetFloat("_SpecularLevel", 0.4f);
-            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(groundMaterial);
+            MaterialRouteUtility.ApplyPassState(groundMaterial);
             AssetDatabase.CreateAsset(groundMaterial, groundMatPath);
 
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);

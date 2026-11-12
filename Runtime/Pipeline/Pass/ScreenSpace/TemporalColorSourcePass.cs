@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.autoGenerateMips = false;
             descriptor.filterMode = FilterMode.Bilinear;
             var mips = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
-            Vector2 currentJitter = ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
+            Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
             var source = new TemporalColorView
             {
                 color = m_RGBuilder.ImportTexture(color), depth = m_RGBuilder.ImportTexture(depth), mips = mips,

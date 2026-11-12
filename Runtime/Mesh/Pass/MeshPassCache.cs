@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {

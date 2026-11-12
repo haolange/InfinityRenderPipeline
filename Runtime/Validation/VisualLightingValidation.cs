@@ -6,6 +6,7 @@ using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {

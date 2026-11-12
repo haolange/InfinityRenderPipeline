@@ -5,6 +5,7 @@ using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Component
 {
@@ -90,6 +91,11 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             uint epoch = ++m_RegistrationEpoch;
+            if (!s_RoutingSubscribed)
+            {
+                MaterialRouteUtility.routingChanged += InvalidateMaterialRouting;
+                s_RoutingSubscribed = true;
+            }
             s_Registered.Add(this);
             RefreshGeometryReference();
             RenderTaskQueue.RegisterMesh(this, epoch);

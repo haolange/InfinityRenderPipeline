@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -74,10 +73,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_Properties.Clear();
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, instances.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceFade, fades.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, instances.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, fades.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 foreach (MeshDrawCall draw in build.draws)
                 {
@@ -92,7 +91,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         dithering = draw.fading;
                         commands.SetKeyword(s_LodDither, dithering);
                     }
-                    m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, draw.instanceOffset);
+                    m_Properties.SetInt(MeshShaderIDs.InstanceOffset, draw.instanceOffset);
                     commands.DrawMeshInstancedProcedural(binding.mesh, binding.submesh, binding.material, binding.passIndex, draw.instanceCount, m_Properties);
                 }
             }

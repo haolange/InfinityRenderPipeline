@@ -58,11 +58,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             properties.SetBuffer(s_PreviousGeneration, source.generations.buffer);
             properties.SetBuffer(s_PreviousMatrices, source.matrices.buffer);
         }
-        static readonly int s_Valid = InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousEntityValid;
-        static readonly int s_Count = InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousEntityCount;
-        static readonly int s_CurrentGeneration = InfinityTech.Rendering.Pipeline.InfinityShaderIDs.EntityGenerations;
-        static readonly int s_PreviousGeneration = InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousEntityGenerations;
-        static readonly int s_PreviousMatrices = InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousEntityTransforms;
+        static readonly int s_Valid = MeshShaderIDs.PreviousEntityValid;
+        static readonly int s_Count = MeshShaderIDs.PreviousEntityCount;
+        static readonly int s_CurrentGeneration = MeshShaderIDs.EntityGenerations;
+        static readonly int s_PreviousGeneration = MeshShaderIDs.PreviousEntityGenerations;
+        static readonly int s_PreviousMatrices = MeshShaderIDs.PreviousEntityTransforms;
     }
 
     // The world owns immutable matrix/generation tables per entity slot; views retain version references only.
