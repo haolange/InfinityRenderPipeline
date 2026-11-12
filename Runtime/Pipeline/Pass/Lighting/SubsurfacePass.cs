@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeBurleySubsurface(in CameraRecordContext context)
         {
-            if (!context.state.subsurfaceEnabled)
+            if (!context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
             {
                 return;
             }

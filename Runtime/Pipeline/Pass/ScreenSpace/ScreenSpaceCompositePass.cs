@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.resolution = new int2(width, height);
                 passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
-                passData.hasSubsurface = context.state.subsurfaceEnabled;
+                passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                 if (passData.hasSubsurface && hasSSGI)
                 {
                     passData.scatterDiffuse = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);

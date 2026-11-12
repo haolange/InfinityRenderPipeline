@@ -82,7 +82,7 @@ namespace InfinityTech.Component.Editor
             EditorGUILayout.PropertyField(custom, new GUIContent("Custom Frame Settings", "Override single settings of the RP Asset's camera Frame Settings."));
             if (custom.boolValue || custom.hasMultipleDifferentValues)
             {
-                FrameSettings baseline = GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset asset ? asset.ResolveSettings().defaultFrameSettings : FrameSettings.AllEnabled;
+                FrameSettings baseline = GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset asset ? asset.ReadDefaultFrameSettings() : FrameSettings.AllEnabled;
                 InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawOverrides(m_Additional.FindProperty("frameSettings"), baseline);
             }
 

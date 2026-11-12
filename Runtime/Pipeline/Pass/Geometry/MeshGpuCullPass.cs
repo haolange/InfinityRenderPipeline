@@ -39,13 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             m_RGBuilder.RequestMeshGPUCulling(mainView);
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            if (allocator == null)
-            {
-                return;
-            }
-
             int cascadeLight = allocator.CascadeVisibleLightIndex;
-            if (cascadeLight >= 0 && cascadeLight < context.cullingResults.visibleLights.Length)
+            if (cascadeLight >= 0)
             {
                 Light shadowLight = context.cullingResults.visibleLights[cascadeLight].light;
                 for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
@@ -61,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
             {
                 LocalShadowSlice local = allocator.LocalSlices[sliceIndex];
-                if (local.cachedSampling || !local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= context.cullingResults.visibleLights.Length)
+                if (local.cachedSampling || !local.valid)
                     continue;
                 m_RGBuilder.RequestMeshGPUCulling(LocalShadowView(context, context.cullingResults.visibleLights[local.visibleLightIndex], local));
             }
@@ -120,14 +115,12 @@ namespace InfinityTech.Rendering.Pipeline
         RGMeshDrawListHandle[] CreateLocalMeshLists(in CameraRecordContext context)
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            int count = allocator == null ? 0 : allocator.LocalSliceCount;
+            int count = allocator.LocalSliceCount;
             var lists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(count < 1 ? 1 : count);
-            if (allocator == null)
-                return lists;
             for (int slice = 0; slice < count; ++slice)
             {
                 LocalShadowSlice local = allocator.LocalSlices[slice];
-                if (local.cachedSampling || !local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= context.cullingResults.visibleLights.Length)
+                if (local.cachedSampling || !local.valid)
                     continue;
                 lists[slice] = MakeMeshList(LocalShadowView(context, context.cullingResults.visibleLights[local.visibleLightIndex], local), InfinityPassIDs.RasterShadowPass);
             }

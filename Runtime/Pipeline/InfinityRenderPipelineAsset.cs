@@ -12,11 +12,7 @@ namespace InfinityTech.Rendering.Pipeline
     [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "pipeline-asset.md")]
     public sealed partial class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>, IProbeVolumeEnabledRenderPipeline
     {
-        public VolumeProfile qualityVolumeProfile
-        {
-            get => m_QualityVolumeProfile;
-            set => m_QualityVolumeProfile = value;
-        }
+        public VolumeProfile qualityVolumeProfile => m_QualityVolumeProfile;
 
         [SerializeField] bool updateProxy = true;
         [SerializeField] bool enableRayTrace = false;
@@ -25,13 +21,9 @@ namespace InfinityTech.Rendering.Pipeline
         [SerializeField] bool enableInstanceBatch = true;
         [SerializeField] EMeshDrawBackendPolicy meshBackendPolicy = EMeshDrawBackendPolicy.Auto;
 
+        // CameraDimensionDescriptor clamps it to [0.5, 1] for super-resolution cameras.
         [SerializeField, Range(0.5f, 1.0f)]
         float m_RenderScale = 1.0f;
-        public float renderScale
-        {
-            get => m_RenderScale;
-            set => m_RenderScale = Mathf.Clamp(value, 0.5f, 1.0f);
-        }
 
         [SerializeField]
         VolumeProfile m_QualityVolumeProfile;

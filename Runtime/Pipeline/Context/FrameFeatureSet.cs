@@ -121,7 +121,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        // TAA is a required producer only for temporal cameras that do not use super resolution.
+        // The required producers, plus the camera's temporal resolve when it has one.
         internal void EnsureRequiredProducers(ETemporalResolve temporalResolve)
         {
             foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)

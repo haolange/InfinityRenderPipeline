@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.GPUResource
     // Double-buffered history per id: one committed and one pending acquisition from the resource pool. A replaced or
     // discarded acquisition is retired and returned to the pool with the frame's reuse fence; the pool owns physical
     // lifetime, so history never allocates or destroys a resource itself.
-    public class HistoryCache : IFrameTransaction
+    internal class HistoryCache : IFrameTransaction
     {
         class TextureSlot
         {

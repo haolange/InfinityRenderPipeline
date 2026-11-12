@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Editor
             InfinityInspectorGUI.EndFoldout();
 
             InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            DiffusionProfile[] profiles = asset != null ? asset.ResolveSettings().diffusionProfiles : null;
+            DiffusionProfile[] profiles = asset != null ? asset.ReadDiffusionProfiles() : null;
             if (profiles != null)
             {
                 int index = System.Array.IndexOf(profiles, target);

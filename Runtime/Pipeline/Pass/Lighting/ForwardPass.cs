@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                if (context.state.subsurfaceEnabled)
+                if (context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
                 {
                     passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 }
@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref ForwardPassData passData = ref passRef.GetPassData();
                 {
-                    passData.hasSubsurface = context.state.subsurfaceEnabled;
+                    passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     ShadowInputs shadows = QueryShadowInputs();

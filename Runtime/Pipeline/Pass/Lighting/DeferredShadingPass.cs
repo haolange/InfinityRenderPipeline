@@ -91,9 +91,8 @@ namespace InfinityTech.Rendering.Pipeline
             indirectDescriptor.name = "IndirectSpecular";
             RGTextureHandle indirectSpecular = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectSpecularBuffer, indirectDescriptor);
 
-            context.state.subsurfaceEnabled = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
             RGTextureHandle scatterDiffuse = default;
-            if (context.state.subsurfaceEnabled)
+            if (context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
             {
                 indirectDescriptor.name = "ScatterDiffuse";
                 scatterDiffuse = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
@@ -106,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
-                passData.hasSubsurface = context.state.subsurfaceEnabled;
+                passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                 if (passData.hasSubsurface)
                 {
                     passData.scatterDiffuse = passRef.WriteTexture(scatterDiffuse);

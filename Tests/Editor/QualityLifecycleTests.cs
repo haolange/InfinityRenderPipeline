@@ -46,7 +46,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Material originalResourceBlit = testResources.materials.blitMaterial;
             Texture2D originalResourceBestFit = testResources.textures.bestFitNormalTexture;
             type.GetField("resources", flags).SetValue(pipeline, testResources);
-            type.GetField("m_PipelineAsset", flags).SetValue(pipeline, GraphicsSettings.currentRenderPipeline);
             var originalBlit = GraphicsUtility.s_BlitMaterial;
             var originalBestFit = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
             int originalAA = QualitySettings.antiAliasing;

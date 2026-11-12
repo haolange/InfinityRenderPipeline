@@ -172,7 +172,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal bool subsurfaceEnabled;
         internal int acceptedSSGIFrameIndex;
 
         internal void CommitFrame()

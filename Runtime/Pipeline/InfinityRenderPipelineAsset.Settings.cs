@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
                 enableSRPBatch = asset.enableSRPBatch;
                 enableInstanceBatch = asset.enableInstanceBatch;
                 meshBackendPolicy = asset.meshBackendPolicy;
-                renderScale = asset.renderScale;
+                renderScale = asset.m_RenderScale;
                 atmosphericalProfile = asset.atmosphericalProfile;
                 diffusionProfiles = asset.diffusionProfiles;
                 hasDiffusionProfiles = diffusionProfiles != null && System.Array.Exists(diffusionProfiles, profile => profile != null);
@@ -82,5 +82,10 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         internal Settings ResolveSettings() => new Settings(this);
+
+        // Editor inspectors read single serialized values without normalizing the whole asset, so an invalid shadow
+        // setting never breaks an unrelated inspector.
+        internal DiffusionProfile[] ReadDiffusionProfiles() => diffusionProfiles;
+        internal FrameSettings ReadDefaultFrameSettings() => defaultFrameSettings;
     }
 }
