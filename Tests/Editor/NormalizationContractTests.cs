@@ -130,12 +130,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void RayTracingEnvironment_ReportsBackendWithoutThrowing()
-        {
-            Assert.DoesNotThrow(() => InfinityRayTracingEnvironment.ResolveBackend());
-        }
-
-        [Test]
         public void GlobalSettings_Uses17_6SettingsThenPipelineTypeArguments()
         {
             Type generic = typeof(InfinityRenderPipelineGlobalSettings).BaseType;
