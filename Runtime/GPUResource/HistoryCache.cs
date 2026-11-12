@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
@@ -268,20 +266,26 @@ namespace InfinityTech.Rendering.GPUResource
         // recorded GPU uses complete.
         internal void FlushRetired(ResourceReuseFence fence)
         {
-            foreach (TextureHandle texture in m_RetiredTextures)
+            // An entry leaves the list before it is returned, so a failed return never repeats an earlier one.
+            for (int i = m_RetiredTextures.Count - 1; i >= 0; --i)
             {
+                TextureHandle texture = m_RetiredTextures[i];
+                m_RetiredTextures.RemoveAt(i);
                 m_Pool.ReleaseTexture(texture, fence);
             }
-            foreach (BufferHandle buffer in m_RetiredBuffers)
+            for (int i = m_RetiredBuffers.Count - 1; i >= 0; --i)
             {
+                BufferHandle buffer = m_RetiredBuffers[i];
+                m_RetiredBuffers.RemoveAt(i);
                 m_Pool.ReleaseBuffer(buffer, fence);
             }
-            m_RetiredTextures.Clear();
-            m_RetiredBuffers.Clear();
         }
 
-        // Retires every slot and returns all acquisitions to the pool; the owner disposes before the pool does.
-        public void Dispose()
+        public void Dispose() => Dispose(default);
+
+        // Retires every slot and returns all acquisitions to the pool with fence, which covers GPU use outside the
+        // graph's own tracking; the owner disposes before the pool does.
+        internal void Dispose(ResourceReuseFence fence)
         {
             foreach (TextureSlot slot in m_Textures.Values)
             {
@@ -295,7 +299,7 @@ namespace InfinityTech.Rendering.GPUResource
                 Retire(slot.pending);
             }
             m_Buffers.Clear();
-            FlushRetired(default);
+            FlushRetired(fence);
         }
 
         TextureSlot GetOrCreateTextureSlot(in int id)

@@ -252,9 +252,11 @@ namespace InfinityTech.Rendering.Pipeline
             m_History.FlushRetired(fence);
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(default);
+
+        internal void Dispose(ResourceReuseFence fence)
         {
-            m_History.Dispose();
+            m_History.Dispose(fence);
         }
     }
 }

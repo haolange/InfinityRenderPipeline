@@ -8,6 +8,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class LocalShadowCacheTests
     {
         LocalShadowCache m_Cache;
+        ResourcePool m_Pool;
 
         [SetUp]
         public void SetUp()

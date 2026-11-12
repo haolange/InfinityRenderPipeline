@@ -795,7 +795,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         FlushFrameRetirement(retiredReuseFence);
                         m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
-                        RecycleUnseenCameraStates(Time.frameCount);
+                        RecycleUnseenCameraStates(Time.frameCount, retiredReuseFence);
                     }
                 }
                 catch (Exception exception)
@@ -1219,7 +1219,7 @@ namespace InfinityTech.Rendering.Pipeline
             return frameState;
         }
 
-        void RecycleUnseenCameraStates(int frameCount)
+        void RecycleUnseenCameraStates(int frameCount, ResourceReuseFence reuseFence)
         {
             m_CameraStateRecycleIds.Clear();
             foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
@@ -1236,7 +1236,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
                 {
                     renderContext.meshWorld.ReleaseView(frameState.meshViewKey);
-                    frameState.Dispose();
+                    frameState.Dispose(reuseFence);
                     m_CameraStates.Remove(cameraId);
                 }
             }

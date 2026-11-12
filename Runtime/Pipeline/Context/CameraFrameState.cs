@@ -107,7 +107,10 @@ namespace InfinityTech.Rendering.Pipeline
             requiresHistoryReset = false;
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(default);
+
+        // fence covers the last frame's GPU use when a state is recycled right after its submission.
+        internal void Dispose(ResourceReuseFence fence)
         {
             meshMotionHistory.Clear();
             if (volumeStack != null)
@@ -118,19 +121,19 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (historyCache != null)
             {
-                historyCache.Dispose();
+                historyCache.Dispose(fence);
                 historyCache = null;
             }
 
             if (atmosphereViewCache != null)
             {
-                atmosphereViewCache.Dispose();
+                atmosphereViewCache.Dispose(fence);
                 atmosphereViewCache = null;
             }
 
             if (combineLutCache != null)
             {
-                combineLutCache.Dispose();
+                combineLutCache.Dispose(fence);
                 combineLutCache = null;
             }
         }

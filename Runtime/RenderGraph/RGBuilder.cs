@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly bool m_AsyncComputeSupported;
 
         public RGBuilder(string name, ResourcePool resourcePool = null)
-            : this(name, resourcePool, SystemInfo.supportsAsyncCompute && SystemInfo.supportsGraphicsFence) { }
+            : this(name, resourcePool, SystemInfo.supportsAsyncCompute) { }
 
         // The capability is frozen for this graph. Tests can compile both topologies
         // without submitting unsupported queue work on the host device.

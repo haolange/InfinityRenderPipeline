@@ -573,9 +573,9 @@ fresh real resize capture. Final rendering log from byte 14806752 has zero new r
 exceptions, shader errors, invalid kernels or assertions before restoration.
 
 Platform boundaries: Metal Editor and controlled RTs verified. D3D12, Vulkan,
-actual HDR display and hardware DispatchRays remain TODO(UNVERIFIED). Retention
-eviction requires supportsGraphicsFence; other backends retain entries until
-teardown and are not claimed to satisfy the bounded-retention runtime gate.
+actual HDR display and hardware DispatchRays remain TODO(UNVERIFIED). The pipeline
+requires graphics fences at construction, so retention eviction runs on every
+supported backend.
 Existing independent Player RTAO shader loading remains out of scope. The current
 normal-frame fixture has no new claim of exhaustive optional-feature, multi-camera
 compositing or all-platform image equivalence.
