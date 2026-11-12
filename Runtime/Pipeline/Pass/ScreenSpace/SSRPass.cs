@@ -85,9 +85,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static TextureDescriptor CreateDescriptor(int width, int height, string name, GraphicsFormat format, FilterMode filter, int divisor = 1)
         {
-            TextureDescriptor descriptor = ScreenSpaceHistoryUtility.CreateFilterDescriptor(width, height, name, format, true);
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, width, height, format, ETextureSizingDomain.Internal, divisor);
             descriptor.filterMode = filter;
-            descriptor.viewDivisor = divisor;
             return descriptor;
         }
     }

@@ -75,15 +75,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateVolumetricFogDescriptor(int width, int height, int depthSlices, string name, bool randomWrite)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal, 8);
-            descriptor.name = name;
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, width, height, GraphicsFormat.R16G16B16A16_SFloat, ETextureSizingDomain.Internal, 8);
             descriptor.dimension = TextureDimension.Tex3D;
             descriptor.slices = depthSlices;
-            descriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            descriptor.depthBufferBits = EDepthBits.None;
             descriptor.enableRandomWrite = randomWrite;
             descriptor.filterMode = FilterMode.Trilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
             return descriptor;
         }
 

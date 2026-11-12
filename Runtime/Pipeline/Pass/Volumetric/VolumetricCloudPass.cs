@@ -74,14 +74,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateVolumetricCloudDescriptor(int width, int height, string name, bool randomWrite)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal, 2);
-            descriptor.name = name;
-            descriptor.dimension = TextureDimension.Tex2D;
-            descriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            descriptor.depthBufferBits = EDepthBits.None;
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, width, height, GraphicsFormat.R16G16B16A16_SFloat, ETextureSizingDomain.Internal, 2);
             descriptor.enableRandomWrite = randomWrite;
-            descriptor.filterMode = FilterMode.Bilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
             return descriptor;
         }
 

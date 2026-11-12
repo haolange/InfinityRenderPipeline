@@ -36,7 +36,6 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferADsc.name = DBufferPassUtilityData.DBufferAName;
                 dBufferADsc.dimension = TextureDimension.Tex2D;
                 dBufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_SRGB;
-                dBufferADsc.depthBufferBits = EDepthBits.None;
                 dBufferADsc.clearColor = Color.clear;
             }
             RGTextureHandle dBufferA = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
@@ -46,7 +45,6 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferBDsc.name = DBufferPassUtilityData.DBufferBName;
                 dBufferBDsc.dimension = TextureDimension.Tex2D;
                 dBufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                dBufferBDsc.depthBufferBits = EDepthBits.None;
                 dBufferBDsc.clearColor = Color.clear;
             }
             RGTextureHandle dBufferB = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
@@ -56,7 +54,6 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferCDsc.name = DBufferPassUtilityData.DBufferCName;
                 dBufferCDsc.dimension = TextureDimension.Tex2D;
                 dBufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                dBufferCDsc.depthBufferBits = EDepthBits.None;
                 dBufferCDsc.clearColor = Color.clear;
             }
             RGTextureHandle dBufferC = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);

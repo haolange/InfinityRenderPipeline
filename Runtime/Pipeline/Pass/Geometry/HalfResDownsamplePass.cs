@@ -51,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResDepthDsc.name = HalfResDownsamplePassUtilityData.DepthTextureName;
                 halfResDepthDsc.dimension = TextureDimension.Tex2D;
                 halfResDepthDsc.colorFormat = GraphicsFormat.R32_SFloat;
-                halfResDepthDsc.depthBufferBits = EDepthBits.None;
                 halfResDepthDsc.enableRandomWrite = true;
             }
             RGTextureHandle halfResDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
@@ -61,7 +60,6 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResNormalDsc.name = HalfResDownsamplePassUtilityData.NormalTextureName;
                 halfResNormalDsc.dimension = TextureDimension.Tex2D;
                 halfResNormalDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                halfResNormalDsc.depthBufferBits = EDepthBits.None;
                 halfResNormalDsc.enableRandomWrite = true;
             }
             RGTextureHandle halfResNormalTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);

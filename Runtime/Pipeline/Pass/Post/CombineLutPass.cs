@@ -205,7 +205,6 @@ namespace InfinityTech.Rendering.Pipeline
             combineLookupTextureDescriptor.name = CombineLutPassUtilityData.CombineLookupTextureName;
             combineLookupTextureDescriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
             combineLookupTextureDescriptor.enableRandomWrite = true;
-            combineLookupTextureDescriptor.depthBufferBits = EDepthBits.None;
             combineLookupTextureDescriptor.filterMode = FilterMode.Trilinear;
             combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
 

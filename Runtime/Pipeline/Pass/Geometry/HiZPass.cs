@@ -34,12 +34,12 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle depth, closest, furthest;
         }
         internal static TextureDescriptor HiZDescriptor(int width, int height, string name)
-            => new TextureDescriptor((width + 1) / 2, (height + 1) / 2, ETextureSizingDomain.Internal, 2)
-            {
-                name = name, dimension = TextureDimension.Tex2D, colorFormat = GraphicsFormat.R32_SFloat,
-                enableRandomWrite = true, useMipMap = true, autoGenerateMips = false,
-                filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
-            };
+        {
+            var descriptor = TextureDescriptor.Create2D(name, (width + 1) / 2, (height + 1) / 2, GraphicsFormat.R32_SFloat, ETextureSizingDomain.Internal, 2);
+            descriptor.useMipMap = true;
+            descriptor.filterMode = FilterMode.Point;
+            return descriptor;
+        }
 
         void ComputeHiZ(in CameraRecordContext context)
         {

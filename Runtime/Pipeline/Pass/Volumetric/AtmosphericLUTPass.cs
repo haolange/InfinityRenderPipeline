@@ -120,30 +120,15 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         static TextureDescriptor CreateAtmosphereLUTDescriptor(int width, int height, string name)
-        {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height);
-            descriptor.name = name;
-            descriptor.dimension = TextureDimension.Tex2D;
-            descriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            descriptor.depthBufferBits = EDepthBits.None;
-            descriptor.enableRandomWrite = true;
-            descriptor.filterMode = FilterMode.Bilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
-            return descriptor;
-        }
+            => TextureDescriptor.Create2D(name, width, height, GraphicsFormat.R16G16B16A16_SFloat, ETextureSizingDomain.Exact);
 
         static TextureDescriptor CreateAtmosphereCubemapDescriptor(int size, string name, bool useMips)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(size, size, 6);
-            descriptor.name = name;
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, size, size, GraphicsFormat.R16G16B16A16_SFloat, ETextureSizingDomain.Exact);
             descriptor.dimension = TextureDimension.Tex2DArray;
-            descriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            descriptor.depthBufferBits = EDepthBits.None;
-            descriptor.enableRandomWrite = true;
+            descriptor.slices = 6;
             descriptor.useMipMap = useMips;
-            descriptor.autoGenerateMips = false;
             descriptor.filterMode = useMips ? FilterMode.Trilinear : FilterMode.Bilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
             return descriptor;
         }
 
@@ -214,7 +199,6 @@ namespace InfinityTech.Rendering.Pipeline
             aerialDsc.name = AtmosphericLUTPassUtilityData.AerialPerspectiveName;
             aerialDsc.dimension = TextureDimension.Tex3D;
             aerialDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            aerialDsc.depthBufferBits = EDepthBits.None;
             aerialDsc.enableRandomWrite = true;
             aerialDsc.filterMode = FilterMode.Trilinear;
             aerialDsc.wrapMode = TextureWrapMode.Clamp;

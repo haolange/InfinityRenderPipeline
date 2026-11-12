@@ -95,29 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateGTAOHalfDescriptor(int width, int height, string name, GraphicsFormat format)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal, 2);
-            descriptor.name = name;
-            descriptor.dimension = TextureDimension.Tex2D;
-            descriptor.colorFormat = format;
-            descriptor.depthBufferBits = EDepthBits.None;
-            descriptor.enableRandomWrite = true;
-            descriptor.filterMode = FilterMode.Bilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
-            return descriptor;
-        }
-
-        static TextureDescriptor CreateGTAOHistoryAODescriptor(int width, int height)
-        {
-            TextureDescriptor descriptor = CreateGTAOHalfDescriptor(width, height, GTAOPassUtilityData.HistoryOcclusionTextureName, GraphicsFormat.R16G16B16A16_SFloat);
-            descriptor.enableRandomWrite = true;
-            return descriptor;
-        }
-
-        static TextureDescriptor CreateGTAOHistoryDepthDescriptor(int width, int height)
-        {
-            TextureDescriptor descriptor = CreateGTAOHalfDescriptor(width, height, GTAOPassUtilityData.HistoryOcclusionDepthTextureName, GraphicsFormat.R32_SFloat);
-            descriptor.enableRandomWrite = true;
-            return descriptor;
+            return TextureDescriptor.Create2D(name, width, height, format, ETextureSizingDomain.Internal, 2);
         }
 
         void ComputeGroundTruthOcclusion(in CameraRecordContext context)
@@ -139,7 +117,6 @@ namespace InfinityTech.Rendering.Pipeline
                 occlusionTextureDsc.name = GTAOPassUtilityData.OcclusionTextureName;
                 occlusionTextureDsc.dimension = TextureDimension.Tex2D;
                 occlusionTextureDsc.colorFormat = GraphicsFormat.R8_UNorm;
-                occlusionTextureDsc.depthBufferBits = EDepthBits.None;
                 occlusionTextureDsc.enableRandomWrite = true;
                 occlusionTextureDsc.filterMode = FilterMode.Bilinear;
                 occlusionTextureDsc.wrapMode = TextureWrapMode.Clamp;
@@ -152,8 +129,8 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor spatialTempDsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.SpatialTempTextureName, GraphicsFormat.R16_SFloat);
             RGTextureHandle spatialTempTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SpatialTempBuffer, spatialTempDsc);
 
-            TextureDescriptor historyAODsc = CreateGTAOHistoryAODescriptor(halfWidth, halfHeight);
-            TextureDescriptor historyDepthDsc = CreateGTAOHistoryDepthDescriptor(halfWidth, halfHeight);
+            TextureDescriptor historyAODsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.HistoryOcclusionTextureName, GraphicsFormat.R16G16B16A16_SFloat);
+            TextureDescriptor historyDepthDsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.HistoryOcclusionDepthTextureName, GraphicsFormat.R32_SFloat);
             HistoryRead occlusionRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, context.resetsHistory);
             HistoryRead occlusionDepthRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, context.resetsHistory);
             RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(occlusionRead.texture);

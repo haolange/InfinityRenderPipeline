@@ -123,6 +123,17 @@ namespace InfinityTech.Rendering.GPUResource
         public RenderTextureMemoryless memoryless;
         public Color clearColor;
 
+        // The shape every compute and sampling target starts from: 2D, clamp addressing, bilinear filtering, random write,
+        // no depth or MSAA. A feature changes only what differs (mips, filter, dimension, write access).
+        public static TextureDescriptor Create2D(string name, int width, int height, GraphicsFormat format, ETextureSizingDomain domain, int divisor = 1)
+        {
+            return new TextureDescriptor(width, height, domain, divisor)
+            {
+                name = name, dimension = TextureDimension.Tex2D, colorFormat = format, enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp
+            };
+        }
+
         public TextureDescriptor(int width, int height, ETextureSizingDomain domain, int divisor = 1) : this(width, height)
         { sizingDomain = domain; viewDivisor = divisor; }
 

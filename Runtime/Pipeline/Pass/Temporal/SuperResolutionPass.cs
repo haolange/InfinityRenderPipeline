@@ -70,7 +70,6 @@ namespace InfinityTech.Rendering.Pipeline
                 superResDsc.name = SuperResolutionPassUtilityData.TextureName;
                 superResDsc.dimension = TextureDimension.Tex2D;
                 superResDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                superResDsc.depthBufferBits = EDepthBits.None;
                 superResDsc.enableRandomWrite = true;
             }
             RGTextureHandle superResolutionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);

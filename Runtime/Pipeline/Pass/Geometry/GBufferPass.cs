@@ -42,7 +42,6 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferADsc.name = GBufferPassUtilityData.TextureAName;
                 gbufferADsc.dimension = TextureDimension.Tex2D;
                 gbufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                gbufferADsc.depthBufferBits = EDepthBits.None;
             }
             RGTextureHandle gbufferTextureA = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
 
@@ -51,7 +50,6 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferBDsc.name = GBufferPassUtilityData.TextureBName;
                 gbufferBDsc.dimension = TextureDimension.Tex2D;
                 gbufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                gbufferBDsc.depthBufferBits = EDepthBits.None;
             }
             RGTextureHandle gbufferTextureB = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
 
@@ -60,7 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferCDsc.name = GBufferPassUtilityData.TextureCName;
                 gbufferCDsc.dimension = TextureDimension.Tex2D;
                 gbufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                gbufferCDsc.depthBufferBits = EDepthBits.None;
             }
             RGTextureHandle gbufferTextureC = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
 
@@ -69,7 +66,6 @@ namespace InfinityTech.Rendering.Pipeline
                 lightingDsc.name = GBufferPassUtilityData.LightingTextureName;
                 lightingDsc.dimension = TextureDimension.Tex2D;
                 lightingDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-                lightingDsc.depthBufferBits = EDepthBits.None;
                 lightingDsc.enableRandomWrite = true;
             }
             RGTextureHandle lightingTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);

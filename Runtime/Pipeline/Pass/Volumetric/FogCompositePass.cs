@@ -57,7 +57,6 @@ namespace InfinityTech.Rendering.Pipeline
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
             foggedDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            foggedDsc.depthBufferBits = EDepthBits.None;
             foggedDsc.enableRandomWrite = true;
             foggedDsc.filterMode = FilterMode.Bilinear;
             foggedDsc.wrapMode = TextureWrapMode.Clamp;

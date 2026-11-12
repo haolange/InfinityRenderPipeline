@@ -92,16 +92,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateColorPyramidDescriptor(int width, int height, string name)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
-            descriptor.name = name;
-            descriptor.dimension = TextureDimension.Tex2D;
-            descriptor.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-            descriptor.depthBufferBits = EDepthBits.None;
-            descriptor.enableRandomWrite = true;
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, width, height, GraphicsFormat.B10G11R11_UFloatPack32, ETextureSizingDomain.Internal);
             descriptor.useMipMap = true;
-            descriptor.autoGenerateMips = false;
-            descriptor.filterMode = FilterMode.Bilinear;
-            descriptor.wrapMode = TextureWrapMode.Clamp;
             return descriptor;
         }
 

@@ -59,7 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
             compositeDsc.name = ScreenSpaceCompositePassUtilityData.TextureName;
             compositeDsc.dimension = TextureDimension.Tex2D;
             compositeDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            compositeDsc.depthBufferBits = EDepthBits.None;
             compositeDsc.enableRandomWrite = true;
             RGTextureHandle compositeTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
 

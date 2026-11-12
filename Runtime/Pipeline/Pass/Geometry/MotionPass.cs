@@ -42,7 +42,6 @@ namespace InfinityTech.Rendering.Pipeline
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
                 motionTextureDsc.colorFormat = GraphicsFormat.R16G16_SFloat;
-                motionTextureDsc.depthBufferBits = EDepthBits.None;
             }
             RGTextureHandle motionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
             motionTextureDsc.name = "MotionMetadata";

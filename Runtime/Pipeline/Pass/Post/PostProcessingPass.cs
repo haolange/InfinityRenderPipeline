@@ -171,7 +171,6 @@ namespace InfinityTech.Rendering.Pipeline
             postProcessDsc.name = PostProcessingPassUtilityData.TextureName;
             postProcessDsc.dimension = TextureDimension.Tex2D;
             postProcessDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            postProcessDsc.depthBufferBits = EDepthBits.None;
             postProcessDsc.enableRandomWrite = false;
             postProcessDsc.filterMode = FilterMode.Bilinear;
             postProcessDsc.wrapMode = TextureWrapMode.Clamp;
@@ -187,7 +186,6 @@ namespace InfinityTech.Rendering.Pipeline
                 bloomDsc.name = PostProcessingPassUtilityData.BloomTextureName;
                 bloomDsc.dimension = TextureDimension.Tex2D;
                 bloomDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-                bloomDsc.depthBufferBits = EDepthBits.None;
                 bloomDsc.enableRandomWrite = true;
                 bloomDsc.useMipMap = true;
                 bloomDsc.autoGenerateMips = false;
@@ -258,14 +256,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateExposureEVDescriptor()
         {
-            TextureDescriptor evDsc = new TextureDescriptor(1, 1);
-            evDsc.name = PostProcessingPassUtilityData.ExposureEVName;
-            evDsc.dimension = TextureDimension.Tex2D;
-            evDsc.colorFormat = GraphicsFormat.R32_SFloat;
-            evDsc.depthBufferBits = EDepthBits.None;
-            evDsc.enableRandomWrite = true;
+            TextureDescriptor evDsc = TextureDescriptor.Create2D(PostProcessingPassUtilityData.ExposureEVName, 1, 1, GraphicsFormat.R32_SFloat, ETextureSizingDomain.Exact);
             evDsc.filterMode = FilterMode.Point;
-            evDsc.wrapMode = TextureWrapMode.Clamp;
             return evDsc;
         }
 

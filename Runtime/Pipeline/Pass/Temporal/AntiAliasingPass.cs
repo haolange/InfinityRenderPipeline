@@ -41,11 +41,17 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         }
         static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
-            => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
-                colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
+            => TemporalDescriptor(name, width, height, GraphicsFormat.R16G16B16A16_SFloat, writable, domain);
         static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
-            => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
-                colorFormat = GraphicsFormat.R32_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
+            => TemporalDescriptor(name, width, height, GraphicsFormat.R32_SFloat, writable, domain);
+        // Temporal inputs are read at texel centers with point sampling.
+        static TextureDescriptor TemporalDescriptor(string name, int width, int height, GraphicsFormat format, bool writable, ETextureSizingDomain domain)
+        {
+            var descriptor = TextureDescriptor.Create2D(name, width, height, format, domain);
+            descriptor.enableRandomWrite = writable;
+            descriptor.filterMode = FilterMode.Point;
+            return descriptor;
+        }
 
         void ComputeAntiAliasing(in CameraRecordContext context)
         {
