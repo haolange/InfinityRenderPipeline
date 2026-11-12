@@ -117,10 +117,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer, out _))
             {
-                if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out _))
-                {
-                    throw new System.InvalidOperationException("InfinityRP: FoggedSceneColor has no OpaqueSceneColor to adopt.");
-                }
                 m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, InfinityShaderIDs.FoggedSceneColorBuffer);
             }
             m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer));

@@ -51,15 +51,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureHandle postProcessTexture))
-            {
-                throw new InvalidOperationException("InfinityRP: DebugView requires PostProcessBuffer, which was never registered this frame.");
-            }
-
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture))
-            {
-                throw new InvalidOperationException("InfinityRP: DebugView requires DepthBuffer, which was never registered this frame.");
-            }
+            RGTextureHandle postProcessTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             ComputeKernel debugKernel;
             int bindSet;
@@ -89,9 +82,9 @@ namespace InfinityTech.Rendering.Pipeline
                     debugKernel = kernels.debugViewGBuffer;
                     bindSet = 0;
                     needGBuffer = true;
-                    RequireTexture(InfinityShaderIDs.GBufferA, "GBufferA", view, out gBufferA);
-                    RequireTexture(InfinityShaderIDs.GBufferB, "GBufferB", view, out gBufferB);
-                    RequireTexture(InfinityShaderIDs.GBufferC, "GBufferC", view, out gBufferC);
+                    gBufferA = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+                    gBufferB = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+                    gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
                     break;
                 case EDebugView.AO:
                     if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out optionalTexture))
@@ -152,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
                     debugKernel = kernels.debugViewMotion;
                     bindSet = 1;
                     needMotion = true;
-                    RequireTexture(InfinityShaderIDs.MotionBuffer, "MotionBuffer", view, out motionTexture);
+                    motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
                     break;
                 case EDebugView.TAAConfidence:
                     if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
@@ -349,14 +342,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
                     cmdEncoder.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
-            }
-        }
-
-        void RequireTexture(int id, string idName, EDebugView view, out RGTextureHandle texture)
-        {
-            if (!m_RGBuilder.scoper.TryQueryTexture(id, out texture))
-            {
-                throw new InvalidOperationException($"InfinityRP: DebugView '{view}' requires {idName}, which was never registered this frame.");
             }
         }
     }

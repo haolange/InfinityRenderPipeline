@@ -69,17 +69,12 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle gBufferB = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
             RGTextureHandle gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool hasAO = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusionTexture);
-            if ((context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO)) && !hasAO)
-            {
-                throw new System.InvalidOperationException("InfinityRP: AO is recorded this frame but OcclusionBuffer is not registered.");
-            }
+            // The feature set decides which optional inputs exist; a recorded producer that did not register its output throws.
+            bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
+            RGTextureHandle occlusionTexture = hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default;
 
-            bool hasContactShadow = m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowTexture);
-            if (context.features.ShouldRecord(EFrameFeature.ContactShadow) && !hasContactShadow)
-            {
-                throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded this frame but ContactShadowBuffer is not registered.");
-            }
+            bool hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);
+            RGTextureHandle contactShadowTexture = hasContactShadow ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer) : default;
             RGTextureHandle atmosphereGGXPrefilter = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
             RGBufferHandle atmosphereSkySH = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
             AtmosphereParameter atmosphereParameter = context.atmosphere;

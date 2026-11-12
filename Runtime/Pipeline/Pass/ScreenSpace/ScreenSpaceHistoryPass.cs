@@ -108,10 +108,6 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out _))
-            {
-                throw new System.InvalidOperationException("InfinityRP: OpaqueSceneColor has no DeferredBase LightingBuffer to adopt.");
-            }
 
             m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }

@@ -36,14 +36,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAtmosphericSkyAndFog(in CameraRecordContext context)
         {
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
-                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
-                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT) ||
-                !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT) ||
-                !m_RGBuilder.scoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferHandle sunBuffer))
-            {
-                throw new System.InvalidOperationException("InfinityRP: Atmosphere composite is missing Lighting, Depth, SkyView, Aerial, or SunBuffer.");
-            }
+            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle skyViewLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT);
+            RGTextureHandle aerialPerspectiveLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT);
+            RGBufferHandle sunBuffer = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer);
 
             AtmosphereParameter parameter = context.atmosphere;
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);

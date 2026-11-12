@@ -157,10 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.CombineLookupTexture, out RGTextureHandle combineLUT))
-            {
-                throw new InvalidOperationException("InfinityRP: PostProcess requires CombineLookupTexture.");
-            }
+            RGTextureHandle combineLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CombineLookupTexture);
 
             PostVolumeState volumes = ResolvePostVolumeState(context);
 
