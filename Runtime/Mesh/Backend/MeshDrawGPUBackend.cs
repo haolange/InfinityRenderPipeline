@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
         readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
 
-        /// <summary>Device capability only; the backend additionally needs its compute shader.</summary>
+        /// <summary>Device capability; the compute shader and its kernels are required on every backend.</summary>
         public static bool DeviceSupportsIndirect => SystemInfo.supportsComputeShaders && SystemInfo.supportsInstancing;
 
         public bool isSupported
@@ -107,15 +107,22 @@ namespace InfinityTech.Rendering.MeshPipeline
             cullFirstNoHistory = ComputeKernel.Resolve(shader, field, "CullFirstNoHistory");
             cullFirstWithHistory = ComputeKernel.Resolve(shader, field, "CullFirstWithHistory");
             cullOcclusionRecovery = ComputeKernel.Resolve(shader, field, "CullOcclusionRecovery");
-            isSupported = DeviceSupportsIndirect && m_CullKernel.isValid && m_InitializeArgsKernel.isValid && m_CompactKernel.isValid
-                && cullFirstNoHistory.isValid && cullFirstWithHistory.isValid && cullOcclusionRecovery.isValid;
+            // The shader is required on every backend; a missing kernel is a broken install, not a device limit.
+            foreach (ComputeKernel kernel in new[] { m_CullKernel, m_InitializeArgsKernel, m_CompactKernel, cullFirstNoHistory, cullFirstWithHistory, cullOcclusionRecovery })
+            {
+                if (!kernel.isValid)
+                {
+                    throw new InvalidOperationException("Mesh drawing requires every Compute_MeshDrawPipeline kernel: " + kernel.missingReason);
+                }
+            }
+            isSupported = DeviceSupportsIndirect;
         }
 
         void RequireSupported()
         {
             if (!isSupported)
             {
-                throw new InvalidOperationException("GPU indirect mesh drawing requires Compute_MeshDrawPipeline with its culling, occlusion and compaction kernels.");
+                throw new InvalidOperationException("GPU indirect mesh drawing requires a device with compute shaders and instancing.");
             }
         }
 

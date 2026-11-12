@@ -215,7 +215,7 @@ A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.dit
 
 ### Backends and shaders
 
-`EMeshDrawBackendPolicy` is Auto, CPUDirect or GPUIndirect. A diagnostics override wins, then the Rendering Debugger override, then the asset; the pipeline resolves that once per camera into `MeshWorld.requestedBackend` and writes the debugger's backend state. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
+`EMeshDrawBackendPolicy` is Auto, CPUDirect or GPUIndirect. A diagnostics override wins, then the Rendering Debugger override, then the asset; the pipeline resolves that once per camera into `MeshWorld.requestedBackend` and writes the debugger's backend state. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing; a missing kernel of the mesh compute shader fails world construction. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
 
 Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshInstanceEntity`, then `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` guarded by generations. A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`; a component whose material lacks it, or lacks a pass its route enables, is logged with its context and not drawn.
 

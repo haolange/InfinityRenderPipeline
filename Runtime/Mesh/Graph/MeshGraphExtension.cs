@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if (!world.gpuBackend.isSupported)
             {
-                throw new InvalidOperationException("GPU mesh culling requires Compute_MeshDrawPipeline.");
+                throw new InvalidOperationException("GPU mesh culling requires a device with compute shaders and instancing.");
             }
             if (m_FrustumRecords.Length < viewCount)
             {

@@ -33,9 +33,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ShadowMomentPassData
         {
-            public ComputeShader shader;
-            public int sliceCount;
             public ComputeKernel fromDepth, blurH, blurV;
+            public int sliceCount;
+            // Per slice: rect in moment pixels, depth params, (mode, exponent, 1 / far, blur radius).
             public Vector4[] rects;
             public Vector4[] depthParams;
             public Vector4[] momentParams;

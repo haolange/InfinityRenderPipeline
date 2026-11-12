@@ -12,7 +12,8 @@ namespace InfinityTech.Core
         public readonly int groupSizeZ;
         public readonly string missingReason;
 
-        public bool isValid => missingReason == null;
+        // A default instance has no shader and is not valid.
+        public bool isValid => shader != null && missingReason == null;
 
         ComputeKernel(ComputeShader shader, int index, int groupSizeX, int groupSizeY, int groupSizeZ, string missingReason)
         {
