@@ -29,7 +29,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly ProfilingSampler s_LocalShadowGroup = new ProfilingSampler("LocalShadow");
         static readonly ProfilingSampler s_FrustumDepthAndShadows = new ProfilingSampler("DepthAndShadows");
         static readonly ProfilingSampler s_FrustumShadows = new ProfilingSampler("Shadows");
-        static readonly ProfilingSampler s_FrustumDepth = new ProfilingSampler("Depth");
         static readonly ProfilingSampler s_ShadowDrawDirect = new ProfilingSampler("Shadows.DrawMeshDirect");
         static readonly ProfilingSampler s_ShadowDrawIndirect = new ProfilingSampler("Shadows.DrawMeshIndirect");
         static readonly ProfilingSampler s_RenderLoopDrawDirect = new ProfilingSampler("RenderLoop.DrawMeshDirect");
@@ -82,7 +81,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if (depth && shadows)
                 return s_FrustumDepthAndShadows;
-            return shadows ? s_FrustumShadows : s_FrustumDepth;
+            return shadows ? s_FrustumShadows : s_DepthPass;
         }
 
         internal static ProfilingSampler ShadowGroupSampler(EMeshViewKind kind)

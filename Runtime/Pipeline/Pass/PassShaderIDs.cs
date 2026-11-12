@@ -35,7 +35,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_SceneColorTexture = Shader.PropertyToID("SRV_SceneColorTexture");
         internal static readonly int SRV_SkyViewLUT = Shader.PropertyToID("SRV_SkyViewLUT");
         internal static readonly int SRV_Temporal = Shader.PropertyToID("SRV_Temporal");
-        internal static readonly int SRV_TileList = Shader.PropertyToID("SRV_TileList");
         internal static readonly int SRV_TransmittanceLUT = Shader.PropertyToID("SRV_TransmittanceLUT");
         internal static readonly int ScreenParams = Shader.PropertyToID("_ScreenParams");
         internal static readonly int ScreenSpaceDepthParams = Shader.PropertyToID("ScreenSpaceDepthParams");
@@ -51,7 +50,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_SceneColor = Shader.PropertyToID("UAV_SceneColor");
         internal static readonly int UAV_Temporal = Shader.PropertyToID("UAV_Temporal");
         internal static readonly int UAV_TileArgs = Shader.PropertyToID("UAV_TileArgs");
-        internal static readonly int UAV_TileList = Shader.PropertyToID("UAV_TileList");
         internal static readonly int VolFog_AerialDistance = Shader.PropertyToID("VolFog_AerialDistance");
         internal static readonly int VolFog_MaxDistance = Shader.PropertyToID("VolFog_MaxDistance");
         internal static readonly int WorldSpaceCameraPos = Shader.PropertyToID("_WorldSpaceCameraPos");

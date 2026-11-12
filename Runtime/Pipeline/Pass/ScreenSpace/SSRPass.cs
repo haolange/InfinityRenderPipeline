@@ -13,6 +13,8 @@ namespace InfinityTech.Rendering.Pipeline
     // -> temporal -> optional spatial. Kernel contracts are documented at the top of Compute_ScreenSpaceReflection.
     internal static class SSRPassUtilityData
     {
+        internal static readonly int SRV_TileListID = Shader.PropertyToID("SRV_TileList");
+        internal static readonly int UAV_TileListID = Shader.PropertyToID("UAV_TileList");
         internal static readonly int SRV_HistoryVarianceID = Shader.PropertyToID("SRV_HistoryVariance");
         internal static readonly int SRV_HitDevID = Shader.PropertyToID("SRV_HitDev");
         internal static readonly int SRV_HitMeanID = Shader.PropertyToID("SRV_HitMean");
@@ -353,7 +355,7 @@ namespace InfinityTech.Rendering.Pipeline
                     int classify = passData.classifyKernel;
                     BindSSRSurface(cmdEncoder, shader, classify, passData);
                     cmdEncoder.SetComputeBufferParam(shader, classify, PassShaderIDs.UAV_TileArgs, passData.tileArgs);
-                    cmdEncoder.SetComputeBufferParam(shader, classify, PassShaderIDs.UAV_TileList, passData.tileList);
+                    cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_TileListID, passData.tileList);
                     cmdEncoder.SetComputeTextureParam(shader, classify, SSRPassUtilityData.UAV_TileClassID, passData.tileClass);
                     cmdEncoder.SetComputeTextureParam(shader, classify, PassShaderIDs.UAV_RayHit, passData.rayHit);
                     cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_SamplesID, passData.samples);
@@ -443,7 +445,7 @@ namespace InfinityTech.Rendering.Pipeline
         static void RecordSSRTrace(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, in SSRPassData passData)
         {
             BindSSRSurface(cmdEncoder, shader, kernel, passData);
-            cmdEncoder.SetComputeBufferParam(shader, kernel, PassShaderIDs.SRV_TileList, passData.tileList);
+            cmdEncoder.SetComputeBufferParam(shader, kernel, SSRPassUtilityData.SRV_TileListID, passData.tileList);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_TileClassID, passData.tileClass);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HiZClosestTexture, passData.hiZTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_HiZFurthestTextureID, passData.hiZFurthestTexture);
