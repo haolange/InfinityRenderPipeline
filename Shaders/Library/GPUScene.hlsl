@@ -2,7 +2,6 @@
 #define _GPUSceneInclude
 
 #include "Common.hlsl"
-#include "Geometry.hlsl"
 
 // Mesh entity interface. A draw list binds InstanceToEntity (its sorted or compacted entity slots) and the world's
 // immutable transform version; a shader reads its entity once per vertex through MeshInstanceEntity.

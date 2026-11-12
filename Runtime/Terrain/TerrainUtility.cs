@@ -204,12 +204,12 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return Squared(screenMultiple) / math.max(1, distSqr);
         }
 
-        public static bool IntersectAABBFrustum(PlaneEquation[] plane, in Bounds bound)
+        public static bool IntersectAABBFrustum(Plane[] plane, in Bounds bound)
         {
             for (int i = 0; i < 6; ++i)
             {
-                float3 normal = plane[i].normalDist.xyz;
-                float distance = plane[i].normalDist.w;
+                float3 normal = plane[i].normal;
+                float distance = plane[i].distance;
 
                 float dist = math.dot(normal, bound.center) + distance;
                 float radius = math.dot(bound.extents, math.abs(normal));

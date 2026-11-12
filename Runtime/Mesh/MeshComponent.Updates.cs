@@ -276,7 +276,7 @@ namespace InfinityTech.Component
                 return;
             }
             float4x4 localToWorld = transform.localToWorldMatrix;
-            m_BoundBox = Geometry.CaculateWorldBound(m_State.localBounds, localToWorld);
+            m_BoundBox = BoundingBox.Transform(m_State.localBounds, localToWorld);
             world.WriteEntityPose(m_State.entity, localToWorld, m_BoundBox);
         }
     }

@@ -69,7 +69,7 @@ namespace InfinityTech.Component
         SyncState m_State;
         SyncState m_Next;
         bool m_Staged;
-        MinMaxBox m_BoundBox;
+        BoundingBox m_BoundBox;
         bool m_DirtyEnqueued;
         uint m_RegistrationEpoch;
 
@@ -224,7 +224,7 @@ namespace InfinityTech.Component
         {
             GeometryState geometry = m_Geometry;
             float4x4 localToWorld = transform.localToWorldMatrix;
-            m_BoundBox = Geometry.CaculateWorldBound(geometry.bounds, localToWorld);
+            m_BoundBox = BoundingBox.Transform(geometry.bounds, localToWorld);
             int elementCount = geometry.elementLod.Length;
             var state = new SyncState
             {

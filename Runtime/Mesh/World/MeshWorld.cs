@@ -228,8 +228,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 BoundingBox local = localBounds[index];
                 entityTransforms[entity] = matrix;
-                entityBounds[entity] = new BoundingBox(math.transform(matrix, local.center),
-                    math.abs(matrix.c0.xyz) * local.extents.x + math.abs(matrix.c1.xyz) * local.extents.y + math.abs(matrix.c2.xyz) * local.extents.z);
+                entityBounds[entity] = BoundingBox.Transform(local, matrix);
             }
         }
 
