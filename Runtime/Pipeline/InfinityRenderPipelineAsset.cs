@@ -22,7 +22,6 @@ namespace InfinityTech.Rendering.Pipeline
         public bool enableRayTrace = false;
         public bool enableSuperResolution = false;
         public bool enableSRPBatch = true;
-        public bool enableDynamicBatch = true;
         public bool enableInstanceBatch = true;
         public EMeshDrawBackendPolicy meshBackendPolicy = EMeshDrawBackendPolicy.Auto;
 
