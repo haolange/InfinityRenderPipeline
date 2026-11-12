@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -307,14 +308,13 @@ namespace InfinityTech.Rendering.Pipeline
             return staging;
         }
 
-        internal void RecordPresent(Camera camera, string target, in Rect viewport, in Vector4 scaleBias, int width, int height, bool executed)
+        internal void RecordPresent(Camera camera, in Rect viewport, in Vector4 scaleBias, int width, int height, bool executed)
         {
             if (!m_CaptureThisFrame || m_Evidence.frames.Count == 0)
             {
                 return;
             }
             CameraEvidence frame = m_Evidence.frames[m_Evidence.frames.Count - 1];
-            frame.presentTarget = target;
             frame.presentViewport = viewport;
             frame.presentScaleBias = scaleBias;
             frame.sourceWidth = width;
@@ -322,6 +322,7 @@ namespace InfinityTech.Rendering.Pipeline
             frame.presentExecuted = executed;
             if (camera != null)
             {
+                frame.presentTarget = camera.targetTexture != null ? "RenderTexture:" + camera.targetTexture.GetEntityId() : "BuiltinRenderTextureType.CameraTarget";
                 frame.targetTexture = camera.targetTexture == null ? "null" : camera.targetTexture.GetEntityId().ToString();
                 frame.activeTexture = camera.activeTexture == null ? "null" : camera.activeTexture.GetEntityId().ToString();
                 var texture = camera.targetTexture != null ? camera.targetTexture : camera.activeTexture;
@@ -615,3 +616,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 }
+#endif

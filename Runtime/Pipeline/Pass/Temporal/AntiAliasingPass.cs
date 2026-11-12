@@ -22,7 +22,9 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeShader shader;
             public RGTextureHandle input, motion, metadata, reactive, historyColor, historyDepth;
             public RGTextureHandle accumulation, temporalDepth, sharpened, confidence, reprojection;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
+#endif
         }
         static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
             => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
@@ -61,8 +63,10 @@ namespace InfinityTech.Rendering.Pipeline
             history.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
             var sharpened = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
             var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None ||
-                (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
+            bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            diagnostics |= RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence;
+#endif
             RGTextureHandle confidence = default, reprojection = default;
             if (diagnostics)
             {
@@ -99,14 +103,18 @@ namespace InfinityTech.Rendering.Pipeline
                     data.confidence = pass.WriteTexture(confidence);
                     data.reprojection = pass.WriteTexture(reprojection);
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 data.inputSnapshot = PrepareStageSnapshot(pass, "TAAInput", input);
                 data.historyColorSnapshot = PrepareStageSnapshot(pass, "TAAHistoryColor", historyColor);
                 data.historyDepthSnapshot = PrepareStageSnapshot(pass, "TAAHistoryDepth", historyDepth);
+#endif
                 pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands) =>
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     data.inputSnapshot.Record(commands, data.input);
                     data.historyColorSnapshot.Record(commands, data.historyColor);
                     data.historyDepthSnapshot.Record(commands, data.historyDepth);
+#endif
                     int kernel = data.kernel;
                     var shader = data.shader;
                     commands.SetComputeVectorParam(shader, Shader.PropertyToID("TAA_Resolution"), data.resolution);

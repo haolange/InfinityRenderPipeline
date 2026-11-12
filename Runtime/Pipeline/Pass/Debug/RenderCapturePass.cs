@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -443,3 +444,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 }
+#endif

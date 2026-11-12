@@ -306,6 +306,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileArgs = passRef.CreatePassLocalBuffer(new BufferDescriptor(3, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSRTileArgs" });
                 passData.tileList = passRef.CreatePassLocalBuffer(new BufferDescriptor(maxTiles, sizeof(uint), ComputeBufferType.Structured) { name = "SSRTileList" });
                 TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point, 8 * (settings.halfResolution ? 2 : 1));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RenderCaptureSession capture = RenderCaptureService.current;
                 bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(camera)
                     && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
@@ -313,6 +314,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileClass = captureTileClass
                     ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID("Capture_SSRTileClass"), tileClassDescriptor))
                     : passRef.CreatePassLocalTexture(tileClassDescriptor);
+#else
+                passData.tileClass = passRef.CreatePassLocalTexture(tileClassDescriptor);
+#endif
                 passData.rayHit = passRef.WriteTexture(rayHit);
                 passData.samples = passRef.CreatePassLocalBuffer(new BufferDescriptor(traceResolution.x * traceResolution.y * 4, 32, ComputeBufferType.Structured) { name = "SSRSamples" });
                 passData.resolved = passRef.WriteTexture(resolved);

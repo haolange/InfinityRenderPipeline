@@ -63,6 +63,17 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(2, len(out))
         self.assertEqual({'assemblies'}, {o[1] for o in out})
 
+    def test_diagnostics_outside_their_build_guard_fail(self):
+        self.write('Runtime/Pass.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nRenderCaptureService.Tick();\n#else\nint x;\n#endif\n')
+        self.write('Runtime/Validation/V.cs', 'RenderCaptureService.Tick();')
+        out = []
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pass.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nint x;\n#else\nRenderCaptureService.Tick();\n#endif\nPipelineDiagnostics.EndFrame(r);\n')
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual(['Runtime/Pass.cs:4: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD',
+                          'Runtime/Pass.cs:6: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'], [o[2] for o in out])
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.IO;
 using UnityEngine;
@@ -81,3 +82,4 @@ namespace InfinityTech.Rendering.Pipeline
         internal static void Cancel() => current?.Cancel();
     }
 }
+#endif

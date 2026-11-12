@@ -70,7 +70,9 @@ namespace InfinityTech.Rendering.Pipeline
             state.temporalColorView = source;
             m_RGScoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.color);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depth);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             RenderCaptureService.current?.RecordTemporalColorState(state.camera, source, sr);
+#endif
             using (var pass = m_RGBuilder.AddComputePass<TemporalColorMipData>(ProfilingSampler.Get(CustomSamplerId.ComputeTemporalColorPyramid)))
             {
                 pass.EnableAsyncCompute(true);

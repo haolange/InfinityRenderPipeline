@@ -138,10 +138,11 @@ namespace InfinityTech.Rendering.Pipeline
             public Rect viewport;
             public Vector4 scaleBias, outputTransfer;
             public int shaderPass, sourceWidth, sourceHeight;
-            public string targetIdentity;
-            public RenderCaptureSession captureSession;
             public RGTextureHandle srcTexture;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            public RenderCaptureSession captureSession;
             public NativeDisplayProbe displayProbe;
+#endif
         }
 
         void RecordCameraOutput(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision)
@@ -160,9 +161,12 @@ namespace InfinityTech.Rendering.Pipeline
                 break;
             }
 #endif
+            bool linearCapture = false;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             var capture = RenderCaptureService.current;
-            bool linearCapture = capture != null && !capture.Finished && capture.request.Matches(camera) &&
+            linearCapture = capture != null && !capture.Finished && capture.request.Matches(camera) &&
                 (System.Array.IndexOf(capture.request.buffers, "DisplayColor") >= 0 || System.Array.IndexOf(capture.request.buffers, "PostProcess") >= 0);
+#endif
             var plan = new OutputPlan(camera.cameraType == CameraType.Game && camera.targetTexture == null,
                 decision.policy, frameState.debugView != EDebugView.None, linearCapture, wire, gizmos);
             RGTextureHandle target = ImportCameraOutput(camera, decision);
@@ -189,7 +193,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     RasterUIOverlay(renderContext, camera, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), false);
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RecordNormalFrameCapture(camera);
+#endif
                 RasterFinalOutput(camera, decision, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), target, true);
             }
             else
@@ -199,7 +205,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     RasterUIOverlay(renderContext, camera, target, true);
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RecordNormalFrameCapture(camera);
+#endif
             }
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Display);
             MarkFeatureProduced(EFrameFeature.Display);
@@ -239,15 +247,16 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new System.InvalidOperationException("InfinityRP: required output shader pass is missing: " + shaderPass);
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (finalTarget)
             {
                 var capture = RenderCaptureService.current;
                 data.captureSession = capture != null && !capture.Finished && capture.request.Matches(camera) ? capture : null;
                 data.captureSession?.RecordOutputDecision(decision);
-                data.targetIdentity = camera.targetTexture != null ? "RenderTexture:" + camera.targetTexture.GetEntityId() : "BuiltinRenderTextureType.CameraTarget";
-                data.captureSession?.RecordPresent(camera, data.targetIdentity, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, false);
+                data.captureSession?.RecordPresent(camera, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, false);
                 data.displayProbe = data.captureSession?.ReserveNativeProbe();
             }
+#endif
             return data;
         }
 
@@ -258,11 +267,14 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetGlobalVector(InfinityShaderIDs.ScaleBias, data.scaleBias);
         }
 
+        [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
         static void CompleteFinalOutput(in FinalOutputPassData data, in RGRasterEncoder commands)
         {
-            data.captureSession?.RecordPresent(null, data.targetIdentity, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, true);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            data.captureSession?.RecordPresent(null, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, true);
             if (data.displayProbe != null)
                 commands.IssuePluginEventAndData(data.displayProbe.callback, 0, data.displayProbe.payload);
+#endif
         }
 
         void RasterFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureHandle source, RGTextureHandle target, bool finalTarget)
@@ -279,10 +291,12 @@ namespace InfinityTech.Rendering.Pipeline
                 ref var data = ref pass.GetPassData<FinalOutputPassData>();
                 data = PrepareFinalOutput(camera, decision, source, finalTarget, "RasterFinalOutput");
                 data.srcTexture = pass.ReadTexture(source);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (data.displayProbe != null)
                 {
                     pass.SetQueueObserver(data.displayProbe);
                 }
+#endif
                 pass.SetExecuteFunc((in FinalOutputPassData data, in RGRasterEncoder commands) =>
                 {
                     BindFinalOutput(data, commands);

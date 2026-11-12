@@ -666,7 +666,9 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
                                     ComputeDeferredShading(renderContext, camera);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                                     RecordDeferredLightingCapture();
+#endif
                                     RasterForward(renderContext, camera, mainView, cullingResults, forwardList);
                                     if (!SystemInfo.supportsAsyncCompute)
                                     {
@@ -681,7 +683,9 @@ namespace InfinityTech.Rendering.Pipeline
                                     CopyHistorySSGI(renderContext, historyCache, camera);
                                     ComputeBurleySubsurface(renderContext, camera);
                                     ComputeAtmosphericSkyAndFog(renderContext, camera);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                                     RecordLightingCapture();
+#endif
 
                                     // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
                                     RasterTranslucentDepth(renderContext, camera, mainView, cullingResults, translucentDepthList);

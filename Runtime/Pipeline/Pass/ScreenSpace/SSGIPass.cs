@@ -115,7 +115,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyMeta;
             public RGTextureHandle occlusion;
             public int hasAO;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             public RGTextureHandle rayHit;
+            public bool captureRayHit;
+            public CaptureStageSnapshot traceSnapshot;
+#endif
             public RGTextureHandle traceRadiance;
             public RGTextureHandle hitDistance;
             public RGTextureHandle temporal;
@@ -124,8 +128,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle combinerNarrow;
             public RGTextureHandle meta;
             public RGTextureHandle output;
-            public bool captureRayHit;
-            public CaptureStageSnapshot traceSnapshot;
         }
 
         void ComputeScreenSpaceIndirect(RenderContext renderContext, Camera camera, HistoryCache historyCache)
@@ -144,10 +146,12 @@ namespace InfinityTech.Rendering.Pipeline
             const int divisor = 2;
             int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             var capture = RenderCaptureService.current;
             bool captureRayHit = capture != null && capture.CaptureThisFrame && System.Array.IndexOf(capture.request.buffers, "SSGIRayHit") >= 0;
             RGTextureHandle rayHit = captureRayHit ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor)) : default;
+#endif
             RGTextureHandle traceRadiance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TraceRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
             RGTextureHandle hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
@@ -221,8 +225,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.occlusion = hasAO ? passRef.ReadTexture(occlusion) : default;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
                 passData.rayHit = captureRayHit ? passRef.WriteTexture(rayHit) : default;
+                passData.traceSnapshot = PrepareStageSnapshot(passRef, "SSGITraceRadiance", traceRadiance);
+#endif
                 passData.traceRadiance = passRef.WriteTexture(traceRadiance);
                 passData.hitDistance = passRef.WriteTexture(hitDistance);
                 passData.temporal = passRef.WriteTexture(temporal);
@@ -231,7 +238,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.combinerNarrow = passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGICombinerNarrowBuffer,
                     SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGICombinerNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor)));
                 passData.meta = passRef.WriteTexture(meta);
-                passData.traceSnapshot = PrepareStageSnapshot(passRef, "SSGITraceRadiance", traceRadiance);
                 passData.output = passRef.WriteTexture(output);
 
                 passRef.EnablePassCulling(false);
@@ -270,17 +276,25 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, Shader.PropertyToID("SSGI_FrameAngle"), (passData.frameIndex & 63) * 2.39996323f);
                     cmdEncoder.SetComputeIntParam(shader, Shader.PropertyToID("SSGI_HasAO"), passData.hasAO);
                     cmdEncoder.BeginSample(CachedSampler.Get("SSGI_Trace"));
-                    int trace = passData.kernels[passData.captureRayHit ? 4 : 0];
+                    int trace = passData.kernels[0];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (passData.captureRayHit)
+                    {
+                        trace = passData.kernels[4];
+                    }
+#endif
                     BindSSGISurface(cmdEncoder, shader, trace, passData);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.SRV_HiZClosestTextureID, passData.hiZTexture);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.SRV_HiZFurthestTextureID, passData.hiZFurthestTexture);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.RankingTileID, passData.rankingTile);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.ScramblingTileID, passData.scramblingTile);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.OwenScrambledSobolID, passData.owenScrambledSobol);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (passData.captureRayHit)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.UAV_RayHitID, passData.rayHit);
                     }
+#endif
                     BindTemporalColorView(cmdEncoder, shader, trace, passData.temporalColor);
                     cmdEncoder.SetComputeTextureParam(shader, trace, Shader.PropertyToID("SRV_HitMotionMetadata"), passData.motionMetadata);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
@@ -288,7 +302,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, trace, Shader.PropertyToID("UAV_HitDistance"), passData.hitDistance);
                     cmdEncoder.DispatchCompute(shader, trace, tileCount.x, tileCount.y, 1);
                     cmdEncoder.EndSample(CachedSampler.Get("SSGI_Trace"));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     passData.traceSnapshot.Record(cmdEncoder, passData.traceRadiance);
+#endif
 
                     int groupsX = (traceResolution.x + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
                     int groupsY = (traceResolution.y + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;

@@ -23,6 +23,7 @@ Checks
   legacyresidue    no [Obsolete], FormerlySerializedAs or Legacy/Deprecated/Compat/Migrate identifier in package code
   unusedtypes      every type declared in Runtime is referenced outside its declaration
   assemblies       Infinity assemblies grant InternalsVisibleTo to each Infinity consumer; diagnostics exist only in Editor/Development builds
+  diagnostics      runtime code reaches capture and diagnostics symbols only inside #if UNITY_EDITOR || DEVELOPMENT_BUILD
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -578,6 +579,42 @@ def check_assemblies(repo, out):
         out.append(('ERROR', 'assemblies', 'Runtime must not reference the Validation assembly'))
 
 
+DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession|RenderCaptureRequest|NativeDisplayProbe|RawCaptureStatistics|'
+                                r'PipelineDiagnostics|PipelineFrameObserver|PipelineFrameResult|IRGExecutionObserver|executionObserver|'
+                                r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
+                                r'RecordDeferredLightingCapture|captureSession|displayProbe)\b')
+DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
+
+
+def diagnostic_guarded_lines(text):
+    # Yields (line number, guarded) per line; a branch is guarded when its #if/#elif condition names UNITY_EDITOR.
+    stack = []
+    for number, line in enumerate(text.split('\n'), 1):
+        m = DIRECTIVE.match(line)
+        if m:
+            kind, condition = m.group(1), m.group(2)
+            if kind == 'if':
+                stack.append('UNITY_EDITOR' in condition)
+            elif kind == 'elif' and stack:
+                stack[-1] = 'UNITY_EDITOR' in condition
+            elif kind == 'else' and stack:
+                stack[-1] = False
+            elif kind == 'endif' and stack:
+                stack.pop()
+            continue
+        yield number, line, any(stack)
+
+
+def check_diagnostics(repo, out):
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        if rel.startswith('Runtime/Validation/'):
+            continue  # the Validation assembly is itself constrained to Editor and Development builds
+        for number, line, guarded in diagnostic_guarded_lines(code_only(read(p))):
+            if not guarded and DIAGNOSTIC_SYMBOLS.search(line):
+                out.append(('ERROR', 'diagnostics', f'{rel}:{number}: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -590,7 +627,8 @@ def main():
                      ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
-                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies)):
+                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
+                     ('diagnostics', check_diagnostics)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

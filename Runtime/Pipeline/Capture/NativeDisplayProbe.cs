@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -90,3 +91,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 }
+#endif

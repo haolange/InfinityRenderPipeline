@@ -479,10 +479,12 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 data.combineLUT = pass.ReadTexture(lut);
                 data.exposureEV = pass.ReadTexture(exposure);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (data.output.displayProbe != null)
                 {
                     pass.SetQueueObserver(data.output.displayProbe);
                 }
+#endif
                 pass.SetExecuteFunc((in PostCombinePassData data, in RGRasterEncoder commands) =>
                 {
                     BindFinalOutput(data.output, commands);
