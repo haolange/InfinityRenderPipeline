@@ -267,10 +267,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         string GetProducer(in RGResourceHandle handle, out string queue)
         {
-            if (!handle.IsValid())
-            {
-                throw new InvalidOperationException("Capture source handle is invalid.");
-            }
+            m_Resources.RequireLive(handle, "GetProducer");
             for (int i = m_PassList.Count - 1; i >= 0; --i)
             {
                 IRGPass pass = m_PassList[i];

@@ -71,10 +71,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGTextureHandle
     {
-        private static readonly RGTextureHandle s_NullHandle = new RGTextureHandle();
-
-        public static RGTextureHandle nullHandle { get { return s_NullHandle; } }
-
         internal RGResourceHandle handle;
 
         internal RGTextureHandle(int handle, ushort generation)
@@ -206,13 +202,6 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 throw new InvalidOperationException($"{api} received a resource from a previous graph.");
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ComputeBuffer GetBuffer(in RGBufferHandle bufferHandle)
-        {
-            return ResolveBuffer(bufferHandle).resource
-                ?? throw new InvalidOperationException("Cannot resolve an imported GraphicsBuffer as a ComputeBuffer.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -399,12 +388,6 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int GetBufferCount()
-        {
-            return m_Resources[(int)ERGResourceType.Buffer].size;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         RGBuffer GetBufferResource(in RGResourceHandle handle)
         {
             return (RGBuffer)Resolve(handle, "RGBufferHandle");
@@ -510,12 +493,6 @@ namespace InfinityTech.Rendering.RenderGraph
             int newHandle = AddNewResource((int)ERGResourceType.Texture, m_Resources[(int)ERGResourceType.Texture], out RGTexture rdgTexture);
             rdgTexture.descriptor = textureCapacity.Resolve(descriptor);
             return TextureHandle(newHandle);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int GetTextureCount()
-        {
-            return m_Resources[(int)ERGResourceType.Texture].size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
