@@ -3,7 +3,6 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.UnifiedRayTracing;
 using System.Collections.Generic;
-using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.RenderGraph
 {

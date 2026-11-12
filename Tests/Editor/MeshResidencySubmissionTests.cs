@@ -49,9 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsAsyncGPUReadback || !SystemInfo.supportsGraphicsFence)
                 Assert.Ignore("GPU readback and CPU-queryable fences are required.");
             var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/RenderGraphHazard.compute");
-            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
-            var contextPool = new ResourcePool();
             var graph = new RGBuilder("DisposeWhileSubmitted", pool);
             var source = pool.GetBuffer(new BufferDescriptor(1, 4));
             source.buffer.SetData(new[] { 37u });
@@ -65,9 +63,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
-                    graph.Execute(state, commands);
+                    graph.Execute(context, commands);
                     pool.ReleaseBuffer(source);
                     var tail = new ResourceReuseFence { hasGraphics = true, graphics = commands.CreateAsyncGraphicsFence() };
                     var completion = commands.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
@@ -102,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 RenderPipelineManager.beginContextRendering -= render;
-                graph.Dispose(); pool.Dispose(); contextPool.Dispose();
+                graph.Dispose(); pool.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }
@@ -115,7 +112,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsNotNull(shader);
             var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
-            var contextPool = new ResourcePool();
             var world = new MeshWorld(pool, meshShader);
             var first = new RGBuilder("FirstCameraBeforeSubmit", pool);
             var second = new RGBuilder("SecondCameraBeforeSubmit", pool);
@@ -144,11 +140,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
                     if (fail)
-                        Assert.That(() => first.Execute(state, commands), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Expected submission fixture failure."));
-                    else if (!delayExecute) first.Execute(state, commands);
+                        Assert.That(() => first.Execute(context, commands), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Expected submission fixture failure."));
+                    else if (!delayExecute) first.Execute(context, commands);
                     Assert.IsFalse(pool.CanWriteBuffer(original), "Execute is not Submit/completion.");
                     pool.BeginFrame(); // Simulate a CPU frame transition while the context is still unsubmitted.
                     using (var update = world.BeginUpdate())
@@ -165,8 +160,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     probe.buffer.SetData(new uint[probe.descriptor.count]);
                     pool.ReleaseBuffer(probe);
                     Copy(second, shader, world.gpu.flags, secondResult);
-                    if (delayExecute) first.Execute(state, commands);
-                    second.Execute(state, commands);
+                    if (delayExecute) first.Execute(context, commands);
+                    second.Execute(context, commands);
                     Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flags));
                     var tail = new ResourceReuseFence { hasGraphics = true };
                     tail.graphics = commands.CreateAsyncGraphicsFence();
@@ -207,7 +202,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 RenderPipelineManager.beginContextRendering -= render;
-                first.Dispose(); second.Dispose(); world.Dispose(); pool.Dispose(); contextPool.Dispose();
+                first.Dispose(); second.Dispose(); world.Dispose(); pool.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }

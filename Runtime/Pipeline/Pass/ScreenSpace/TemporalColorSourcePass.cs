@@ -3,6 +3,7 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -91,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                     var shader = data.shader;
                     int kernel = data.kernel;
                     commands.SetComputeIntParam(shader, TemporalColorBindings.SourceValid, data.source.valid ? 1 : 0);
-                    commands.SetComputeFloatParam(shader, TemporalColorBindings.Far, GraphicsUtility.SampledFarDepth);
+                    commands.SetComputeFloatParam(shader, TemporalColorBindings.Far, GraphicsConventions.SampledFarDepth);
                     commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.SourceDepth, data.source.depth);
                     int2 inputSize = data.size;
                     for (int mip = 0; mip < data.mipCount; ++mip)

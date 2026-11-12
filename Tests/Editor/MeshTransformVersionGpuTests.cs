@@ -20,7 +20,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var graph = new RGBuilder("TransformVersionContract", pool);
             // The render context owns its own mesh world; keep its allocations out of the pool under test.
-            var contextPool = new ResourcePool();
             world.transformVersions.Record(graph, world.transformVersions.current, shader, new HashSet<MeshTransformVersion>(), externallyObserved: true);
             bool executed = false;
             Exception failure = null;
@@ -30,8 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using (var state = new RenderContext(contextPool, shader) { scriptableRenderContext = context })
-                    using (var commands = new CommandBuffer()) graph.Execute(state, commands);
+                    using (var commands = new CommandBuffer()) graph.Execute(context, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
                         var tail = new ResourceReuseFence { hasGraphics = true };
@@ -68,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                RenderPipelineManager.beginContextRendering -= render; graph.Dispose(); contextPool.Dispose();
+                RenderPipelineManager.beginContextRendering -= render; graph.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }

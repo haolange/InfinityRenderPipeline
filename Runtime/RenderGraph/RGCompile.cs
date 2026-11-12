@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
@@ -1168,7 +1168,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void ApplyMemoryless()
         {
-            if (!GraphicsUtility.SupportsMemorylessRenderTargets)
+            if (!GraphicsConventions.SupportsMemorylessRenderTargets)
             {
                 return;
             }

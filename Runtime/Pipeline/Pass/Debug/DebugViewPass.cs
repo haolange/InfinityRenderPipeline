@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -378,7 +379,7 @@ namespace InfinityTech.Rendering.Pipeline
                     else if (passData.bindSet == 6)
                     {
                         cmdEncoder.SetComputeMatrixParam(shader, DebugViewPassUtilityData.DV_InvProjID, passData.invProj);
-                        cmdEncoder.SetComputeFloatParam(shader, DebugViewPassUtilityData.DV_FarDepthID, GraphicsUtility.SampledFarDepth);
+                        cmdEncoder.SetComputeFloatParam(shader, DebugViewPassUtilityData.DV_FarDepthID, GraphicsConventions.SampledFarDepth);
                         cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                         passData.lightLoop.Bind(cmdEncoder, shader, kernel);
                     }

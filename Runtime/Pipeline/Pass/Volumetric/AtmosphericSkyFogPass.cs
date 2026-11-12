@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -64,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunIlluminance = sunIlluminance;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.farDepth = GraphicsUtility.SampledFarDepth;
+                passData.farDepth = GraphicsConventions.SampledFarDepth;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);

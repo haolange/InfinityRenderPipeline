@@ -5,6 +5,7 @@ using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -168,7 +169,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_IndirectDiffuse"), passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_IndirectSpecular"), passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsUtility.SampledFarDepth);
+                    cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsConventions.SampledFarDepth);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);

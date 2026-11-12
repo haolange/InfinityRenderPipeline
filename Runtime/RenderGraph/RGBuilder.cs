@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -15,7 +14,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         public RGObjectPool objectPool;
         internal CommandBuffer cmdBuffer;
-        public RenderContext renderContext;
+        public ScriptableRenderContext scriptableRenderContext;
         internal RGRendererListContext rendererLists;
         internal IRGGraphExtension extension;
     }
@@ -546,7 +545,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Execute(RenderContext renderContext, CommandBuffer cmdBuffer)
+        public void Execute(ScriptableRenderContext scriptableRenderContext, CommandBuffer cmdBuffer)
         {
             m_QueueSubmissionFailed = false;
             // Keep frame/camera scopes separate from commands that may be abandoned by a failed pass.
@@ -555,7 +554,7 @@ namespace InfinityTech.Rendering.RenderGraph
             RGContext graphContext = new RGContext
             {
                 cmdBuffer = graphCommands, objectPool = m_ObjectPool,
-                renderContext = renderContext,
+                scriptableRenderContext = scriptableRenderContext,
                 rendererLists = m_RendererListRecords,
                 extension = extension
             };
@@ -564,7 +563,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 if (cmdBuffer.sizeInBytes != 0)
                 {
-                    QueueGraphics(renderContext, cmdBuffer);
+                    QueueGraphics(scriptableRenderContext, cmdBuffer);
                     cmdBuffer.Clear();
                 }
                 m_Resources.BeginRender();
@@ -575,12 +574,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (m_RendererListRecords.LiveCount > 0)
                 {
-                    if (renderContext == null)
-                    {
-                        throw new InvalidOperationException("CreateRendererList requires ScriptableRenderContext after pass culling.");
-                    }
-
-                    m_RendererListRecords.CreateLive(renderContext.scriptableRenderContext);
+                    m_RendererListRecords.CreateLive(scriptableRenderContext);
                 }
                 ExecutePass(ref graphContext);
             }

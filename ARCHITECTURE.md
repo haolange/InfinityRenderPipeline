@@ -89,7 +89,7 @@ Async eligibility is a queue assignment. It is not a measurement of overlap. The
 
 ## 5. Render graph
 
-`RGBuilder` records passes, textures, buffers and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected. Work the core does not model attaches as one `IRGGraphExtension` per builder. The extension sees the recorded passes once per compile and clears its state whenever the recorded graph is dropped, with or without execution. It does not add or reorder passes. A pass stores the extension's ids in `extensionUses`, and pass handles and raster encoders carry their builder's extension, so a draw list from another builder is never consumed or submitted. The render graph has no dependency on the mesh pipeline; mesh draw lists are that extension, in `MeshPipeline/Graph/`. Recorded order is the schedule.
+`RGBuilder` records passes, textures, buffers and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected. Work the core does not model attaches as one `IRGGraphExtension` per builder. The extension sees the recorded passes once per compile and clears its state whenever the recorded graph is dropped, with or without execution. It does not add or reorder passes. A pass stores the extension's ids in `extensionUses`, and pass handles and raster encoders carry their builder's extension, so a draw list from another builder is never consumed or submitted. The render graph depends on neither the pipeline nor the mesh pipeline: it executes on a `ScriptableRenderContext`, and mesh draw lists are its extension, in `Runtime/Mesh/Graph/`. Recorded order is the schedule.
 
 Compile runs structural culling once. Culling propagates across texture and buffer reads. A pass that writes an imported resource, or that calls `EnablePassCulling(false)`, stays live. Mesh upload and compaction are already in the recorded sequence, after that wave's culling and before its raster block. The compiler then assigns descriptor-level alias slots, submission segments and native render-pass groups. The segment map is one dictionary cleared at the start of each compile. Resource checks compare the handle generation with the live slot and format the API name only when the check fails. A check of several compute kernels receives a static name array.
 
@@ -131,7 +131,7 @@ Screen-texture bindings carry logical and physical metadata. Normalized sampling
 
 `MeshWorldGPU.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers per entity slot. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks world identity, snapshot range and slot generation.
 
-Clear depth and sampled depth are different values. `ClearRenderTarget` and `AttachmentDescriptor.clearDepth` take `GraphicsUtility.ClearDepthFar`, which is normalized so that 1 means the far plane. Shader comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`.
+Clear depth and sampled depth are different values. `ClearRenderTarget` and `AttachmentDescriptor.clearDepth` take `GraphicsConventions.ClearDepthFar`, which is normalized so that 1 means the far plane. Shader comparisons against a sampled depth buffer use `GraphicsConventions.SampledFarDepth`.
 
 ### Contracts
 

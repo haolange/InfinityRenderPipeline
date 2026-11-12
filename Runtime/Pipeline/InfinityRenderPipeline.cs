@@ -345,7 +345,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_ResourcePool.BeginFrame();
                 renderContext.scriptableRenderContext = scriptableRenderContext;
-                m_RGBuilder.RecoverUnjoinedAsync(renderContext, m_ResourcePool.requiresQueueDrain);
+                m_RGBuilder.RecoverUnjoinedAsync(scriptableRenderContext, m_ResourcePool.requiresQueueDrain);
                 m_ResourcePool.QueueDrainAccepted();
 
                 InvokeProxyUpdate();
@@ -718,7 +718,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 {
                                     // The mesh graph extension Clear releases per-Declare visibility refs (exception-safe).
                                     m_RGBuilder.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
-                                    m_RGBuilder.Execute(renderContext, cmdBuffer);
+                                    m_RGBuilder.Execute(scriptableRenderContext, cmdBuffer);
                                     frameState.executeSucceeded = true;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                                     PipelineDiagnostics.AfterCamera(camera, true, null);
