@@ -116,9 +116,9 @@ namespace InfinityTech.Rendering.Pipeline
                     data.reprojection = pass.WriteTexture(reprojection);
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                data.inputSnapshot = PrepareStageSnapshot(pass, "TAAInput", input);
-                data.historyColorSnapshot = PrepareStageSnapshot(pass, "TAAHistoryColor", historyColor);
-                data.historyDepthSnapshot = PrepareStageSnapshot(pass, "TAAHistoryDepth", historyDepth);
+                data.inputSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAInput, input);
+                data.historyColorSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryColor, historyColor);
+                data.historyDepthSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryDepth, historyDepth);
 #endif
                 pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands) =>
                 {

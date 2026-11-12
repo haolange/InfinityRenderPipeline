@@ -283,7 +283,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RenderCaptureSession capture = RenderCaptureService.current;
                 bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(context.camera)
-                    && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
+                    && capture.Captures(ECaptureBuffer.SSRTileClass);
                 // A captured classification must outlive this pass for the graph-owned Transfer readback.
                 passData.tileClass = captureTileClass
                     ? passRef.WriteTexture(m_RGBuilder.scoper.CreateAndRegisterTexture(PassShaderIDs.Capture_SSRTileClass, tileClassDescriptor))

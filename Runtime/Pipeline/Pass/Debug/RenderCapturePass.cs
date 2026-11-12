@@ -47,13 +47,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> pass, string semantic, RGTextureHandle source) where TPassData : struct
+        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> pass, ECaptureBuffer buffer, RGTextureHandle source) where TPassData : struct
         {
             var session = RenderCaptureService.current;
-            if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, semantic) < 0)
+            if (session == null || !session.CaptureThisFrame || !session.Captures(buffer))
             {
                 return default;
             }
+            string semantic = buffer.ToString();
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.texture);
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
             descriptor.name = "Capture_" + semantic;
@@ -77,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RecordLightingCapture(in CameraRecordContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
-            if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, "Lighting") < 0)
+            if (session == null || !session.CaptureThisFrame || !session.Captures(ECaptureBuffer.Lighting))
             {
                 return;
             }
@@ -88,7 +89,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RecordDeferredLightingCapture(in CameraRecordContext context)
         {
             var session = RenderCaptureService.current;
-            if (session != null && session.CaptureThisFrame && Array.IndexOf(session.request.buffers, "DeferredLighting") >= 0)
+            if (session != null && session.CaptureThisFrame && session.Captures(ECaptureBuffer.DeferredLighting))
                 RecordCaptureTransfer(context, session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
         }
 
@@ -142,7 +143,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
-            if (Array.IndexOf(session.request.buffers, "CascadeShadow") >= 0)
+            if (session.Captures(ECaptureBuffer.CascadeShadow))
             {
                 session.RecordShadowState(renderContext.lightContext.ShadowAllocator);
             }

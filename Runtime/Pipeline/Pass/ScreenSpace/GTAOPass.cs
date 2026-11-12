@@ -204,10 +204,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.occlusionTexture = passRef.WriteTexture(occlusionTexture);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                passData.traceSnapshot = PrepareStageSnapshot(passRef, "AOTrace", occlusionHalfTexture);
-                passData.spatialXSnapshot = PrepareStageSnapshot(passRef, "AOSpatialX", spatialTempTexture);
-                passData.spatialYSnapshot = PrepareStageSnapshot(passRef, "AOSpatialY", occlusionHalfTexture);
-                passData.temporalSnapshot = PrepareStageSnapshot(passRef, "AOTemporal", spatialTempTexture);
+                passData.traceSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOTrace, occlusionHalfTexture);
+                passData.spatialXSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOSpatialX, spatialTempTexture);
+                passData.spatialYSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOSpatialY, occlusionHalfTexture);
+                passData.temporalSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOTemporal, spatialTempTexture);
 #endif
                 passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);

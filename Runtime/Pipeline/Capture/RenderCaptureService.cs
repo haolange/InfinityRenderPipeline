@@ -12,14 +12,12 @@ namespace InfinityTech.Rendering.Pipeline
         static DateTime s_LastRequestWrite;
         static bool s_ArgumentsRead;
 
-        internal static bool IsSupportedBuffer(string name) => name == "ScatterDiffuse" || name == "SubsurfaceDiffuse" || name == "SSGIMeta" || name == "SSGIHitDistance" || name == "TemporalColorSource" || name == "TemporalColorDepth" || name == "TemporalColorMips" || name == "SRAccumulation" || name == "SRDepth" || name == "TAAInput" || name == "TAAHistoryColor" || name == "TAAHistoryDepth" || name == "TAAAccumulation" || name == "TAADepth" || name == "TAAReprojection" || name == "MotionMetadata" || name == "ReactiveMask" || name == "AOTrace" || name == "AOSpatialX" || name == "AOSpatialY" || name == "AOTemporal" || name == "DisplayColor" || name == "PostProcess" ||
-            name == "Lighting" || name == "DeferredLighting" || name == "LightTileMask" || name == "Motion" || name == "Depth" || name == "DBufferA" || name == "DBufferB" || name == "DBufferC" || name == "GBufferA" ||
-            name == "GBufferB" || name == "GBufferC" || name == "Occlusion" || name == "SSR" ||
-            name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||
-            name == "ContactShadowSun" || name == "ContactShadowMask" ||
-            name == "CascadeShadow" || name == "LocalShadow" || name == "CachedShadow" || name == "CascadeShadowMoments" || name == "LocalShadowMoments" || name == "HiZClosest" || name == "HiZFurthest" || name == "SSRRayHit" || name == "SSRResolved" ||
-            name == "SSRTileClass" || name == "SSRMeta" || name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGITraceRadiance" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
-            name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";
+        // A capture source is exactly one ECaptureBuffer name.
+        internal static bool TryParseBuffer(string name, out ECaptureBuffer buffer)
+        {
+            buffer = ECaptureBuffer.None;
+            return name != null && Enum.IsDefined(typeof(ECaptureBuffer), name) && Enum.TryParse(name, out buffer) && buffer != ECaptureBuffer.None;
+        }
 
         internal static bool LockHistoryReset(Camera camera) =>
             current != null && !current.Finished && current.request.lockHistoryReset && current.request.Matches(camera);

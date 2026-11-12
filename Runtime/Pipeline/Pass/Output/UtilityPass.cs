@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var capture = RenderCaptureService.current;
             linearCapture = capture != null && !capture.Finished && capture.request.Matches(context.camera) &&
-                (System.Array.IndexOf(capture.request.buffers, "DisplayColor") >= 0 || System.Array.IndexOf(capture.request.buffers, "PostProcess") >= 0);
+                capture.Captures(ECaptureBuffer.DisplayColor | ECaptureBuffer.PostProcess);
 #endif
             var plan = new OutputPlan(context.camera.cameraType == CameraType.Game && context.camera.targetTexture == null,
                 context.outputDecision.policy, context.debugView != EDebugView.None, linearCapture, wire, gizmos);

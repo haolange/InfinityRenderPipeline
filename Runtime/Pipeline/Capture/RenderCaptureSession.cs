@@ -147,10 +147,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal string Status => m_Evidence.status;
         internal int OutstandingCount => m_Staging.Count + m_NativeProbes.Count;
 
+        readonly ECaptureBuffer m_Buffers;
+
+        internal bool Captures(ECaptureBuffer buffer) => (m_Buffers & buffer) != 0;
+
         internal RenderCaptureSession(RenderCaptureRequest captureRequest)
         {
             Validate(captureRequest);
             request = JsonUtility.FromJson<RenderCaptureRequest>(JsonUtility.ToJson(captureRequest));
+            foreach (string semantic in request.buffers)
+            {
+                RenderCaptureService.TryParseBuffer(semantic, out ECaptureBuffer buffer);
+                m_Buffers |= buffer;
+            }
             Directory.CreateDirectory(request.outputDirectory);
             File.WriteAllText(Path.Combine(request.outputDirectory, "request.json"), JsonUtility.ToJson(request, true));
             m_Started = Time.realtimeSinceStartupAsDouble;
@@ -175,14 +184,15 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (request.cameraType != CameraType.Game && request.cameraType != CameraType.SceneView)
                 throw new ArgumentException("Normal capture supports explicitly selected Game and SceneView cameras.");
-            if (Array.IndexOf(request.buffers, "TAAReprojection") >= 0 && !request.includeConfidence)
-                throw new ArgumentException("TAA reprojection capture requires diagnostics for this frame.");
-            var names = new HashSet<string>();
+            ECaptureBuffer requested = ECaptureBuffer.None;
             foreach (string semantic in request.buffers)
             {
-                if (!names.Add(semantic) || !RenderCaptureService.IsSupportedBuffer(semantic))
+                if (!RenderCaptureService.TryParseBuffer(semantic, out ECaptureBuffer buffer) || (requested & buffer) != 0)
                     throw new ArgumentException("Unknown or duplicate capture source: " + semantic);
+                requested |= buffer;
             }
+            if ((requested & ECaptureBuffer.TAAReprojection) != 0 && !request.includeConfidence)
+                throw new ArgumentException("TAA reprojection capture requires diagnostics for this frame.");
         }
 
         internal void PrepareCamera(in CameraSetup setup)

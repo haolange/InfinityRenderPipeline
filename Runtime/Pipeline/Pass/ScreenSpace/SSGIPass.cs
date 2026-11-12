@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var capture = RenderCaptureService.current;
-            bool captureRayHit = capture != null && capture.CaptureThisFrame && System.Array.IndexOf(capture.request.buffers, "SSGIRayHit") >= 0;
+            bool captureRayHit = capture != null && capture.CaptureThisFrame && capture.Captures(ECaptureBuffer.SSGIRayHit);
             RGTextureHandle rayHit = captureRayHit ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor)) : default;
 #endif
@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
                 passData.rayHit = captureRayHit ? passRef.WriteTexture(rayHit) : default;
-                passData.traceSnapshot = PrepareStageSnapshot(passRef, "SSGITraceRadiance", traceRadiance);
+                passData.traceSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.SSGITraceRadiance, traceRadiance);
 #endif
                 passData.traceRadiance = passRef.WriteTexture(traceRadiance);
                 passData.hitDistance = passRef.WriteTexture(hitDistance);
