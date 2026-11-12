@@ -269,7 +269,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void DrawRendererList(in RGRendererListHandle rendererList)
         {
-            m_RendererLists?.Submit(m_Core.commands, rendererList);
+            (m_RendererLists ?? throw new System.InvalidOperationException("This raster encoder has no renderer lists.")).Submit(m_Core.commands, rendererList);
         }
 
         public void DrawProcedural(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, in int vertexCount, in int instanceCount, MaterialPropertyBlock properties)

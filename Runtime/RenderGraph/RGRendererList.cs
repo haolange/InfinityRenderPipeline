@@ -7,7 +7,7 @@ namespace InfinityTech.Rendering.RenderGraph
 {
     /// <summary>
     /// Logical Unity RendererList handle. Not an ERGResourceType; lives in an independent registry.
-    /// Record stores a descriptor; ScriptableRenderContext.Create happens after pass culling.
+    /// Record stores RendererListParams; ScriptableRenderContext creates the list after pass culling.
     /// </summary>
     public readonly struct RGRendererListHandle
     {
@@ -44,17 +44,38 @@ namespace InfinityTech.Rendering.RenderGraph
     internal struct RGRendererListRecord
     {
         public ERGRendererListKind kind;
-        public RendererListDesc desc;
+        public RendererListParams parameters;
         public ShadowDrawingSettings shadowSettings;
         public List<int> consumerPassIndices;
         public ERGRendererListCompileState state;
         public RendererList created;
     }
 
-    internal delegate RendererList RGRendererListCreateFn(RGRendererListRecord record);
+    // Creates the native list of a live record. The graph uses the ScriptableRenderContext creator; the generic loop
+    // takes a struct so creation never allocates.
+    internal interface IRGRendererListCreator
+    {
+        RendererList Create(ref RGRendererListRecord record);
+    }
+
+    internal readonly struct RGContextRendererListCreator : IRGRendererListCreator
+    {
+        readonly ScriptableRenderContext m_Context;
+
+        internal RGContextRendererListCreator(ScriptableRenderContext context) => m_Context = context;
+
+        public RendererList Create(ref RGRendererListRecord record)
+        {
+            if (record.kind == ERGRendererListKind.Shadow)
+            {
+                return m_Context.CreateShadowRendererList(ref record.shadowSettings);
+            }
+            return m_Context.CreateRendererList(ref record.parameters);
+        }
+    }
 
     /// <summary>
-    /// Per-graph RendererList registry: Create(desc) at record, Create on SRC after cull.
+    /// Per-graph RendererList registry: Declare at record, create on the context after culling, submit only created lists.
     /// </summary>
     internal sealed class RGRendererListContext
     {
@@ -94,13 +115,13 @@ namespace InfinityTech.Rendering.RenderGraph
                 && list.index < m_Records.Count;
         }
 
-        public RGRendererListHandle Declare(in RendererListDesc desc)
+        public RGRendererListHandle Declare(in RendererListParams parameters)
         {
             int index = m_Records.Count;
             m_Records.Add(new RGRendererListRecord
             {
                 kind = ERGRendererListKind.Renderers,
-                desc = desc,
+                parameters = parameters,
                 consumerPassIndices = RentConsumers(),
                 state = ERGRendererListCompileState.Declared,
                 created = RendererList.nullRendererList
@@ -178,37 +199,8 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public void CreateLive(ScriptableRenderContext context)
+        public void CreateLive<TCreator>(in TCreator creator) where TCreator : struct, IRGRendererListCreator
         {
-            for (int i = 0; i < m_Records.Count; ++i)
-            {
-                var record = m_Records[i];
-                if (record.state != ERGRendererListCompileState.Live)
-                {
-                    continue;
-                }
-                CreateCallCount++;
-                if (record.kind == ERGRendererListKind.Shadow)
-                {
-                    var settings = record.shadowSettings;
-                    record.created = context.CreateShadowRendererList(ref settings);
-                }
-                else
-                {
-                    record.created = context.CreateRendererList(record.desc);
-                }
-                record.state = ERGRendererListCompileState.Created;
-                m_Records[i] = record;
-            }
-        }
-
-        public void CreateLiveWith(RGRendererListCreateFn create)
-        {
-            if (create == null)
-            {
-                throw new System.ArgumentNullException(nameof(create));
-            }
-
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGRendererListRecord record = m_Records[i];
@@ -216,41 +208,26 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     continue;
                 }
-
                 CreateCallCount++;
-                record.created = create(record);
+                record.created = creator.Create(ref record);
                 record.state = ERGRendererListCompileState.Created;
                 m_Records[i] = record;
             }
         }
 
-        public bool TryGetCreated(in RGRendererListHandle list, out RendererList created)
+        // A consumer draws only a list this graph created for it; anything else is a recording defect.
+        public void Submit(CommandBuffer cmdBuffer, in RGRendererListHandle list)
         {
             if (!IsLive(list))
             {
-                created = RendererList.nullRendererList;
-                return false;
+                throw new System.InvalidOperationException("Renderer list handle belongs to another graph or an earlier frame.");
             }
-
             RGRendererListRecord record = m_Records[list.index];
-            if (record.state != ERGRendererListCompileState.Created)
+            if (record.state != ERGRendererListCompileState.Created || !record.created.isValid)
             {
-                created = RendererList.nullRendererList;
-                return false;
+                throw new System.InvalidOperationException($"Renderer list {list.index} was not created for this pass (state {record.state}).");
             }
-
-            created = record.created;
-            return created.isValid;
-        }
-
-        public void Submit(CommandBuffer cmdBuffer, in RGRendererListHandle list)
-        {
-            if (cmdBuffer == null || !TryGetCreated(list, out RendererList created))
-            {
-                return;
-            }
-
-            cmdBuffer.DrawRendererList(created);
+            cmdBuffer.DrawRendererList(record.created);
         }
 
         public void ReleaseAll()

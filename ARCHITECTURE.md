@@ -8,7 +8,7 @@ InfinityRP is a Scriptable Render Pipeline. `InfinityRenderPipeline` derives fro
 
 Two geometry paths share the frame:
 
-- Native renderers are submitted with Unity `CullingResults`, `RendererList` and `ShadowRendererList`. Lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion data stay on those renderer lists.
+- Native renderers are submitted with Unity `CullingResults`, `RendererList` and `ShadowRendererList`. Lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion data stay on those renderer lists. Camera renderer lists are built only by `CameraRendererLists` from `RendererListParams`; the asset's instancing and dynamic-batching flags set `DrawingSettings`. A renderer list is created after culling only when a live pass consumes it, and submitting a list this graph did not create for the pass throws.
 - `MeshComponent` instances are entities of `MeshWorld` and are submitted through `RGMeshDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
 
 The package owns the render graph, the physical resource pool, image history, the mesh world and its GPU entity columns, light records, shadow allocation and the atmosphere profile. Unity owns the device, command submission, fences, native culling and the Volume manager.

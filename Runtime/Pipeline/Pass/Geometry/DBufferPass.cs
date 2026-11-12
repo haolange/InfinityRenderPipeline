@@ -3,7 +3,6 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
-using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -64,16 +63,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDBufferPass, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = new RenderQueueRange(2000, 2449);
-                rendererListDesc.sortingCriteria = SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterDBufferPass,
+                new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, pipelineAsset));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {

@@ -3,7 +3,6 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
-using UnityEngine.Rendering.RendererUtils;
 using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -52,16 +51,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle translucentDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
 
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterTranslucentDepthPass, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
-                rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterTranslucentDepthPass,
+                InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, pipelineAsset));
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
@@ -141,22 +132,13 @@ namespace InfinityTech.Rendering.Pipeline
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
 
-            ShaderTagId[] tags = m_RGBuilder.GetRecordingArray<ShaderTagId>(samplerId == CustomSamplerId.RasterTranslucentT2 ? 3 : 1);
-            tags[0] = lightMode;
-            if (tags.Length == 3)
-            {
-                tags[1] = new ShaderTagId("SRPDefaultUnlit");
-            }
-            RendererListDesc rendererListDesc = new RendererListDesc(tags, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
-                rendererListDesc.sortingCriteria = SortingCriteria.CommonTransparent;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            // T2 also draws materials that only have Unity's unlit pass.
+            RendererListParams listParameters = samplerId == CustomSamplerId.RasterTranslucentT2
+                ? CameraRendererLists.CreateWithUnlit(cullingResults, camera, lightMode, InfinityRenderQueue.k_RenderQueue_AllTransparent,
+                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, pipelineAsset)
+                : CameraRendererLists.Create(cullingResults, camera, lightMode, InfinityRenderQueue.k_RenderQueue_AllTransparent,
+                    SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, pipelineAsset);
+            RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(listParameters);
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {

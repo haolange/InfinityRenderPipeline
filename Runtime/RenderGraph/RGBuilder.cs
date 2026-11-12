@@ -188,12 +188,12 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetTextureCapacity(TextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
 
         /// <summary>
-        /// Record a Unity RendererList descriptor. Does not call ScriptableRenderContext.CreateRendererList.
+        /// Record renderer list parameters. The native list is created after pass culling, only for a consumed list.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRendererListHandle CreateRendererList(in RendererListDesc desc)
+        public RGRendererListHandle CreateRendererList(in RendererListParams parameters)
         {
-            return m_RendererListRecords.Declare(desc);
+            return m_RendererListRecords.Declare(parameters);
         }
 
         /// <summary>
@@ -576,7 +576,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (m_RendererListRecords.LiveCount > 0)
                 {
-                    m_RendererListRecords.CreateLive(scriptableRenderContext);
+                    m_RendererListRecords.CreateLive(new RGContextRendererListCreator(scriptableRenderContext));
                 }
                 ExecutePass(ref graphContext);
             }

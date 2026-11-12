@@ -4,7 +4,6 @@ using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
-using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -83,16 +82,8 @@ namespace InfinityTech.Rendering.Pipeline
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferB, out dBufferB)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterGBufferPass, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
-                rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RGRendererListHandle gbufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle gbufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(cullingResults, camera, InfinityPassIDs.RasterGBufferPass,
+                new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, pipelineAsset));
 
             var bakedDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal)
             { name = "BakedDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, clearColor = Color.clear };

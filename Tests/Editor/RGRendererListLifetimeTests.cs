@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RendererUtils;
@@ -7,18 +8,32 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 {
     public class RGRendererListLifetimeTests
     {
-        static RendererListDesc DummyDesc() => default;
+        // Counts creations through the same generic loop the graph uses with its context creator.
+        struct CountingCreator : IRGRendererListCreator
+        {
+            public int[] calls;
+
+            public RendererList Create(ref RGRendererListRecord record)
+            {
+                calls[0]++;
+                return RendererList.nullRendererList;
+            }
+        }
+
+        static CountingCreator Creator() => new CountingCreator { calls = new int[1] };
 
         [Test]
         public void CreateWithoutUse_DoesNotCreateOnSrc()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle unused = context.Declare(DummyDesc());
+            RGRendererListHandle unused = context.Declare(default(RendererListParams));
 
             context.ReleaseUnused();
-            context.CreateLiveWith(_ => RendererList.nullRendererList);
+            var creator = Creator();
+            context.CreateLive(creator);
 
             Assert.AreEqual(0, context.CreateCallCount);
+            Assert.AreEqual(0, creator.calls[0]);
             Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unused));
         }
 
@@ -26,19 +41,15 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void UseAndLive_CreatesOnce()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle used = context.Declare(DummyDesc());
+            RGRendererListHandle used = context.Declare(default(RendererListParams));
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
 
-            int factoryCalls = 0;
-            context.CreateLiveWith(_ =>
-            {
-                factoryCalls++;
-                return RendererList.nullRendererList;
-            });
+            var creator = Creator();
+            context.CreateLive(creator);
 
             Assert.AreEqual(1, context.CreateCallCount);
-            Assert.AreEqual(1, factoryCalls);
+            Assert.AreEqual(1, creator.calls[0]);
             Assert.AreEqual(ERGRendererListCompileState.Created, context.GetState(used));
         }
 
@@ -46,11 +57,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void CulledPass_DoesNotCreate()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle unused = context.Declare(DummyDesc());
-            RGRendererListHandle used = context.Declare(DummyDesc());
+            RGRendererListHandle unused = context.Declare(default(RendererListParams));
+            RGRendererListHandle used = context.Declare(default(RendererListParams));
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
-            context.CreateLiveWith(_ => RendererList.nullRendererList);
+            context.CreateLive(Creator());
 
             Assert.AreEqual(1, context.CreateCallCount);
             Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unused));
@@ -58,23 +69,22 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void StaleRef_DrawRejects()
+        public void StaleOrUncreatedList_SubmitThrows()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle used = context.Declare(DummyDesc());
+            RGRendererListHandle used = context.Declare(default(RendererListParams));
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
-            context.CreateLiveWith(_ => RendererList.nullRendererList);
-            context.ReleaseAll();
-
-            Assert.IsFalse(context.IsLive(used));
-            Assert.IsFalse(context.TryGetCreated(used, out _));
-            Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(used));
-
             var commands = new CommandBuffer();
             try
             {
-                Assert.DoesNotThrow(() => context.Submit(commands, used));
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A live list that was never created is not drawn silently.");
+                context.CreateLive(Creator());
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A created but invalid native list is not drawn silently.");
+                context.ReleaseAll();
+                Assert.IsFalse(context.IsLive(used));
+                Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(used));
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A handle from a released graph is rejected.");
             }
             finally
             {
