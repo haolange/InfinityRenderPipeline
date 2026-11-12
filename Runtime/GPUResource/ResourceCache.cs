@@ -102,12 +102,10 @@ namespace InfinityTech.Rendering.GPUResource
         public bool isShadowMap;
         public int anisoLevel;
         public float mipMapBias;
-        public bool enableMSAA;
         public bool bindTextureMS;
         public EMSAASamples msaaSamples;
         // Pool identity includes this so a memoryless allocation is never reused as an ordinary texture.
         public RenderTextureMemoryless memoryless;
-        public bool clearBuffer;
         public Color clearColor;
 
         public TextureDescriptor(int width, int height, ETextureSizingDomain domain, int divisor = 1) : this(width, height)
@@ -120,9 +118,7 @@ namespace InfinityTech.Rendering.GPUResource
             slices = 1;
 
             clearColor = Color.black;
-            enableMSAA = false;
             bindTextureMS = false;
-            clearBuffer = false;
             isShadowMap = false;
             enableRandomWrite = false;
 
@@ -138,9 +134,7 @@ namespace InfinityTech.Rendering.GPUResource
             slices = SliceOrDepth;
 
             clearColor = Color.black;
-            enableMSAA = false;
             bindTextureMS = false;
-            clearBuffer = false;
             isShadowMap = false;
             enableRandomWrite = false;
 
@@ -266,7 +260,6 @@ namespace InfinityTech.Rendering.GPUResource
             public TDescriptor descriptor;
             public TResource resource;
             public long lastUse, bytes;
-            internal ResourceReuseFence reuseFence;
             internal ResourceUsage usage;
         }
         struct RetiredEntry
@@ -323,9 +316,6 @@ namespace InfinityTech.Rendering.GPUResource
             estimatedAllocatedBytes += EstimateBytes(descriptor);
             estimatedPeakBytes = Math.Max(estimatedPeakBytes, estimatedAllocatedBytes);
         }
-        public bool Pull(in int hashCode, in TDescriptor descriptor, out TResource resource)
-            => Pull(hashCode, descriptor, false, false, 0, out resource, out _);
-
         internal bool Pull(in int hashCode, in TDescriptor descriptor, bool commandUse, bool asyncCompute, int recordingEpoch,
             out TResource resource, out ResourceReuseFence reuseFence)
         {
@@ -338,27 +328,16 @@ namespace InfinityTech.Rendering.GPUResource
                         continue;
                     }
                     reuseFence = default;
-                    if (entry.usage != null)
+                    if (commandUse)
                     {
-                        if (commandUse)
-                        {
-                            if (!entry.usage.CanAcquireCommands(asyncCompute, recordingEpoch, out reuseFence))
-                            {
-                                continue;
-                            }
-                        }
-                        else if (!entry.usage.CanWriteCpu)
+                        if (!entry.usage.CanAcquireCommands(asyncCompute, recordingEpoch, out reuseFence))
                         {
                             continue;
                         }
                     }
-                    else
+                    else if (!entry.usage.CanWriteCpu)
                     {
-                        if (!commandUse && !entry.reuseFence.passed)
-                        {
-                            continue;
-                        }
-                        reuseFence = entry.reuseFence;
+                        continue;
                     }
                     resource = entry.resource;
                     list.RemoveAt(i);
@@ -375,17 +354,14 @@ namespace InfinityTech.Rendering.GPUResource
             reuseFence = default;
             return false;
         }
-        public void Push(in int hash, in TDescriptor descriptor, TResource resource)
-            => Push(hash, descriptor, resource, default);
-
-        internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceReuseFence reuseFence, ResourceUsage usage = null)
+        internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceUsage usage)
         {
             if (!m_ResourcePool.TryGetValue(hash, out var list))
             {
                 m_ResourcePool.Add(hash, list = m_EmptyBuckets.Count > 0 ? m_EmptyBuckets.Pop() : new List<Entry>());
             }
             long bytes = EstimateBytes(descriptor);
-            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, reuseFence = reuseFence, usage = usage });
+            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, usage = usage });
             estimatedIdleBytes += bytes;
         }
         public void AfterSubmit(long watermark, GraphicsFence fence)
@@ -400,7 +376,7 @@ namespace InfinityTech.Rendering.GPUResource
                 Entry entry = m_Retired[i].entry;
                 // A retirement fence is not authority to discard recording references
                 // or another unresolved submission tracked by the physical owner.
-                if (entry.usage != null && !entry.usage.CanWriteCpu)
+                if (!entry.usage.CanWriteCpu)
                 {
                     continue;
                 }
@@ -421,7 +397,7 @@ namespace InfinityTech.Rendering.GPUResource
                         {
                             continue;
                         }
-                        if (candidate.usage != null && !candidate.usage.CanAcquireCommands(false, int.MinValue, out _))
+                        if (!candidate.usage.CanAcquireCommands(false, int.MinValue, out _))
                         {
                             continue;
                         }
@@ -460,7 +436,7 @@ namespace InfinityTech.Rendering.GPUResource
                 for (int i = entries.Count - 1; i >= 0; --i)
                 {
                     Entry entry = entries[i];
-                    if (entry.usage != null ? !entry.usage.CanWriteCpu : !entry.reuseFence.passed)
+                    if (!entry.usage.CanWriteCpu)
                     {
                         continue;
                     }
@@ -481,7 +457,7 @@ namespace InfinityTech.Rendering.GPUResource
             for (int i = m_Retired.Count - 1; i >= 0; --i)
             {
                 var retired = m_Retired[i];
-                if (!retired.fence.passed || retired.entry.usage != null && !retired.entry.usage.CanWriteCpu)
+                if (!retired.fence.passed || !retired.entry.usage.CanWriteCpu)
                 {
                     continue;
                 }

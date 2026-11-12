@@ -7,7 +7,6 @@ namespace InfinityTech.Rendering.GPUResource
 {
     public class ResourcePool
     {
-        internal Action<RTHandle, TextureDescriptor> textureAcquired;
         public BufferCache buffers
         {
             get;
@@ -74,7 +73,6 @@ namespace InfinityTech.Rendering.GPUResource
             m_SubmittedAwaitingJoin.Add(m_RecordingEpoch);
             SubmissionUncertain(true);
         }
-        public void AfterSubmit(GraphicsFence fence) => AfterSubmit(fence, default);
         internal void AfterSubmit(GraphicsFence completion, ResourceReuseFence joinedTail)
         {
             AcknowledgeSubmission(m_RecordingEpoch, completion, joinedTail);
@@ -180,7 +178,7 @@ namespace InfinityTech.Rendering.GPUResource
             }
             usage.SetTail(reuseFence);
             usage.returned = true;
-            buffers.Push(bufferHandle.handle, bufferHandle.descriptor, bufferHandle.buffer, reuseFence, usage);
+            buffers.Push(bufferHandle.handle, bufferHandle.descriptor, bufferHandle.buffer, usage);
         }
 
         public TextureHandle GetTexture(in TextureDescriptor descriptor)
@@ -211,7 +209,6 @@ namespace InfinityTech.Rendering.GPUResource
             }
             m_TextureUses[texture].returned = false;
 
-            textureAcquired?.Invoke(texture, descriptor);
             return new TextureHandle(handle, descriptor, texture);
         }
 
@@ -227,7 +224,7 @@ namespace InfinityTech.Rendering.GPUResource
             usage.SetTail(reuseFence);
             usage.returned = true;
             var physical = textureHandle.descriptor.PhysicalDescriptor();
-            textures.Push(physical.GetHashCode(), physical, textureHandle.texture, reuseFence, usage);
+            textures.Push(physical.GetHashCode(), physical, textureHandle.texture, usage);
         }
 
         public void Dispose()

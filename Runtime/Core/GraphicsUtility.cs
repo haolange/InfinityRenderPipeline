@@ -62,9 +62,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             get
             {
-                //if (m_BlitMaterial != null) { return m_BlitMaterial; }
-
-                //m_BlitMaterial = new Material(Shader.Find("InfinityPipeline/Utility/DrawFullScreen"));
                 return m_BlitMaterial;
             }
         }
@@ -88,128 +85,19 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public static void SetRenderTarget(CommandBuffer cmdBuffer, in RenderTargetIdentifier colorAttachment, in RenderBufferLoadAction colorLoadAction, in RenderBufferStoreAction colorStoreAction, in ClearFlag clearFlags, in Color clearColor, in TextureDimension dimension)
-        {
-            if (dimension == TextureDimension.Tex2DArray) {
-                CoreUtils.SetRenderTarget(cmdBuffer, colorAttachment, clearFlags, clearColor, 0, CubemapFace.Unknown, -1);
-            } else {
-                CoreUtils.SetRenderTarget(cmdBuffer, colorAttachment, colorLoadAction, colorStoreAction, clearFlags, clearColor);
-            }   
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, in RenderTargetIdentifier dsc)
-        {
-            cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, in RenderTargetIdentifier dsc, MaterialPropertyBlock materialPropertyBlock = null)
-        {
-            cmdBuffer.SetRenderTarget(dsc);
-            materialPropertyBlock.SetTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1, materialPropertyBlock);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc)
-        {
-            cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 0);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in Rect viewport, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.SetViewport(viewport);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in Rect viewport, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc, in RenderTargetIdentifier depth, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(dsc, depth);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
-            cmdBuffer.SetViewport(viewport);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier colorBuffer, Material material, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier colorBuffer, Material material, int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier colorBuffer, in RenderTargetIdentifier depthBuffer, Material material, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffer, depthBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier colorBuffer, in RenderTargetIdentifier depthBuffer, Material material, in int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffer, depthBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier[] colorBuffers, in RenderTargetIdentifier depthBuffer, Material material, in int passIndex)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffers, depthBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
-        }
-
-        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier[] colorBuffers, in RenderTargetIdentifier depthBuffer, Material material, in int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
-        {
-            cmdBuffer.SetRenderTarget(colorBuffers, depthBuffer);
-            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
-        }
-
-        public static Rect GetViewport(Camera camera)
-        {
-            return new Rect(camera.pixelRect.x, camera.pixelRect.y, camera.pixelWidth, camera.pixelHeight);
-        }
-
         // Compute UAV / sampled RT y=0 is the top of the image. Reconstructing with
         // GetGPUProjectionMatrix(..., renderIntoTexture: true) maps that row to NDC y = -1,
         // which this GPU projection treats as the bottom of the view. High-elevation sky
         // then samples below-horizon SkyView texels (black). Scene and Game both write
         // depth in the unflipped convention the raster attachments actually store.
-        internal static bool ComputeUsesRenderIntoTextureProjection(Camera camera)
-        {
-            return false;
-        }
-
         internal static Matrix4x4 GetComputeGpuProjection(Camera camera)
         {
-            return GL.GetGPUProjectionMatrix(camera.projectionMatrix, ComputeUsesRenderIntoTextureProjection(camera));
-        }
-
-        internal static Matrix4x4 GetComputeViewProj(Camera camera)
-        {
-            return GetComputeGpuProjection(camera) * camera.worldToCameraMatrix;
+            return GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
         }
 
         internal static Matrix4x4 GetComputeInvViewProj(Camera camera)
         {
-            return GetComputeViewProj(camera).inverse;
-        }
-
-        internal static Matrix4x4 GetComputeInvProj(Camera camera)
-        {
-            return GetComputeGpuProjection(camera).inverse;
+            return (GetComputeGpuProjection(camera) * camera.worldToCameraMatrix).inverse;
         }
     }
 }

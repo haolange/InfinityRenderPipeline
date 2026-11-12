@@ -399,8 +399,6 @@ namespace InfinityTech.Rendering.Pipeline
                             if (math.any(frameState.dimensions.displaySize != dimensions.displaySize) || math.any(frameState.dimensions.internalSize != dimensions.internalSize) || frameState.dimensions.superResolution != dimensions.superResolution)
                             {
                                 forceHistoryReset = true;
-                                frameState.descriptorGeneration++;
-
                             }
 
                             dimensions = dimensions.WithCapacity(frameState.internalCapacity.Prepare(dimensions.internalSize), frameState.displayCapacity.Prepare(dimensions.displaySize));
@@ -851,12 +849,6 @@ namespace InfinityTech.Rendering.Pipeline
             renderContext.meshWorld.FlushRetired(reuseFence);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected float GetMipmapBiasOffset(in int renderWidth, in int displayWidth)
-        {
-            return math.log2((float)renderWidth / displayWidth) - 1.0f;
-        }
-
         void CaptureGraphicsState()
         {
             m_PreviousGlobalStateOwner = s_GlobalStateOwner;
@@ -969,16 +961,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             return found;
-        }
-
-        public VolumeStack GetVolumeStack(Camera camera)
-        {
-            if (camera == null || !m_CameraStates.TryGetValue(GetCameraID(camera), out CameraFrameState state))
-            {
-                return null;
-            }
-
-            return state.volumeStack;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

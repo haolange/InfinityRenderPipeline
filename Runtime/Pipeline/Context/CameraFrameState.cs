@@ -22,7 +22,6 @@ namespace InfinityTech.Rendering.Pipeline
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
         public FrameFeatureSet features;
-        public int descriptorGeneration;
         public int lastSeenFrame;
         public CameraType cameraType;
         public CameraDimensionDescriptor dimensions;
@@ -30,7 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly TextureCapacityState displayCapacity = new TextureCapacityState();
         public bool postProcessingEnabled = true;
         public bool sceneLightingEnabled = true;
-        public GraphicsFormat colorFormat;
         public AtmosphereViewCache atmosphereViewCache;
         public CombineLutCache combineLutCache;
         public ExposureState exposureState;
@@ -70,7 +68,6 @@ namespace InfinityTech.Rendering.Pipeline
             atmosphereViewCache = new AtmosphereViewCache();
             combineLutCache = new CombineLutCache();
             exposureState = new ExposureState { evCompensation = 0.0f };
-            colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;

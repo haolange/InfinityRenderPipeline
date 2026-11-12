@@ -280,7 +280,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new InvalidOperationException("No capture frame was prepared.");
             }
-            if (descriptor.width < 1 || descriptor.height < 1 || descriptor.slices != 1 || descriptor.dimension != TextureDimension.Tex2D || descriptor.enableMSAA || descriptor.useMipMap)
+            if (descriptor.width < 1 || descriptor.height < 1 || descriptor.slices != 1 || descriptor.dimension != TextureDimension.Tex2D || descriptor.msaaSamples != EMSAASamples.None || descriptor.useMipMap)
                 throw new InvalidOperationException("Capture source requires an explicit single-mip, non-MSAA 2D descriptor.");
             RTHandle handle = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices,
                 (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, FilterMode.Point, TextureWrapMode.Clamp,

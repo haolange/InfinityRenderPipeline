@@ -14,7 +14,6 @@ namespace InfinityTech.Rendering.GPUResource
             public TextureDescriptor committedDescriptor, pendingDescriptor;
             public int generation;
             public bool producedThisFrame;
-            public bool invalidateNextGet;
         }
 
         class BufferSlot
@@ -24,7 +23,6 @@ namespace InfinityTech.Rendering.GPUResource
             public BufferDescriptor committedDescriptor, pendingDescriptor;
             public int generation;
             public bool producedThisFrame;
-            public bool invalidateNextGet;
         }
 
         TextureCapacityContext m_TextureCapacity;
@@ -136,12 +134,6 @@ namespace InfinityTech.Rendering.GPUResource
                 committedLogical.allocationWidth = committedLogical.allocationHeight = 0;
                 created = !requestedLogical.Equals(committedLogical);
             }
-            if (slot.invalidateNextGet)
-            {
-                created = true;
-                slot.invalidateNextGet = false;
-            }
-
             return new TextureHandle(-1, slot.committedDescriptor, slot.committed);
         }
 
@@ -163,19 +155,6 @@ namespace InfinityTech.Rendering.GPUResource
 
             slot.pendingDescriptor = descriptor;
             return new TextureHandle(-1, descriptor, slot.pending);
-        }
-
-        public void Invalidate(in int id)
-        {
-            if (m_Textures.TryGetValue(id, out TextureSlot textureSlot))
-            {
-                textureSlot.invalidateNextGet = true;
-            }
-
-            if (m_Buffers.TryGetValue(id, out BufferSlot bufferSlot))
-            {
-                bufferSlot.invalidateNextGet = true;
-            }
         }
 
         public void BeginFrame()

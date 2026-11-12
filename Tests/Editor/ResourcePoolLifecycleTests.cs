@@ -151,10 +151,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             pool.SubmissionNeedsJoin();
             pool.BeginFrame();
             // State-only fixture: no native allocation, and no default fence is queried.
-            pool.AfterSubmit(default);
+            pool.AfterSubmit(default, default);
             Assert.IsTrue(usage.pending, "A recovery fence cannot be assumed queued before the recovery join succeeds.");
             pool.QueueDrainAccepted();
-            pool.AfterSubmit(default);
+            pool.AfterSubmit(default, default);
             Assert.IsFalse(usage.pending);
             pool.Dispose();
         }
@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             pool.BeginFrame();
             // No native resource is attached to this state fixture. Only batch membership
             // is checked; a default fence is never queried as completion evidence.
-            pool.AfterSubmit(default);
+            pool.AfterSubmit(default, default);
             Assert.IsTrue(usage.pending);
             Assert.IsFalse(usage.CanWriteCpu);
             pool.Dispose();
