@@ -149,7 +149,8 @@ namespace InfinityTech.Rendering.Pipeline
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
 
-                if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
+                InfinityAdditionalLightData ext = renderContext.lightContext.AdditionalData(lightIdx);
+                if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
                     cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(context.camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,

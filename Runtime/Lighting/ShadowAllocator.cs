@@ -156,6 +156,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public void Allocate(
             NativeList<LightRecord> records,
             in CullingResults cullingResults,
+            InfinityAdditionalLightData[] additionalData,
             Camera camera,
             in ShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
@@ -185,7 +186,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             AllocateCascade(records, cullingResults, camera, settings, cascadeRes);
-            AllocateLocal(records, cullingResults, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
+            AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
         }
 
         // Local shadow budget: candidates in descending score (record order on ties) are accepted while both the light
@@ -257,6 +258,7 @@ namespace InfinityTech.Rendering.LightPipeline
         void AllocateLocal(
             NativeList<LightRecord> records,
             in CullingResults cullingResults,
+            InfinityAdditionalLightData[] additionalData,
             Camera camera, Vector3 cameraPosition,
             in ShadowAllocatorSettings settings,
             int localRes,
@@ -276,8 +278,9 @@ namespace InfinityTech.Rendering.LightPipeline
                         continue;
                     }
                     Light light = cullingResults.visibleLights[record.visibleLightIndex].light;
+                    InfinityAdditionalLightData ext = additionalData[record.visibleLightIndex];
                     if (light != null && light.shadows != LightShadows.None
-                        && light.TryGetComponent(out InfinityAdditionalLightData ext)
+                        && ext != null
                         && ext.shadowUpdateMode == EShadowUpdateMode.OnDemand)
                         cached[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), MeshView.SceneCullingMaskFor(camera), ext.shadowCacheVersion, Time.frameCount);
                 }

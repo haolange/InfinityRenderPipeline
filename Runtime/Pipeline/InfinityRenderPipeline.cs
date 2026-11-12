@@ -599,7 +599,7 @@ namespace InfinityTech.Rendering.Pipeline
                     m_LightCookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
                     // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
                     lightContext.ResolveCookies(setup.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
-                        cullingResults, renderContext.GetWorldLight(), Time.frameCount);
+                        cullingResults, Time.frameCount);
                     m_ReflectionProbeAtlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
                     lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
                         cullingResults, Time.frameCount);

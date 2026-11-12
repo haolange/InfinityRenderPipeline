@@ -140,6 +140,11 @@ namespace InfinityTech.Rendering.LightPipeline
         GraphicsBuffer m_CookieBuffer;
         int m_CookieCapacity;
         readonly List<LightCookieGPU> m_Cookies = new List<LightCookieGPU>();
+        // InfinityAdditionalLightData of each visible light this frame, read once from the registry by visible index.
+        InfinityAdditionalLightData[] m_AdditionalData = System.Array.Empty<InfinityAdditionalLightData>();
+
+        // The registered additional data of a visible light, or null for a plain Unity light.
+        internal InfinityAdditionalLightData AdditionalData(int visibleLightIndex) => m_AdditionalData[visibleLightIndex];
         LightCookieGPU[] m_CookieUpload = new LightCookieGPU[1];
         static readonly int CookieStride = Marshal.SizeOf<LightCookieGPU>();
         NativeList<LightRecord> m_Records;
@@ -306,6 +311,21 @@ namespace InfinityTech.Rendering.LightPipeline
             float far = camera != null ? camera.farClipPlane : 1000.0f;
             m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
 
+            // The registry is the only source: InfinityAdditionalLightData registers itself before the frame's proxy update.
+            if (m_AdditionalData.Length < visibleLights.Length)
+            {
+                m_AdditionalData = new InfinityAdditionalLightData[math.ceilpow2(visibleLights.Length)];
+            }
+            for (int i = 0; i < visibleLights.Length; ++i)
+            {
+                Light light = visibleLights[i].light;
+                m_AdditionalData[i] = null;
+                if (light != null)
+                {
+                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
+                }
+            }
+
             for (int i = 0; i < visibleLights.Length; ++i)
             {
                 VisibleLight visible = visibleLights[i];
@@ -321,16 +341,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     continue;
                 }
 
-                InfinityAdditionalLightData ext = null;
-                if (worldLightLookup != null)
-                {
-                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext);
-                }
-
-                if (ext == null)
-                {
-                    light.TryGetComponent(out ext);
-                }
+                InfinityAdditionalLightData ext = m_AdditionalData[i];
 
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
                 if (!LightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out LightRecord record))
@@ -393,7 +404,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
-            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings, meshWorld, shadowCache);
+            m_ShadowAllocator.Allocate(m_Records, cullingResults, m_AdditionalData, camera, settings, meshWorld, shadowCache);
             EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }
 
@@ -488,8 +499,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // changed textures. The cookie texture is the Unity Light's; the IES profile is InfinityAdditionalLightData's.
         // Point lights need cubemap cookies (stored octahedral); every other shape takes a 2D cookie. Cube IES profiles
         // apply to every local shape by direction; 2D IES profiles only to cone and pyramid spots.
-        internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults,
-            Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup, int frame)
+        internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults, int frame)
         {
             m_Cookies.Clear();
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
@@ -500,11 +510,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 if (atlas != null && atlas.Enabled && record.visibleLightIndex >= 0 && record.visibleLightIndex < visibleLights.Length)
                 {
                     Light light = visibleLights[record.visibleLightIndex].light;
-                    InfinityAdditionalLightData ext = null;
-                    if (light != null && (worldLightLookup == null || !worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext)))
-                    {
-                        light.TryGetComponent(out ext);
-                    }
+                    InfinityAdditionalLightData ext = m_AdditionalData[record.visibleLightIndex];
                     if (light != null && TryResolveCookie(atlas, record, light, ext, frame, out LightCookieGPU cookie))
                     {
                         record.cookieIndex = m_Cookies.Count;
