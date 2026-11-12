@@ -175,7 +175,6 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     RasterFinalOutput(camera, decision, sceneColorTexture, target, true);
                 }
-                frameState.exposureState.evCompensation = 0;
                 MarkFeatureProduced(EFrameFeature.PostProcess);
                 return;
             }
@@ -192,7 +191,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             PostVolumeState volumes = ResolvePostVolumeState(frameState);
-            frameState.exposureState.evCompensation = frameState.sceneLightingEnabled ? ExposureUtility.ResolveCpuEvCompensation(frameState.volumeStack.GetComponent<Exposure>()) : 0;
 
             int width = m_ActiveFrameState.dimensions.displaySize.x;
             int height = m_ActiveFrameState.dimensions.displaySize.y;
@@ -256,7 +254,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             PostVolumeState state = default;
             state.recordAutoExposure = frameState.sceneLightingEnabled && ExposureUtility.ShouldRecordAuto(exposure);
-            state.exposureMultiplier = frameState.sceneLightingEnabled ? ExposureUtility.EvToMultiplier(ExposureUtility.ResolveCpuEvCompensation(exposure)) : 1;
+            state.exposureMultiplier = frameState.sceneLightingEnabled ? ExposureUtility.ResolveMultiplier(exposure) : 1;
             state.autoExposure = state.recordAutoExposure ? 1.0f : 0.0f;
             if (state.recordAutoExposure)
             {

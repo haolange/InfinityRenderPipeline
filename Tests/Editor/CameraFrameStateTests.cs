@@ -174,7 +174,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsNotNull(frameState.historyCache);
                 Assert.IsNotNull(frameState.features);
                 Assert.IsNotNull(frameState.cameraUniform);
-                Assert.AreEqual(0.0f, frameState.exposureState.evCompensation);
 
                 var cameraStack = frameState.volumeStack;
                 Assert.IsTrue(cameraStack.isValid);

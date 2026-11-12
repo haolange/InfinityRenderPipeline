@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsFalse(snapshot.evCompensation.overrideState,
                     "CoreRP resets scene override flags even when defaults provide nonzero values.");
                 Assert.AreEqual(2.0f, ExposureUtility.ResolveCpuEvCompensation(snapshot));
-                Assert.AreEqual(4.0f, ExposureUtility.ResolveManualMultiplier(snapshot));
+                Assert.AreEqual(4.0f, ExposureUtility.ResolveMultiplier(snapshot), 1e-6f);
                 var descriptor = CombineLutParameterUtility.FromVolumeStack(
                     manager.stack.GetComponent<FilmTonemap>(), manager.stack.GetComponent<ColorGrading>());
                 Assert.AreEqual(0.7f, descriptor.FilmSlope);

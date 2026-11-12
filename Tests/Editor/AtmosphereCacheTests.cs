@@ -110,7 +110,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var states = new Dictionary<int, CameraFrameState> { { 92, inactive } };
                 InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, false, 50);
                 Assert.IsFalse(inactive.requiresHistoryReset);
-                Assert.AreEqual(0, inactive.successfulRenderCount);
             }
             finally { inactive.Dispose(); if (ownsVolumes) VolumeManager.instance.Deinitialize(); }
         }

@@ -6,17 +6,11 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct ExposureState
-    {
-        public float evCompensation;
-    }
-
     internal class CameraFrameState : IDisposable
     {
         public int cameraId;
         public Camera camera;
         public bool preparedThisRender;
-        public long successfulRenderCount;
         public CameraUniform cameraUniform;
         internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
         public VolumeStack volumeStack;
@@ -31,7 +25,6 @@ namespace InfinityTech.Rendering.Pipeline
         public bool sceneLightingEnabled = true;
         public AtmosphereViewCache atmosphereViewCache;
         public CombineLutCache combineLutCache;
-        public ExposureState exposureState;
         public bool executeSucceeded;
         public bool requiresHistoryReset;
         public bool loggedOutputDecision;
@@ -67,7 +60,6 @@ namespace InfinityTech.Rendering.Pipeline
             features = new FrameFeatureSet();
             atmosphereViewCache = new AtmosphereViewCache();
             combineLutCache = new CombineLutCache();
-            exposureState = new ExposureState { evCompensation = 0.0f };
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
@@ -97,7 +89,6 @@ namespace InfinityTech.Rendering.Pipeline
             internalCapacity.Commit();
             displayCapacity.Commit();
             meshMotionHistory.Commit();
-            successfulRenderCount++;
             if (features != null && features.IsProduced(EFrameFeature.SSGI))
             {
                 acceptedSSGIFrameIndex = Time.frameCount;

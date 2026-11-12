@@ -36,19 +36,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 exposure.active = true;
                 Assert.IsTrue(VolumeComponentActive(exposure));
                 Assert.AreEqual(0.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
-                Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
+                Assert.AreEqual(1.0f, ExposureUtility.ResolveMultiplier(exposure));
                 Assert.IsFalse(ExposureUtility.ShouldRecordAuto(exposure));
 
                 exposure.evCompensation.overrideState = true;
                 Assert.IsTrue(VolumeComponentActive(exposure));
                 exposure.evCompensation.value = 1.0f;
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
-                Assert.AreEqual(2.0f, ExposureUtility.ResolveManualMultiplier(exposure), 1e-6f);
+                Assert.AreEqual(2.0f, ExposureUtility.ResolveMultiplier(exposure), 1e-6f);
 
                 exposure.mode.overrideState = true;
                 exposure.mode.value = EExposureMode.Auto;
                 Assert.IsTrue(ExposureUtility.ShouldRecordAuto(exposure));
-                Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
+                Assert.AreEqual(2.0f, ExposureUtility.ResolveMultiplier(exposure), 1e-6f, "Compensation applies in automatic mode too.");
 
                 exposure.active = false;
                 Assert.IsFalse(VolumeComponentActive(exposure));
