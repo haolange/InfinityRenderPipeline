@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public bool occluded;
             public MeshOccluderInputs occluder;
             public RGBufferHandle drawn;
-            public bool readDrawn;
+            public bool remainder;
         }
 
         struct MeshDrawUploadData
@@ -66,9 +66,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             public MeshOccluder occluder;
         }
 
-        // The draws of one culling context and pass so far. A list drawn with an occluder records which candidates it drew
-        // (tracked); a later list of the same context and pass draws only the rest. Without an occluder a list draws every
-        // visible candidate, so nothing is left for a later one.
+        // The draws of one culling context and pass so far. Only a list tested against the previous frame's pyramid can leave
+        // something visible undrawn: it records which candidates it drew (tracked), and the next list of the context and pass,
+        // tested against a newer occluder, draws the rest. A list tested against this frame's depth, or against nothing, leaves
+        // nothing that a newer occluder could reveal, so every later list of the context and pass is empty.
         struct RepeatEntry
         {
             public MeshCullingContext context;
@@ -78,7 +79,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         static readonly RGComputePassExecuteAction<MeshDrawProducerData> s_Produce = static (in MeshDrawProducerData data, in RGComputeEncoder encoder)
-            => data.lists.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawn, data.readDrawn);
+            => data.lists.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawn, data.remainder);
         static readonly RGTransferPassExecuteAction<MeshDrawUploadData> s_Upload = static (in MeshDrawUploadData data, in RGTransferEncoder encoder)
             => data.lists.Upload(data.index, encoder.m_Core.commands);
 
@@ -188,7 +189,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             int repeat = FindRepeat(context, desc.passTag);
             MeshOccluder occluder = default;
             bool occluded = gpu && TryOccluder(context, out occluder);
-            bool empty = cache.memberCount == 0 || (repeat >= 0 && !m_Repeats[repeat].tracked);
+            bool remainder = repeat >= 0 && m_Repeats[repeat].tracked;
+            if (remainder && (!occluded || occluder.history))
+            {
+                throw new InvalidOperationException($"The remainder of '{desc.lightMode}' needs a newer occluder than the previous frame's pyramid.");
+            }
+            bool empty = cache.memberCount == 0 || (repeat >= 0 && !remainder);
             RGMeshDrawListHandle draws = drawLists.Create(context, cache, backend, m_Motion, empty);
             MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
             // Recording references keep the frozen tables alive for this graph.
@@ -213,7 +219,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 record.tables.version.owner.Record(builder, record.tables.version, m_ScheduledVersions);
                 if (gpu)
                 {
-                    drawn = RecordProducer(builder, draws.index, occluded, occluder, repeat);
+                    drawn = RecordProducer(builder, draws.index, occluded, occluder, remainder ? m_Repeats[repeat].drawn : default, remainder);
                 }
                 else
                 {
@@ -222,7 +228,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             if (repeat < 0)
             {
-                m_Repeats.Add(new RepeatEntry { context = context, passTag = desc.passTag, drawn = drawn, tracked = !empty && occluded });
+                m_Repeats.Add(new RepeatEntry { context = context, passTag = desc.passTag, drawn = drawn, tracked = !empty && occluded && occluder.history });
+            }
+            else if (remainder)
+            {
+                RepeatEntry entry = m_Repeats[repeat];
+                entry.tracked = false;
+                m_Repeats[repeat] = entry;
             }
             return draws;
         }
@@ -242,23 +254,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        // One compute producer per nonempty GPU list, recorded where the list is created. Returns the drawn table it writes
-        // when occluded.
-        RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, int repeat)
+        // One compute producer per nonempty GPU list, recorded where the list is created. A history-occluded list returns the
+        // drawn table it writes; a remainder list reads the one it is given.
+        RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawn, bool remainder)
         {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
             MeshGPUDrawPayload payload = record.payload;
             RGBufferHandle instances = builder.ImportBuffer(payload.instanceToEntity);
             RGBufferHandle fades = builder.ImportBuffer(payload.instanceFade);
             RGBufferHandle args = builder.ImportBuffer(payload.indirectArgs);
-            RGBufferHandle drawn = default;
-            bool readDrawn = false;
-            if (occluded)
-            {
-                readDrawn = repeat >= 0;
-                drawn = readDrawn ? m_Repeats[repeat].drawn
-                    : builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" });
-            }
+            RGBufferHandle written = occluded && occluder.history
+                ? builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" })
+                : default;
             using (var pass = builder.AddComputePass<MeshDrawProducerData>(MeshDrawProfiling.production))
             {
                 pass.KeepImportedWritesLocal();
@@ -295,12 +302,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                         data.occluder.previousTransforms = pass.ReadBuffer(builder.ImportBuffer(previous.matrices));
                         data.occluder.previousGenerations = pass.ReadBuffer(builder.ImportBuffer(previous.generations));
                     }
-                    if (readDrawn)
+                    if (occluder.history)
                     {
-                        pass.ReadBuffer(drawn);
+                        data.drawn = pass.WriteBuffer(written);
                     }
-                    data.drawn = pass.WriteBuffer(drawn);
-                    data.readDrawn = readDrawn;
+                    else if (remainder)
+                    {
+                        data.drawn = pass.ReadBuffer(remainderDrawn);
+                        data.remainder = true;
+                    }
                 }
                 pass.SetExecuteFunc(s_Produce);
             }
@@ -309,7 +319,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             outputs[1] = fades;
             outputs[2] = args;
             m_ProducerOutputs[drawIndex] = outputs;
-            return drawn;
+            return written;
         }
 
         // One upload producer per nonempty CPU list; its build job is scheduled at compile when the list is live.
@@ -395,8 +405,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Records the list's producer here, before its raster consumer. A later list of the same context and pass draws
-        /// only what earlier ones left: with an occluder that is what the occluder hid then, without one nothing.
+        /// Records the list's producer here, before its raster consumer. A later list of the same context and pass draws only
+        /// what earlier ones left: after a list tested against the previous frame's pyramid, what a newer occluder no longer
+        /// hides; otherwise nothing.
         /// </summary>
         public static RGMeshDrawListHandle CreateMeshDrawList(this RGBuilder builder, in MeshDrawListDesc desc)
         {

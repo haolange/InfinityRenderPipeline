@@ -70,13 +70,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 run.SetHistory(Buffer(matrices, 64), Buffer(generations, 4), Buffer(oldMatrices, 64), Buffer(previousGenerations, 4), Count, Count);
                 run.SetOccluder(previous, Matrix4x4.identity, Width, Height, mips);
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build("BuildDrawListOccludedHistory", context)));
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, run.DrawnCandidates(), "The occluded list records what it drew.");
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, run.DrawnCandidates(), "The history list records what it drew.");
 
                 // A later list of the same context and pass draws what the history occluder hid and the current one does not.
                 run.SetOccluder(current, Matrix4x4.identity, Width, Height, mips);
                 var expectedRemainder = new uint[Count]; expectedRemainder[0] = 1;
                 expectedRemainder[9] = currentHole ? 0u : 1u;
-                CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build("BuildDrawListOccluded", context, readDrawn: true)));
+                CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build("BuildDrawListRemainder", context)));
 
                 // Another pass tests its first list against the current occluder alone.
                 var expectedCurrent = new uint[] {1,1,1,1,1,1,0,0,1,currentHole ? 0u : 1u,1};

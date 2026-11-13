@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                var ids = new MeshEntityId[8];
+                var ids = new MeshEntityId[7];
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     ids[0] = MeshTestUtility.CreateEntity(update, new float3(3, 0, 0));
@@ -67,25 +67,18 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     ids[4] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0), renderingLayerMask: 2);
                     ids[5] = MeshTestUtility.CreateEntity(update, new float3(40, 0, 0));
                     ids[6] = MeshTestUtility.CreateEntity(update, new float3(10.4f, 0, 0));
-                    ids[7] = MeshTestUtility.CreateEntity(update, new float3(0, 0, 0));
                     update.Commit();
                 }
-                using (MeshWorldUpdate update = world.BeginUpdate())
-                {
-                    update.RemoveEntity(ids[7]);
-                    update.Commit();
-                }
-                uint2[] candidates = MeshTestUtility.LevelCandidates(8, 1);
+                uint2[] candidates = MeshTestUtility.LevelCandidates(7, 1);
 
                 MeshCullingContext camera = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), 1, 1, (uint)ERenderingLayer.Everything, false, MeshTestUtility.Lod);
-                // Visible flag, layer and scene masks apply; a camera context ignores rendering layers; bounds touching a plane
-                // stay; a dead entity never draws.
-                CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 0, 1, 0, 1, 0 },
-                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, camera, false), 8));
+                // Visible flag, layer and scene masks apply; a camera context ignores rendering layers; bounds touching a plane stay.
+                CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 0, 1, 0, 1 },
+                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, camera, false), 7));
 
                 MeshCullingContext light = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), 1, ulong.MaxValue, 1u, true, MeshTestUtility.Lod);
-                CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 1, 0, 0, 1, 0 },
-                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, light, false), 8),
+                CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 1, 0, 0, 1 },
+                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, light, false), 7),
                     "A light context applies the light's rendering layers.");
             }
         }

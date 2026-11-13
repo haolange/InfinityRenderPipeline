@@ -34,6 +34,18 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         static RGTextureHandle Target(RGBuilder graph)
             => graph.CreateTexture(new TextureDescriptor(1, 1) { colorFormat = GraphicsFormat.R8G8B8A8_UNorm, dimension = TextureDimension.Tex2D });
 
+        // An occluder pyramid stand-in that a raster pass writes, so producers read a written texture.
+        static RGTextureHandle WrittenTarget(RGBuilder graph)
+        {
+            RGTextureHandle texture = Target(graph);
+            using (var pass = graph.AddRasterPass<EmptyRasterData>(new ProfilingSampler("WriteOccluder")))
+            {
+                pass.SetColorAttachment(texture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
+            }
+            return texture;
+        }
+
         static void AddConsumer(RGBuilder graph, RGTextureHandle target, CustomSamplerId sampler, RGMeshDrawListHandle draws, bool keep)
         {
             using (var pass = graph.AddRasterPass<DrawPassData>(ProfilingSampler.Get(sampler)))
@@ -347,31 +359,39 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void Occluder_LeavesARemainderOnlyForItsContext()
+        public void HistoryOccluder_LeavesTheRemainderToTheNextListOfItsContextAndPass()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "OccluderRemainder", EMeshDrawBackendPolicy.GPUIndirect);
+                RGBuilder graph = CreateGraph(fixture, "HistoryRemainder", EMeshDrawBackendPolicy.GPUIndirect);
                 try
                 {
+                    MeshTransformVersion version = fixture.world.transformVersions.current;
+                    graph.SetMeshMotion(new MeshMotionBinding(version, version));
                     MeshCullingContext main = MeshTestUtility.CameraContext();
                     MeshCullingContext light = LightContext(0);
                     RGTextureHandle target = Target(graph);
-                    graph.RegisterMeshOccluder(main, new MeshOccluder(Target(graph), Matrix4x4.identity, new int2(2, 2), 1, false));
+                    graph.RegisterMeshOccluder(main, new MeshOccluder(WrittenTarget(graph), Matrix4x4.identity, new int2(2, 2), 1, true));
                     RGMeshDrawListHandle first = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
                     RGMeshDrawListHandle cascade = graph.CreateMeshDrawList(new MeshDrawListDesc(light, InfinityPassIDs.RasterShadowPass));
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass)),
+                        "The remainder of a history list needs a newer occluder.");
+                    graph.RegisterMeshOccluder(main, new MeshOccluder(WrittenTarget(graph), Matrix4x4.identity, new int2(2, 2), 1, false));
                     RGMeshDrawListHandle remainder = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
+                    RGMeshDrawListHandle after = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
                     RGMeshDrawListHandle cascadeAgain = graph.CreateMeshDrawList(new MeshDrawListDesc(light, InfinityPassIDs.RasterShadowPass));
                     AddConsumer(graph, target, CustomSamplerId.RasterDepth, first, true);
                     AddConsumer(graph, target, CustomSamplerId.RasterCascadeShadow, cascade, true);
                     AddConsumer(graph, target, CustomSamplerId.RasterDepthRecovery, remainder, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterDepthRecovery, after, true);
                     AddConsumer(graph, target, CustomSamplerId.RasterCascadeShadow, cascadeAgain, true);
                     Compile(graph);
 
                     MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
                     Assert.AreEqual(EMeshDrawListState.Scheduled, lists.GetRecordCopy(remainder.index).state,
-                        "An occluded context leaves what its occluder hid to a later list of the same pass.");
+                        "What the history pyramid hid is left to the next list of the context and pass.");
+                    Assert.AreEqual(EMeshDrawListState.Empty, lists.GetRecordCopy(after.index).state, "The remainder exhausts it.");
                     Assert.AreEqual(EMeshDrawListState.Empty, lists.GetRecordCopy(cascadeAgain.index).state,
                         "Without an occluder a list draws every visible member, so nothing is left.");
                     Assert.AreEqual(3, CountPasses(graph, "ComputeMeshDrawList", true));
@@ -379,6 +399,38 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     int producer = compiled.IndexOf("|ComputeMeshDrawList|", System.StringComparison.Ordinal);
                     Assert.GreaterOrEqual(producer, 0);
                     Assert.Less(producer, compiled.IndexOf(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery).name, System.StringComparison.Ordinal));
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        [Test]
+        public void CurrentOccluder_LeavesNothing_AndAnOccluderAfterTheFirstListLeavesNothing()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "CurrentOccluder", EMeshDrawBackendPolicy.GPUIndirect);
+                try
+                {
+                    MeshCullingContext main = MeshTestUtility.CameraContext();
+                    RGTextureHandle target = Target(graph);
+                    RGMeshDrawListHandle depth = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
+                    graph.RegisterMeshOccluder(main, new MeshOccluder(WrittenTarget(graph), Matrix4x4.identity, new int2(2, 2), 1, false));
+                    RGMeshDrawListHandle depthAgain = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterDepthPass));
+                    RGMeshDrawListHandle gbuffer = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterGBufferPass));
+                    RGMeshDrawListHandle gbufferAgain = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterGBufferPass));
+                    AddConsumer(graph, target, CustomSamplerId.RasterDepth, depth, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterDepthRecovery, depthAgain, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterGBuffer, gbuffer, true);
+                    AddConsumer(graph, target, CustomSamplerId.RasterGBuffer, gbufferAgain, true);
+                    Compile(graph);
+
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
+                    Assert.AreEqual(EMeshDrawListState.Empty, lists.GetRecordCopy(depthAgain.index).state, "An occluder after the first list reveals nothing it hid.");
+                    Assert.AreEqual(EMeshDrawListState.Scheduled, lists.GetRecordCopy(gbuffer.index).state);
+                    Assert.AreEqual(EMeshDrawListState.Empty, lists.GetRecordCopy(gbufferAgain.index).state, "This frame's depth leaves nothing for a later list.");
+                    Assert.AreEqual(2, CountPasses(graph, "ComputeMeshDrawList", true));
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -411,7 +463,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 try
                 {
                     MeshCullingContext context = MeshTestUtility.CameraContext();
-                    graph.RegisterMeshOccluder(context, new MeshOccluder(Target(graph), Matrix4x4.identity, new int2(2, 2), 1, false));
+                    graph.RegisterMeshOccluder(context, new MeshOccluder(WrittenTarget(graph), Matrix4x4.identity, new int2(2, 2), 1, false));
                     RGTextureHandle target = Target(graph);
                     RGMeshDrawListHandle live = graph.CreateMeshDrawList(new MeshDrawListDesc(context, InfinityPassIDs.RasterGBufferPass));
                     RGMeshDrawListHandle empty = graph.CreateMeshDrawList(new MeshDrawListDesc(context, InfinityPassIDs.RasterForwardPass));

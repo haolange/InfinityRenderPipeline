@@ -16,7 +16,7 @@
 
 ## 头号怀疑
 
-1. shader：`Compute_MeshDrawPipeline.compute` 的三个 build kernel 与 `MeshOcclusion.hlsl`；plain kernel 不得引用 occluder 或 drawn 表
+1. shader：`Compute_MeshDrawPipeline.compute` 的四个 build kernel（plain、Occluded、OccludedHistory、Remainder）与 `MeshOcclusion.hlsl`；每个 kernel 只能引用自己绑定的资源（plain 不引用 occluder 与 drawn 表，Occluded 不引用 drawn 表与 transform 版本）
    （否则 Unity 报 "property not set"）。
 2. Burst：`MeshDrawGatherJob<StateSortKey>` 与 `MeshDrawGatherJob<TranslucentColorSortKey>` 能否 Burst 编译（Console 中 Burst 错误即 RETURN）。
 3. GPU 时间证伪（计划写定的条件）：Spazon 主相机一帧内所有 `ComputeMeshDrawList` 的 GPU 时间之和，对比 `d7cef36` 基线中

@@ -142,7 +142,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     commands = commands,
                     elements = elements,
                     entities = world.entities,
-                    generations = world.entityGenerations,
                     bounds = world.entityBounds,
                     context = context,
                     lod = context.ReadLODProjection(),
@@ -255,7 +254,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// <summary>Binds an occluder for the occluded kernels.</summary>
         internal void SetOccluder(Texture furthest, Matrix4x4 viewProjection, int width, int height, int mipCount)
         {
-            foreach (string kernel in new[] { "BuildDrawListOccluded", "BuildDrawListOccludedHistory" })
+            foreach (string kernel in new[] { "BuildDrawListOccluded", "BuildDrawListOccludedHistory", "BuildDrawListRemainder" })
                 m_Shader.SetTexture(m_Shader.FindKernel(kernel), "_MeshCullFurthest", furthest);
             m_Shader.SetMatrix("_MeshCullProjection", viewProjection);
             m_Shader.SetVector("_MeshCullFullExtent", new Vector4(width, height, 0, 0));
@@ -274,8 +273,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetInt("_MeshCullPreviousCount", previousCount);
         }
 
-        /// <summary>Initializes the arguments and runs one build kernel; the occluded kernels also write the drawn table.</summary>
-        internal List<MeshDrawnInstance> Build(string kernelName, in MeshCullingContext context, bool dither = false, bool readDrawn = false)
+        /// <summary>Initializes the arguments and runs one build kernel; the history kernel writes the drawn table, the remainder kernel reads it.</summary>
+        internal List<MeshDrawnInstance> Build(string kernelName, in MeshCullingContext context, bool dither = false)
         {
             m_Context.SetData(new[] { context });
             int initialize = m_Shader.FindKernel("InitializeIndirectArgs");
@@ -287,7 +286,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             int kernel = m_Shader.FindKernel(kernelName);
             m_Shader.SetInt("_CandidateCount", m_CandidateCount);
             m_Shader.SetInt("_DitherLod", dither ? 1 : 0);
-            m_Shader.SetInt("_ReadDrawn", readDrawn ? 1 : 0);
             m_Shader.SetBuffer(kernel, "_CullingContext", m_Context);
             m_Shader.SetBuffer(kernel, "_EntityBoundsCenter", m_Columns.center);
             m_Shader.SetBuffer(kernel, "_EntityBoundsExtent", m_Columns.extent);
@@ -301,7 +299,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(kernel, "_IndirectArgs", m_Args);
             m_Shader.SetBuffer(kernel, "_InstanceToEntity", m_Instances);
             m_Shader.SetBuffer(kernel, "_InstanceFade", m_Fades);
-            if (kernelName != "BuildDrawList") m_Shader.SetBuffer(kernel, "_DrawnCandidates", m_Drawn);
+            if (kernelName == "BuildDrawListOccludedHistory" || kernelName == "BuildDrawListRemainder") m_Shader.SetBuffer(kernel, "_DrawnCandidates", m_Drawn);
             m_Shader.Dispatch(kernel, Math.Max(1, (m_CandidateCount + 63) / 64), 1, 1);
             return Read();
         }
@@ -327,7 +325,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return result;
         }
 
-        /// <summary>The drawn table the occluded kernels wrote, one word per candidate.</summary>
+        /// <summary>The drawn table the history kernel wrote, one word per candidate.</summary>
         internal uint[] DrawnCandidates()
         {
             var drawn = new uint[m_Drawn.count];

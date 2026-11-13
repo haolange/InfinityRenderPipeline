@@ -13,21 +13,6 @@ namespace InfinityTech.Rendering.Pipeline
     // camera's LOD projection, so a shadow shows the level the camera draws.
     internal static class CameraCulling
     {
-        internal static ulong SceneCullingMask(Camera camera)
-        {
-#if UNITY_EDITOR
-            if (camera.overrideSceneCullingMask != 0)
-                return camera.overrideSceneCullingMask;
-            if (camera.scene.IsValid())
-                return UnityEditor.SceneManagement.EditorSceneManager.GetSceneCullingMask(camera.scene);
-            return camera.cameraType == CameraType.SceneView
-                ? UnityEditor.SceneManagement.SceneCullingMasks.MainStageSceneViewObjects
-                : UnityEditor.SceneManagement.SceneCullingMasks.GameViewObjects;
-#else
-            return ulong.MaxValue;
-#endif
-        }
-
         internal static MeshLODProjection LODProjection(Camera camera)
         {
             bool orthographic = camera.orthographic;
@@ -49,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 planes[i] = cullingParameters.GetCullingPlane(i);
             }
-            return MeshCullingContext.Create(planes.Slice(0, count), camera.cullingMask, SceneCullingMask(camera),
+            return MeshCullingContext.Create(planes.Slice(0, count), camera.cullingMask, CameraSceneCulling.Mask(camera),
                 (uint)ERenderingLayer.Everything, false, LODProjection(camera));
         }
 
@@ -63,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 planes[i] = split.GetCullingPlane(i);
             }
-            return MeshCullingContext.Create(planes.Slice(0, count), light.cullingMask, SceneCullingMask(camera),
+            return MeshCullingContext.Create(planes.Slice(0, count), light.cullingMask, CameraSceneCulling.Mask(camera),
                 RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), true, LODProjection(camera));
         }
     }

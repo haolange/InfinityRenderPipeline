@@ -138,7 +138,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     /// <summary>
     /// One thread per element slot of a pass cache: an element whose entity passes the culling context and whose level the
-    /// LOD selection draws becomes one instance with its pass key. The key formula is the type argument.
+    /// LOD selection draws becomes one instance with its pass key. The key formula is the type argument. The candidate table
+    /// holds elements of live entities only, as the GPU build kernel also assumes.
     /// </summary>
     [BurstCompile]
     internal struct MeshDrawGatherJob<TKey> : IJobParallelFor where TKey : struct, IMeshSortKey
@@ -147,7 +148,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly] public NativeArray<MeshDrawCommand> commands;
         [ReadOnly] public NativeArray<MeshElement> elements;
         [ReadOnly] public NativeArray<MeshEntity> entities;
-        [ReadOnly] public NativeArray<uint> generations;
         [ReadOnly] public NativeArray<BoundingBox> bounds;
         public MeshCullingContext context;
         public MeshLODProjection lod;
@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             int entity = (int)candidate.x;
-            if ((generations[entity] & 1u) == 0 || !MeshCulling.Eligible(entities[entity].desc, context))
+            if (!MeshCulling.Eligible(entities[entity].desc, context))
             {
                 return;
             }
@@ -288,7 +288,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 commands = cache.commands,
                 elements = world.elements,
                 entities = world.entities,
-                generations = world.entityGenerations,
                 bounds = world.entityBounds,
                 context = context,
                 lod = context.ReadLODProjection(),

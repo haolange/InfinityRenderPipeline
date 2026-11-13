@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             get;
         }
-        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, culling and compaction on GPU indirect.</summary>
+        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, draw-list producers on GPU indirect.</summary>
         internal ComputeShader meshDrawShader
         {
             get;

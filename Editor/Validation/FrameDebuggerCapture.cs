@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Editor
             public string kernel;
             public int dispatches;
         }
-        [Serializable] sealed class MeshCompactionEvidence
+        [Serializable] sealed class MeshDrawListEvidence
         {
             public string name;
             public int dispatches;
@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Editor
             public string status, error, cleanupError, persistenceError, unity, camera, cameraEntity, cameraSampler, scene;
             public int nativeCount, eventCount;
             public List<EventEvidence> events = new List<EventEvidence>();
-            public List<MeshCompactionEvidence> meshCompaction = new List<MeshCompactionEvidence>();
+            public List<MeshDrawListEvidence> meshDrawLists = new List<MeshDrawListEvidence>();
         }
         static Type s_Utility, s_DataType;
         static string s_Directory;
@@ -230,11 +230,11 @@ namespace InfinityTech.Rendering.Editor
             evidence.error = error?.ToString();
             if (status == "Completed")
             {
-                evidence.meshCompaction = evidence.events
+                evidence.meshDrawLists = evidence.events
                     .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler)
                         && e.name.Contains("/ComputeMeshDrawList/"))
                     .GroupBy(e => e.name)
-                    .Select(group => new MeshCompactionEvidence
+                    .Select(group => new MeshDrawListEvidence
                     {
                         name = group.Key,
                         dispatches = group.Count(),

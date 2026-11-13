@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void GpuCompaction_MatchesTheCpuBuildPerCommandRange()
+        public void GpuBuild_MatchesTheCpuBuildPerCommandRange()
         {
             MeshTestUtility.RequireComputeReadback();
             using (var fixture = new MeshWorldFixture())

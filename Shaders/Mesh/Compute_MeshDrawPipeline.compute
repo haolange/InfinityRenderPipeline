@@ -4,7 +4,8 @@
 //   table (one thread per element slot): the element's entity is tested against the list's culling context (masks, LOD,
 //   frustum) and, for an occluded list, against the context's Hi-Z occluder; a passing element appends its entity to its
 //   command's stable or fading range. Visible counts are never read back.
-// - An occluded list records which candidates it drew; a later list of the same context and pass draws only the rest.
+// - A list tested against the previous frame's pyramid records which candidates it drew; the later remainder list of the same
+//   context and pass, tested against this frame's pyramid, draws only the rest.
 //
 // Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
 // (per pass cache), instance (position in InstanceToEntity).
@@ -16,6 +17,7 @@
 #pragma kernel BuildDrawList
 #pragma kernel BuildDrawListOccluded
 #pragma kernel BuildDrawListOccludedHistory
+#pragma kernel BuildDrawListRemainder
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
 #define MESH_COMMAND_MASK 0x00FFFFFFu
@@ -49,7 +51,6 @@ struct MeshCullingContext
 uint _CommandCount;
 uint _CandidateCount;
 uint _DitherLod;
-uint _ReadDrawn;
 StructuredBuffer<MeshCullingContext> _CullingContext;
 
 StructuredBuffer<float4> _EntityBoundsCenter;
@@ -134,16 +135,13 @@ bool MeshElementRange(uint packed, uint elementLod, out uint range, out float fa
     return range != 2u;
 }
 
-// occluded and history are literals at each kernel, so the plain kernel binds no occluder and no drawn table, and the
-// current-frame occluder binds no transform versions.
-void BuildDrawListCore(uint candidateIndex, bool occluded, bool history)
+// The flags are literals at each kernel, so a kernel binds only what it uses: the plain kernel no occluder and no drawn
+// table, a current-frame occluder no transform versions. A history list writes the drawn table; a remainder list reads it.
+void BuildDrawListCore(uint candidateIndex, bool occluded, bool history, bool remainder)
 {
     uint2 candidate = _CandidateTable[candidateIndex];
     bool drawn = false;
-    if (occluded)
-    {
-        if (_ReadDrawn != 0u) drawn = _DrawnCandidates[candidateIndex] != 0u;
-    }
+    if (remainder) drawn = _DrawnCandidates[candidateIndex] != 0u;
     bool append = false;
     uint entity = candidate.x;
     uint command = candidate.y & MESH_COMMAND_MASK;
@@ -178,7 +176,7 @@ void BuildDrawListCore(uint candidateIndex, bool occluded, bool history)
         _InstanceToEntity[instance] = entity;
         _InstanceFade[instance] = factor;
     }
-    if (occluded) _DrawnCandidates[candidateIndex] = (drawn || append) ? 1u : 0u;
+    if (history) _DrawnCandidates[candidateIndex] = append ? 1u : 0u;
 }
 
 [numthreads(64, 1, 1)]
@@ -201,19 +199,25 @@ void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void BuildDrawList(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, false, false);
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, false, false, false);
 }
 
 [numthreads(64, 1, 1)]
 void BuildDrawListOccluded(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false);
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false, false);
 }
 
 [numthreads(64, 1, 1)]
 void BuildDrawListOccludedHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, true);
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, true, false);
+}
+
+[numthreads(64, 1, 1)]
+void BuildDrawListRemainder(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false, true);
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

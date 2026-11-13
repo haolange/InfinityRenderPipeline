@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void Produce(int index, in RGComputeEncoder encoder, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder,
-            RGBufferHandle drawn, bool readDrawn)
+            RGBufferHandle drawn, bool remainder)
         {
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
@@ -220,7 +220,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_World.gpuBackend.Produce(encoder, record.payload, record.cache, record.commandCount, record.candidateCount,
-                    record.cullingContext, inputs, occluded, occluder, drawn, readDrawn, m_World.stats);
+                    record.cullingContext, inputs, occluded, occluder, drawn, remainder, m_World.stats);
             }
             finally
             {

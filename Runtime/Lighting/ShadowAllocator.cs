@@ -282,7 +282,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     if (light != null && light.shadows != LightShadows.None
                         && ext != null
                         && ext.shadowUpdateMode == EShadowUpdateMode.OnDemand)
-                        cached[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), Pipeline.CameraCulling.SceneCullingMask(camera), ext.shadowCacheVersion, Time.frameCount);
+                        cached[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), ext.shadowCacheVersion, Time.frameCount);
                 }
             int candidateCount = 0;
             for (int i = 0; i < records.Length; ++i)
@@ -345,7 +345,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 Light light = cullingResults.visibleLights[visibleIndex].light;
                 int firstSlice = nextSlice;
                 if (cached[recordIndex] != null)
-                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), Pipeline.CameraCulling.SceneCullingMask(camera), faces, Time.frameCount);
+                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), faces, Time.frameCount);
 
                 for (int face = 0; face < faces; ++face)
                 {

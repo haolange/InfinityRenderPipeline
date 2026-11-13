@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using InfinityTech.Core;
 using UnityEngine.Rendering;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
@@ -50,7 +51,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             bounds = default;
             bool found = false;
-            ulong sceneMask = Pipeline.CameraCulling.SceneCullingMask(camera);
+            ulong sceneMask = CameraSceneCulling.Mask(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             foreach (int id in m_Casters)
             {
@@ -75,7 +76,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal bool HasLocalCaster(in LightRecord record, Light light, Camera camera, int tileResolution, float guardTexels)
         {
-            ulong sceneMask = Pipeline.CameraCulling.SceneCullingMask(camera);
+            ulong sceneMask = CameraSceneCulling.Mask(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             int faces = LightRecordPack.LocalShadowSliceCount(record);
             for (int face = 0; face < faces; ++face)

@@ -78,7 +78,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly int ID_IndirectArgs = Shader.PropertyToID("_IndirectArgs");
         static readonly int ID_InstanceFade = Shader.PropertyToID("_InstanceFade");
         static readonly int ID_DitherLod = Shader.PropertyToID("_DitherLod");
-        static readonly int ID_ReadDrawn = Shader.PropertyToID("_ReadDrawn");
         static readonly int ID_DrawnCandidates = Shader.PropertyToID("_DrawnCandidates");
         static readonly int ID_Furthest = Shader.PropertyToID("_MeshCullFurthest");
         static readonly int ID_Projection = Shader.PropertyToID("_MeshCullProjection");
@@ -96,7 +95,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly ComputeKernel m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel;
+        readonly ComputeKernel m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel, m_BuildRemainderKernel;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
         readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
@@ -119,8 +118,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_BuildKernel = ComputeKernel.Resolve(shader, field, "BuildDrawList");
             m_BuildOccludedKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListOccluded");
             m_BuildOccludedHistoryKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListOccludedHistory");
+            m_BuildRemainderKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListRemainder");
             // The shader is required on every backend; a missing kernel is a broken install, not a device limit.
-            foreach (ComputeKernel kernel in new[] { m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel })
+            foreach (ComputeKernel kernel in new[] { m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel, m_BuildRemainderKernel })
             {
                 if (!kernel.isValid)
                 {
@@ -168,11 +168,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>
         /// The list's producer: uploads the command metadata and the culling context, initializes both argument records of
         /// every command slot, then appends every passing candidate. <paramref name="occluder"/> is read only when
-        /// <paramref name="occluded"/>; the drawn table is read when <paramref name="readDrawn"/> and written when occluded.
+        /// <paramref name="occluded"/>; a history occluder writes the drawn table and a remainder list reads it.
         /// </summary>
         internal void Produce(in RGComputeEncoder encoder, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
             in MeshCullingContext context, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder, RGBufferHandle drawn,
-            bool readDrawn, MeshWorldStats stats)
+            bool remainder, MeshWorldStats stats)
         {
             RequireSupported();
             if (commandCount > payload.commandCapacity)
@@ -198,7 +198,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             encoder.EndSample(MeshDrawProfiling.initializeIndirectArgs);
             stats.drawListKernelDispatches++;
 
-            ComputeKernel build = !occluded ? m_BuildKernel : occluder.history ? m_BuildOccludedHistoryKernel : m_BuildOccludedKernel;
+            ComputeKernel build = !occluded ? m_BuildKernel : occluder.history ? m_BuildOccludedHistoryKernel
+                : remainder ? m_BuildRemainderKernel : m_BuildOccludedKernel;
             int kernel = build.index;
             encoder.BeginSample(MeshDrawProfiling.buildDrawList);
             encoder.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
@@ -218,8 +219,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceFade, payload.instanceFade.buffer);
             if (occluded)
             {
-                encoder.SetComputeIntParam(m_Shader, ID_ReadDrawn, readDrawn ? 1 : 0);
-                encoder.SetComputeBufferParam(m_Shader, kernel, ID_DrawnCandidates, drawn);
+                if (occluder.history || remainder)
+                {
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_DrawnCandidates, drawn);
+                }
                 encoder.SetComputeTextureParam(m_Shader, kernel, ID_Furthest, occluder.furthest);
                 encoder.SetComputeMatrixParam(m_Shader, ID_Projection, occluder.viewProjection);
                 encoder.SetComputeVectorParam(m_Shader, ID_Extent, occluder.extent);
