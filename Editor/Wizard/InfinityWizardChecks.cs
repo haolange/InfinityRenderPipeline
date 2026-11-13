@@ -226,7 +226,8 @@ namespace InfinityTech.Rendering.Editor
             try
             {
                 InfinityRenderPipelineGlobalSettings.Require();
-                return true;
+                // Capture diagnostics are optional for the pipeline, but an Editor project should carry their container.
+                return GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineCaptureShaders capture) && capture != null;
             }
             catch (InvalidOperationException)
             {

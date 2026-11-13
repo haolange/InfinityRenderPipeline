@@ -43,6 +43,13 @@
 5. 活性：Game view 不重绘时截图都一样。必须在 Play mode 下截图，或至少拿到一对 Game 区域不同的截图，才能作为活性证据。
 6. CLI 只连 `127.0.0.1`，保持 bearer 认证，不打印也不归档凭据。
 7. Scene view 的创建、关闭、停靠只在 Editor update pump 上做，不要在其渲染或 `OnGUI` 栈里关闭。
+8. 启动 Editor 时不要继承指向 intermediate 深路径的 `TMPDIR`：Bee 的 unix socket 路径上限 104 字节，超出即脚本编译失败。
+9. Example 项目位于 exFAT 卷：macOS 会生成 AppleDouble `._*` 文件，`AssetImportWorker` 可能在 `Library Redirect Path` 后以
+   `stoull: no conversion` 崩溃。清理只能用 `dot_clean -m <目录>`，且每次都需要用户授权；不要删除 `Library` 或缓存。
+10. 长时间运行后 Editor 可能在 `Library/ShaderCache.db` 上耗尽低位文件描述符（Bee 套接字超过 1024 即失败），只能重启 Editor，
+    重启需要用户授权。
+11. 画面比对必须与基线同尺寸（d7cef36 基线为 1445×813）。改变布局（例如关闭 Scene view）会改变 Game view 尺寸；比对前恢复
+    基线布局，或在 Game view 分辨率菜单选择固定的 1445×813（这是 Editor 偏好，不是项目资产），不要设置 `EditorWindow.position`。
 
 ---
 
