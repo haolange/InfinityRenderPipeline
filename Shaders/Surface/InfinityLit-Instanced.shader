@@ -96,8 +96,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 				Out.uv0 = In.uv0;
 				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
-				vertex_WS.xyz = OffsetShadowCaster(vertex_WS.xyz, MeshNormalToWorld(meshBatch.matrix_LocalToWorld, In.normal));
-                Out.vertex_CS = mul(Matrix_ViewFlipYProj, vertex_WS);
+				Out.vertex_CS = ShadowCasterClipPosition(vertex_WS.xyz, MeshNormalToWorld(meshBatch.matrix_LocalToWorld, In.normal));
 				return Out;
 			}
 
@@ -918,8 +917,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				WorldPos.xyz = OffsetShadowCaster(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
-                Out.vertex = mul(Matrix_ViewFlipYProj, WorldPos);
+				Out.vertex = ShadowCasterClipPosition(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
 				return Out;
 			}
 

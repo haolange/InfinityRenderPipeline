@@ -29,7 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int numSamples;
             public int profileCount;
             public ComputeKernel burleyKernel, composeKernel;
-            public Matrix4x4 projection, inverseProjection;
             public int2 resolution;
             public RGBufferHandle profileBuffer;
             public RGTextureHandle lightingTexture;
@@ -96,8 +95,6 @@ namespace InfinityTech.Rendering.Pipeline
                 ref var data = ref pass.GetPassData();
                 data.burleyKernel = kernels.burleySubsurface;
                 data.composeKernel = kernels.composeSubsurface;
-                data.projection = context.cameraUniform.matrix_FlipYJitterProj;
-                data.inverseProjection = context.cameraUniform.matrix_InvFlipYJitterProj;
                 data.resolution = size;
                 data.profileCount = count;
                 data.numSamples = volume.numSamples.value;
@@ -113,8 +110,6 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     var shader = d.burleyKernel.shader;
                     commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));
-                    commands.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, d.projection);
-                    commands.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, d.inverseProjection);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_NumSamplesID, d.numSamples);
                     commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_ProfileCountID, d.profileCount);
                     BindSubsurface(commands, shader, d.burleyKernel.index, d);

@@ -24,8 +24,7 @@ float4 ContactShadow_Resolution;
 // x, y = m22, m23 of the GPU projection; z = 1 for orthographic cameras.
 float4 ContactShadow_DepthParams;
 
-float4x4 Matrix_ViewProj;
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
@@ -47,7 +46,7 @@ bool TraceContactShadow(float3 worldPos, float3 dir, float rayLength, int steps,
     for (int i = 0; i < steps; ++i)
     {
         float t = (i + jitter) / steps;
-        float4 clip = mul(Matrix_ViewProj, float4(worldPos + dir * (rayLength * t), 1.0));
+        float4 clip = mul(Matrix_ViewFlipYJitterProj, float4(worldPos + dir * (rayLength * t), 1.0));
         if (clip.w <= 0.0)
         {
             return false;
@@ -85,7 +84,7 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
     uint mask = 0u;
 
     float viewDepth = ContactLinearDepth(rawDepth);
-    float3 worldPos = GetWorldSpacePos(GetNDCPos(screenUV, rawDepth), Matrix_InvViewProj);
+    float3 worldPos = GetWorldSpacePos(GetNDCPos(screenUV, rawDepth), Matrix_InvViewFlipYJitterProj);
     float viewDist = length(worldPos - _WorldSpaceCameraPos);
     float distanceFade = 1.0 - saturate((viewDist - ContactShadow_FadeDistance * 0.8) / (ContactShadow_FadeDistance * 0.2));
     float strength = ContactShadow_Intensity * distanceFade;

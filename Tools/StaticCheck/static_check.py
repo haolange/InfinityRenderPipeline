@@ -10,7 +10,7 @@ Checks
   respath   every [ResourcePath("...")] target exists in the package
   lightmode every LightMode tag used by shaders is declared in InfinityPassIDs (or a known Unity tag)
   links     relative Markdown links resolve
-  records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
+  records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
@@ -197,7 +197,7 @@ def parse_cs_struct(text, name):
     return fields
 
 def parse_hlsl_struct(text, name):
-    m = re.search(r'struct\s+' + name + r'\s*\{(.*?)\};', text, re.S)
+    m = re.search(r'(?:struct|cbuffer)\s+' + name + r'\s*\{(.*?)\};', text, re.S)
     if not m: return None
     fields = []
     for line in m.group(1).splitlines():

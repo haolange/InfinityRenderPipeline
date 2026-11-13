@@ -222,6 +222,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             static readonly HashSet<Run> s_InFlight = new HashSet<Run>();
             readonly List<Object> m_Objects = new List<Object>();
             readonly CommandBuffer m_Commands = new CommandBuffer();
+            readonly ViewUniformBinding m_View;
             readonly RenderTexture m_Color, m_Meta;
             bool m_DisposeRequested, m_Released, m_SubmissionAttempted;
             readonly int m_Frames;
@@ -307,17 +308,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Commands.SetComputeVectorParam(shader, "SSGI_Resolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_TraceResolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
                     m_Commands.SetComputeIntParam(shader, "SSGI_TraceScale", 1);
-                    m_Commands.SetComputeMatrixParam(shader, "Matrix_Proj", projection);
-                    m_Commands.SetComputeMatrixParam(shader, "Matrix_WorldToView", Matrix4x4.identity);
 
                     m_Commands.SetComputeFloatParam(shader, "SSGI_HistoryValid", Noisy(signal) || signal == Signal.RadianceNoise || signal == Signal.RadianceEdge ? 0 : 1);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalWeight", .93f);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalClampScale", 1.25f);
                     m_Commands.SetComputeVectorParam(shader, "ScreenSpaceDepthParams", new Vector4(.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
-                    foreach (string name in new[] { "Matrix_HistoryViewProj", "Matrix_MotionViewProj", "Matrix_LastMotionViewProj" })
-                        m_Commands.SetComputeMatrixParam(shader, name, projection);
-                    m_Commands.SetComputeMatrixParam(shader, "Matrix_InvViewProj", projection.inverse);
-                    m_Commands.SetComputeMatrixParam(shader, "Matrix_InvProj", projection.inverse);
+                    m_View = new ViewUniformBinding(new ViewUniform
+                    {
+                        matrix_FlipYJitterProj = projection,
+                        matrix_InvFlipYJitterProj = projection.inverse,
+                        matrix_InvViewFlipYJitterProj = projection.inverse,
+                        matrix_WorldToView = Matrix4x4.identity,
+                        matrix_LastViewFlipYJitterProj = projection,
+                        matrix_ViewFlipYProj = projection,
+                        matrix_LastViewFlipYProj = projection
+                    }, m_Commands);
                     for (int frame = 1; frame <= m_Frames; ++frame)
                     {
                         int target = (frame - 1) % 2;
@@ -390,7 +395,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             void Release()
             {
                 if (m_Released) return;
-                m_Released = true; m_Commands.Dispose();
+                m_Released = true; m_Commands.Dispose(); m_View?.Dispose();
                 foreach (Object value in m_Objects) { if (value is RenderTexture texture) texture.Release(); Object.DestroyImmediate(value); }
             }
         }

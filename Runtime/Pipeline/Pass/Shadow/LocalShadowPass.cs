@@ -31,8 +31,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int lightCount;
             public int sliceCount;
             public int shadowMapResolution;
-            public Matrix4x4 cameraViewProj;
-            public Matrix4x4 cameraViewFlipYProj;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
@@ -197,8 +195,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
                     passData.shadowMapResolution = shadowMapResolution;
-                    passData.cameraViewProj = context.cameraUniform.matrix_ViewProj;
-                    passData.cameraViewFlipYProj = context.cameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
@@ -241,9 +237,6 @@ namespace InfinityTech.Rendering.Pipeline
                             passData.meshDrawLists[slice], passData.rendererLists[slice]);
                         cmdEncoder.EndSample(faceMarker);
                     }
-
-                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, passData.cameraViewProj);
-                    cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, passData.cameraViewFlipYProj);
                 });
             }
 
@@ -257,8 +250,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetGlobalDepthBias(0, 0);
             cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterBias, casterBias);
             cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterLight, casterLight);
-            cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewProj, shadowMatrix);
-            cmdEncoder.SetGlobalMatrix(CameraUniform.ID_Matrix_ViewFlipYProj, shadowMatrix);
+            cmdEncoder.SetGlobalMatrix(PassShaderIDs.ShadowCasterViewProj, shadowMatrix);
             if (draws.IsValid)
             {
                 cmdEncoder.SubmitMeshDrawList(draws);

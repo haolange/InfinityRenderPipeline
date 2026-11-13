@@ -28,8 +28,7 @@ RWTexture2D<float4> UAV_SubsurfaceTexture;
 Texture2D<float4> SRV_FilteredSubsurface;
 RWTexture2D<float4> UAV_SceneColor;
 
-float4x4 Matrix_InvProj;
-float4x4 Matrix_Proj;
+#include "../../Library/ViewUniform.hlsl"
 
 // Burley normalized diffusion profile
 // R(r) = A * s / (8 * pi) * (exp(-s*r) + exp(-s*r/3)) / r
@@ -76,7 +75,7 @@ bool LoadSubsurface(uint2 pixel, out GBufferData surface, out float depth)
 
 float EyeDepth(float depth)
 {
-    float4 position = mul(Matrix_InvProj, float4(0,0,depth,1));
+    float4 position = mul(Matrix_InvFlipYJitterProj, float4(0,0,depth,1));
     return abs(position.z / position.w);
 }
 
@@ -166,8 +165,8 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
     DiffusionParameters(surface,distance,albedo,radius);
     float eyeDepth = EyeDepth(depth);
     // Perspective projection divides by eye distance; orthographic projection has w=1.
-    float projectionW = abs(Matrix_Proj[3][3]) > 0.5 ? 1 : eyeDepth;
-    float2 projectedScale = abs(float2(Matrix_Proj[0][0],Matrix_Proj[1][1])) * 0.5 / max(projectionW,1e-5);
+    float projectionW = abs(Matrix_FlipYJitterProj[3][3]) > 0.5 ? 1 : eyeDepth;
+    float2 projectedScale = abs(float2(Matrix_FlipYJitterProj[0][0],Matrix_FlipYJitterProj[1][1])) * 0.5 / max(projectionW,1e-5);
     float worldRadius = radius * distance;
     if (worldRadius * projectedScale.x * SSS_Resolution.x < 1)
     { UAV_SubsurfaceTexture[id.xy] = float4(center,1); return; }
@@ -226,8 +225,8 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
     float3 albedo;
     DiffusionParameters(surface,distance,albedo,radius);
     float eye = EyeDepth(depth);
-    float w = abs(Matrix_Proj[3][3]) > 0.5 ? 1 : eye;
-    if (radius*distance*abs(Matrix_Proj[0][0])*0.5*SSS_Resolution.x/max(w,1e-5) < 1)
+    float w = abs(Matrix_FlipYJitterProj[3][3]) > 0.5 ? 1 : eye;
+    if (radius*distance*abs(Matrix_FlipYJitterProj[0][0])*0.5*SSS_Resolution.x/max(w,1e-5) < 1)
     {
         return;
     }

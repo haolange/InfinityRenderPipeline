@@ -11,9 +11,6 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         internal static readonly int InfinityHasProbes = Shader.PropertyToID("_InfinityHasProbes");
         internal static readonly int InfinitySourceDepth = Shader.PropertyToID("_InfinitySourceDepth");
-        internal static readonly int Matrix_HistoryViewProj = Shader.PropertyToID("Matrix_HistoryViewProj");
-        internal static readonly int Matrix_LastMotionViewProj = Shader.PropertyToID("Matrix_LastMotionViewProj");
-        internal static readonly int Matrix_MotionViewProj = Shader.PropertyToID("Matrix_MotionViewProj");
         internal static readonly int SRV_AerialPerspectiveLUT = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
         internal static readonly int SRV_DepthTexture = Shader.PropertyToID("SRV_DepthTexture");
         internal static readonly int SRV_GBufferB = Shader.PropertyToID("SRV_GBufferB");
@@ -38,6 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_TransmittanceLUT = Shader.PropertyToID("SRV_TransmittanceLUT");
         internal static readonly int ScreenParams = Shader.PropertyToID("_ScreenParams");
         internal static readonly int ScreenSpaceDepthParams = Shader.PropertyToID("ScreenSpaceDepthParams");
+        internal static readonly int ShadowCasterViewProj = Shader.PropertyToID("_ShadowCasterViewProj");
         internal static readonly int ShadowCasterBias = Shader.PropertyToID("_ShadowCasterBias");
         internal static readonly int ShadowCasterLight = Shader.PropertyToID("_ShadowCasterLight");
         internal static readonly int UAV_HitDistance = Shader.PropertyToID("UAV_HitDistance");

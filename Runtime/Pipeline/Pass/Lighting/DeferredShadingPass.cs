@@ -28,8 +28,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 groupCount;
             public LightLoopInputs lightLoop;
             public int2 resolution;
-            public Matrix4x4 matrix_InvProj;
-            public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public bool hasSubsurface;
             public RGTextureHandle scatterDiffuse;
@@ -108,8 +106,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = kernel.index;
                 passData.groupCount = groupCount;
                 passData.resolution = new int2(width, height);
-                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
@@ -157,8 +153,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.UAV_IndirectSpecularID, passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsConventions.SampledFarDepth);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.kernel);
                     cmdEncoder.SetComputeBufferParam(shader, passData.kernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);

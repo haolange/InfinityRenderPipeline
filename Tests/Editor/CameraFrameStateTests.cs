@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.AreEqual(EHistoryReset.NotTemporal, reset);
                     state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), reset);
                     Assert.AreEqual(Unity.Mathematics.float2.zero, state.cameraUniform.jitter);
-                    Assert.AreEqual(state.cameraUniform.matrix_Proj, state.cameraUniform.matrix_JitterProj);
+                    Assert.AreEqual(state.cameraUniform.matrix_Proj * state.cameraUniform.matrix_WorldToView, state.cameraUniform.matrix_ViewJitterProj);
                     Assert.AreEqual(state.cameraUniform.matrix_FlipYProj, state.cameraUniform.matrix_FlipYJitterProj);
                     state.preparedDimensions = dimensions;
                     state.cameraUniform.Commit();

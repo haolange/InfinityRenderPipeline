@@ -92,7 +92,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 sunDirection;
             public Vector4 sunIlluminance;
             public Vector4 worldSpaceCameraPos;
-            public Matrix4x4 matrix_InvViewProj;
             public int generateShared;
             public int generateView;
             public int generateIBL;
@@ -157,7 +156,6 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunIlluminanceID, passData.sunIlluminance);
             cmdEncoder.SetComputeIntParam(shader, AtmosphericLUTPassUtilityData.Atmo_CubemapSizeID, parameter.cubemapSize);
             cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
-            cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
         }
 
         sealed class AtmosphereProduction : IRGPassQueueObserver
@@ -261,7 +259,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
                 passData.worldSpaceCameraPos = cameraPosition;
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(context.camera);
                 passData.generateShared = generateShared ? 1 : 0;
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;

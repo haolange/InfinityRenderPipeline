@@ -133,6 +133,16 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_rg_api(str(self.repo), out)
         self.assertEqual(['Runtime/RenderGraph/RGCommands.cs:1', 'Runtime/RenderGraph/RGCommands.cs:2'], sorted(o[2].split(': ')[0] for o in out))
 
+    def test_gpu_record_matches_a_cbuffer_and_rejects_a_reordered_one(self):
+        self.write('Shaders/V.hlsl', 'cbuffer View\n{\n    float4x4 A;\n    float4 B;\n};\n')
+        self.write('Runtime/V.cs', '// GPU-RECORD: View Shaders/V.hlsl\ninternal struct View\n{\n    public Matrix4x4 a;\n    public Vector4 b;\n}\n')
+        out = []
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/V.hlsl', 'cbuffer View\n{\n    float4 B;\n    float4x4 A;\n};\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+
     def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
         self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
                    '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'

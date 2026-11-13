@@ -4,7 +4,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 int GTAOHistoryValid;
 Texture2D SRV_MotionMetadataTexture;
-float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
+#include "../../Library/ViewUniform.hlsl"
 
 #define Inv_PI 0.3183091
 #define Two_PI 6.2831852
@@ -26,12 +26,6 @@ cbuffer CBV_OcclusionParameters
     float TemporalWeight;
     float4 Resolution;
     float4 UpsampleSize;
-    float4x4 Matrix_Proj;
-    float4x4 Matrix_InvProj;
-    float4x4 Matrix_ViewProj;
-    float4x4 Matrix_InvViewProj;
-    float4x4 Matrix_ViewToWorld;
-    float4x4 Matrix_WorldToView;
 };
 
 Texture2D SRV_HalfResDepthTexture;

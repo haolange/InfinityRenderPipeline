@@ -12,7 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int DV_ResolutionID = Shader.PropertyToID("DV_Resolution");
         internal static readonly int DV_ModeID = Shader.PropertyToID("DV_Mode");
         internal static readonly int DV_ParamsID = Shader.PropertyToID("DV_Params");
-        internal static readonly int DV_InvProjID = Shader.PropertyToID("DV_InvProj");
         internal static readonly int DV_FarDepthID = Shader.PropertyToID("DV_FarDepth");
         internal static readonly int SRV_ProbeAtlasTextureID = Shader.PropertyToID("SRV_ProbeAtlasTexture");
         internal static readonly int SRV_OptionalTextureID = Shader.PropertyToID("SRV_OptionalTexture");
@@ -30,7 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int bindSet;
             // x = first probe-atlas slice, y = complexity heat-map range.
             public Vector4 parameters;
-            public Matrix4x4 invProj;
             public LightLoopInputs lightLoop;
             public RGTextureHandle depthTexture;
             public ComputeShader debugViewShader;
@@ -262,7 +260,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = debugKernel;
                 passData.bindSet = bindSet;
                 passData.parameters = parameters;
-                passData.invProj = context.cameraUniform.matrix_InvFlipYJitterProj;
                 passData.debugViewShader = shaders.debugViewShader;
                 if (needGBuffer)
                 {
@@ -329,7 +326,6 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     else if (passData.bindSet == 6)
                     {
-                        cmdEncoder.SetComputeMatrixParam(shader, DebugViewPassUtilityData.DV_InvProjID, passData.invProj);
                         cmdEncoder.SetComputeFloatParam(shader, DebugViewPassUtilityData.DV_FarDepthID, GraphicsConventions.SampledFarDepth);
                         cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                         passData.lightLoop.Bind(cmdEncoder, shader, kernel);

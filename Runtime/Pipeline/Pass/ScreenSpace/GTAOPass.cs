@@ -73,13 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 halfResolution;
             public int2 fullResolution;
             public Vector4 depthParameters;
-            public Matrix4x4 historyViewProj, motionViewProj, lastMotionViewProj;
-            public Matrix4x4 matrix_Proj;
-            public Matrix4x4 matrix_InvProj;
-            public Matrix4x4 matrix_ViewProj;
-            public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_ViewToWorld;
-            public Matrix4x4 matrix_WorldToView;
             public ComputeShader ssaoShader;
             public RGTextureHandle halfResDepthTexture;
             public RGTextureHandle halfResNormalTexture;
@@ -177,16 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.temporalOffset = GTAOPassUtilityData.TemporalOffsets[temporalIndex];
                 passData.temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex];
 
-                passData.historyViewProj = context.cameraUniform.matrix_LastViewFlipYJitterProj;
-                passData.motionViewProj = context.cameraUniform.matrix_ViewFlipYProj;
-                passData.lastMotionViewProj = context.cameraUniform.matrix_LastViewFlipYProj;
                 passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                passData.matrix_Proj = context.cameraUniform.matrix_FlipYJitterProj;
-                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_ViewProj = context.cameraUniform.matrix_ViewFlipYJitterProj;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_ViewToWorld = context.cameraUniform.matrix_ViewToWorld;
-                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.ssaoShader = shaders.ssaoShader;
                 passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.ReadTexture(halfResNormalTexture);
@@ -215,9 +199,6 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = passData.ssaoShader;
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_HistoryViewProj, passData.historyViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_MotionViewProj, passData.motionViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_LastMotionViewProj, passData.lastMotionViewProj);
                     int halfWidth = passData.halfResolution.x;
                     int halfHeight = passData.halfResolution.y;
                     int fullWidth = passData.fullResolution.x;
@@ -236,12 +217,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalWeightID, passData.temporalWeight);
                     cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.ResolutionID, new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight));
                     cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.UpsampleSizeID, new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight));
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, passData.matrix_Proj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_ViewProj, passData.matrix_ViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_ViewToWorld, passData.matrix_ViewToWorld);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
 
                     int halfGroupsX = passData.halfGroups.x;
                     int halfGroupsY = passData.halfGroups.y;

@@ -58,8 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float farPlane;
             public float planetRadius;
             public float atmosphereHeight;
-            public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
@@ -131,8 +129,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.farPlane = context.camera.farClipPlane;
                 passData.planetRadius = atmosphereParameter.planetRadius;
                 passData.atmosphereHeight = atmosphereParameter.atmosphereHeight;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
@@ -168,8 +164,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_PlanetRadiusID, passData.planetRadius);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AtmosphereHeightID, passData.atmosphereHeight);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeBufferParam(shader, passData.cloudKernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.cloudKernel.index);

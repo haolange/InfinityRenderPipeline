@@ -40,33 +40,17 @@ namespace InfinityTech.Rendering.Pipeline
 
     internal class CameraUniform
     {
-        internal static readonly int ID_Matrix_WorldToView = Shader.PropertyToID("Matrix_WorldToView");
-        internal static readonly int ID_Matrix_ViewToWorld = Shader.PropertyToID("Matrix_ViewToWorld");
-        internal static readonly int ID_Matrix_Proj = Shader.PropertyToID("Matrix_Proj");
-        internal static readonly int ID_Matrix_InvProj = Shader.PropertyToID("Matrix_InvProj");
-        internal static readonly int ID_Matrix_FlipYProj = Shader.PropertyToID("Matrix_FlipYProj");
-        internal static readonly int ID_Matrix_InvFlipYJitterProj = Shader.PropertyToID("Matrix_InvFlipYJitterProj");
-        internal static readonly int ID_Matrix_ViewProj = Shader.PropertyToID("Matrix_ViewProj");
-        internal static readonly int ID_Matrix_InvViewProj = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static readonly int ID_Matrix_ViewFlipYProj = Shader.PropertyToID("Matrix_ViewFlipYProj");
-        internal static readonly int ID_Matrix_ViewJitterProj = Shader.PropertyToID("Matrix_ViewJitterProj");
-        internal static readonly int ID_Matrix_InvViewJitterProj = Shader.PropertyToID("Matrix_InvViewJitterProj");
-        internal static readonly int ID_Matrix_InvViewFlipYJitterProj = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
-        internal static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_LastViewFlipYProj");
-
         public int frameIndex;
         public float2 jitter;
         public Matrix4x4 matrix_WorldToView;
         public Matrix4x4 matrix_ViewToWorld;
         public Matrix4x4 matrix_Proj;
         public Matrix4x4 matrix_InvProj;
-        public Matrix4x4 matrix_JitterProj;
         public Matrix4x4 matrix_FlipYProj;
         public Matrix4x4 matrix_FlipYJitterProj;
         public Matrix4x4 matrix_InvFlipYJitterProj;
-        public Matrix4x4 matrix_ViewProj;
-        public Matrix4x4 matrix_InvViewProj;
         public Matrix4x4 matrix_ViewFlipYProj;
+        public Matrix4x4 matrix_InvViewFlipYProj;
         public Matrix4x4 matrix_ViewJitterProj;
         public Matrix4x4 matrix_InvViewJitterProj;
         public Matrix4x4 matrix_ViewFlipYJitterProj;
@@ -112,13 +96,13 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             // A non-temporal camera always resets, so it never jitters.
-            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: !resetHistory);
+            Matrix4x4 jitterProj = default;
+            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref jitterProj, ref matrix_FlipYJitterProj, applyJitter: !resetHistory);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
-            matrix_ViewProj = matrix_Proj * matrix_WorldToView;
-            matrix_InvViewProj = matrix_ViewProj.inverse;
             matrix_ViewFlipYProj = matrix_FlipYProj * matrix_WorldToView;
-            matrix_ViewJitterProj = matrix_JitterProj * matrix_WorldToView;
+            matrix_InvViewFlipYProj = matrix_ViewFlipYProj.inverse;
+            matrix_ViewJitterProj = jitterProj * matrix_WorldToView;
             matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
             matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
@@ -146,23 +130,28 @@ namespace InfinityTech.Rendering.Pipeline
             m_HasCommittedView = true;
         }
 
-        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize)
+        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize, ViewUniformBuffer viewBuffer)
         {
             float2 resolution = renderSize;
             cmdBuffer.SetGlobalVector(PassShaderIDs.ScreenParams, new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, matrix_WorldToView);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, matrix_ViewToWorld);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, matrix_Proj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvProj, matrix_InvProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYProj, matrix_FlipYProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYJitterProj, matrix_InvFlipYJitterProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewProj, matrix_ViewProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewProj, matrix_InvViewProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYProj, matrix_ViewFlipYProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewJitterProj, matrix_ViewJitterProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewJitterProj, matrix_InvViewJitterProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, matrix_InvViewFlipYJitterProj);
-            cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewFlipYProj, matrix_LastViewFlipYProj);
+            viewBuffer.Upload(cmdBuffer, new ViewUniform
+            {
+                matrix_WorldToView = matrix_WorldToView,
+                matrix_ViewToWorld = matrix_ViewToWorld,
+                matrix_Proj = matrix_Proj,
+                matrix_InvProj = matrix_InvProj,
+                matrix_FlipYProj = matrix_FlipYProj,
+                matrix_FlipYJitterProj = matrix_FlipYJitterProj,
+                matrix_InvFlipYJitterProj = matrix_InvFlipYJitterProj,
+                matrix_ViewJitterProj = matrix_ViewJitterProj,
+                matrix_InvViewJitterProj = matrix_InvViewJitterProj,
+                matrix_ViewFlipYProj = matrix_ViewFlipYProj,
+                matrix_InvViewFlipYProj = matrix_InvViewFlipYProj,
+                matrix_ViewFlipYJitterProj = matrix_ViewFlipYJitterProj,
+                matrix_InvViewFlipYJitterProj = matrix_InvViewFlipYJitterProj,
+                matrix_LastViewFlipYProj = matrix_LastViewFlipYProj,
+                matrix_LastViewFlipYJitterProj = matrix_LastViewFlipYJitterProj
+            });
         }
     }
 
@@ -540,7 +529,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 #endif
 
-                setup.state.cameraUniform.SetUniformData(cmdBuffer, setup.dimensions.internalSize);
+                setup.state.cameraUniform.SetUniformData(cmdBuffer, setup.dimensions.internalSize, setup.state.viewUniformBuffer);
                 // Adaptive Probe Volumes: CoreRP-owned resources, bound before culling and recording.
                 m_ProbeVolumes.SetupCamera(cmdBuffer, camera, setup.state.volumeStack, setup.policy.temporal);
                 scriptableRenderContext.SetupCameraProperties(camera);

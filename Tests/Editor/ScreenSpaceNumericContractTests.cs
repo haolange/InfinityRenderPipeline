@@ -76,6 +76,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Texture2D m_Depth, m_Motion;
             readonly Vector4 m_PreviousZ, m_PreviousProjection;
             readonly StringBuilder m_Report = new StringBuilder();
+            readonly ViewUniformBinding m_View;
             int m_Sequence;
 
             public ScreenSpaceNumericGpuRun(int width, int height, string output)
@@ -89,6 +90,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Projection = GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(60, (float)width / height, 0.1f, 100), false);
                 Vector4 planeClip = m_Projection * new Vector4(0, 0, -5, 1);
                 m_PlaneDepth = planeClip.z / planeClip.w;
+                // The camera sits at the origin looking down -Z, so view and world space coincide.
+                m_View = new ViewUniformBinding(new ViewUniform
+                {
+                    matrix_WorldToView = Matrix4x4.identity,
+                    matrix_ViewToWorld = Matrix4x4.identity,
+                    matrix_FlipYJitterProj = m_Projection,
+                    matrix_InvFlipYJitterProj = m_Projection.inverse,
+                    matrix_ViewFlipYProj = m_Projection,
+                    matrix_ViewFlipYJitterProj = m_Projection,
+                    matrix_InvViewFlipYJitterProj = m_Projection.inverse,
+                    matrix_LastViewFlipYProj = m_Projection,
+                    matrix_LastViewFlipYJitterProj = m_Projection
+                });
                 m_Depth = Solid(width, height, new Color(m_PlaneDepth, 0, 0, 0));
                 m_Motion = Solid(width, height, Color.clear);
                 File.WriteAllText(Path.Combine(output, "fixture.txt"), $"UTC={DateTime.UtcNow:O}\nGPU={SystemInfo.graphicsDeviceName}\nAPI={SystemInfo.graphicsDeviceType}\nUnity={Application.unityVersion}\nfull={width}x{height}\nhalf=max(1, full >> 1)\nDepth={m_PlaneDepth}; constant plane at view Z=-5; perspective near=0.1 far=100; no output sanitization.\nInactive padded allocation sentinel={k_Sentinel}\n");
@@ -108,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 ComputeShader shader = Load("Shaders/Pass/ScreenSpace/Compute_GroundTruthOcclusion.compute");
                 int width = Mathf.Max(1, m_Width >> 1), height = Mathf.Max(1, m_Height >> 1);
-                SetMatrices(shader);
+                SetDepthParams(shader);
                 shader.SetVector("Resolution", Resolution(width, height));
                 shader.SetVector("UpsampleSize", Resolution(m_Width, m_Height));
                 shader.SetInt("NumRay", 4);
@@ -140,14 +154,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RequireSignal(result, "GTAO final occlusion", 0.01f);
             }
 
-            void SetMatrices(ComputeShader shader)
+            static void SetDepthParams(ComputeShader shader)
             {
                 shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
-                foreach (string name in new[] { "Matrix_Proj", "Matrix_InvProj", "Matrix_InvViewProj", "Matrix_LastViewProj", "Matrix_WorldToView", "Matrix_ViewToWorld" })
-                    shader.SetMatrix(name, Matrix4x4.identity);
-                foreach (string name in new[] { "Matrix_Proj", "Matrix_ViewProj", "Matrix_LastViewProj", "Matrix_HistoryViewProj", "Matrix_MotionViewProj", "Matrix_LastMotionViewProj" }) shader.SetMatrix(name, m_Projection);
-                shader.SetMatrix("Matrix_InvProj", m_Projection.inverse);
-                shader.SetMatrix("Matrix_InvViewProj", m_Projection.inverse);
             }
 
             Texture2D[] Dispatch(ComputeShader shader, string kernelName, int width, int height, bool scalar,
@@ -262,6 +271,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
+                m_View.Dispose();
                 foreach (UnityEngine.Object resource in m_Resources)
                 {
                     if (resource is RenderTexture target) target.Release();

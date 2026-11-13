@@ -39,7 +39,7 @@ float4 Atmo_SunIlluminance;
 int Atmo_CubemapSize;
 int Atmo_SHPartialCount;
 float3 _WorldSpaceCameraPos;
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float4> SRV_TransmittanceLUT;
 Texture2D<float4> SRV_MultiScatteringLUT;
@@ -555,7 +555,7 @@ void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
     float distance = Atmo_AerialPerspectiveDistance * sliceT * sliceT;
 
     float2 ndc = uv * 2.0 - 1.0;
-    float4 world = mul(Matrix_InvViewProj, float4(ndc, 0.5, 1.0));
+    float4 world = mul(Matrix_InvViewFlipYProj, float4(ndc, 0.5, 1.0));
     world.xyz /= max(world.w, 1e-6);
     float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
 
@@ -641,7 +641,7 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
     bool isSky = abs(depth - Atmo_FarDepth) <= 1e-4;
 
     float2 ndc = uv * 2.0 - 1.0;
-    float4 world = mul(Matrix_InvViewProj, float4(ndc, depth, 1.0));
+    float4 world = mul(Matrix_InvViewFlipYJitterProj, float4(ndc, depth, 1.0));
     world.xyz /= max(world.w, 1e-6);
     float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
 

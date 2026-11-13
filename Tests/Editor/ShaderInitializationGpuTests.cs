@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (rejectedMatrix == 3) previousMotion.m33 = -1;
             Vector4 result = Run("ReprojectionContract", new[] { new Vector4(.2f, .7f, .4f, 0) }, (shader, _) =>
             {
-                shader.SetMatrix("Matrix_InvViewProj", Matrix4x4.identity);
+                shader.SetMatrix("ContractInvViewProj", Matrix4x4.identity);
                 shader.SetMatrix("ContractPreviousVP", previous);
                 shader.SetMatrix("ContractCurrentMotionVP", currentMotion);
                 shader.SetMatrix("ContractPreviousMotionVP", previousMotion);
@@ -130,14 +130,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 flags.SetPixels(new[] { Color.clear, new Color((6 << 4) / 255f, 0, 0, 0), new Color((4 << 4) / 255f, 0, 0, 0) });
                 normals.SetPixels(new[] { new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0) });
                 depth.Apply(); flags.Apply(); normals.Apply();
+                using var view = new ViewUniformBinding(new ViewUniform
+                {
+                    matrix_InvFlipYJitterProj = Matrix4x4.identity,
+                    matrix_InvViewFlipYJitterProj = Matrix4x4.identity
+                });
                 Vector4[] results = Run("SurfaceContract", new Vector4[3], (shader, kernel) =>
                 {
                     shader.SetTexture(kernel, "SRV_DepthTexture", depth);
                     shader.SetTexture(kernel, "SRV_GBufferC", flags);
                     shader.SetTexture(kernel, "SRV_GBufferB", normals);
                     shader.SetVector("SSGI_Resolution", new Vector4(3, 1, 1f / 3, 1));
-                    shader.SetMatrix("Matrix_InvProj", Matrix4x4.identity);
-                    shader.SetMatrix("Matrix_InvViewProj", Matrix4x4.identity);
                 });
                 Assert.AreEqual(new Vector4(far, 0, 0, 0), results[0]);
                 Assert.AreEqual(new Vector4(.4f, 0, 0, 0), results[1]);

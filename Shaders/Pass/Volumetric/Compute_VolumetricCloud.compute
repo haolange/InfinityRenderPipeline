@@ -27,9 +27,7 @@ float VolCloud_TemporalWeight;
 int VolCloud_FrameIndex;
 float VolCloud_PlanetRadius;
 float VolCloud_AtmosphereHeight;
-float4x4 Matrix_WorldToView;
-
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
@@ -190,7 +188,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
     float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
 
     float3 ndcPos = GetNDCPos(screenUV, 0.5);
-    float4 worldPosH = mul(Matrix_InvViewProj, float4(ndcPos, 1.0));
+    float4 worldPosH = mul(Matrix_InvViewFlipYJitterProj, float4(ndcPos, 1.0));
     float3 worldPos = worldPosH.xyz / worldPosH.w;
     float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
 
@@ -200,7 +198,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
 #else
     const bool reversedZ = false;
 #endif
-    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewProj,
+    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewFlipYJitterProj,
         _WorldSpaceCameraPos, rayDir, reversedZ);
     float4 segments = CloudRaySegments(_WorldSpaceCameraPos, rayDir, VolCloud_PlanetRadius,
         GetCloudLayerBottom(), VolCloud_CloudLayerThickness, sceneDist);

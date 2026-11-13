@@ -23,9 +23,7 @@ int VolFog_DepthSlices;
 float VolFog_MaxDistance;
 float VolFog_TemporalWeight;
 int VolFog_FrameIndex;
-float4x4 Matrix_WorldToView;
-
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
@@ -67,7 +65,7 @@ float3 FroxelToWorld(uint3 froxelCoord)
     float depth = SliceToDepth(froxelCoord.z + 0.5, VolFog_MaxDistance, VolFog_DepthSlices);
     float2 ndc = screenUV * 2.0 - 1.0;
     float4 clipPos = float4(ndc, 0.5, 1.0);
-    float4 worldPos = mul(Matrix_InvViewProj, clipPos);
+    float4 worldPos = mul(Matrix_InvViewFlipYJitterProj, clipPos);
     worldPos /= worldPos.w;
     float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
     return _WorldSpaceCameraPos + viewDir * depth;

@@ -13,7 +13,7 @@
 // AO is applied once in DeferredShading on IBL; SSR/SSGI sample already-lit color and must not be multiplied again.
 
 float4 Composite_Resolution;
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 float3 _WorldSpaceCameraPos;
 Texture2D SRV_LightingTexture;
 Texture2D<float4> SRV_IndirectDiffuse, SRV_IndirectSpecular;
@@ -65,7 +65,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
 #if defined(COMPOSITE_SSR)
     float2 screenUV = (pixelCoord + 0.5) * Composite_Resolution.zw;
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
-    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
     float4 ssrColor = SRV_SSRTexture[pixelCoord];
     float3 indirectSpecular = ssrColor.rgb;

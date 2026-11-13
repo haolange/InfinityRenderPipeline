@@ -15,6 +15,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
         internal static readonly int RadiusID = Shader.PropertyToID("RTAO_Radius");
         internal static readonly int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
+        // The UnifiedRayTracing shader takes its inputs through the backend's own binding calls, not the global ViewUniform buffer.
+        internal static readonly int InvViewFlipYJitterProjID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
     }
 
     public partial class InfinityRenderPipeline
@@ -102,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetUnifiedInt(passData.shader, RTAOPassUtilityData.NumRaysID, passData.numRays);
                     cmdEncoder.SetUnifiedFloat(passData.shader, RTAOPassUtilityData.RadiusID, passData.radius);
                     cmdEncoder.SetUnifiedVector(passData.shader, RTAOPassUtilityData.ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetUnifiedMatrix(passData.shader, CameraUniform.ID_Matrix_InvViewFlipYJitterProj, passData.invView);
+                    cmdEncoder.SetUnifiedMatrix(passData.shader, RTAOPassUtilityData.InvViewFlipYJitterProjID, passData.invView);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_NormalTexture, passData.normalTexture);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);

@@ -19,8 +19,7 @@ float _AtmosphereIBLMaxMip;
 
 float4 DeferredShading_Resolution;
 float DeferredShading_FarDepth;
-float4x4 Matrix_InvProj;
-float4x4 Matrix_InvViewProj;
+#include "../../Library/ViewUniform.hlsl"
 float3 _WorldSpaceCameraPos;
 
 Texture2D SRV_GBufferTextureA;
@@ -77,9 +76,9 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float specular = gbufferData.Specular;
 
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
-    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
-    float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvProj);
+    float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvFlipYJitterProj);
     float viewDepth = -viewPos.z;
 
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);

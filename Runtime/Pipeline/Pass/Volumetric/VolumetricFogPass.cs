@@ -51,8 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int3 froxelResolution;
             public float nearPlane;
             public float farPlane;
-            public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
@@ -129,8 +127,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
                 passData.nearPlane = context.camera.nearClipPlane;
                 passData.farPlane = context.camera.farClipPlane;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
@@ -166,8 +162,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_MaxDistance, passData.maxDistance);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_TemporalWeightID, passData.temporalWeight);
                     cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
 

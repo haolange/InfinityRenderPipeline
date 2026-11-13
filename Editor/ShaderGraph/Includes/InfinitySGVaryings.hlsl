@@ -2,7 +2,7 @@
 #define INFINITY_SG_VARYINGS
 // First post-graph include: builds Varyings from the vertex graph, the surface helpers shared by the pass fragments,
 // and motion reconstruction. Clip position conventions follow InfinityLit: UNITY_MATRIX_VP (jittered) for raster,
-// Matrix_ViewFlipYProj for shadow casters (the shadow passes set it to the light matrix) and for motion.
+// _ShadowCasterViewProj (ShadowCaster.hlsl) for shadow casters, Matrix_ViewFlipYProj for motion.
 
 #if SHADERPASS == SHADERPASS_SHADOWS
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ShadowCaster.hlsl"
@@ -74,7 +74,7 @@ Varyings BuildVaryings(Attributes input)
 #endif
 
 #if SHADERPASS == SHADERPASS_SHADOWS
-    output.positionCS = mul(Matrix_ViewFlipYProj, float4(OffsetShadowCaster(positionWS, normalWS), 1.0));
+    output.positionCS = ShadowCasterClipPosition(positionWS, normalWS);
 #elif SHADERPASS == SHADERPASS_META
     output.positionCS = MetaVertexPosition(float4(input.positionOS, 1.0), input.uv1.xy, input.uv2.xy, unity_LightmapST, unity_DynamicLightmapST);
 #else

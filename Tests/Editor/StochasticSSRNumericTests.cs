@@ -242,6 +242,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
             readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
             readonly RenderTexture m_HistoryMeta;
+            readonly ViewUniformBinding m_View;
 
             public Vector2Int TileCount { get; }
 
@@ -307,13 +308,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetVector("SSR_CameraPosition", Vector4.zero);
                 s.SetVector("SSR_CameraForward", new Vector4(0, 0, -1, 0));
                 s.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
-                s.SetMatrix("Matrix_Proj", projection);
-                s.SetMatrix("Matrix_InvProj", projection.inverse);
-                s.SetMatrix("Matrix_InvViewProj", projection.inverse);
-                s.SetMatrix("Matrix_WorldToView", Matrix4x4.identity);
-                s.SetMatrix("Matrix_HistoryViewProj", projection);
-                s.SetMatrix("Matrix_MotionViewProj", projection);
-                s.SetMatrix("Matrix_LastMotionViewProj", projection);
+                m_View = new ViewUniformBinding(new ViewUniform
+                {
+                    matrix_FlipYJitterProj = projection,
+                    matrix_InvFlipYJitterProj = projection.inverse,
+                    matrix_InvViewFlipYJitterProj = projection.inverse,
+                    matrix_WorldToView = Matrix4x4.identity,
+                    matrix_LastViewFlipYJitterProj = projection,
+                    matrix_ViewFlipYProj = projection,
+                    matrix_LastViewFlipYProj = projection
+                });
             }
 
             public uint[] Classify()
@@ -549,6 +553,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
+                m_View.Dispose();
                 foreach (GraphicsBuffer buffer in m_Buffers) buffer.Release();
                 foreach (UnityEngine.Object obj in m_Objects)
                 {

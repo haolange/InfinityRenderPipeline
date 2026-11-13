@@ -58,10 +58,5 @@ namespace InfinityTech.Rendering.Pipeline
         {
             return GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
         }
-
-        internal static Matrix4x4 GetComputeInvViewProj(Camera camera)
-        {
-            return (GetComputeGpuProjection(camera) * camera.worldToCameraMatrix).inverse;
-        }
     }
 }

@@ -44,7 +44,7 @@ Texture2D SRV_ShadowAtlasTexture;
 #endif
 
 #if defined(DV_KERNEL_LIGHTLOOP)
-float4x4 DV_InvProj;
+#include "../../Library/ViewUniform.hlsl"
 float DV_FarDepth;
 Texture2D<float> SRV_DepthTexture;
 #endif
@@ -268,7 +268,7 @@ void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
     }
 
     float2 screenUV = (pixelCoord + 0.5) / float2(width, height);
-    float viewDepth = -GetViewSpacePos(GetNDCPos(screenUV, rawDepth), DV_InvProj).z;
+    float viewDepth = -GetViewSpacePos(GetNDCPos(screenUV, rawDepth), Matrix_InvFlipYJitterProj).z;
     uint count = 0;
     uint index;
     if (DV_Mode == DEBUGVIEW_REFLECTIONPROBECOMPLEXITY)

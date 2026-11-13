@@ -115,13 +115,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 depthParameters;
             public Vector4 cameraPosition;
             public Vector4 cameraForward;
-            public Matrix4x4 matrix_Proj;
-            public Matrix4x4 matrix_InvProj;
-            public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_WorldToView;
-            public Matrix4x4 matrix_HistoryViewProj;
-            public Matrix4x4 matrix_MotionViewProj;
-            public Matrix4x4 matrix_LastMotionViewProj;
             public ComputeShader ssrShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -243,13 +236,6 @@ namespace InfinityTech.Rendering.Pipeline
                 Vector3 cameraPosition = context.camera.transform.position;
                 passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, context.camera.orthographic ? 1 : 0);
                 passData.cameraForward = context.camera.transform.forward;
-                passData.matrix_Proj = context.cameraUniform.matrix_FlipYJitterProj;
-                passData.matrix_InvProj = context.cameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_WorldToView = context.cameraUniform.matrix_WorldToView;
-                passData.matrix_HistoryViewProj = context.cameraUniform.matrix_LastViewFlipYJitterProj;
-                passData.matrix_MotionViewProj = context.cameraUniform.matrix_ViewFlipYProj;
-                passData.matrix_LastMotionViewProj = context.cameraUniform.matrix_LastViewFlipYProj;
                 passData.ssrShader = shaders.ssrShader;
                 passData.clearArgsKernel = kernels.ssrClearArgs.index;
                 passData.classifyKernel = kernels.ssrClassify.index;
@@ -339,13 +325,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraPositionID, passData.cameraPosition);
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraForwardID, passData.cameraForward);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_Proj, passData.matrix_Proj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvProj, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_WorldToView, passData.matrix_WorldToView);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_HistoryViewProj, passData.matrix_HistoryViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_MotionViewProj, passData.matrix_MotionViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, PassShaderIDs.Matrix_LastMotionViewProj, passData.matrix_LastMotionViewProj);
 
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRClassifySampler);
                     int clearArgs = passData.clearArgsKernel;

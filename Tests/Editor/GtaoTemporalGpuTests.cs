@@ -69,9 +69,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("Resolution",new Vector4(width,height,1f/width,1f/height));
                 shader.SetVector("UpsampleSize",new Vector4(width*2,height*2,1f/(width*2),1f/(height*2)));
                 shader.SetVector("ScreenSpaceDepthParams",new Vector4(.1f,100,1,0));
-                shader.SetMatrix("Matrix_InvViewProj",Matrix4x4.identity);
-                shader.SetMatrix("Matrix_MotionViewProj",Matrix4x4.identity);shader.SetMatrix("Matrix_LastMotionViewProj",Matrix4x4.identity);
-                var projection=Matrix4x4.identity;if(mode==9)projection.m33=-1;shader.SetMatrix("Matrix_HistoryViewProj",projection);
+                var projection=Matrix4x4.identity;if(mode==9)projection.m33=-1;
+                using var view=new ViewUniformBinding(new ViewUniform{matrix_InvViewFlipYJitterProj=Matrix4x4.identity,
+                    matrix_ViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYJitterProj=projection});
                 shader.SetInt("GTAOHistoryValid",mode==1?0:1);shader.SetInt("NumRay",2);shader.SetInt("NumStep",2);
                 shader.SetFloat("TemporalScale",1.25f);shader.SetFloat("TemporalWeight",.93f);
                 shader.SetFloat("Power",2.5f);shader.SetFloat("Intensity",.6f);

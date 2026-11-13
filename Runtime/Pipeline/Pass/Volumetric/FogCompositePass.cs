@@ -28,7 +28,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float maxDistance;
             public int hasFog;
             public int hasCloud;
-            public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public ComputeShader fogCompositeShader;
             public RGTextureHandle sceneColorTexture;
@@ -74,7 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.maxDistance = maxDistance;
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.fogCompositeShader = shaders.fogCompositeShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
@@ -95,7 +93,6 @@ namespace InfinityTech.Rendering.Pipeline
                     ComputeShader shader = passData.fogCompositeShader;
                     cmdEncoder.SetComputeVectorParam(shader, FogCompositePassUtilityData.FogComposite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(shader, FogCompositePassUtilityData.FogComposite_MaxDistanceID, passData.maxDistance);
-                    cmdEncoder.SetComputeMatrixParam(shader, CameraUniform.ID_Matrix_InvViewProj, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetKeyword(shader, passData.fogKeyword, passData.hasFog != 0);
                     cmdEncoder.SetKeyword(shader, passData.cloudKeyword, passData.hasCloud != 0);

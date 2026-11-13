@@ -64,8 +64,7 @@ int SSR_DebugMode;
 // xyz = world position, w = 1 for orthographic cameras.
 float4 SSR_CameraPosition;
 float4 SSR_CameraForward;
-float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_WorldToView;
-float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_HiZClosestTexture;
@@ -152,8 +151,8 @@ bool LoadSurface(uint2 pixel, out SSRSurface surface)
         surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
         float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
         float3 ndc = GetNDCPos(uv, rawDepth);
-        surface.positionVS = GetViewSpacePos(ndc, Matrix_InvProj);
-        surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewProj);
+        surface.positionVS = GetViewSpacePos(ndc, Matrix_InvFlipYJitterProj);
+        surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewFlipYJitterProj);
         surface.viewRayWS = SSR_CameraPosition.w != 0 ? SSR_CameraForward.xyz : normalize(surface.positionWS - SSR_CameraPosition.xyz);
     }
     return valid;
@@ -261,7 +260,7 @@ uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId, out uint2 tile)
 // Any of those is an empty sample: a miss still occupies estimator weight.
 int ShadeReflectionHit(SSRSurface surface, float3 L, float pdf, ScreenSpaceHit hit, bool mirror, out float4 radiance, out float hitDistance)
 {
-    float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
+    float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewFlipYJitterProj);
     hitDistance = max(length(hitWS - surface.positionWS), 1e-3);
     uint2 hitPixel = min((uint2)(hit.uv * SSR_Resolution.xy), (uint2)SSR_Resolution.xy - 1);
     float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
@@ -279,11 +278,11 @@ int ShadeReflectionHit(SSRSurface surface, float3 L, float pdf, ScreenSpaceHit h
     }
     else
     {
-        float projectionScale = 0.5 * TemporalColorResolution.y * abs(Matrix_Proj[1][1]);
+        float projectionScale = 0.5 * TemporalColorResolution.y * abs(Matrix_FlipYJitterProj[1][1]);
         float mip = mirror ? 0 : RayConeMip(pdf, clamp(SSR_Samples, 1u, 4u), hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(hit.rawDepth), (uint)TemporalColorMipCount);
         float colorConfidence;
         float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, SRV_HitMotionMetadata[hitPixel], mip,
-            Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, colorConfidence);
+            Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, colorConfidence);
         if (colorConfidence <= 0)
         {
             reason = 3;
@@ -351,8 +350,8 @@ void SSRTrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID
             float3 directionVS = normalize(mul((float3x3)Matrix_WorldToView, L));
             float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, (int)(rayIndex * 3 + 2));
             found = linearMarch
-                ? TraceScreenSpaceLinear(surface.positionVS, directionVS, SSR_LinearSteps, SSR_BinarySteps, jitter, SSR_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit)
-                : TraceScreenSpaceHiZ(surface.positionVS, directionVS, SSR_HiZSteps, jitter, SSR_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
+                ? TraceScreenSpaceLinear(surface.positionVS, directionVS, SSR_LinearSteps, SSR_BinarySteps, jitter, SSR_TraceFlags, Matrix_FlipYJitterProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit)
+                : TraceScreenSpaceHiZ(surface.positionVS, directionVS, SSR_HiZSteps, jitter, SSR_TraceFlags, Matrix_FlipYJitterProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
         }
         float invPdf = rcp(max(pdf, 1e-5));
         float4 radiance = 0;
@@ -373,7 +372,7 @@ void SSRTrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID
             int reason = ShadeReflectionHit(surface, L, pdf, hit, mirror, radiance, hitDistance);
             if (reason == 0)
             {
-                float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
+                float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewFlipYJitterProj);
                 dirT = float4(hitWS - surface.positionWS, invPdf);
             }
             else
@@ -398,7 +397,7 @@ float3 TracePixelOrigin(uint2 tracePixel)
     uint2 fullPixel = TraceToFullPixel(tracePixel);
     float rawDepth = SRV_DepthTexture[fullPixel];
     float2 uv = (fullPixel + 0.5) * SSR_Resolution.zw;
-    return GetWorldSpacePos(GetNDCPos(uv, rawDepth), Matrix_InvViewProj);
+    return GetWorldSpacePos(GetNDCPos(uv, rawDepth), Matrix_InvViewFlipYJitterProj);
 }
 
 void AccumulateReflectionRecord(ReflectionSample record, uint2 tracePixel, SSRSurface surface, float3 N,
@@ -535,7 +534,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     float2 surfaceMotion = SRV_MotionTexture[pixel].xy;
     float2 surfaceUV;
     float expectedDepth;
-    ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, surfaceUV, expectedDepth);
+    ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, surfaceUV, expectedDepth);
 
     float historyAge = 0;
     float4 motionSurface = SRV_HitMotionMetadata[pixel];
@@ -557,7 +556,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     {
         float4 surfaceHistory = InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, surfaceUV, 0);
         float hitDistance = SRV_HitDistance[pixel];
-        float2 hitUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
+        float2 hitUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_LastViewFlipYJitterProj) : -1;
         bool hitValid = all(hitUV >= 0) && all(hitUV <= 1);
         float4 hitHistory = hitValid ? InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, hitUV, 0) : surfaceHistory;
         // A near-zero history alpha unpremultiplies to black and, at a ~0.97 history weight, covers this frame's hit.

@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(EHistoryReset.NewCamera, reset);
                 Assert.AreEqual(0.0f, frameState.cameraUniform.jitter.x);
                 Assert.AreEqual(0.0f, frameState.cameraUniform.jitter.y);
-                Assert.AreEqual(frameState.cameraUniform.matrix_ViewProj, frameState.cameraUniform.matrix_ViewJitterProj);
+                Assert.AreEqual(frameState.cameraUniform.matrix_Proj * frameState.cameraUniform.matrix_WorldToView, frameState.cameraUniform.matrix_ViewJitterProj);
                 Assert.AreEqual(frameState.cameraUniform.matrix_ViewFlipYProj, frameState.cameraUniform.matrix_ViewFlipYJitterProj);
             }
             finally

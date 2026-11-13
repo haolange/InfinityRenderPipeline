@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 profiles = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 32);
                 profiles.SetData(new[] { new DiffusionProfileRecord { scatterAlbedoDistance = new Vector4(1,1,1,mode == 3 ? .00001f : 1), parameters = new Vector4(3,0,0,0) }, new DiffusionProfileRecord { scatterAlbedoDistance = new Vector4(1,1,1,mode == 6 ? .00001f : 1), parameters = new Vector4(3,0,0,0) } });
                 shader.SetVector("SSS_Resolution", new Vector4(width, height, 1f / width, 1f / height));
-                shader.SetMatrix("Matrix_Proj", projection); shader.SetMatrix("Matrix_InvProj", projection.inverse);
+                using var view = new ViewUniformBinding(new ViewUniform { matrix_FlipYJitterProj = projection, matrix_InvFlipYJitterProj = projection.inverse });
                 shader.SetInt("SSS_NumSamples", 32); shader.SetInt("SSS_ProfileCount", 2);
                 foreach (string name in new[] { "SRV_LightingTexture", "SRV_DepthTexture", "SRV_GBufferTextureB", "SRV_GBufferTextureC", "SRV_FilteredSubsurface" })
                 {

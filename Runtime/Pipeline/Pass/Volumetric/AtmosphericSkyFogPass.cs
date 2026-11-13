@@ -22,7 +22,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 sunDirection;
             public Vector4 sunIlluminance;
             public Vector4 worldSpaceCameraPos;
-            public Matrix4x4 matrix_InvViewProj;
             public float farDepth;
             public int2 resolution;
             public ComputeKernel compositeKernel;
@@ -52,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
                 passData.worldSpaceCameraPos = context.camera.transform.position;
-                passData.matrix_InvViewProj = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsConventions.SampledFarDepth;
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.compositeKernel = kernels.atmosphereComposite;
@@ -73,7 +71,6 @@ namespace InfinityTech.Rendering.Pipeline
                         sunDirection = passData.sunDirection,
                         sunIlluminance = passData.sunIlluminance,
                         worldSpaceCameraPos = passData.worldSpaceCameraPos,
-                        matrix_InvViewProj = passData.matrix_InvViewProj,
                         atmosphericLUTShader = passData.atmosphericLUTShader
                     };
                     BindAtmosphereParameters(lutData, cmdEncoder);
