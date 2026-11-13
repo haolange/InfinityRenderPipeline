@@ -275,7 +275,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.index = drawIndex;
                 data.inputs = CullInputs(builder, pass);
                 pass.ReadBuffer(builder.ImportBuffer(record.cache.candidateBuffer));
-                pass.WriteBuffer(builder.ImportBuffer(payload.commandMeta));
+                pass.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBuffer));
                 pass.WriteBuffer(builder.ImportBuffer(payload.cullingContext));
                 pass.WriteBuffer(instances);
                 pass.WriteBuffer(fades);

@@ -20,28 +20,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static readonly ProfilingSampler initializeIndirectArgs = new ProfilingSampler("InitializeIndirectArgs");
         internal static readonly ProfilingSampler buildDrawList = new ProfilingSampler("BuildDrawList");
 
-        static readonly ShaderTagId s_ShadowPass = new ShaderTagId("RasterShadowPass");
         static readonly ProfilingSampler s_ShadowDrawDirect = new ProfilingSampler("Shadows.DrawMeshDirect");
         static readonly ProfilingSampler s_ShadowDrawIndirect = new ProfilingSampler("Shadows.DrawMeshIndirect");
         static readonly ProfilingSampler s_RenderLoopDrawDirect = new ProfilingSampler("RenderLoop.DrawMeshDirect");
         static readonly ProfilingSampler s_RenderLoopDrawIndirect = new ProfilingSampler("RenderLoop.DrawMeshIndirect");
-
-        internal static string PassToken(string lightMode)
-        {
-            switch (lightMode)
-            {
-                case "RasterDepthPass": return "Depth";
-                case "RasterGBufferPass": return "GBuffer";
-                case "RasterForwardPass": return "Forward";
-                case "RasterMotionPass": return "Motion";
-                case "RasterShadowPass": return "Shadow";
-                case "RasterTranslucentDepthPass": return "TranslucentDepth";
-                case "RasterTranslucentT0Pass": return "TranslucentT0";
-                case "RasterTranslucentT1Pass": return "TranslucentT1";
-                case "RasterTranslucentT2Pass": return "TranslucentT2";
-                default: return lightMode;
-            }
-        }
 
         static readonly List<ProfilingSampler> s_Slices = new List<ProfilingSampler>(8);
 
@@ -56,13 +38,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             return s_Slices[index] ?? (s_Slices[index] = new ProfilingSampler("Slice" + index));
         }
 
-        // A pass cache resolves its sampler and CPU markers once, named by the PassToken of its LightMode.
-        internal static ProfilingSampler PassSampler(string lightMode) => new ProfilingSampler(PassToken(lightMode));
-        internal static ProfilerMarker CpuMarker(string stage, string lightMode) => new ProfilerMarker("MeshCPU." + stage + "." + PassToken(lightMode));
+        // A pass cache resolves its sampler and CPU markers once, named by its pass token.
+        internal static ProfilingSampler PassSampler(in MeshPassDesc desc) => new ProfilingSampler(desc.token);
+        internal static ProfilerMarker CpuMarker(string stage, in MeshPassDesc desc) => new ProfilerMarker("MeshCPU." + stage + "." + desc.token);
 
-        /// <summary>Shadow-pass draws sit under <c>Shadows.*</c>, every other pass under <c>RenderLoop.*</c>.</summary>
+        /// <summary>Draws of a pass whose members cast shadows sit under <c>Shadows.*</c>, every other pass under <c>RenderLoop.*</c>.</summary>
         internal static ProfilingSampler DrawSampler(in MeshPassDesc desc, bool indirect)
-            => desc.passTag == s_ShadowPass
+            => (desc.requireEntityFlags & EMeshEntityFlags.CastShadow) != 0
                 ? (indirect ? s_ShadowDrawIndirect : s_ShadowDrawDirect)
                 : (indirect ? s_RenderLoopDrawIndirect : s_RenderLoopDrawDirect);
     }

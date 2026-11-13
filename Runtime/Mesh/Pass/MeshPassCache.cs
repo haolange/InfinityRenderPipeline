@@ -89,8 +89,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly Dictionary<ShaderState, int> m_StateRanks = new Dictionary<ShaderState, int>(16);
         readonly Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding> m_Prepared = new Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding>(16);
         int m_ShaderEpoch;
-        BufferHandle m_CandidateBuffer;
-        int m_CandidateCapacity;
+        BufferHandle m_CandidateBuffer, m_CommandMetaBuffer;
+        int m_CandidateCapacity, m_CommandMetaCapacity;
         uint m_UploadedRevision = uint.MaxValue;
         bool m_Disposed;
 
@@ -117,6 +117,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal NativeArray<MeshDrawCommand> commands => m_Commands.AsArray();
         internal NativeArray<int> entityMemberCount => m_EntityMemberCount.AsArray();
         internal BufferHandle candidateBuffer => m_CandidateBuffer;
+        internal BufferHandle commandMetaBuffer => m_CommandMetaBuffer;
 
         internal MeshPassCache(in MeshPassDesc desc)
         {
@@ -127,11 +128,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new ArgumentException("queueMin exceeds queueMax.", nameof(desc));
             }
             this.desc = desc;
-            passSampler = MeshDrawProfiling.PassSampler(desc.lightMode);
-            scheduleMarker = MeshDrawProfiling.CpuMarker("Schedule", desc.lightMode);
-            completeMarker = MeshDrawProfiling.CpuMarker("Complete", desc.lightMode);
-            uploadMarker = MeshDrawProfiling.CpuMarker("Upload", desc.lightMode);
-            drawMarker = MeshDrawProfiling.CpuMarker("Draw", desc.lightMode);
+            passSampler = MeshDrawProfiling.PassSampler(desc);
+            scheduleMarker = MeshDrawProfiling.CpuMarker("Schedule", desc);
+            completeMarker = MeshDrawProfiling.CpuMarker("Complete", desc);
+            uploadMarker = MeshDrawProfiling.CpuMarker("Upload", desc);
+            drawMarker = MeshDrawProfiling.CpuMarker("Draw", desc);
             for (int route = 0; route <= 1; ++route)
                 for (int stage = 0; stage <= 3; ++stage)
                     if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode))
@@ -491,32 +492,47 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_CommandMetaRevision = revision;
         }
 
-        /// <summary>Uploads the candidate table when membership changed. Called from residency, outside graph recording.</summary>
-        internal void UploadCandidates(ResourcePool pool, MeshWorldStats stats)
+        /// <summary>
+        /// Uploads the candidate table and the command metadata when membership changed. Called from residency, outside graph
+        /// recording; every GPU draw list of this revision reads both.
+        /// </summary>
+        internal void UploadTables(ResourcePool pool, MeshWorldStats stats)
         {
-            int needed = math.max(64, m_Candidates.Length);
             bool stale = m_UploadedRevision != revision || m_CandidateBuffer.buffer == null || m_CandidateCapacity < m_Candidates.Length;
             if (!stale)
             {
                 return;
             }
-            if (m_CandidateBuffer.buffer == null || m_CandidateCapacity < needed || !pool.CanWriteBuffer(m_CandidateBuffer))
-            {
-                BufferHandle previous = m_CandidateBuffer;
-                int capacity = math.max(needed, m_CandidateCapacity);
-                m_CandidateBuffer = pool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint) * 2) { name = "MeshPassCandidates" });
-                m_CandidateCapacity = capacity;
-                if (previous.buffer != null)
-                {
-                    pool.ReleaseBuffer(previous);
-                }
-            }
+            Ensure(pool, ref m_CandidateBuffer, ref m_CandidateCapacity, math.max(64, m_Candidates.Length), sizeof(uint) * 2, "MeshPassCandidates");
             if (m_Candidates.Length > 0)
             {
                 m_CandidateBuffer.buffer.SetData(m_Candidates.AsArray(), 0, 0, m_Candidates.Length);
             }
-            stats.uploadedBytes += (long)m_Candidates.Length * sizeof(uint) * 2;
+            NativeArray<uint> meta = GetCommandMeta();
+            int metaLength = m_Commands.Length * MetaStride;
+            Ensure(pool, ref m_CommandMetaBuffer, ref m_CommandMetaCapacity, math.max(64 * MetaStride, metaLength), sizeof(uint), "MeshCommandMeta");
+            if (metaLength > 0)
+            {
+                m_CommandMetaBuffer.buffer.SetData(meta, 0, 0, metaLength);
+            }
+            stats.uploadedBytes += (long)m_Candidates.Length * sizeof(uint) * 2 + (long)metaLength * sizeof(uint);
             m_UploadedRevision = revision;
+        }
+
+        // A buffer still read by submitted GPU work is replaced, not written.
+        static void Ensure(ResourcePool pool, ref BufferHandle buffer, ref int capacity, int needed, int stride, string name)
+        {
+            if (buffer.buffer != null && capacity >= needed && pool.CanWriteBuffer(buffer))
+            {
+                return;
+            }
+            BufferHandle previous = buffer;
+            capacity = math.max(needed, capacity);
+            buffer = pool.GetBuffer(new BufferDescriptor(capacity, stride) { name = name });
+            if (previous.buffer != null)
+            {
+                pool.ReleaseBuffer(previous);
+            }
         }
 
         internal void ReleaseGPU(ResourcePool pool)
@@ -525,8 +541,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 pool.ReleaseBuffer(m_CandidateBuffer);
             }
-            m_CandidateBuffer = default;
-            m_CandidateCapacity = 0;
+            if (m_CommandMetaBuffer.buffer != null)
+            {
+                pool.ReleaseBuffer(m_CommandMetaBuffer);
+            }
+            m_CandidateBuffer = m_CommandMetaBuffer = default;
+            m_CandidateCapacity = m_CommandMetaCapacity = 0;
             m_UploadedRevision = uint.MaxValue;
         }
 

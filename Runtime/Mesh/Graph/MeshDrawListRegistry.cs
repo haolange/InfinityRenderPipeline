@@ -93,9 +93,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException("Draw lists require uploaded MeshWorld residency.");
             }
             bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
-            if (gpu && !empty && cache.candidateBuffer.buffer == null)
+            if (gpu && !empty && (cache.candidateBuffer.buffer == null || cache.commandMetaBuffer.buffer == null))
             {
-                throw new InvalidOperationException($"Mesh pass '{cache.desc.lightMode}' has no uploaded candidate table.");
+                throw new InvalidOperationException($"Mesh pass '{cache.desc.lightMode}' has no uploaded candidate and command tables.");
             }
             tables.version.Retain();
             int index = m_Records.Count;

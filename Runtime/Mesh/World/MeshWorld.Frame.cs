@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 cache.Build(this);
                 if (m_GPUBackend.isSupported)
                 {
-                    cache.UploadCandidates(m_ResourcePool, stats);
+                    cache.UploadTables(m_ResourcePool, stats);
                 }
             }
             catch
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
         }
 
-        /// <summary>Uploads dirty entity columns, the next transform version and stale pass candidate tables.</summary>
+        /// <summary>Uploads dirty entity columns, the next transform version and stale pass candidate and command tables.</summary>
         public void UpdateResidency()
         {
             ThrowIfDisposed();
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             foreach (MeshPassCache cache in m_PassCaches)
             {
-                cache.UploadCandidates(m_ResourcePool, stats);
+                cache.UploadTables(m_ResourcePool, stats);
             }
         }
 

@@ -201,6 +201,18 @@ class StaticCheckTests(unittest.TestCase):
         self.assertIn('_Renamed', messages[0])
         self.assertIn('_Unbound', messages[1])
 
+    def test_mesh_mechanism_names_no_pipeline_concept(self):
+        self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { void BeginCamera(Camera camera) { } }')
+        self.write('Runtime/Mesh/View/MeshCullingContext.cs', '// A camera adapts into this context.\nstruct MeshCullingContext { }')
+        out = []
+        static_check.check_mesh_mechanism(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/Pass/MeshPassCache.cs', 'class MeshPassCache { Camera camera; }')
+        self.write('Runtime/Mesh/Backend/Gpu.cs', 'class Gpu { int id = InfinityShaderIDs.DepthBuffer; }')
+        static_check.check_mesh_mechanism(str(self.repo), out)
+        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera'],
+                         sorted(o[2] for o in out))
+
     def test_mesh_submit_only_draws(self):
         root = 'Runtime/Mesh/'
         self.write(root + 'Backend/MeshDrawCPUBackend.cs',

@@ -54,10 +54,10 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void ConsumerNames_FollowThePass()
         {
-            Assert.AreEqual("Depth", MeshDrawProfiling.PassSampler("RasterDepthPass").name);
-            Assert.AreEqual("GBuffer", MeshDrawProfiling.PassSampler("RasterGBufferPass").name);
-            Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler("RasterShadowPass").name);
-            Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler("RasterTranslucentT1Pass").name);
+            Assert.AreEqual("Depth", MeshDrawProfiling.PassSampler(MeshPassTable.Depth).name);
+            Assert.AreEqual("GBuffer", MeshDrawProfiling.PassSampler(MeshPassTable.GBuffer).name);
+            Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler(MeshPassTable.Shadow).name);
+            Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler(MeshPassTable.TranslucentT1).name);
             Assert.AreEqual("Slice2", MeshDrawProfiling.SliceSampler(2).name);
         }
 

@@ -15,6 +15,8 @@ Checks
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
   meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
+  meshmechanism    the mesh mechanism names no pipeline concept: no shader IDs of the pipeline, capture or view kinds, and no
+                   Camera outside the world's diagnostic counters
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
   agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
@@ -365,6 +367,23 @@ def check_mesh_passes(repo, out):
         text = without_comments(read(path))
         for token in MESH_PASS_FORBIDDEN:
             if token in text: out.append(('ERROR', 'meshpasses', f'{rel} references {token}'))
+
+
+MESH_MECHANISM = ('World', 'Pass', 'View', 'DrawList', 'Backend')
+MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|RenderCapture\w*|ECaptureBuffer|EMeshViewKind|MeshView)\b')
+MESH_CAMERA = re.compile(r'\bCamera\b')
+
+
+def check_mesh_mechanism(repo, out):
+    for directory in MESH_MECHANISM:
+        for p in all_files(os.path.join(repo, MESH_DIR, directory), {'.cs'}):
+            text = without_comments(read(p))
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            for match in MESH_PIPELINE_CONCEPT.finditer(text):
+                out.append(('ERROR', 'meshmechanism', f'{rel} names {match.group(1)}'))
+            # A culling context carries what a list culls against; no camera reaches the culling path.
+            if directory != 'World' and MESH_CAMERA.search(text):
+                out.append(('ERROR', 'meshmechanism', f'{rel} names Camera'))
 
 
 SERIALIZED_FIELD = re.compile(r'(?:\[[^\]]*\bSerializeField\b[^\]]*\][^;{}]*?|public\s+)(?:readonly\s+)?[\w<>\[\],\s.?]+?\s(\w+)\s*(?:=[^;]*)?;')
@@ -744,7 +763,7 @@ def main():
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
-                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
+                     ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),

@@ -303,17 +303,17 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 MeshWorld world = fixture.world;
                 Assert.AreEqual(MeshPassTable.all.Length, world.stats.passCacheCount, "The nine passes exist at construction.");
-                var equal = new MeshPassDesc(new string("RasterGBufferPass".ToCharArray()), 0, MeshPassTable.OpaqueQueueMax);
+                var equal = new MeshPassDesc(new string("RasterGBufferPass".ToCharArray()), "GBuffer", 0, MeshPassTable.OpaqueQueueMax);
                 int builds = world.stats.passCacheBuilds;
                 Assert.AreSame(world.GetPassCache(MeshPassTable.GBuffer), world.GetPassCache(equal), "Field-level equality is the identity.");
                 Assert.AreEqual(builds, world.stats.passCacheBuilds, "Looking up an existing pass does not build another cache.");
 
-                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("UnknownLightMode", 0, 10)));
-                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", 20, 10)));
+                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("UnknownLightMode", "Unknown", 0, 10)));
+                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", "Depth", 20, 10)));
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     Assert.AreSame(world.GetPassCache(MeshPassTable.Depth), world.GetPassCache(MeshPassTable.Depth));
-                    Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", 0, 7)));
+                    Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", "Depth", 0, 7)));
                 }
             }
         }
