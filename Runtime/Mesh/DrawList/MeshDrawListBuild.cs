@@ -6,6 +6,10 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using InfinityTech.Core.Geometry;
 
+// The gather job is scheduled from a generic method, so Burst learns its closed types here.
+[assembly: RegisterGenericJobType(typeof(InfinityTech.Rendering.MeshPipeline.MeshDrawGatherJob<InfinityTech.Rendering.MeshPipeline.StateSortKey>))]
+[assembly: RegisterGenericJobType(typeof(InfinityTech.Rendering.MeshPipeline.MeshDrawGatherJob<InfinityTech.Rendering.MeshPipeline.TranslucentColorSortKey>))]
+
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>Sort-key segment packing. Values saturate to their segment; nothing is silently truncated.</summary>
