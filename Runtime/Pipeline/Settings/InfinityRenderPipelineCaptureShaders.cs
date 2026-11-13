@@ -15,10 +15,13 @@ namespace InfinityTech.Rendering.Pipeline
         public int version => m_Version;
         public bool isAvailableInPlayerBuild => true;
 
-        [ResourcePath("Shaders/Utility/Compute_CaptureTexture.compute")]
+        internal const string CaptureTexturePath = "Shaders/Utility/Compute_CaptureTexture.compute";
+        internal const string CaptureDepthPath = "Shaders/Utility/Compute_CaptureDepth.compute";
+
+        [ResourcePath(CaptureTexturePath)]
         public ComputeShader captureTextureShader;
 
-        [ResourcePath("Shaders/Utility/Compute_CaptureDepth.compute")]
+        [ResourcePath(CaptureDepthPath)]
         public ComputeShader captureDepthShader;
     }
 }

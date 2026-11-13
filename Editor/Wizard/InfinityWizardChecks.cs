@@ -235,11 +235,18 @@ namespace InfinityTech.Rendering.Editor
             }
         }
 
-        // Registers an existing GlobalSettings asset, or creates one; containers are completed by Unity's resource
-        // system when the asset is registered. An existing incomplete asset is reported, not rewritten.
+        // Registers an existing GlobalSettings asset, or creates one; Unity completes the containers of a newly registered
+        // asset. On a registered asset this explicit Fix adds the capture container (dirty, not saved); any other missing
+        // container is reported, not rewritten.
         static void FixGlobalSettings()
         {
             var registered = GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>() as InfinityRenderPipelineGlobalSettings;
+            if (registered != null && registered.AddMissingCaptureShaders())
+            {
+                Selection.activeObject = registered;
+                Debug.Log($"[InfinityRP] Added InfinityRenderPipelineCaptureShaders to {AssetDatabase.GetAssetPath(registered)}; save the asset to keep it.");
+                return;
+            }
             if (registered != null)
             {
                 Debug.LogWarning($"[InfinityRP] {AssetDatabase.GetAssetPath(registered)} is registered but incomplete; select it to let Unity add the missing resource containers.");
