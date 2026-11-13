@@ -334,6 +334,7 @@ Translucent depth is followed by clouds, fog, fog composite, T0, the color pyram
 ### Contracts
 
 - The atmosphere compute shader uses one unit system, meters with scattering converted at bind; not both. Atmosphere tables are not produced with `Blit`, `SetRenderTarget` or `BuiltinRenderTextureType`.
+- The per-camera view cache (sky-view table, aerial-perspective volume, sun buffer) keys on the atmosphere parameters, the sun direction, the camera position quantized to 1 m and the exact unjittered view direction and projection. The aerial-perspective volume is aligned to the frustum, so turning in place regenerates it.
 - Atlases that live across cameras and frames follow `AtmosphereSharedCache`: pending reservations, commit on queue-accepted `MarkProduced`, `DiscardUnproducedPending` for failed cameras, physical retirement after submit. Cross-frame keys are instance IDs, not per-frame record indices.
 
 ## 13. Temporal resolve and output

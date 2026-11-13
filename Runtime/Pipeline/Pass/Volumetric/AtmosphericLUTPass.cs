@@ -187,7 +187,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
             Vector3 cameraPosition = context.camera.transform.position;
-            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, cameraPosition);
+            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, cameraPosition,
+                context.cameraUniform.matrix_WorldToView, context.cameraUniform.matrix_FlipYProj);
             AtmosphereIBLKey iblKey = AtmosphereIBLKey.Create(parameter, (Vector3)sunDirection);
 
             TextureDescriptor transmittanceDsc = CreateAtmosphereLUTDescriptor(parameter.transmittanceLUTWidth, parameter.transmittanceLUTHeight, AtmosphericLUTPassUtilityData.TransmittanceName);

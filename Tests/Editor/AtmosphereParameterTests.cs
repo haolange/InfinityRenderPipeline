@@ -34,16 +34,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ViewKey_QuantizesCameraTo1m()
+        public void ViewKey_QuantizesCameraTo1mAndKeepsTheViewDirectionExact()
         {
             AtmosphereParameter parameter = ValidParameter();
             Vector3 sun = new Vector3(0.0f, 1.0f, 0.0f);
-            AtmosphereViewKey a = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.2f, 4.9f, -3.1f));
-            AtmosphereViewKey b = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.8f, 4.1f, -3.9f));
-            AtmosphereViewKey c = AtmosphereViewKey.Create(parameter, sun, new Vector3(11.0f, 4.9f, -3.1f));
+            Matrix4x4 projection = Matrix4x4.Perspective(60.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+            Matrix4x4 view = Matrix4x4.Translate(-new Vector3(10.2f, 4.9f, -3.1f));
+            Matrix4x4 movedView = Matrix4x4.Translate(-new Vector3(10.8f, 4.1f, -3.9f));
+            Matrix4x4 turnedView = Matrix4x4.Rotate(Quaternion.Euler(0, 90, 0)) * view;
+            AtmosphereViewKey a = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.2f, 4.9f, -3.1f), view, projection);
+            AtmosphereViewKey b = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.8f, 4.1f, -3.9f), movedView, projection);
+            AtmosphereViewKey c = AtmosphereViewKey.Create(parameter, sun, new Vector3(11.0f, 4.9f, -3.1f), view, projection);
+            AtmosphereViewKey turned = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.2f, 4.9f, -3.1f), turnedView, projection);
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsFalse(a.Equals(c));
+            Assert.IsFalse(a.Equals(turned));
             Assert.AreEqual(10, a.cameraX);
             Assert.AreEqual(4, a.cameraY);
             Assert.AreEqual(-4, a.cameraZ);

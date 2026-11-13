@@ -197,8 +197,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ViewCache_SameQuantizedPose_IsHit()
         {
             AtmosphereParameter parameter = ValidParameter();
-            AtmosphereViewKey keyA = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.2f, 2.4f, 3.6f));
-            AtmosphereViewKey keyB = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.9f, 2.1f, 3.2f));
+            AtmosphereViewKey keyA = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.2f, 2.4f, 3.6f), Matrix4x4.identity, Matrix4x4.identity);
+            AtmosphereViewKey keyB = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.9f, 2.1f, 3.2f), Matrix4x4.identity, Matrix4x4.identity);
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
             BufferDescriptor sun = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
@@ -212,6 +212,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.BeginFrame();
             m_View.Resolve(keyB, sky, aerial, sun, out _, out _, out _, out bool hit);
             Assert.IsTrue(hit);
+            m_View.CommitFrame();
+
+            // The aerial perspective volume follows the frustum: turning in place is a miss.
+            AtmosphereViewKey turned = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.2f, 2.4f, 3.6f),
+                Matrix4x4.Rotate(Quaternion.Euler(0, 90, 0)), Matrix4x4.identity);
+            m_View.BeginFrame();
+            m_View.Resolve(turned, sky, aerial, sun, out _, out _, out _, out bool turnedHit);
+            Assert.IsFalse(turnedHit);
         }
 
         [Test]
@@ -220,7 +228,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AtmosphereParameter parameter = ValidParameter();
             Vector3 sun = Vector3.up;
             Vector3 camera = new Vector3(1.2f, 2.4f, 3.6f);
-            AtmosphereViewKey key = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey key = AtmosphereViewKey.Create(parameter, sun, camera, Matrix4x4.identity, Matrix4x4.identity);
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
             BufferDescriptor sunBuffer = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
@@ -231,7 +239,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.CommitFrame();
 
             parameter.atmosphereHeight = 80000.0f;
-            AtmosphereViewKey thicknessKey = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey thicknessKey = AtmosphereViewKey.Create(parameter, sun, camera, Matrix4x4.identity, Matrix4x4.identity);
             m_View.BeginFrame();
             m_View.Resolve(thicknessKey, sky, aerial, sunBuffer, out _, out _, out _, out bool thicknessHit);
             Assert.IsFalse(thicknessHit);
@@ -239,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.CommitFrame();
 
             parameter.rayleighScattering = new Color(0.01f, 0.02f, 0.04f, 1.0f);
-            AtmosphereViewKey rayleighKey = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey rayleighKey = AtmosphereViewKey.Create(parameter, sun, camera, Matrix4x4.identity, Matrix4x4.identity);
             m_View.BeginFrame();
             m_View.Resolve(rayleighKey, sky, aerial, sunBuffer, out _, out _, out _, out bool rayleighHit);
             Assert.IsFalse(rayleighHit);

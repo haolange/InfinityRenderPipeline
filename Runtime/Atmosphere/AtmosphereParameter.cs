@@ -261,6 +261,9 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
+    // What the per-camera atmosphere LUTs depend on. The camera position is quantized to 1 m, an accepted
+    // approximation; the aerial perspective volume is aligned to the view frustum, so the view direction and
+    // projection (FlipYProj times the rotation of WorldToView, the unjittered transform the kernel inverts) are exact.
     internal struct AtmosphereViewKey : IEquatable<AtmosphereViewKey>
     {
         public AtmosphereParameter parameter;
@@ -268,16 +271,20 @@ namespace InfinityTech.Rendering.Pipeline
         public int cameraX;
         public int cameraY;
         public int cameraZ;
+        public Matrix4x4 directionProjection;
 
-        public static AtmosphereViewKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 cameraPosition)
+        public static AtmosphereViewKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 cameraPosition,
+            Matrix4x4 worldToView, Matrix4x4 flipYProjection)
         {
+            worldToView.SetColumn(3, new Vector4(0, 0, 0, 1));
             return new AtmosphereViewKey
             {
                 parameter = parameter,
                 sunDirection = sunDirection,
                 cameraX = Mathf.FloorToInt(cameraPosition.x),
                 cameraY = Mathf.FloorToInt(cameraPosition.y),
-                cameraZ = Mathf.FloorToInt(cameraPosition.z)
+                cameraZ = Mathf.FloorToInt(cameraPosition.z),
+                directionProjection = flipYProjection * worldToView
             };
         }
 
@@ -289,7 +296,8 @@ namespace InfinityTech.Rendering.Pipeline
                 && sunDirection.z == other.sunDirection.z
                 && cameraX == other.cameraX
                 && cameraY == other.cameraY
-                && cameraZ == other.cameraZ;
+                && cameraZ == other.cameraZ
+                && directionProjection.Equals(other.directionProjection);
         }
 
         public override bool Equals(object obj)
@@ -309,6 +317,7 @@ namespace InfinityTech.Rendering.Pipeline
                 hash = hash * 23 + cameraX;
                 hash = hash * 23 + cameraY;
                 hash = hash * 23 + cameraZ;
+                hash = hash * 23 + directionProjection.GetHashCode();
                 return hash;
             }
         }
