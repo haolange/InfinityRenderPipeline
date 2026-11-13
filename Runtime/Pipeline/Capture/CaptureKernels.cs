@@ -2,6 +2,7 @@
 using System;
 using InfinityTech.Core;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -16,11 +17,16 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal CaptureKernels(InfinityRenderPipelineRuntimeShaders shaders)
         {
-            const string captureTexture = "Resources/Compute_CaptureTexture";
-            ComputeShader textureShader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
-            texture = ComputeKernel.Resolve(textureShader, captureTexture, "CaptureTexture");
-            surfaceMetadata = ComputeKernel.Resolve(textureShader, captureTexture, "CaptureSurfaceMetadata");
-            depth = ComputeKernel.Resolve(Resources.Load<ComputeShader>("Compute_CaptureDepth"), "Resources/Compute_CaptureDepth", "CaptureDepth");
+            // The container is optional: a player built without Development has none, and capture then fails per request.
+            bool hasContainer = GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineCaptureShaders capture);
+            const string source = "GlobalSettings CaptureShaders.";
+            ComputeShader textureShader = hasContainer ? capture.captureTextureShader : null;
+            ComputeShader depthShader = hasContainer ? capture.captureDepthShader : null;
+            string textureSource = hasContainer ? source + nameof(InfinityRenderPipelineCaptureShaders.captureTextureShader) : "GlobalSettings has no CaptureShaders container";
+            string depthSource = hasContainer ? source + nameof(InfinityRenderPipelineCaptureShaders.captureDepthShader) : "GlobalSettings has no CaptureShaders container";
+            texture = ComputeKernel.Resolve(textureShader, textureSource, "CaptureTexture");
+            surfaceMetadata = ComputeKernel.Resolve(textureShader, textureSource, "CaptureSurfaceMetadata");
+            depth = ComputeKernel.Resolve(depthShader, depthSource, "CaptureDepth");
             bufferUIntBytes = ComputeKernel.Resolve(shaders.utilityShader, "GlobalSettings RuntimeShaders." + nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), "CaptureBufferUIntBytes");
         }
 
