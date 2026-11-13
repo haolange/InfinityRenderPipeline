@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Editor
         public long monoUsedBytes, monoHeapBytes, liveSetBytes, totalAllocatedBytes, totalReservedBytes, graphicsDriverBytes;
         public long poolTextureAllocatedBytes, poolTextureIdleBytes, poolTextureRetiredBytes, poolBufferAllocatedBytes, poolBufferIdleBytes, poolBufferRetiredBytes;
         public int gcGen0, gcGen1, gcGen2;
-        public int meshEntities, meshElements, allocatedViewCount;
+        public int meshEntities, meshElements;
         public string actualBackend;
     }
 
@@ -302,7 +302,7 @@ namespace InfinityTech.Rendering.Editor
                 gcGen0 = GC.CollectionCount(0), gcGen1 = GC.CollectionCount(1), gcGen2 = GC.CollectionCount(2),
                 actualBackend = InfinityDebugDisplaySettings.current.mesh.actualBackend.ToString(),
             };
-            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements, out window.allocatedViewCount);
+            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements);
             evidence.windows.Add(window);
             m_WindowSamples = 0;
             if (++m_WindowIndex == m_Request.windowsSeconds.Length) Stop("Completed");

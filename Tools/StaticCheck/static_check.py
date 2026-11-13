@@ -14,7 +14,7 @@ Checks
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
-  meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
+  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
   agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
@@ -348,13 +348,13 @@ def check_mesh_submit(repo, out):
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):
         text = without_comments(read(extension))
-        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.compaction', 'PrepareMeshDrawList'):
+        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'RecordProducer'):
             if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
 
 
 MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
                    'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
-MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'MeshVisibilityHandle', 'scriptableRenderContext.CreateRendererList',
+MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
 
 

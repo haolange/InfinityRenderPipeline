@@ -207,7 +207,7 @@ class StaticCheckTests(unittest.TestCase):
                    'class A { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, false); c.SetBufferData(b, d); } }')
         self.write(root + 'Backend/MeshDrawGPUBackend.cs',
                    'class B { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
-        self.write(root + 'Graph/MeshGraphExtension.cs', 'PrepareMeshDrawList MeshDrawProfiling.upload MeshDrawProfiling.compaction')
+        self.write(root + 'Graph/MeshGraphExtension.cs', 'RecordProducer MeshDrawProfiling.upload MeshDrawProfiling.production')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)
         self.assertEqual(1, len(out))

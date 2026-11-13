@@ -187,31 +187,33 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
 
-                var opaqueDraws = BuildInBand(world, MeshPassTable.GBuffer, entity, 0.5f);
-                CollectionAssert.AreEquivalent(new[] { (true, 0.5f), (true, -0.5f) }, opaqueDraws, "Opaque passes cross-fade both levels.");
-                var translucentDraws = BuildInBand(world, MeshPassTable.TranslucentT0, entity, 0.5f);
+                // Screen size 0.55 sits halfway up level 0's band [0.5, 0.6).
+                MeshCullingContext context = InBand(0.55f);
+                MeshLODSelection.Select(chain, MeshTestUtility.Bound(float3.zero), context.ReadLODProjection(), out byte level, out float fade);
+                Assert.AreEqual(0, level);
+                Assert.That(fade, Is.EqualTo(0.5f).Within(1e-4f));
+                var opaqueDraws = Build(world, MeshPassTable.GBuffer, context);
+                CollectionAssert.AreEquivalent(new[] { (true, fade), (true, -fade) }, opaqueDraws, "Opaque passes cross-fade both levels.");
+                var translucentDraws = Build(world, MeshPassTable.TranslucentT0, context);
                 CollectionAssert.AreEqual(new[] { (false, 0f) }, translucentDraws, "Translucent passes draw the selected level only.");
             }
         }
 
-        // Builds one pass for a single entity selected at level 0 inside its band and returns (fading, factor) per instance.
-        static List<(bool fading, float fade)> BuildInBand(MeshWorld world, in MeshPassDesc desc, MeshEntityId entity, float fade)
+        // A camera context whose LOD origin sees a half-extent-0.5 bound at the origin with the given screen size.
+        static MeshCullingContext InBand(float screen)
+        {
+            MeshLODProjection lod = MeshTestUtility.Lod;
+            lod.origin = new float3(0.5f / screen, 0, 0);
+            return MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
+        }
+
+        // Builds one pass under a context on the CPU backend and returns (fading, factor) per instance.
+        static List<(bool fading, float fade)> Build(MeshWorld world, in MeshPassDesc desc, in MeshCullingContext context)
         {
             MeshPassCache cache = world.GetPassCache(desc);
-            var visibility = new MeshViewVisibility
-            {
-                visible = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
-                depth = new NativeArray<float>(world.entityHighWater, Allocator.TempJob),
-                lod = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
-                fade = new NativeArray<float>(world.entityHighWater, Allocator.TempJob)
-            };
-            MeshDrawListBuild build = default;
+            MeshDrawListBuild build = MeshDrawListBuild.Schedule(cache, world, context);
             try
             {
-                visibility.visible[(int)entity.Index] = 1;
-                visibility.depth[(int)entity.Index] = 1;
-                visibility.fade[(int)entity.Index] = fade;
-                build = MeshDrawListBuild.Schedule(cache, world, visibility);
                 build.job.Complete();
                 var result = new List<(bool, float)>();
                 foreach (MeshDrawCall draw in build.draws)
@@ -221,10 +223,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             finally
             {
                 build.Dispose();
-                visibility.visible.Dispose();
-                visibility.depth.Dispose();
-                visibility.lod.Dispose();
-                visibility.fade.Dispose();
             }
         }
 
@@ -250,44 +248,42 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 }
                 world.UpdateResidency();
                 ComputeShader shader = Object.Instantiate(fixture.shader);
-                MeshView perspective = MeshTestUtility.CameraView(41);
-                perspective.lodProjection = new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1, orthographic = false };
-                MeshView orthographic = perspective;
-                orthographic.lodProjection = new MeshLODProjection { origin = float3.zero, scale = 0.25f, bias = 1, orthographic = true };
-                MeshView[] views = { perspective, orthographic };
-                int stride = world.entityHighWater;
-                var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, stride * views.Length, sizeof(uint));
+                int count = world.entityHighWater;
+                uint2[] candidates = MeshTestUtility.LevelCandidates(count, 3);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 3);
                 try
                 {
-                    var levels = new HashSet<uint>();
+                    var levels = new HashSet<int>();
                     bool sawBand = false, sawCulled = false;
-                    var cpu = new uint[views.Length][];
-                    for (int slice = 0; slice < views.Length; ++slice) cpu[slice] = MeshTestUtility.PackedCullOnCpu(world, views[slice]);
-                    MeshTestUtility.DispatchFrustum(shader, world, views, output, stride);
-                    var actual = new uint[stride * views.Length];
-                    output.GetData(actual);
-                    for (int slice = 0; slice < views.Length; ++slice)
+                    foreach (MeshLODProjection lod in new[]
                     {
-                        string mode = views[slice].lodProjection.orthographic ? "orthographic" : "perspective";
-                        for (int i = 0; i < stride; ++i)
+                        new MeshLODProjection { origin = float3.zero, scale = 1, bias = 1, orthographic = false },
+                        new MeshLODProjection { origin = float3.zero, scale = 0.25f, bias = 1, orthographic = true }
+                    })
+                    {
+                        string mode = lod.orthographic ? "orthographic" : "perspective";
+                        MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
+                        List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, context, true);
+                        List<MeshDrawnInstance> gpu = run.Build("BuildDrawList", context, dither: true);
+                        Assert.AreEqual(cpu.Count, gpu.Count, $"{mode}: instance count");
+                        for (int i = 0; i < cpu.Count; ++i)
                         {
-                            string label = $"{mode} entity {i}";
-                            uint got = actual[slice * stride + i];
-                            Assert.AreEqual(cpu[slice][i] & 0xFFFFu, got & 0xFFFFu, $"{label}: visibility and level");
-                            int cpuFade = (int)(cpu[slice][i] >> 16), gpuFade = (int)(got >> 16);
-                            Assert.AreEqual(cpuFade == 65535, gpuFade == 65535, $"{label}: stable or in a band");
-                            Assert.LessOrEqual(math.abs(cpuFade - gpuFade), cpuFade == 65535 ? 0 : 2, $"{label}: fade");
-                            if (cpu[slice][i] == 0) sawCulled = true;
-                            else levels.Add((cpu[slice][i] >> 8) & 0xFFu);
-                            sawBand |= cpu[slice][i] != 0 && cpuFade != 65535;
+                            string label = $"{mode} instance {i} {cpu[i]}";
+                            Assert.AreEqual(cpu[i].entity, gpu[i].entity, label);
+                            Assert.AreEqual(cpu[i].command, gpu[i].command, $"{label}: level");
+                            Assert.AreEqual(cpu[i].factor == 0, gpu[i].factor == 0, $"{label}: stable or in a band");
+                            Assert.That(gpu[i].factor, Is.EqualTo(cpu[i].factor).Within(2.0f / 65534.0f), $"{label}: fade");
+                            if (cpu[i].factor >= 0) levels.Add(cpu[i].command);
+                            sawBand |= cpu[i].factor != 0;
                         }
+                        sawCulled |= Array.IndexOf(MeshTestUtility.DrawnEntities(cpu, count), 0u) >= 0;
                     }
                     Assert.AreEqual(3, levels.Count, "The sweep reaches every level.");
                     Assert.IsTrue(sawBand && sawCulled, "The sweep crosses a band and the culled range.");
                 }
                 finally
                 {
-                    output.Release();
+                    run.Dispose();
                     Object.DestroyImmediate(shader);
                 }
             }

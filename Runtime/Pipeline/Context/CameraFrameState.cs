@@ -63,7 +63,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
         internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;
         internal TemporalColorView temporalColorView;
-        internal ulong meshViewKey;
 
         internal const int GameUnseenFramesToRecycle = 8;
         internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)

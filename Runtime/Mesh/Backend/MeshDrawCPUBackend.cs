@@ -37,9 +37,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades, in MeshView view)
+        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
         {
-            using (MeshDrawProfiling.Cpu("Complete", view, cache.desc.lightMode).Auto())
+            using (cache.completeMarker.Auto())
             {
                 build.job.Complete();
             }
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            using (MeshDrawProfiling.Cpu("Upload", view, cache.desc.lightMode).Auto())
+            using (cache.uploadMarker.Auto())
             {
                 commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
                 commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
@@ -60,14 +60,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
-            in MeshWorldGPUTables tables, in MeshMotionBinding motion, in MeshView view)
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion)
         {
             if (build.draws.Length == 0)
             {
                 return;
             }
-            using var cpuDraw = MeshDrawProfiling.Cpu("Draw", view, cache.desc.lightMode).Auto();
-            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(view.kind, false);
+            using var cpuDraw = cache.drawMarker.Auto();
+            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(cache.desc, false);
             marker.Begin(commands);
             bool dithering = false;
             try

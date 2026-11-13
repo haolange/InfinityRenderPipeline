@@ -1,8 +1,10 @@
 // Mesh Drawing Pipeline kernels.
 // - Transform versions: every backend builds immutable per-entity transform tables from dirty-slot patches.
-// - Culling: one uint per entity slot and view (frustum, or two-stage Hi-Z occlusion in MeshOcclusion.hlsl).
-// - GPU indirect draw lists: InitializeIndirectArgs, then Compact over the pass's candidate table (one entry per
-//   element slot), then one DrawMeshInstancedIndirect per live command. Visible counts are never read back.
+// - GPU indirect draw lists: one producer per list. InitializeIndirectArgs, then BuildDrawList over the pass's candidate
+//   table (one thread per element slot): the element's entity is tested against the list's culling context (masks, LOD,
+//   frustum) and, for an occluded list, against the context's Hi-Z occluder; a passing element appends its entity to its
+//   command's stable or fading range. Visible counts are never read back.
+// - An occluded list records which candidates it drew; a later list of the same context and pass draws only the rest.
 //
 // Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
 // (per pass cache), instance (position in InstanceToEntity).
@@ -10,12 +12,10 @@
 #pragma kernel InitializeTransformVersion
 #pragma kernel CopyTransformVersion
 #pragma kernel PatchTransformVersion
-#pragma kernel CullFrustum
-#pragma kernel CullFirstNoHistory
-#pragma kernel CullFirstWithHistory
-#pragma kernel CullOcclusionRecovery
 #pragma kernel InitializeIndirectArgs
-#pragma kernel Compact
+#pragma kernel BuildDrawList
+#pragma kernel BuildDrawListOccluded
+#pragma kernel BuildDrawListOccludedHistory
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
 #define MESH_COMMAND_MASK 0x00FFFFFFu
@@ -25,7 +25,8 @@
 #define MESH_ARGS_STRIDE 5u
 #include "../Library/MeshLOD.hlsl"
 
-struct MeshFrustumView
+// One list's culling context; mirrors MeshCullingContext in C#.
+struct MeshCullingContext
 {
     float4 plane0;
     float4 plane1;
@@ -40,26 +41,16 @@ struct MeshFrustumView
     uint renderingLayerMask;
     uint filterRenderingLayers;
     uint lodOrthographic;
-    uint reserved0;
     float lodScale;
     float lodBias;
-    float lodOriginX;
-    float lodOriginY;
-    float lodOriginZ;
-    uint reserved1;
-    uint reserved2;
-    uint reserved3;
+    float lodOriginX, lodOriginY, lodOriginZ;
 };
 
-uint _EntityCount;
 uint _CommandCount;
 uint _CandidateCount;
 uint _DitherLod;
-uint _ViewCount;
-uint _EntityStride;
-uint _VisibilityBase;
-float4 _FrustumPlanes[6];
-StructuredBuffer<MeshFrustumView> _FrustumViews;
+uint _ReadDrawn;
+StructuredBuffer<MeshCullingContext> _CullingContext;
 
 StructuredBuffer<float4> _EntityBoundsCenter;
 StructuredBuffer<float4> _EntityBoundsExtent;
@@ -67,112 +58,128 @@ StructuredBuffer<uint> _EntityFlags;
 StructuredBuffer<uint> _EntityLayerMask;
 StructuredBuffer<uint2> _EntitySceneCullingMask;
 StructuredBuffer<uint> _EntityRenderingLayer;
-uint _ViewSceneCullingMaskLow;
-uint _ViewSceneCullingMaskHigh;
-uint _ViewLayerMask;
-uint _ViewRenderingLayerMask;
-uint _FilterRenderingLayers;
-RWStructuredBuffer<uint> _Visibility;
 
 StructuredBuffer<uint> _CommandMeta;
 StructuredBuffer<uint2> _CandidateTable;
 RWStructuredBuffer<uint> _InstanceToEntity;
 RWStructuredBuffer<float> _InstanceFade;
 RWStructuredBuffer<uint> _IndirectArgs;
+RWStructuredBuffer<uint> _DrawnCandidates;
 
-bool FrustumCullAABB(float3 center, float3 extent)
-{
-    bool culled = false;
-    [unroll]
-    for (int i = 0; i < 6; ++i)
-    {
-        float4 plane = _FrustumPlanes[i];
-        float distance = dot(plane.xyz, center) + plane.w;
-        float radius = dot(extent, abs(plane.xyz));
-        if (distance + radius < 0.0f) culled = true;
-    }
-    return culled;
-}
+#include "MeshOcclusion.hlsl"
 
-bool MeshFrustumVisible(uint entity)
+bool MeshEligible(uint entity, MeshCullingContext context)
 {
-    bool visible = false;
-    bool matches = (_EntityFlags[entity] & MESH_ENTITY_VISIBLE) != 0u && (_EntityLayerMask[entity] & _ViewLayerMask) != 0u;
-    if (matches && _FilterRenderingLayers != 0u)
-        matches = (_EntityRenderingLayer[entity] & _ViewRenderingLayerMask) != 0u;
+    bool matches = (_EntityFlags[entity] & MESH_ENTITY_VISIBLE) != 0u && (_EntityLayerMask[entity] & context.layerMask) != 0u;
+    if (matches && context.filterRenderingLayers != 0u)
+        matches = (_EntityRenderingLayer[entity] & context.renderingLayerMask) != 0u;
     if (matches)
     {
         uint2 sceneMask = _EntitySceneCullingMask[entity];
-        matches = any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh));
+        matches = any(sceneMask & uint2(context.sceneLow, context.sceneHigh));
     }
-    if (matches)
-        visible = !FrustumCullAABB(_EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
-    return visible;
+    return matches;
 }
 
-uint MeshCullVisibility(uint entity)
+float4 MeshContextPlane(MeshCullingContext context, int index)
 {
-    uint packed = 0u;
-    if (MeshFrustumVisible(entity)) packed = MeshPackLODVisibility(entity, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
-    return packed;
-}
-
-float4 MeshFrustumPlane(MeshFrustumView view, int index)
-{
-    float4 plane = view.plane0;
-    if (index == 1) plane = view.plane1;
-    else if (index == 2) plane = view.plane2;
-    else if (index == 3) plane = view.plane3;
-    else if (index == 4) plane = view.plane4;
-    else if (index == 5) plane = view.plane5;
+    float4 plane = context.plane0;
+    if (index == 1) plane = context.plane1;
+    else if (index == 2) plane = context.plane2;
+    else if (index == 3) plane = context.plane3;
+    else if (index == 4) plane = context.plane4;
+    else if (index == 5) plane = context.plane5;
     return plane;
 }
 
-bool MeshViewFrustumCulled(MeshFrustumView view, float3 center, float3 extent)
+// Mirrors MeshDrawGatherJob.OutsidePlanes; precise keeps every list of a context on one answer.
+bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 {
     bool culled = false;
     [loop]
     for (int i = 0; i < 6; ++i)
     {
-        if (i >= (int)view.planeCount) break;
-        float4 plane = MeshFrustumPlane(view, i);
-        float distance = dot(plane.xyz, center) + plane.w;
-        float radius = dot(extent, abs(plane.xyz));
+        if (i >= (int)context.planeCount) break;
+        float4 plane = MeshContextPlane(context, i);
+        precise float distance = dot(plane.xyz, center) + plane.w;
+        precise float radius = dot(extent, abs(plane.xyz));
         if (distance + radius < 0.0f) culled = true;
     }
     return culled;
 }
 
-bool MeshFrustumVisibleInView(uint entity, MeshFrustumView view)
+// Which range of its command an element of level elementLod fills (0 stable, 1 fading) and its signed dither factor.
+// Inside a band of a dithering pass the outgoing level draws +f and the next level -f; mirrors MeshDrawLod.Factor.
+bool MeshElementRange(uint packed, uint elementLod, out uint range, out float factor)
 {
-    bool visible = false;
-    bool matches = (_EntityFlags[entity] & MESH_ENTITY_VISIBLE) != 0u && (_EntityLayerMask[entity] & view.layerMask) != 0u;
-    if (matches && view.filterRenderingLayers != 0u)
-        matches = (_EntityRenderingLayer[entity] & view.renderingLayerMask) != 0u;
-    if (matches)
+    range = 2u;
+    factor = 0.0;
+    if (packed != 0u)
     {
-        uint2 sceneMask = _EntitySceneCullingMask[entity];
-        matches = any(sceneMask & uint2(view.sceneLow, view.sceneHigh));
+        uint level = (packed >> 8) & 0xFFu;
+        uint fadeBits = packed >> 16;
+        bool fading = _DitherLod != 0u && fadeBits != MESH_LOD_STABLE;
+        float fade = fadeBits / 65534.0;
+        if (elementLod == level)
+        {
+            if (!fading) range = 0u;
+            else if (fadeBits > 0u) { range = 1u; factor = fade; }
+        }
+        else if (fading && elementLod == level + 1u)
+        {
+            range = 1u;
+            factor = -max(fade, 1e-6);
+        }
     }
-    if (matches)
-        visible = !MeshViewFrustumCulled(view, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
-    return visible;
+    return range != 2u;
 }
 
-[numthreads(64, 1, 1)]
-void CullFrustum(uint3 id : SV_DispatchThreadID)
+// occluded and history are literals at each kernel, so the plain kernel binds no occluder and no drawn table, and the
+// current-frame occluder binds no transform versions.
+void BuildDrawListCore(uint candidateIndex, bool occluded, bool history)
 {
-    if (id.x >= _EntityCount || id.y >= _ViewCount) return;
-    MeshFrustumView view = _FrustumViews[id.y];
-    uint packed = 0u;
-    if (MeshFrustumVisibleInView(id.x, view))
+    uint2 candidate = _CandidateTable[candidateIndex];
+    bool drawn = false;
+    if (occluded)
     {
-        packed = MeshPackLODVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz,
-            float3(view.lodOriginX, view.lodOriginY, view.lodOriginZ), view.lodScale, view.lodBias, view.lodOrthographic);
+        if (_ReadDrawn != 0u) drawn = _DrawnCandidates[candidateIndex] != 0u;
     }
-    _Visibility[id.y * _EntityStride + id.x] = packed;
+    bool append = false;
+    uint entity = candidate.x;
+    uint command = candidate.y & MESH_COMMAND_MASK;
+    uint range = 2u;
+    float factor = 0.0;
+    if (candidate.y != MESH_NO_COMMAND && !drawn && command < _CommandCount)
+    {
+        MeshCullingContext context = _CullingContext[0];
+        if (MeshEligible(entity, context))
+        {
+            float3 center = _EntityBoundsCenter[entity].xyz;
+            float3 extent = _EntityBoundsExtent[entity].xyz;
+            uint packed = MeshPackLODVisibility(entity, center, extent, float3(context.lodOriginX, context.lodOriginY, context.lodOriginZ),
+                context.lodScale, context.lodBias, context.lodOrthographic);
+            if (MeshElementRange(packed, candidate.y >> MESH_LOD_SHIFT, range, factor))
+                append = !MeshFrustumCulled(context, center, extent);
+            if (append && occluded)
+            {
+                // The previous frame's pyramid proves nothing about an entity that moved since.
+                bool testable = true;
+                if (history) testable = MeshHasStableHistory(entity);
+                if (testable) append = !MeshOccluded(center, extent);
+            }
+        }
+    }
+    if (append)
+    {
+        uint slot;
+        uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
+        InterlockedAdd(_IndirectArgs[argsBase + 1u], 1u, slot);
+        uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
+        _InstanceToEntity[instance] = entity;
+        _InstanceFade[instance] = factor;
+    }
+    if (occluded) _DrawnCandidates[candidateIndex] = (drawn || append) ? 1u : 0u;
 }
-#include "MeshOcclusion.hlsl"
 
 [numthreads(64, 1, 1)]
 void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
@@ -191,46 +198,22 @@ void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
     }
 }
 
-// One thread per element slot of the pass cache. A visible member of the selected LOD appends its entity to its command's
-// stable range (range 0). Inside a cross-fade band of a dithering pass the outgoing level appends +f and the next level -f
-// to the fading range (range 1); mirrors MeshDrawGatherJob.LODFactor.
 [numthreads(64, 1, 1)]
-void Compact(uint3 id : SV_DispatchThreadID)
+void BuildDrawList(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _CandidateCount) return;
-    uint2 candidate = _CandidateTable[id.x];
-    if (candidate.y == MESH_NO_COMMAND) return;
-    uint entity = candidate.x;
-    uint command = candidate.y & MESH_COMMAND_MASK;
-    uint elementLod = candidate.y >> MESH_LOD_SHIFT;
-    if (command >= _CommandCount) return;
-    uint packed = _Visibility[_VisibilityBase + entity];
-    if (packed == 0u) return;
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, false, false);
+}
 
-    uint level = (packed >> 8) & 0xFFu;
-    uint fadeBits = packed >> 16;
-    bool fading = _DitherLod != 0u && fadeBits != MESH_LOD_STABLE;
-    float fade = fadeBits / 65534.0;
-    uint range = 2u;
-    float factor = 0.0;
-    if (elementLod == level)
-    {
-        if (!fading) range = 0u;
-        else if (fadeBits > 0u) { range = 1u; factor = fade; }
-    }
-    else if (fading && elementLod == level + 1u)
-    {
-        range = 1u;
-        factor = -max(fade, 1e-6);
-    }
-    if (range == 2u) return;
+[numthreads(64, 1, 1)]
+void BuildDrawListOccluded(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false);
+}
 
-    uint slot;
-    uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
-    InterlockedAdd(_IndirectArgs[argsBase + 1u], 1u, slot);
-    uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
-    _InstanceToEntity[instance] = entity;
-    _InstanceFade[instance] = factor;
+[numthreads(64, 1, 1)]
+void BuildDrawListOccludedHistory(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, true);
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             bounds = default;
             bool found = false;
-            ulong sceneMask = MeshView.SceneCullingMaskFor(camera);
+            ulong sceneMask = Pipeline.CameraCulling.SceneCullingMask(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             foreach (int id in m_Casters)
             {
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal bool HasLocalCaster(in LightRecord record, Light light, Camera camera, int tileResolution, float guardTexels)
         {
-            ulong sceneMask = MeshView.SceneCullingMaskFor(camera);
+            ulong sceneMask = Pipeline.CameraCulling.SceneCullingMask(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             int faces = LightRecordPack.LocalShadowSliceCount(record);
             for (int face = 0; face < faces; ++face)

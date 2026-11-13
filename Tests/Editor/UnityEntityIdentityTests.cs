@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void UpperIdentityBitsAndShadowSubview_ArePartOfEquality()
+        public void UpperIdentityBits_ArePartOfEquality()
         {
             ulong first = (768ul << 32) | 42, second = (769ul << 32) | 42;
             using (var fixture = new MeshWorldFixture())
@@ -41,12 +41,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(2, world.materialCount);
             }
 
-            Plane[] planes = MeshTestUtility.BoxPlanes();
-            var slice0 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
-            var slice1 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 1, ulong.MaxValue, MeshTestUtility.Lod), false);
-            var replaced = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, second, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
-            Assert.AreNotEqual(slice0, slice1);
-            Assert.AreNotEqual(slice0, replaced);
         }
     }
 }

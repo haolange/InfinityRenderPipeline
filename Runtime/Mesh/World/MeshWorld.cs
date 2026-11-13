@@ -17,20 +17,17 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int passCacheCount;
         public int commandCount;
         public int passCacheBuilds;
-        public int visibilityProductions;
-        public int gpuCullDispatches;
-        public int compactDispatches;
-        public int compactKernelDispatches;
+        // GPU draw-list producers recorded for the last camera, and the kernels they dispatch.
+        public int drawListProductions;
+        public int drawListKernelDispatches;
         public long uploadedBytes;
         internal Camera camera;
 
         internal void BeginCamera(Camera camera)
         {
             this.camera = camera;
-            visibilityProductions = 0;
-            gpuCullDispatches = 0;
-            compactDispatches = 0;
-            compactKernelDispatches = 0;
+            drawListProductions = 0;
+            drawListKernelDispatches = 0;
         }
     }
 
@@ -86,7 +83,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly MeshWorldStats stats = new MeshWorldStats();
 
         public int entityCount => m_Entities.LiveCount;
-        public int allocatedGpuViewCount => m_GPUVisibility.allocatedViewCount;
         public int elementCount => m_Elements.LiveCount;
         public int sectionCount => m_Sections.LiveCount;
         public int materialCount => m_Materials.LiveCount;
@@ -135,8 +131,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ResourcePool = resourcePool;
             m_CPUBackend = new MeshDrawCPUBackend(resourcePool);
             m_GPUBackend = new MeshDrawGPUBackend(resourcePool, meshDrawShader);
-            m_VisibilityShare = new MeshVisibilityShare();
-            m_GPUVisibility = new MeshGPUVisibilityCache(resourcePool);
             InternPresets();
         }
 
@@ -389,8 +383,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassCaches.Clear();
             Release(m_CPUBackend.Dispose);
             Release(m_GPUBackend.Dispose);
-            Release(m_VisibilityShare.Dispose);
-            Release(m_GPUVisibility.Dispose);
             Release(DisposeTransaction);
             m_Entities.Dispose();
             m_EntityTransforms.Dispose();

@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterMotion(in CameraRecordContext context, in MeshView view, in RGMeshDrawListHandle motionMeshDrawList)
+        void RasterMotion(in CameraRecordContext context, in RGMeshDrawListHandle motionMeshDrawList)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
@@ -35,7 +35,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            var previousTransforms = context.state.meshMotionHistory.pendingBinding;
 
             TextureDescriptor motionTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -49,7 +48,6 @@ namespace InfinityTech.Rendering.Pipeline
             motionTextureDsc.clearColor = Color.clear;
             RGTextureHandle motionMetadata = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
-            renderContext.meshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
             RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch));
 

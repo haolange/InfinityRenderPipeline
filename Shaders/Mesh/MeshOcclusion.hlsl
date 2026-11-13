@@ -1,5 +1,7 @@
 #ifndef INFINITY_MESH_OCCLUSION
 #define INFINITY_MESH_OCCLUSION
+// Hi-Z occlusion test of one entity's bounds against an occluder: the furthest-depth pyramid and the view-projection it
+// was built with. A history occluder (the previous frame's pyramid) also requires the entity's transform to be unchanged.
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "../Library/HiZ.hlsl"
 
@@ -9,8 +11,6 @@ float4 _MeshCullFullExtent;
 uint _MeshCullMipCount, _MeshCullCurrentCount, _MeshCullPreviousCount;
 StructuredBuffer<float4x4> _MeshCullCurrentTransforms, _MeshCullPreviousTransforms;
 StructuredBuffer<uint> _MeshCullCurrentGenerations, _MeshCullPreviousGenerations;
-RWStructuredBuffer<uint> _DeferredVisibility, _FinalVisibility, _RecoveredVisibility;
-StructuredBuffer<uint> _OcclusionDeferred;
 
 bool MeshHasStableHistory(uint transform)
 {
@@ -103,37 +103,4 @@ bool MeshOccluded(float3 center, float3 extent)
     return occluded;
 }
 
-// packed is the entity's LOD visibility (0 when culled); a deferred entity waits for the recovery test.
-void MeshWriteFirst(uint entity, uint packed, bool deferred)
-{
-    _Visibility[entity] = deferred ? 0u : packed;
-    _FinalVisibility[entity] = deferred ? 0u : packed;
-    _DeferredVisibility[entity] = deferred ? 1u : 0u;
-}
-[numthreads(64, 1, 1)]
-void CullFirstNoHistory(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x < _EntityCount) MeshWriteFirst(id.x, MeshCullVisibility(id.x), false);
-}
-[numthreads(64, 1, 1)]
-void CullFirstWithHistory(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= _EntityCount) return;
-    uint packed = MeshCullVisibility(id.x);
-    bool deferred = false;
-    if (packed != 0u && MeshHasStableHistory(id.x))
-        deferred = MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
-    MeshWriteFirst(id.x, packed, deferred);
-}
-[numthreads(64, 1, 1)]
-void CullOcclusionRecovery(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= _EntityCount) return;
-    bool deferred = _OcclusionDeferred[id.x] != 0;
-    uint packed = 0u;
-    if (deferred && !MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz))
-        packed = MeshPackLODVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
-    _RecoveredVisibility[id.x] = packed;
-    if (deferred) _FinalVisibility[id.x] = packed;
-}
 #endif

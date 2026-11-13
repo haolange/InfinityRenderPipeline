@@ -11,10 +11,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         ResourcePool m_ResourcePool;
         MeshDrawCPUBackend m_CPUBackend;
         MeshDrawGPUBackend m_GPUBackend;
-        MeshVisibilityShare m_VisibilityShare;
-        MeshGPUVisibilityCache m_GPUVisibility;
         readonly List<MeshPassCache> m_PassCaches = new List<MeshPassCache>(16);
-        readonly Dictionary<ulong, MeshMotionBinding> m_PreviousTransforms = new Dictionary<ulong, MeshMotionBinding>(8);
         // Backend the owner requests for the current camera: a diagnostics override, then the Rendering Debugger, then the asset.
         internal EMeshDrawBackendPolicy requestedBackend;
 
@@ -22,8 +19,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal ResourcePool resourcePool => m_ResourcePool;
         internal MeshDrawCPUBackend cpuBackend => m_CPUBackend;
         internal MeshDrawGPUBackend gpuBackend => m_GPUBackend;
-        internal MeshVisibilityShare visibilityShare => m_VisibilityShare;
-        internal MeshGPUVisibilityCache gpuVisibility => m_GPUVisibility;
         internal MeshTransformVersionCache transformVersions => m_Gpu.transformVersions;
         internal IReadOnlyList<MeshPassCache> passCaches => m_PassCaches;
 
@@ -72,30 +67,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Entity slots with at least one member element in the pass (for example shadow casters).</summary>
         internal Unity.Collections.NativeArray<int> GetPassMembers(in MeshPassDesc desc) => GetPassCache(desc).entityMemberCount;
 
-        public void BeginCamera(Camera camera)
-        {
-            m_PreviousTransforms.Clear();
-            stats.BeginCamera(camera);
-            m_VisibilityShare.BeginCamera();
-        }
-
-        internal void BindPreviousTransforms(ulong viewKey, MeshMotionBinding binding)
-        {
-            if (!binding.isValid)
-            {
-                m_PreviousTransforms.Remove(viewKey);
-            }
-            else
-            {
-                m_PreviousTransforms[viewKey] = binding;
-            }
-        }
-
-        internal MeshMotionBinding GetPreviousTransforms(ulong viewKey)
-        {
-            m_PreviousTransforms.TryGetValue(viewKey, out MeshMotionBinding binding);
-            return binding;
-        }
+        public void BeginCamera(Camera camera) => stats.BeginCamera(camera);
 
         /// <summary>
         /// Backend for one draw list. Auto and GPU Indirect follow device capability. A pass with
@@ -105,14 +77,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             bool gpu = !desc.cpuBackend && requestedBackend != EMeshDrawBackendPolicy.CPUDirect && m_GPUBackend.isSupported;
             return gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
-        }
-
-        internal BufferHandle GetGPUVisibilityBuffer(in MeshView view) => m_GPUVisibility.GetBufferHandle(view, entityHighWater);
-
-        internal void ReleaseView(ulong viewKey)
-        {
-            m_PreviousTransforms.Remove(viewKey);
-            m_GPUVisibility.ReleaseView(viewKey);
         }
 
         /// <summary>Uploads dirty entity columns, the next transform version and stale pass candidate tables.</summary>
@@ -136,12 +100,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Gpu.transformVersions.AfterSubmit(reuseFence);
             m_CPUBackend.FlushRetired(reuseFence);
             m_GPUBackend.FlushRetired(reuseFence);
-            m_GPUVisibility.FlushRetired();
         }
 
         void DisposeFrameState()
         {
-            m_PreviousTransforms.Clear();
             foreach (MeshPassCache cache in m_PassCaches)
             {
                 cache.ReleaseGPU(m_ResourcePool);

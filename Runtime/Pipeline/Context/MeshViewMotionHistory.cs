@@ -8,8 +8,6 @@ namespace InfinityTech.Rendering.Pipeline
     {
         MeshTransformVersion m_Accepted, m_Pending;
         internal MeshTransformVersion accepted => m_Accepted;
-        internal MeshMotionBinding pendingBinding => m_Pending != null ? new MeshMotionBinding(m_Pending, m_Accepted)
-            : throw new System.InvalidOperationException("Mesh history must be prepared before recording view consumers.");
 
         internal MeshMotionBinding Prepare(MeshTransformVersion current)
         {

@@ -51,19 +51,19 @@ namespace InfinityTech.Rendering.Pipeline
     internal readonly struct CameraScene
     {
         internal readonly CullingResults cullingResults;
-        internal readonly MeshView mainView;
+        // The camera's mesh culling context: the main view of every camera-facing draw list.
+        internal readonly MeshCullingContext mainCulling;
 
-        internal CameraScene(in CullingResults cullingResults, in MeshView mainView)
+        internal CameraScene(in CullingResults cullingResults, in MeshCullingContext mainCulling)
         {
             this.cullingResults = cullingResults;
-            this.mainView = mainView;
+            this.mainCulling = mainCulling;
         }
     }
 
     // Everything a pass reads while recording one camera. Passes take it by `in` and never store it; the graph
     // is executed and cleared before the next camera, so nothing recorded outlives it. It flattens CameraSetup
-    // and CameraScene, both immutable, so the copies cannot diverge. The mesh view is not here: occlusion
-    // preparation replaces it during recording, so RecordCamera carries it explicitly.
+    // and CameraScene, both immutable, so the copies cannot diverge.
     internal readonly struct CameraRecordContext
     {
         internal readonly Camera camera;
@@ -79,6 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
         internal readonly CullingResults cullingResults;
+        internal readonly MeshCullingContext mainCulling;
         internal readonly FrameFeatureSet features;
         internal readonly HistoryCache historyCache;
         internal readonly CameraUniform cameraUniform;
@@ -101,6 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
             volumes = setup.volumes;
             atmosphere = setup.atmosphere;
             cullingResults = scene.cullingResults;
+            mainCulling = scene.mainCulling;
             features = setup.state.features;
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;

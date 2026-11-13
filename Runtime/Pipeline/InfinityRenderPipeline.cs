@@ -401,7 +401,7 @@ namespace InfinityTech.Rendering.Pipeline
                     CameraScene scene = CullCamera(setup, cmdBuffer);
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                     {
-                        RecordCamera(new CameraRecordContext(setup, scene), scene.mainView);
+                        RecordCamera(new CameraRecordContext(setup, scene));
                     }
 
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
@@ -519,7 +519,7 @@ namespace InfinityTech.Rendering.Pipeline
             ScriptableRenderContext scriptableRenderContext = renderContext.scriptableRenderContext;
             Camera camera = setup.camera;
             CullingResults cullingResults;
-            MeshView mainView;
+            MeshCullingContext mainCulling;
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
             {
 #if UNITY_EDITOR
@@ -547,8 +547,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
                     BeginMeshCamera(camera, m_Settings.meshBackendPolicy);
-                    mainView = MeshView.FromCamera(camera, ref cullingParameters);
-                    setup.state.meshViewKey = mainView.viewKey;
+                    mainCulling = CameraCulling.Context(camera, ref cullingParameters);
                 }
 
                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
@@ -613,11 +612,11 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdBuffer.Clear();
             }
 
-            return new CameraScene(cullingResults, mainView);
+            return new CameraScene(cullingResults, mainCulling);
         }
 
-        // The camera's pass list in submission order. mainView is replaced when two-stage occlusion is prepared.
-        void RecordCamera(in CameraRecordContext context, MeshView mainView)
+        // The camera's pass list in submission order.
+        void RecordCamera(in CameraRecordContext context)
         {
             // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
             // so the whole geometry raster window can overlap them.
@@ -629,52 +628,39 @@ namespace InfinityTech.Rendering.Pipeline
 
             ComputeTemporalColorPyramid(context);
 
-            // PHASE 1: geometry raster (shared depth attachment chain).
-            bool twoStageMesh = PrepareMeshOcclusion(context, ref mainView, out var meshOcclusion);
-            RecordMeshGpuCulls(context, mainView);
-            m_RGBuilder.FlushMeshFrustumCulling();
-            MeshView depthView = twoStageMesh ? meshOcclusion.first : mainView;
-            RGMeshDrawListHandle depthList = MakeMeshList(depthView, InfinityPassIDs.RasterDepthPass);
+            // PHASE 1: geometry raster (shared depth attachment chain). Lists are created before the raster block that
+            // draws them, so their producers never split a native render pass.
+            MeshMotionBinding meshMotion = context.state.meshMotionHistory.Prepare(renderContext.meshWorld.transformVersions.current);
+            m_RGBuilder.SetMeshMotion(meshMotion);
+            bool twoStageMesh = RegisterMeshHistoryOccluder(context, meshMotion);
+            RGMeshDrawListHandle depthList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
             RGMeshDrawListHandle[] cascadeLists = CreateCascadeMeshLists(context);
             RGMeshDrawListHandle[] localLists = CreateLocalMeshLists(context);
-            RGMeshDrawListHandle gbufferList = default, motionList = default, forwardList = default, translucentDepthList = default, translucentT0 = default, translucentT1 = default, translucentT2 = default;
+            RGMeshDrawListHandle recoveryList = default;
             if (twoStageMesh)
             {
-                PrepareMeshList(depthList);
-                PrepareMeshLists(cascadeLists);
-                PrepareMeshLists(localLists);
+                RasterDepth(context, depthList);
+                RegisterMeshEarlyOccluder(context);
+                recoveryList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
+            }
+            RGMeshDrawListHandle gbufferList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterGBufferPass);
+            RGMeshDrawListHandle motionList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterMotionPass);
+            RGMeshDrawListHandle forwardList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterForwardPass);
+            RGMeshDrawListHandle translucentDepthList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentDepthPass);
+            RGMeshDrawListHandle translucentT0 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT0Pass);
+            RGMeshDrawListHandle translucentT1 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT1Pass);
+            RGMeshDrawListHandle translucentT2 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT2Pass);
+            if (twoStageMesh)
+            {
+                RasterDepthRecovery(recoveryList);
             }
             else
             {
-                gbufferList = MakeMeshList(mainView, InfinityPassIDs.RasterGBufferPass);
-                motionList = MakeMeshList(mainView, InfinityPassIDs.RasterMotionPass);
-                forwardList = MakeMeshList(mainView, InfinityPassIDs.RasterForwardPass);
-                translucentDepthList = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentDepthPass);
-                translucentT0 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT0Pass);
-                translucentT1 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT1Pass);
-                translucentT2 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT2Pass);
-                PrepareMeshLists(depthList, gbufferList, motionList, forwardList, translucentDepthList, translucentT0, translucentT1, translucentT2);
-                PrepareMeshLists(cascadeLists);
-                PrepareMeshLists(localLists);
-            }
-            RasterDepth(context, depthView, depthList);
-            if (twoStageMesh)
-            {
-                RecoverMeshOcclusion(context, meshOcclusion);
-                RGMeshDrawListHandle recoveryList = MakeMeshList(meshOcclusion.recovered, InfinityPassIDs.RasterDepthPass);
-                gbufferList = MakeMeshList(mainView, InfinityPassIDs.RasterGBufferPass);
-                motionList = MakeMeshList(mainView, InfinityPassIDs.RasterMotionPass);
-                forwardList = MakeMeshList(mainView, InfinityPassIDs.RasterForwardPass);
-                translucentDepthList = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentDepthPass);
-                translucentT0 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT0Pass);
-                translucentT1 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT1Pass);
-                translucentT2 = MakeMeshList(mainView, InfinityPassIDs.RasterTranslucentT2Pass);
-                PrepareMeshLists(recoveryList, gbufferList, motionList, forwardList, translucentDepthList, translucentT0, translucentT1, translucentT2);
-                RasterDepthRecovery(recoveryList);
+                RasterDepth(context, depthList);
             }
             RasterDBuffer(context);
-            RasterGBuffer(context, mainView, gbufferList);
-            RasterMotion(context, mainView, motionList);
+            RasterGBuffer(context, gbufferList);
+            RasterMotion(context, motionList);
 
             // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
             ComputeHiZ(context);
@@ -703,7 +689,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             RecordDeferredLightingCapture(context);
 #endif
-            RasterForward(context, mainView, forwardList);
+            RasterForward(context, forwardList);
             if (!SystemInfo.supportsAsyncCompute)
             {
                 ComputeScreenSpaceReflection(context);
@@ -722,17 +708,17 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
             // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
-            RasterTranslucentDepth(context, mainView, translucentDepthList);
+            RasterTranslucentDepth(context, translucentDepthList);
             ComputeVolumetricCloud(context);
             CopyHistoryVolumetricCloud(context);
             ComputeVolumetricFog(context);
             CopyHistoryVolumetricFog(context);
             ComputeFogComposite(context);
             ResolveFoggedSceneColor();
-            RasterTranslucentT0(context, mainView, translucentT0);
+            RasterTranslucentT0(context, translucentT0);
             ComputeColorPyramid(context);
-            RasterTranslucentT1(context, mainView, translucentT1);
-            RasterTranslucentT2(context, mainView, translucentT2);
+            RasterTranslucentT1(context, translucentT1);
+            RasterTranslucentT2(context, translucentT2);
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)
             // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
@@ -1130,7 +1116,6 @@ namespace InfinityTech.Rendering.Pipeline
                 int cameraId = m_CameraStateRecycleIds[i];
                 if (m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
                 {
-                    renderContext.meshWorld.ReleaseView(frameState.meshViewKey);
                     frameState.Dispose(reuseFence);
                     m_CameraStates.Remove(cameraId);
                 }

@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                     production = m_LocalShadowCache.NextProduction();
                     Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
                     cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
-                        MeshView.SceneCullingMaskFor(context.camera), local.isSpot ? 1 : 6, frame);
+                        CameraCulling.SceneCullingMask(context.camera), local.isSpot ? 1 : 6, frame);
                 }
 
                 if (!local.valid)
@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.Pipeline
                 InfinityAdditionalLightData ext = renderContext.lightContext.AdditionalData(lightIdx);
                 if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
-                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(context.camera));
+                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, CameraCulling.SceneCullingMask(context.camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && cacheRender[slice])
@@ -166,13 +166,9 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                if (preparedLists != null && slice < preparedLists.Length && preparedLists[slice].IsValid)
-                    sliceMeshDrawLists[slice] = preparedLists[slice];
-                else
-                {
-                    sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(context, visibleLight, local), InfinityPassIDs.RasterShadowPass));
-                    m_RGBuilder.PrepareMeshDrawList(sliceMeshDrawLists[slice]);
-                }
+                // A cached-sampling slice whose tile re-renders has no list from CreateLocalMeshLists; it gets one here.
+                sliceMeshDrawLists[slice] = preparedLists[slice].IsValid ? preparedLists[slice]
+                    : CreateMeshList(CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass);
 
                 if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {

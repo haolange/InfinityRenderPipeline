@@ -129,7 +129,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             }
         }
 
-        // Builds the world's draw list for one pass from hand-written visibility and returns (entity order, runs).
+        // Builds the world's draw list for one pass and returns (entity order, runs). Entity i sits at distance depth from the
+        // LOD origin under a context without planes; an invisible spec has no layer the context accepts.
         static void Build(MeshWorldFixture fixture, in MeshPassDesc desc, Material[] materials, DrawSpec[] specs,
             out int[] entities, out (int command, int offset, int count)[] runs, out int[] commandOfMaterial)
         {
@@ -141,7 +142,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 for (int i = 0; i < specs.Length; ++i)
                 {
-                    ids[i] = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0));
+                    ids[i] = MeshTestUtility.CreateEntity(update, new float3(specs[i].depth, 0, 0), layerMask: specs[i].visible ? ~0 : 0);
                     Material material = materials[specs[i].material];
                     elements[i] = update.AddElement(ids[i], MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), specs[i].priority);
                 }
@@ -152,25 +153,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             for (int i = 0; i < specs.Length; ++i)
                 commandOfMaterial[specs[i].material] = (int)(cache.candidates[(int)elements[i].Index].y & MeshPassCache.CommandMask);
 
-            var visibility = new MeshViewVisibility
-            {
-                visible = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
-                depth = new NativeArray<float>(world.entityHighWater, Allocator.TempJob),
-                lod = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
-                fade = new NativeArray<float>(world.entityHighWater, Allocator.TempJob)
-            };
+            MeshCullingContext context = MeshCullingContext.Create(ReadOnlySpan<Plane>.Empty, ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, MeshTestUtility.Lod);
             MeshDrawListBuild build = default;
             try
             {
-                for (int i = 0; i < specs.Length; ++i)
-                {
-                    visibility.visible[(int)ids[i].Index] = (byte)(specs[i].visible ? 1 : 0);
-                    visibility.depth[(int)ids[i].Index] = specs[i].depth;
-                    visibility.fade[(int)ids[i].Index] = 1;
-                }
                 var specOfEntity = new Dictionary<uint, int>();
                 for (int i = 0; i < ids.Length; ++i) specOfEntity.Add(ids[i].Index, i);
-                build = MeshDrawListBuild.Schedule(cache, world, visibility);
+                build = MeshDrawListBuild.Schedule(cache, world, context);
                 build.job.Complete();
                 entities = new int[build.instanceCount];
                 for (int i = 0; i < entities.Length; ++i)
@@ -184,10 +173,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             finally
             {
                 build.Dispose();
-                visibility.visible.Dispose();
-                visibility.depth.Dispose();
-                visibility.lod.Dispose();
-                visibility.fade.Dispose();
             }
         }
 
@@ -292,14 +277,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     if (cache.commands[command].refCount == 0) freeCommand = command;
                 Assert.GreaterOrEqual(freeCommand, 0, "The fixture contains a free command slot.");
 
-                MeshView view = MeshTestUtility.CameraView(31);
-                uint[] visibleWords = MeshTestUtility.PackedCullOnCpu(world, view);
+                MeshCullingContext context = MeshTestUtility.CameraContext();
                 var cpu = new Dictionary<(int command, bool fading), List<(uint entity, float fade)>>();
-                MeshVisibilityHandle handle = world.visibilityShare.Acquire(world, view);
                 MeshDrawListBuild build = default;
                 try
                 {
-                    build = MeshDrawListBuild.Schedule(cache, world, world.visibilityShare.Get(handle));
+                    build = MeshDrawListBuild.Schedule(cache, world, context);
                     build.job.Complete();
                     foreach (MeshDrawCall draw in build.draws)
                     {
@@ -312,7 +295,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 finally
                 {
                     build.Dispose();
-                    world.visibilityShare.Release(handle);
                 }
                 Assert.IsTrue(cpu.Keys.Any(k => !k.fading) && cpu.Keys.Any(k => k.fading), "The fixture covers stable and fading ranges.");
 
@@ -335,20 +317,17 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     GraphicsBuffer args = Upload(Enumerable.Repeat(uint.MaxValue, commandCount * 2 * 5).ToArray(), sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured);
                     GraphicsBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
                     GraphicsBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
-                    const int visibilityBase = 16;
-                    var placed = new uint[visibilityBase + visibleWords.Length + 1];
-                    for (int i = 0; i < visibleWords.Length; ++i) placed[visibilityBase + i] = visibleWords[i];
-                    GraphicsBuffer visibility = Upload(placed, sizeof(uint));
-                    int initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("Compact");
+                    GraphicsBuffer contextBuffer = Upload(new[] { context }, System.Runtime.InteropServices.Marshal.SizeOf<MeshCullingContext>());
+                    int initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
                     using var commands = new CommandBuffer();
                     commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
                     commands.SetComputeIntParam(shader, "_CandidateCount", candidateCount);
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
-                    commands.SetComputeIntParam(shader, "_VisibilityBase", visibilityBase);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
-                    commands.SetComputeBufferParam(shader, compact, "_Visibility", visibility);
+                    commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
+                    BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
@@ -389,7 +368,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             }
                         }
                     }
-                    visibility.SetData(new uint[placed.Length]);
+                    // A context no entity passes appends nothing.
+                    contextBuffer.SetData(new[] { MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), 0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, MeshTestUtility.Lod) });
                     Graphics.ExecuteCommandBuffer(commands);
                     args.GetData(argValues);
                     for (int command = 0; command < commandCount; ++command)
@@ -420,18 +400,15 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     NativeArray<uint> reusedMeta = cache.GetCommandMeta();
                     for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = reusedMeta[i];
                     metaBuffer.SetData(metaValues);
-                    visibleWords = MeshTestUtility.PackedCullOnCpu(world, view);
-                    Array.Clear(placed, 0, placed.Length);
-                    Array.Copy(visibleWords, 0, placed, visibilityBase, visibleWords.Length);
-                    visibility.SetData(placed);
+                    contextBuffer.SetData(new[] { context });
                     commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
                     commands.SetComputeIntParam(shader, "_CandidateCount", cache.candidates.Length);
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
-                    commands.SetComputeIntParam(shader, "_VisibilityBase", visibilityBase);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
-                    commands.SetComputeBufferParam(shader, compact, "_Visibility", visibility);
+                    commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
+                    BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
@@ -452,6 +429,19 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     Object.DestroyImmediate(shader);
                 }
             }
+        }
+
+        // The entity columns the build kernel reads, bound the way MeshDrawGPUBackend.Produce binds them.
+        static void BindColumns(CommandBuffer commands, ComputeShader shader, int kernel, MeshWorld world)
+        {
+            MeshWorldGPU gpu = world.gpu;
+            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityFlags", gpu.flags.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityLayerMask", gpu.layerMask.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityLodChains", gpu.lodChains.buffer);
         }
     }
 }

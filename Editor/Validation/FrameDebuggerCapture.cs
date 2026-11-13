@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 evidence.meshCompaction = evidence.events
                     .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler)
-                        && e.name.Contains("/ComputeMeshCompaction/"))
+                        && e.name.Contains("/ComputeMeshDrawList/"))
                     .GroupBy(e => e.name)
                     .Select(group => new MeshCompactionEvidence
                     {
