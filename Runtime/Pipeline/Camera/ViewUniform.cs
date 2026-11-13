@@ -45,6 +45,8 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetGlobalConstantBuffer(m_Buffer, s_ViewUniformID, 0, s_Size);
         }
 
+        // Released directly, not behind the state's reuse fence: the fence guards pooled resources handed to a new
+        // owner, and this buffer never enters the pool. Unity destroys a released buffer after the GPU is done with it.
         public void Dispose() => m_Buffer.Release();
     }
 }
