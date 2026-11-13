@@ -68,15 +68,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void DeferredShading_QueriesOcclusionOnlyWhenRegistered()
+        public void DeferredShading_ReadsOcclusionAndContactShadowOnlyWhenTheirFeaturesRecord()
         {
             string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/Lighting/DeferredShadingPass.cs"));
             Assert.IsTrue(File.Exists(passPath), passPath);
             string source = File.ReadAllText(passPath);
-            Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));
-            Assert.IsFalse(source.Contains("QueryTexture(InfinityShaderIDs.OcclusionBuffer)"));
-            Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer"));
-            Assert.IsFalse(source.Contains("QueryTexture(InfinityShaderIDs.ContactShadowBuffer)"));
+            // The feature set decides whether the optional input exists; QueryTexture then fails loudly if the producer did not register it.
+            Assert.IsTrue(source.Contains("bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);"));
+            Assert.IsTrue(source.Contains("hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default"));
+            Assert.IsTrue(source.Contains("bool hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);"));
+            Assert.IsTrue(source.Contains("hasContactShadow ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer) : default"));
+            Assert.IsFalse(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));
+            Assert.IsFalse(source.Contains("TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer"));
         }
 
 

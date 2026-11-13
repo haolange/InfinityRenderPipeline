@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(hit);
             Assert.AreNotSame(first.texture, second.texture);
             Assert.IsTrue(first.texture.rt.IsCreated());
-            m_Shared.DiscardUnproducedPending();
+            m_Shared.CameraFailed(false);
             m_Shared.CommitFrame();
             m_Shared.BeginFrame();
             m_Shared.ResolveShared(b, trans, multi, out _, out _, out hit);

@@ -31,10 +31,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal static bool TryGet(ShaderTagId passTag, out MeshPassDesc desc)
         {
-            string name = passTag.name;
             for (int i = 0; i < all.Length; i++)
             {
-                if (string.Equals(all[i].lightMode, name, StringComparison.Ordinal))
+                if (all[i].passTag == passTag)
                 {
                     desc = all[i];
                     return true;

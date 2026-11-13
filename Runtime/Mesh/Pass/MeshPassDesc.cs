@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -6,6 +7,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal readonly struct MeshPassDesc : IEquatable<MeshPassDesc>
     {
         public readonly string lightMode;
+        // The interned id of lightMode: per-frame lookups compare ids, never names (ShaderTagId.name allocates a string).
+        public readonly ShaderTagId passTag;
         public readonly int queueMin;
         public readonly int queueMax;
         public readonly EMeshEntityFlags requireEntityFlags;
@@ -21,6 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             EMeshSortKey sortKey = EMeshSortKey.State, bool cpuBackend = false)
         {
             this.lightMode = lightMode;
+            passTag = new ShaderTagId(lightMode);
             this.queueMin = queueMin;
             this.queueMax = queueMax;
             this.requireEntityFlags = requireEntityFlags;
