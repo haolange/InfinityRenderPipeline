@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -7,12 +8,22 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_DebugViewParameters Shaders/Pass/Debug/Compute_DebugView.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DebugViewParameters
+    {
+        public Vector4 resolution;
+        // x = first probe-atlas slice, y = complexity heat-map range.
+        public Vector4 parameters;
+        public int mode;
+        public float farDepth;
+        public int padding0;
+        public int padding1;
+    }
+
     internal static class DebugViewPassUtilityData
     {
-        internal static readonly int DV_ResolutionID = Shader.PropertyToID("DV_Resolution");
-        internal static readonly int DV_ModeID = Shader.PropertyToID("DV_Mode");
-        internal static readonly int DV_ParamsID = Shader.PropertyToID("DV_Params");
-        internal static readonly int DV_FarDepthID = Shader.PropertyToID("DV_FarDepth");
+        internal static readonly int CBV_DebugViewParametersID = Shader.PropertyToID("CBV_DebugViewParameters");
         internal static readonly int SRV_ProbeAtlasTextureID = Shader.PropertyToID("SRV_ProbeAtlasTexture");
         internal static readonly int SRV_OptionalTextureID = Shader.PropertyToID("SRV_OptionalTexture");
         internal static readonly int SRV_ShadowAtlasTextureID = Shader.PropertyToID("SRV_ShadowAtlasTexture");
@@ -23,12 +34,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DebugViewPassData
         {
+            public RGConstantsHandle parameters;
             public int2 resolution;
-            public int mode;
             public ComputeKernel kernel;
             public int bindSet;
-            // x = first probe-atlas slice, y = complexity heat-map range.
-            public Vector4 parameters;
             public LightLoopInputs lightLoop;
             public RGTextureHandle depthTexture;
             public ComputeShader debugViewShader;
@@ -256,10 +265,15 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref DebugViewPassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
-                passData.mode = (int)view;
                 passData.kernel = debugKernel;
                 passData.bindSet = bindSet;
-                passData.parameters = parameters;
+                passData.parameters = passRef.WriteConstants(new DebugViewParameters
+                {
+                    resolution = new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y),
+                    parameters = parameters,
+                    mode = (int)view,
+                    farDepth = GraphicsConventions.SampledFarDepth
+                });
                 passData.debugViewShader = shaders.debugViewShader;
                 if (needGBuffer)
                 {
@@ -298,9 +312,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeShader shader = passData.debugViewShader;
                     int kernel = passData.kernel.index;
-                    cmdEncoder.SetComputeVectorParam(shader, DebugViewPassUtilityData.DV_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeIntParam(shader, DebugViewPassUtilityData.DV_ModeID, passData.mode);
-                    cmdEncoder.SetComputeVectorParam(shader, DebugViewPassUtilityData.DV_ParamsID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, DebugViewPassUtilityData.CBV_DebugViewParametersID, passData.parameters);
 
                     if (passData.bindSet == 0)
                     {
@@ -326,7 +338,6 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     else if (passData.bindSet == 6)
                     {
-                        cmdEncoder.SetComputeFloatParam(shader, DebugViewPassUtilityData.DV_FarDepthID, GraphicsConventions.SampledFarDepth);
                         cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
                         passData.lightLoop.Bind(cmdEncoder, shader, kernel);
                     }

@@ -143,6 +143,36 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_records(str(self.repo), out)
         self.assertEqual(['records'], [o[1] for o in out])
 
+    def test_cbuffer_record_requires_matching_offsets_and_whole_registers(self):
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4 A;\n    float2 B;\n    float2 C;\n    uint D;\n    float E, F, G;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector4 a;\n    public Vector2 b;\n'
+                   '    public Vector2 c;\n    public uint d;\n    public float e, f, g;\n}\n')
+        out = []
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        # A float3 after a float2 starts the next register in HLSL but not in C#.
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float2 A;\n    float3 B;\n    float C;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector2 a;\n    public Vector3 b;\n    public float c;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+        # A float4x4 or float4 array is its elements in order; a scalar array pads every element to a register.
+        out = []
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4x4 M[2];\n    float4 S[2];\n    float4 D;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Matrix4x4 m0, m1;\n'
+                   '    public Vector4 s0, s1;\n    public Vector4 d;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float W[4];\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public float w0, w1, w2, w3;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+        # A record that does not fill its last register uploads fewer bytes than the cbuffer reads.
+        out = []
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4 A;\n    float B;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector4 a;\n    public float b;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+
     def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
         self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
                    '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'

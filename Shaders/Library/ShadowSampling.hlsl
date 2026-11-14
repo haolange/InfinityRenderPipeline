@@ -21,18 +21,25 @@ struct LocalShadowSlice
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
 StructuredBuffer<LocalShadowSlice> SRV_LocalShadowRects;
 
-float4 _CascadeShadowMapSize;
-int _CascadeCount;
-float4x4 _CascadeMatrices[4];
-float4 _CascadeSplitDistances;
-float4 _CascadeSpheres[4];
-// x = world texel size, y, z = m22, m23 of the GPU projection, w = blend width (fraction of the cascade radius).
-float4 _CascadeShadowParams[4];
-float4 _LocalShadowMapSize;
-// x = PCF tent radius (texels), y = PCSS blocker samples, z = PCSS filter samples, w = PCSS max penumbra (texels).
-float4 _ShadowFilterParams;
-// x = EVSM exponent, y = light-bleeding reduction, z = minimum moment standard deviation.
-float4 _ShadowMomentParams;
+// The camera's shadow constants (C# ShadowUniform), written once per camera and bound globally.
+cbuffer ShadowUniform
+{
+    float4x4 _CascadeMatrices[4];
+    float4 _CascadeSpheres[4];
+    // x = world texel size, y, z = m22, m23 of the GPU projection, w = blend width (fraction of the cascade radius).
+    float4 _CascadeShadowParams[4];
+    float4 _CascadeSplitDistances;
+    float4 _CascadeShadowMapSize;
+    float4 _LocalShadowMapSize;
+    // x = PCF tent radius (texels), y = PCSS blocker samples, z = PCSS filter samples, w = PCSS max penumbra (texels).
+    float4 _ShadowFilterParams;
+    // x = EVSM exponent, y = light-bleeding reduction, z = minimum moment standard deviation.
+    float4 _ShadowMomentParams;
+    int _CascadeCount;
+    int _InfinityShadowmaskMode;
+    float _InfinityShadowDistance;
+    int _ShadowUniformPadding;
+};
 
 // Moment atlases exist only in the variant for a camera that produced that atlas.
 #if defined(INFINITY_CASCADE_SHADOW_MOMENTS)
@@ -379,9 +386,6 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, floa
     }
     return shadow;
 }
-
-int _InfinityShadowmaskMode;
-float _InfinityShadowDistance;
 
 float MixBakedAndRealtimeShadow(LightRecord light, float realtime, float4 mask, float viewDepth)
 {

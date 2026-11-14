@@ -41,26 +41,32 @@
 #define SSR_CLASS_LINEAR 1
 #define SSR_CLASS_SKIP 2
 
-float4 SSR_Resolution;
-float4 SSR_TraceResolution;
-uint SSR_TraceScale;
-uint SSR_FrameIndex;
-float SSR_MaxRoughness;
-float SSR_EdgeFade;
-float SSR_MirrorRoughness;
-float SSR_LinearRoughness;
-float SSR_BRDFBias;
-uint SSR_HiZSteps;
-uint SSR_LinearSteps;
-uint SSR_BinarySteps;
-uint SSR_TraceFlags;
-uint SSR_ResolveSamples;
-uint SSR_Samples;
-float SSR_ResolveRadius;
-float SSR_TemporalWeight;
-float SSR_TemporalClampScale;
-float SSR_HistoryValid;
-int SSR_DebugMode;
+// The SSRParameters record SSRPass writes, bound as one constant buffer.
+cbuffer CBV_SSRParameters
+{
+    float4 SSR_Resolution;
+    float4 SSR_TraceResolution;
+    uint SSR_TraceScale;
+    uint SSR_FrameIndex;
+    float SSR_MaxRoughness;
+    float SSR_EdgeFade;
+    float SSR_MirrorRoughness;
+    float SSR_LinearRoughness;
+    float SSR_BRDFBias;
+    uint SSR_HiZSteps;
+    uint SSR_LinearSteps;
+    uint SSR_BinarySteps;
+    uint SSR_TraceFlags;
+    uint SSR_ResolveSamples;
+    uint SSR_Samples;
+    float SSR_ResolveRadius;
+    float SSR_TemporalWeight;
+    float SSR_TemporalClampScale;
+    float SSR_HistoryValid;
+    int SSR_DebugMode;
+    int SSRPadding0;
+    int SSRPadding1;
+};
 // xyz = world position, w = 1 for orthographic cameras.
 #include "../../Library/ViewUniform.hlsl"
 

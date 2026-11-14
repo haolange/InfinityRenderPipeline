@@ -222,7 +222,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             static readonly HashSet<Run> s_InFlight = new HashSet<Run>();
             readonly List<Object> m_Objects = new List<Object>();
             readonly CommandBuffer m_Commands = new CommandBuffer();
-            readonly ViewUniformBinding m_View;
+            readonly UniformBinding<ViewUniform> m_View;
             readonly RenderTexture m_Color, m_Meta;
             bool m_DisposeRequested, m_Released, m_SubmissionAttempted;
             readonly int m_Frames;
@@ -312,7 +312,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Commands.SetComputeFloatParam(shader, "SSGI_HistoryValid", Noisy(signal) || signal == Signal.RadianceNoise || signal == Signal.RadianceEdge ? 0 : 1);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalWeight", .93f);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalClampScale", 1.25f);
-                    m_View = new ViewUniformBinding(new ViewUniform
+                    m_View = new UniformBinding<ViewUniform>(new ViewUniform
                     {
                         matrix_FlipYJitterProj = projection,
                         matrix_InvFlipYJitterProj = projection.inverse,

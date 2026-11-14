@@ -170,21 +170,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetBuffer(kernel, "SRV_ProbeZBins", Buffer(new[] { 0x0000ffffu }, 4));
                     shader.SetBuffer(kernel, "SRV_ProbeTileMasks", Buffer(new[] { 0u }, 4));
                     shader.SetTexture(kernel, "SRV_ReflectionProbeAtlas", environment);
-                    shader.SetInt("g_ReflectionProbeCount", 0);
                 }
                 shader.SetBuffer(kernel, "_AtmosphereSkySH", Buffer(new Vector4[9], 16));
-                shader.SetInt("g_LocalLightCount", localCount); shader.SetInt("g_DirectionalLightCount", directionalCount);
-                shader.SetVector("g_LightTileParams", new Vector4(size, size, tileCount, words));
-                shader.SetVector("g_LightZBinParams", new Vector4(1, 0, 0, 0));
+                using var lightLoop = new UniformBinding<LightLoopUniform>(new LightLoopUniform
+                {
+                    tileParameters = new Vector4(size, size, tileCount, words),
+                    zBinParameters = new Vector4(1, 0, 0, 0),
+                    directionalCount = directionalCount,
+                    localCount = localCount
+                });
                 shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
                 shader.SetFloat("DeferredShading_FarDepth", 1);
-                using var view = new ViewUniformBinding(new ViewUniform
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
                     matrix_InvViewFlipYJitterProj = Matrix4x4.identity,
                     matrix_ViewToWorld = Matrix4x4.Translate(new Vector3(0, 0, -2))
                 });
-                shader.SetInt("_CascadeCount", 0); shader.SetFloat("_InfinityShadowDistance", 1000);
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowDistance = 1000 });
                 shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
                 shader.SetTexture(kernel, "SRV_GBufferTextureC", layer); shader.SetTexture(kernel, "SRV_DepthTexture", black);

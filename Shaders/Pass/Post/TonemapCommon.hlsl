@@ -39,12 +39,7 @@ BlackClip = 0;
 WhiteClip = 0.035;
 ===========================================
 */
-float FilmSlope = 0.91;
-float FilmToe = 0.53;
-float FilmShoulder = 0.23;
-float FilmEnabled = 1;
-float FilmBlackClip = 0;
-float FilmWhiteClip = 0.035;
+// FilmSlope, FilmToe, FilmShoulder, FilmBlackClip and FilmWhiteClip come from the includer (CBV_CombineLutParameters).
 
 half3 FilmToneMap( half3 LinearColor ) 
 {

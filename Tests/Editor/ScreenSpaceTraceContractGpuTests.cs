@@ -238,7 +238,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 BuildPyramid(depth, Size, reversed, false, furthest);
                 int kernel = shader.FindKernel("TracePair");
                 shader.SetMatrix("Projection", GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(60, 1, 0.1f, 100), false));
-                using var view = new ViewUniformBinding(new ViewUniform { view_DepthParameters = new Vector4(0.1f, 100, 0, reversed ? 1 : 0) });
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(0.1f, 100, 0, reversed ? 1 : 0) });
                 shader.SetVector("Origin", origin);
                 shader.SetVector("Direction", direction.normalized);
                 shader.SetInt("Budget", 32);

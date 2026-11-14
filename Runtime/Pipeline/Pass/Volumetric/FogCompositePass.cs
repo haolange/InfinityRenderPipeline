@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -8,10 +9,18 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_FogCompositeParameters Shaders/Pass/Volumetric/Compute_FogComposite.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FogCompositeParameters
+    {
+        public Vector4 resolution;
+        public float maxDistance;
+        public Vector3 padding0;
+    }
+
     internal static class FogCompositePassUtilityData
     {
-        internal static readonly int FogComposite_ResolutionID = Shader.PropertyToID("FogComposite_Resolution");
-        internal static readonly int FogComposite_MaxDistanceID = Shader.PropertyToID("FogComposite_MaxDistance");
+        internal static readonly int CBV_FogCompositeParametersID = Shader.PropertyToID("CBV_FogCompositeParameters");
         internal static readonly int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
         internal static readonly int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
         internal static readonly int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
@@ -25,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
             public LocalKeyword fogKeyword;
             public LocalKeyword cloudKeyword;
             public int2 resolution;
-            public float maxDistance;
+            public RGConstantsHandle parameters;
             public int hasFog;
             public int hasCloud;
             public ComputeShader fogCompositeShader;
@@ -69,7 +78,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.fogKeyword = kernels.fogCompositeFog;
                 passData.cloudKeyword = kernels.fogCompositeCloud;
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
-                passData.maxDistance = maxDistance;
+                passData.parameters = passRef.WriteConstants(new FogCompositeParameters
+                {
+                    resolution = new Vector4(context.dimensions.internalSize.x, context.dimensions.internalSize.y, 1.0f / context.dimensions.internalSize.x, 1.0f / context.dimensions.internalSize.y),
+                    maxDistance = maxDistance
+                });
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;
                 passData.fogCompositeShader = shaders.fogCompositeShader;
@@ -89,8 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in FogCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.fogCompositeShader;
-                    cmdEncoder.SetComputeVectorParam(shader, FogCompositePassUtilityData.FogComposite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(shader, FogCompositePassUtilityData.FogComposite_MaxDistanceID, passData.maxDistance);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, FogCompositePassUtilityData.CBV_FogCompositeParametersID, passData.parameters);
                     cmdEncoder.SetKeyword(shader, passData.fogKeyword, passData.hasFog != 0);
                     cmdEncoder.SetKeyword(shader, passData.cloudKeyword, passData.hasCloud != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);

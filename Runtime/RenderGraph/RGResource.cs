@@ -151,6 +151,7 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly ResourcePool m_Pool;
         readonly bool m_OwnsPool;
         internal TextureCapacityContext textureCapacity;
+        internal readonly RGConstantStaging constants = new RGConstantStaging();
         readonly List<TextureHandle> m_RetiredTextures = new List<TextureHandle>();
         readonly List<BufferHandle> m_RetiredBuffers = new List<BufferHandle>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
@@ -569,6 +570,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
+            constants.Clear();
             m_ImportedBuffers.Clear();
             m_ImportedTextures.Clear();
             // A failed graph may never reach compiled last-use releases. Preserve those allocations
@@ -620,6 +622,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             FlushRetired();
+            constants.Dispose();
             if (m_OwnsPool)
             {
                 m_Pool.Dispose();

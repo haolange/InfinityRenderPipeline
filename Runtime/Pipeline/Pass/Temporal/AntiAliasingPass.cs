@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,13 +10,23 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_TemporalAntiAliasingParameters Shaders/Pass/Temporal/Compute_TemporalAntiAliasing.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TemporalAntiAliasingParameters
+    {
+        public Vector4 resolution;
+        public float resetBlend;
+        public int padding0;
+        public int padding1;
+        public int padding2;
+    }
+
     internal static class AntiAliasingUtilityData
     {
+        internal static readonly int CBV_TemporalAntiAliasingParametersID = Shader.PropertyToID("CBV_TemporalAntiAliasingParameters");
         internal static readonly int SRV_AliasingColorTextureID = Shader.PropertyToID("SRV_AliasingColorTexture");
         internal static readonly int SRV_MotionMetadataID = Shader.PropertyToID("SRV_MotionMetadata");
         internal static readonly int SRV_ReactiveMaskTextureID = Shader.PropertyToID("SRV_ReactiveMaskTexture");
-        internal static readonly int TAA_ResetBlendID = Shader.PropertyToID("TAA_ResetBlend");
-        internal static readonly int TAA_ResolutionID = Shader.PropertyToID("TAA_Resolution");
         internal static readonly int UAV_AccumulateColorTextureID = Shader.PropertyToID("UAV_AccumulateColorTexture");
         internal static readonly int UAV_SharpenedColorTextureID = Shader.PropertyToID("UAV_SharpenedColorTexture");
         internal static readonly int UAV_TAADiagnosticsID = Shader.PropertyToID("UAV_TAADiagnostics");
@@ -28,8 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct AntiAliasingPassData
         {
-            public Vector4 resolution;
-            public bool historyValid, diagnostics;
+            public RGConstantsHandle parameters;
+            public bool diagnostics;
             public int kernel;
             public int2 groups;
             public ComputeShader shader;
@@ -94,8 +105,11 @@ namespace InfinityTech.Rendering.Pipeline
                 data.shader = temporalKernel.shader;
                 data.kernel = temporalKernel.index;
                 data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
-                data.resolution = new Vector4(width, height, 1f / width, 1f / height);
-                data.historyValid = colorRead.valid && depthRead.valid;
+                data.parameters = pass.WriteConstants(new TemporalAntiAliasingParameters
+                {
+                    resolution = new Vector4(width, height, 1f / width, 1f / height),
+                    resetBlend = colorRead.valid && depthRead.valid ? 1 : 0,
+                });
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
                 data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
@@ -125,8 +139,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
                     int kernel = data.kernel;
                     var shader = data.shader;
-                    commands.SetComputeVectorParam(shader, AntiAliasingUtilityData.TAA_ResolutionID, data.resolution);
-                    commands.SetComputeFloatParam(shader, AntiAliasingUtilityData.TAA_ResetBlendID, data.historyValid ? 1 : 0);
+                    commands.SetComputeConstantBufferParam(shader, AntiAliasingUtilityData.CBV_TemporalAntiAliasingParametersID, data.parameters);
                     commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_AliasingColorTextureID, data.input);
                     commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryColorTexture, data.historyColor);
                     commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryDepthTexture, data.historyDepth);

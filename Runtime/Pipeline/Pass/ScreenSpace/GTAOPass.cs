@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,8 +10,29 @@ using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_OcclusionParameters Shaders/Pass/ScreenSpace/Common.hlsl
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct OcclusionParameters
+    {
+        public int numRays;
+        public int numSteps;
+        public float power;
+        public float radius;
+        public float intensity;
+        public float sharpness;
+        public float halfProjScale;
+        public float temporalOffset;
+        public float temporalDirection;
+        public float temporalScale;
+        public float temporalWeight;
+        public int historyValid;
+        public Vector4 resolution;
+        public Vector4 upsampleSize;
+    }
+
     internal static class GTAOPassUtilityData
     {
+        internal static readonly int CBV_OcclusionParametersID = Shader.PropertyToID("CBV_OcclusionParameters");
         internal static readonly int SRV_HalfResDepthTextureID = Shader.PropertyToID("SRV_HalfResDepthTexture");
         internal static readonly int SRV_HalfResNormalTextureID = Shader.PropertyToID("SRV_HalfResNormalTexture");
         internal static readonly ProfilingSampler GTAOTraceSampler = new ProfilingSampler("GTAO_Trace");
@@ -23,23 +45,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string SpatialTempTextureName = "SpatialTempTexture";
         internal static readonly string HistoryOcclusionTextureName = "HistoryOcclusionTexture";
         internal static readonly string HistoryOcclusionDepthTextureName = "HistoryOcclusionDepthTexture";
-        internal static readonly int NumRayID = Shader.PropertyToID("NumRay");
-        internal static readonly int NumStepID = Shader.PropertyToID("NumStep");
-        internal static readonly int PowerID = Shader.PropertyToID("Power");
-        internal static readonly int RadiusID = Shader.PropertyToID("Radius");
-        internal static readonly int IntensityID = Shader.PropertyToID("Intensity");
-        internal static readonly int SharpenessID = Shader.PropertyToID("Sharpeness");
-        internal static readonly int HalfProjScaleID = Shader.PropertyToID("HalfProjScale");
-        internal static readonly int TemporalOffsetID = Shader.PropertyToID("TemporalOffset");
-        internal static readonly int TemporalDirectionID = Shader.PropertyToID("TemporalDirection");
-        internal static readonly int TemporalScaleID = Shader.PropertyToID("TemporalScale");
-        internal static readonly int TemporalWeightID = Shader.PropertyToID("TemporalWeight");
-        internal static readonly int ResolutionID = Shader.PropertyToID("Resolution");
-        internal static readonly int UpsampleSizeID = Shader.PropertyToID("UpsampleSize");
         internal static readonly int SRV_HistoryTextureID = Shader.PropertyToID("SRV_HistoryTexture");
         internal static readonly int UAV_SpatialTextureID = Shader.PropertyToID("UAV_SpatialTexture");
         internal static readonly int UAV_AccumulationTextureID = Shader.PropertyToID("UAV_AccumulationTexture");
-        internal static readonly int HistoryValidID = Shader.PropertyToID("GTAOHistoryValid");
         internal static readonly int MotionMetadataID = Shader.PropertyToID("SRV_MotionMetadataTexture");
         internal static readonly int PendingHistoryID = Shader.PropertyToID("UAV_OcclusionHistoryTexture");
         internal static readonly int PendingDepthID = Shader.PropertyToID("UAV_OcclusionHistoryDepth");
@@ -56,22 +64,9 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public CaptureStageSnapshot traceSnapshot, spatialXSnapshot, spatialYSnapshot, temporalSnapshot;
 #endif
-            public int numRays;
-            public bool historyValid;
+            public RGConstantsHandle parameters;
             public int traceKernel, spatialXKernel, spatialYKernel, temporalKernel, upsampleKernel;
             public int2 halfGroups, fullGroups;
-            public int numSteps;
-            public float power;
-            public float radius;
-            public float intensity;
-            public float sharpeness;
-            public float halfProjScale;
-            public float temporalOffset;
-            public float temporalDirection;
-            public float temporalScale;
-            public float temporalWeight;
-            public int2 halfResolution;
-            public int2 fullResolution;
             public ComputeShader ssaoShader;
             public RGTextureHandle halfResDepthTexture;
             public RGTextureHandle halfResNormalTexture;
@@ -151,23 +146,24 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.upsampleKernel = kernels.occlusionUpsample.index;
                 passData.halfGroups = new int2(kernels.occlusionTrace.GroupsX(halfWidth), kernels.occlusionTrace.GroupsY(halfHeight));
                 passData.fullGroups = new int2(kernels.occlusionUpsample.GroupsX(fullWidth), kernels.occlusionUpsample.GroupsY(fullHeight));
-                passData.numRays = ssao.numRays;
-                passData.numSteps = ssao.numSteps;
-                passData.power = ssao.power;
-                passData.radius = ssao.radius;
-                passData.intensity = ssao.intensity;
-                passData.sharpeness = ssao.sharpness;
-                passData.temporalScale = ssao.temporalScale;
-                passData.temporalWeight = ssao.temporalWeight;
-                passData.historyValid = context.state.acceptedGTAO && occlusionRead.valid && occlusionDepthRead.valid;
-                passData.halfResolution = new int2(halfWidth, halfHeight);
-                passData.fullResolution = new int2(fullWidth, fullHeight);
-
-                passData.halfProjScale = context.cameraUniform.matrix_FlipYJitterProj.m11 * halfHeight * 0.5f;
-
                 int temporalIndex = Time.frameCount & 3;
-                passData.temporalOffset = GTAOPassUtilityData.TemporalOffsets[temporalIndex];
-                passData.temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex];
+                passData.parameters = passRef.WriteConstants(new OcclusionParameters
+                {
+                    numRays = ssao.numRays,
+                    numSteps = ssao.numSteps,
+                    power = ssao.power,
+                    radius = ssao.radius,
+                    intensity = ssao.intensity,
+                    sharpness = ssao.sharpness,
+                    halfProjScale = context.cameraUniform.matrix_FlipYJitterProj.m11 * halfHeight * 0.5f,
+                    temporalOffset = GTAOPassUtilityData.TemporalOffsets[temporalIndex],
+                    temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex],
+                    temporalScale = ssao.temporalScale,
+                    temporalWeight = ssao.temporalWeight,
+                    historyValid = context.state.acceptedGTAO && occlusionRead.valid && occlusionDepthRead.valid ? 1 : 0,
+                    resolution = new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight),
+                    upsampleSize = new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight)
+                });
 
                 passData.ssaoShader = shaders.ssaoShader;
                 passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
@@ -196,24 +192,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssaoShader;
-                    int halfWidth = passData.halfResolution.x;
-                    int halfHeight = passData.halfResolution.y;
-                    int fullWidth = passData.fullResolution.x;
-                    int fullHeight = passData.fullResolution.y;
-
-                    cmdEncoder.SetComputeIntParam(shader, GTAOPassUtilityData.NumRayID, passData.numRays);
-                    cmdEncoder.SetComputeIntParam(shader, GTAOPassUtilityData.NumStepID, passData.numSteps);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.PowerID, passData.power);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.RadiusID, passData.radius);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.IntensityID, passData.intensity);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.SharpenessID, passData.sharpeness);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.HalfProjScaleID, passData.halfProjScale);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalOffsetID, passData.temporalOffset);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalDirectionID, passData.temporalDirection);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalScaleID, passData.temporalScale);
-                    cmdEncoder.SetComputeFloatParam(shader, GTAOPassUtilityData.TemporalWeightID, passData.temporalWeight);
-                    cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.ResolutionID, new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight));
-                    cmdEncoder.SetComputeVectorParam(shader, GTAOPassUtilityData.UpsampleSizeID, new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight));
+                    cmdEncoder.SetComputeConstantBufferParam(shader, GTAOPassUtilityData.CBV_OcclusionParametersID, passData.parameters);
 
                     int halfGroupsX = passData.halfGroups.x;
                     int halfGroupsY = passData.halfGroups.y;
@@ -262,7 +241,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_HistoryDepthTexture, passData.historyOcclusionDepthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.UAV_AccumulationTextureID, passData.spatialTempTexture);
-                    cmdEncoder.SetComputeIntParam(shader, GTAOPassUtilityData.HistoryValidID, passData.historyValid ? 1 : 0);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.MotionMetadataID, passData.motionMetadata);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingHistoryID, passData.pendingOcclusionTexture);
                     cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingDepthID, passData.pendingDepthTexture);

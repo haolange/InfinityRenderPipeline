@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Texture2D m_Depth, m_Motion;
             readonly Vector4 m_PreviousZ, m_PreviousProjection;
             readonly StringBuilder m_Report = new StringBuilder();
-            readonly ViewUniformBinding m_View;
+            readonly UniformBinding<ViewUniform> m_View;
             int m_Sequence;
 
             public ScreenSpaceNumericGpuRun(int width, int height, string output)
@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector4 planeClip = m_Projection * new Vector4(0, 0, -5, 1);
                 m_PlaneDepth = planeClip.z / planeClip.w;
                 // The camera sits at the origin looking down -Z, so view and world space coincide.
-                m_View = new ViewUniformBinding(new ViewUniform
+                m_View = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_WorldToView = Matrix4x4.identity,
                     matrix_ViewToWorld = Matrix4x4.identity,
@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetFloat("Power", 1);
                 shader.SetFloat("Intensity", 1);
                 shader.SetFloat("HalfProjScale", height * 0.5f);
-                shader.SetFloat("Sharpeness", 1);
+                shader.SetFloat("Sharpness", 1);
                 shader.SetFloat("TemporalScale", 1);
                 shader.SetFloat("TemporalWeight", 0.9f);
                 shader.SetInt("GTAOHistoryValid", 0);

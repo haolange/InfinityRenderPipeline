@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_HasCommittedView = true;
         }
 
-        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize, ViewUniformBuffer viewBuffer)
+        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize, UniformBuffer<ViewUniform> viewBuffer)
         {
             float2 resolution = renderSize;
             cmdBuffer.SetGlobalVector(PassShaderIDs.ScreenParams, new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
@@ -405,9 +405,14 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     CameraSetup setup = PrepareCamera(camera, cameras, cameraData, state, newlyCreated, previousSeenFrame);
                     CameraScene scene = CullCamera(setup, cmdBuffer);
+                    var context = new CameraRecordContext(setup, scene);
+                    // Shadow and light-loop constants are final once CullCamera built the lights; every pass of the
+                    // camera reads them from these two uniforms, uploaded ahead of the graph.
+                    state.shadowUniform.Upload(cmdBuffer, ResolveShadowUniform());
+                    state.lightLoopUniform.Upload(cmdBuffer, ResolveLightLoopUniform(context.features));
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                     {
-                        RecordCamera(new CameraRecordContext(setup, scene));
+                        RecordCamera(context);
                     }
 
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
@@ -535,7 +540,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 #endif
 
-                setup.state.cameraUniform.SetUniformData(cmdBuffer, setup.dimensions.internalSize, setup.state.viewUniformBuffer);
+                setup.state.cameraUniform.SetUniformData(cmdBuffer, setup.dimensions.internalSize, setup.state.viewUniform);
                 // Adaptive Probe Volumes: CoreRP-owned resources, bound before culling and recording.
                 m_ProbeVolumes.SetupCamera(cmdBuffer, camera, setup.state.volumeStack, setup.policy.temporal);
                 scriptableRenderContext.SetupCameraProperties(camera);

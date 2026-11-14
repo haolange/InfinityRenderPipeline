@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16);
                 var directions = new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
                 shader.SetVectorArray("TestWorldPositions", new[] { (Vector4)(directions[blockedFace] * 2), (Vector4)(directions[(blockedFace + 1) % 6] * 2) });
-                shader.SetVector("_LocalShadowMapSize", new Vector4(192, 32, 1 / 192f, 1 / 32f));
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { localMapSize = new Vector4(192, 32, 1 / 192f, 1 / 32f) });
                 int kernel = shader.FindKernel("CachedPoint");
                 shader.SetTexture(kernel, "TestDepth", depth);
                 shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", matrices);
@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 depth.SetPixelData(values, 0); depth.Apply(false);
                 output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
                 int kernel = shader.FindKernel("SlopedPlane");
-                shader.SetVector("_ShadowFilterParams", new Vector4(2, 16, 32, 12));
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { filterParameters = new Vector4(2, 16, 32, 12) });
                 shader.SetVector("TestRect", tile ? new Vector4(.25f, .25f, .5f, .5f) : new Vector4(0, 0, 1, 1));
                 bool reversed = SystemInfo.usesReversedZBuffer;
                 shader.SetVector("TestDepthParams", local
@@ -176,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("TestDepthParams", local
                     ? new Vector4(reversed ? 0 : -1, reversed ? 1 : -1, .01f, 0)
                     : new Vector4(reversed ? .1f : -.1f, reversed ? 1 : 0, .1f, 1));
-                shader.SetVector("_ShadowFilterParams", new Vector4(1, 64, 128, 20));
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { filterParameters = new Vector4(1, 64, 128, 20) });
                 shader.SetTexture(kernel, "TestDepth", depth); shader.SetBuffer(kernel, "Results", output);
                 int[] transition = new int[2];
                 for (int separation = 0; separation < 2; separation++)

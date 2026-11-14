@@ -5,8 +5,16 @@
 Texture2D SRV_TemporalColor;
 Texture2D SRV_TemporalColorMips;
 Texture2D SRV_TemporalDepth;
-int TemporalColorValid, TemporalColorMipCount;
-float4 TemporalColorResolution;
+
+// The TemporalColorParameters record BindTemporalColorView binds as one constant buffer.
+cbuffer CBV_TemporalColorParameters
+{
+    float4 TemporalColorResolution;
+    int TemporalColorValid;
+    int TemporalColorMipCount;
+    int TemporalColorPadding0;
+    int TemporalColorPadding1;
+};
 
 float4 SampleTemporalColorMip(float2 uv, uint level)
 {

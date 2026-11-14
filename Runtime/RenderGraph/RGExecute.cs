@@ -293,6 +293,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.CreateBufferResource(ref graphContext, buffer, passCompileInfo.enableAsyncCompute);
             foreach (int texture in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
                 m_Resources.CreateTextureResource(ref graphContext, texture, passCompileInfo.enableAsyncCompute);
+            foreach (RGConstantsHandle constants in passCompileInfo.pass.constants)
+                m_Resources.constants.Upload(graphContext.cmdBuffer, m_Resources.ResolveBuffer(constants.buffer).resource, constants);
 
             if (passCompileInfo.pass.passType == EPassType.Raster)
                 BindRasterTarget(ref graphContext, passCompileInfo);

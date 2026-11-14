@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,10 +10,39 @@ using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_SSRParameters Shaders/Pass/ScreenSpace/Compute_ScreenSpaceReflection.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SSRParameters
+    {
+        public Vector4 resolution;
+        public Vector4 traceResolution;
+        public uint traceScale;
+        public uint frameIndex;
+        public float maxRoughness;
+        public float edgeFade;
+        public float mirrorRoughness;
+        public float linearRoughness;
+        public float brdfBias;
+        public uint hiZSteps;
+        public uint linearSteps;
+        public uint binarySteps;
+        public uint traceFlags;
+        public uint resolveSamples;
+        public uint samples;
+        public float resolveRadius;
+        public float temporalWeight;
+        public float temporalClampScale;
+        public float historyValid;
+        public int debugMode;
+        public int padding0;
+        public int padding1;
+    }
+
     // Stochastic SSR (Frostbite): classify -> trace (Hi-Z or linear, indirect per tile class) -> resolve with ray reuse
     // -> temporal -> optional spatial. Kernel contracts are documented at the top of Compute_ScreenSpaceReflection.
     internal static class SSRPassUtilityData
     {
+        internal static readonly int CBV_SSRParametersID = Shader.PropertyToID("CBV_SSRParameters");
         internal static readonly int SRV_TileListID = Shader.PropertyToID("SRV_TileList");
         internal static readonly int UAV_TileListID = Shader.PropertyToID("UAV_TileList");
         internal static readonly int SRV_HistoryVarianceID = Shader.PropertyToID("SRV_HistoryVariance");
@@ -33,26 +63,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal const int ClassLinear = 1;
         internal const int ClassSkip = 2;
 
-        internal static readonly int SSR_ResolutionID = Shader.PropertyToID("SSR_Resolution");
-        internal static readonly int SSR_TraceResolutionID = Shader.PropertyToID("SSR_TraceResolution");
-        internal static readonly int SSR_TraceScaleID = Shader.PropertyToID("SSR_TraceScale");
-        internal static readonly int SSR_FrameIndexID = Shader.PropertyToID("SSR_FrameIndex");
-        internal static readonly int SSR_MaxRoughnessID = Shader.PropertyToID("SSR_MaxRoughness");
-        internal static readonly int SSR_EdgeFadeID = Shader.PropertyToID("SSR_EdgeFade");
-        internal static readonly int SSR_MirrorRoughnessID = Shader.PropertyToID("SSR_MirrorRoughness");
-        internal static readonly int SSR_LinearRoughnessID = Shader.PropertyToID("SSR_LinearRoughness");
-        internal static readonly int SSR_BRDFBiasID = Shader.PropertyToID("SSR_BRDFBias");
-        internal static readonly int SSR_HiZStepsID = Shader.PropertyToID("SSR_HiZSteps");
-        internal static readonly int SSR_LinearStepsID = Shader.PropertyToID("SSR_LinearSteps");
-        internal static readonly int SSR_BinaryStepsID = Shader.PropertyToID("SSR_BinarySteps");
-        internal static readonly int SSR_TraceFlagsID = Shader.PropertyToID("SSR_TraceFlags");
-        internal static readonly int SSR_ResolveSamplesID = Shader.PropertyToID("SSR_ResolveSamples");
-        internal static readonly int SSR_SamplesID = Shader.PropertyToID("SSR_Samples");
-        internal static readonly int SSR_ResolveRadiusID = Shader.PropertyToID("SSR_ResolveRadius");
-        internal static readonly int SSR_TemporalWeightID = Shader.PropertyToID("SSR_TemporalWeight");
-        internal static readonly int SSR_TemporalClampScaleID = Shader.PropertyToID("SSR_TemporalClampScale");
-        internal static readonly int SSR_HistoryValidID = Shader.PropertyToID("SSR_HistoryValid");
-        internal static readonly int SSR_DebugModeID = Shader.PropertyToID("SSR_DebugMode");
         internal static readonly int RankingTileID = Shader.PropertyToID("_Ranking_Tile");
         internal static readonly int ScramblingTileID = Shader.PropertyToID("_Scrambled_Tile");
         internal static readonly int OwenScrambledSobolID = Shader.PropertyToID("_ScrambledOwen_Noise");
@@ -93,11 +103,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSRPassData
         {
-            public SSRSettings settings;
-            public int2 resolution;
-            public int2 traceResolution;
+            public RGConstantsHandle parameters;
             public int2 tileCount;
-            public int traceScale;
             public int clearArgsKernel;
             public int classifyKernel;
             public int traceKernel;
@@ -107,9 +114,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int debugKernel;
             public int2 debugGroups;
             public int2 resolveGroups;
-            public int frameIndex;
-            public float historyValid;
-            public int debugMode;
             public ComputeShader ssrShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -219,14 +223,30 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
             {
                 ref SSRPassData passData = ref passRef.GetPassData();
-                passData.settings = settings;
-                passData.resolution = resolution;
-                passData.traceResolution = traceResolution;
+                passData.parameters = passRef.WriteConstants(new SSRParameters
+                {
+                    resolution = new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y),
+                    traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
+                    traceScale = (uint)(settings.halfResolution ? 2 : 1),
+                    frameIndex = (uint)Time.frameCount,
+                    maxRoughness = settings.maxRoughness,
+                    edgeFade = settings.edgeFade,
+                    mirrorRoughness = settings.mirrorRoughness,
+                    linearRoughness = settings.linearRoughness,
+                    brdfBias = settings.brdfBias,
+                    hiZSteps = (uint)math.max(1, settings.hiZSteps),
+                    linearSteps = (uint)math.max(1, settings.linearSteps),
+                    binarySteps = (uint)math.max(0, settings.binarySteps),
+                    traceFlags = (uint)((settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0)),
+                    resolveSamples = (uint)math.max(1, settings.resolveSamples),
+                    samples = (uint)math.clamp(settings.samples, 1, 4),
+                    resolveRadius = settings.resolveRadius,
+                    temporalWeight = settings.temporalWeight,
+                    temporalClampScale = settings.temporalClampScale,
+                    historyValid = historyValid ? 1 : 0,
+                    debugMode = (int)debugView
+                });
                 passData.tileCount = tileCount;
-                passData.traceScale = settings.halfResolution ? 2 : 1;
-                passData.frameIndex = Time.frameCount;
-                passData.historyValid = historyValid ? 1 : 0;
-                passData.debugMode = (int)debugView;
                 passData.ssrShader = shaders.ssrShader;
                 passData.clearArgsKernel = kernels.ssrClearArgs.index;
                 passData.classifyKernel = kernels.ssrClassify.index;
@@ -288,31 +308,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssrShader;
-                    SSRSettings settings = passData.settings;
-                    int2 resolution = passData.resolution;
-                    int2 traceResolution = passData.traceResolution;
                     int2 tileCount = passData.tileCount;
-
-                    cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_ResolutionID, new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y));
-                    cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_TraceResolutionID, new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_TraceScaleID, passData.traceScale);
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_MaxRoughnessID, settings.maxRoughness);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_EdgeFadeID, settings.edgeFade);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_MirrorRoughnessID, settings.mirrorRoughness);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_LinearRoughnessID, settings.linearRoughness);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_BRDFBiasID, settings.brdfBias);
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_HiZStepsID, math.max(1, settings.hiZSteps));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_LinearStepsID, math.max(1, settings.linearSteps));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_BinaryStepsID, math.max(0, settings.binarySteps));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_TraceFlagsID, (settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_ResolveSamplesID, math.max(1, settings.resolveSamples));
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_SamplesID, math.clamp(settings.samples, 1, 4));
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_ResolveRadiusID, settings.resolveRadius);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_TemporalWeightID, settings.temporalWeight);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_TemporalClampScaleID, settings.temporalClampScale);
-                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_HistoryValidID, passData.historyValid);
-                    cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_DebugModeID, passData.debugMode);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, SSRPassUtilityData.CBV_SSRParametersID, passData.parameters);
 
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRClassifySampler);
                     int clearArgs = passData.clearArgsKernel;

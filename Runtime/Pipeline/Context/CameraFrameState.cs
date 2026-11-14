@@ -41,7 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
         public Camera camera;
         public bool preparedThisRender;
         public CameraUniform cameraUniform;
-        internal readonly ViewUniformBuffer viewUniformBuffer = new ViewUniformBuffer();
+        internal readonly UniformBuffer<ViewUniform> viewUniform = new UniformBuffer<ViewUniform>();
+        internal readonly UniformBuffer<ShadowUniform> shadowUniform = new UniformBuffer<ShadowUniform>();
+        internal readonly UniformBuffer<LightLoopUniform> lightLoopUniform = new UniformBuffer<LightLoopUniform>();
         internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
@@ -209,7 +211,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal void Dispose(ResourceReuseFence fence)
         {
             meshMotionHistory.Clear();
-            viewUniformBuffer.Dispose();
+            viewUniform.Dispose();
+            shadowUniform.Dispose();
+            lightLoopUniform.Dispose();
             if (volumeStack != null)
             {
                 VolumeManager.instance.DestroyStack(volumeStack);

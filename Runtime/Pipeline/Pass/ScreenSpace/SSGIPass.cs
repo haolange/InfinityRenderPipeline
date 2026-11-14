@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,15 +10,33 @@ using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_SSGIParameters Shaders/Pass/ScreenSpace/Compute_ScreenSpaceIndirectDiffuse.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SSGIParameters
+    {
+        public Vector4 resolution;
+        public Vector4 traceResolution;
+        public uint traceScale;
+        public uint frameIndex;
+        public uint previousFrameIndex;
+        public float intensity;
+        public uint hiZSteps;
+        public uint traceFlags;
+        public uint samples;
+        public uint hasAO;
+        public float frameAngle;
+        public float temporalWeight;
+        public float temporalClampScale;
+        public float historyValid;
+    }
+
     // One 8x8 group traces its own pixels, then two temporal-then-world-space denoise stages, then a full-resolution upsample.
     internal static class SSGIPassUtilityData
     {
+        internal static readonly int CBV_SSGIParametersID = Shader.PropertyToID("CBV_SSGIParameters");
         internal static readonly int SRV_CurrentID = Shader.PropertyToID("SRV_Current");
         internal static readonly int SRV_FilteredID = Shader.PropertyToID("SRV_Filtered");
         internal static readonly int SRV_OcclusionID = Shader.PropertyToID("SRV_Occlusion");
-        internal static readonly int SSGI_FrameAngleID = Shader.PropertyToID("SSGI_FrameAngle");
-        internal static readonly int SSGI_HasAOID = Shader.PropertyToID("SSGI_HasAO");
-        internal static readonly int SSGI_PreviousFrameIndexID = Shader.PropertyToID("SSGI_PreviousFrameIndex");
         internal static readonly int SSGI_SpatialPassID = Shader.PropertyToID("SSGI_SpatialPass");
         internal static readonly ProfilingSampler SSGITraceSampler = new ProfilingSampler("SSGI_Trace");
         internal static readonly ProfilingSampler SSGITemporal1Sampler = new ProfilingSampler("SSGI_Temporal1");
@@ -25,17 +44,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilingSampler SSGITemporal2Sampler = new ProfilingSampler("SSGI_Temporal2");
         internal static readonly ProfilingSampler SSGISpatialNarrowSampler = new ProfilingSampler("SSGI_SpatialNarrow");
         internal static readonly ProfilingSampler SSGIUpsampleSampler = new ProfilingSampler("SSGI_Upsample");
-        internal static readonly int SSGI_ResolutionID = Shader.PropertyToID("SSGI_Resolution");
-        internal static readonly int SSGI_TraceResolutionID = Shader.PropertyToID("SSGI_TraceResolution");
-        internal static readonly int SSGI_TraceScaleID = Shader.PropertyToID("SSGI_TraceScale");
-        internal static readonly int SSGI_FrameIndexID = Shader.PropertyToID("SSGI_FrameIndex");
-        internal static readonly int SSGI_IntensityID = Shader.PropertyToID("SSGI_Intensity");
-        internal static readonly int SSGI_HiZStepsID = Shader.PropertyToID("SSGI_HiZSteps");
-        internal static readonly int SSGI_SamplesID = Shader.PropertyToID("SSGI_Samples");
-        internal static readonly int SSGI_TraceFlagsID = Shader.PropertyToID("SSGI_TraceFlags");
-        internal static readonly int SSGI_TemporalWeightID = Shader.PropertyToID("SSGI_TemporalWeight");
-        internal static readonly int SSGI_TemporalClampScaleID = Shader.PropertyToID("SSGI_TemporalClampScale");
-        internal static readonly int SSGI_HistoryValidID = Shader.PropertyToID("SSGI_HistoryValid");
         internal static readonly int SRV_TraceRadianceID = Shader.PropertyToID("SRV_TraceRadiance");
         internal static readonly int UAV_TraceRadianceID = Shader.PropertyToID("UAV_TraceRadiance");
         internal const string RayHitName = "SSGIRayHit";
@@ -51,11 +59,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSGIPassData
         {
-            public SSGISettings settings;
-            public int2 resolution;
-            public int2 traceResolution;
+            public RGConstantsHandle parameters;
             public int2 tileCount;
-            public int traceScale;
             public int traceKernel;
             public int traceDebugKernel;
             public int temporalKernel;
@@ -63,9 +68,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int upsampleKernel;
             public int2 denoiseGroups;
             public int2 upsampleGroups;
-            public int frameIndex;
-            public int previousFrameIndex;
-            public float historyValid;
             public ComputeShader ssgiShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -82,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyNarrow;
             public RGTextureHandle historyMeta;
             public RGTextureHandle occlusion;
-            public int hasAO;
+            public bool hasAO;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public RGTextureHandle rayHit;
             public bool captureRayHit;
@@ -156,14 +158,25 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect)))
             {
                 ref SSGIPassData passData = ref passRef.GetPassData();
-                passData.settings = settings;
-                passData.resolution = resolution;
-                passData.traceResolution = traceResolution;
+                passData.parameters = passRef.WriteConstants(new SSGIParameters
+                {
+                    resolution = new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y),
+                    traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
+                    traceScale = 2,
+                    frameIndex = (uint)Time.frameCount,
+                    previousFrameIndex = (uint)context.state.acceptedSSGIFrameIndex,
+                    intensity = settings.intensity,
+                    hiZSteps = (uint)math.max(1, settings.hiZSteps),
+                    traceFlags = (uint)((settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0)),
+                    samples = (uint)math.clamp(settings.samples, 1, 4),
+                    hasAO = hasAO ? 1u : 0u,
+                    frameAngle = (Time.frameCount & 63) * 2.39996323f,
+                    temporalWeight = settings.temporalWeight,
+                    temporalClampScale = settings.temporalClampScale,
+                    historyValid = historyValid ? 1 : 0
+                });
+                passData.hasAO = hasAO;
                 passData.tileCount = tileCount;
-                passData.traceScale = 2;
-                passData.frameIndex = Time.frameCount;
-                passData.previousFrameIndex = context.state.acceptedSSGIFrameIndex;
-                passData.historyValid = historyValid ? 1 : 0;
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
                 passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
@@ -187,7 +200,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
                 passData.historyNarrow = passRef.ReadTexture(historyNarrow);
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
-                passData.hasAO = hasAO ? 1 : 0;
                 passData.occlusion = hasAO ? passRef.ReadTexture(occlusion) : default;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
@@ -209,26 +221,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssgiShader;
-                    SSGISettings settings = passData.settings;
-                    int2 resolution = passData.resolution;
-                    int2 traceResolution = passData.traceResolution;
                     int2 tileCount = passData.tileCount;
+                    cmdEncoder.SetComputeConstantBufferParam(shader, SSGIPassUtilityData.CBV_SSGIParametersID, passData.parameters);
 
-                    cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGI_ResolutionID, new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y));
-                    cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGI_TraceResolutionID, new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y));
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_TraceScaleID, passData.traceScale);
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_PreviousFrameIndexID, passData.previousFrameIndex);
-                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_IntensityID, settings.intensity);
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_HiZStepsID, math.max(1, settings.hiZSteps));
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_SamplesID, math.clamp(settings.samples, 1, 4));
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_TraceFlagsID, (settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0));
-                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalWeightID, settings.temporalWeight);
-                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalClampScaleID, settings.temporalClampScale);
-                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_HistoryValidID, passData.historyValid);
-
-                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_FrameAngleID, (passData.frameIndex & 63) * 2.39996323f);
-                    cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_HasAOID, passData.hasAO);
                     cmdEncoder.BeginSample(SSGIPassUtilityData.SSGITraceSampler);
                     int trace = passData.traceKernel;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -316,7 +311,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_SpatialPassID, pass);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Temporal, current);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Meta, passData.meta);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.hasAO != 0 ? passData.occlusion : passData.depthTexture);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.hasAO ? passData.occlusion : passData.depthTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Output, output);
         }
 

@@ -11,17 +11,13 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class AtmosphericSkyFogPassUtilityData
     {
         internal static readonly int SRV_SunBufferID = Shader.PropertyToID("SRV_SunBuffer");
-        internal static readonly int Atmo_FarDepthID = Shader.PropertyToID("Atmo_FarDepth");
     }
 
     public partial class InfinityRenderPipeline
     {
         struct AtmosphericSkyFogPassData
         {
-            public AtmosphereParameter parameter;
-            public Vector4 sunDirection;
-            public Vector4 sunIlluminance;
-            public float farDepth;
+            public RGConstantsHandle parameters;
             public int2 resolution;
             public ComputeKernel compositeKernel;
             public ComputeShader atmosphericLUTShader;
@@ -46,10 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
             {
                 ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData();
-                passData.parameter = parameter;
-                passData.sunDirection = sunDirection;
-                passData.sunIlluminance = sunIlluminance;
-                passData.farDepth = GraphicsConventions.SampledFarDepth;
+                passData.parameters = passRef.WriteConstants(CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance));
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.compositeKernel = kernels.atmosphereComposite;
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
@@ -63,15 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in AtmosphericSkyFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    AtmosphericLUTPassData lutData = new AtmosphericLUTPassData
-                    {
-                        parameter = passData.parameter,
-                        sunDirection = passData.sunDirection,
-                        sunIlluminance = passData.sunIlluminance,
-                        atmosphericLUTShader = passData.atmosphericLUTShader
-                    };
-                    BindAtmosphereParameters(lutData, cmdEncoder);
-                    cmdEncoder.SetComputeFloatParam(passData.atmosphericLUTShader, AtmosphericSkyFogPassUtilityData.Atmo_FarDepthID, passData.farDepth);
+                    cmdEncoder.SetComputeConstantBufferParam(passData.atmosphericLUTShader, AtmosphericLUTPassUtilityData.CBV_AtmosphereParametersID, passData.parameters);
                     cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, PassShaderIDs.SRV_SkyViewLUT, passData.skyViewLUT);
                     cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, PassShaderIDs.SRV_AerialPerspectiveLUT, passData.aerialPerspectiveLUT);
                     cmdEncoder.SetComputeTextureParam(passData.atmosphericLUTShader, passData.compositeKernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);

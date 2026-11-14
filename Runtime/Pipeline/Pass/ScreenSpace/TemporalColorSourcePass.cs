@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -10,9 +11,32 @@ namespace InfinityTech.Rendering.Pipeline
     internal struct TemporalColorView
     {
         internal RGTextureHandle color, depth, mips;
+        // Written by the reading pass for its own execution; bound by BindTemporalColorView.
+        internal RGConstantsHandle parameters;
         internal Vector4 resolution;
         internal int mipCount;
         internal bool valid;
+    }
+
+    // GPU-RECORD: CBV_TemporalColorParameters Shaders/Library/TemporalColorSource.hlsl
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TemporalColorParameters
+    {
+        public Vector4 resolution;
+        public int valid;
+        public int mipCount;
+        public int padding0;
+        public int padding1;
+    }
+
+    // GPU-RECORD: CBV_TemporalColorMipParameters Shaders/Pass/Translucent/Compute_PyramidColor.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TemporalColorMipParameters
+    {
+        public int sourceValid;
+        public float farDepth;
+        public int padding0;
+        public int padding1;
     }
 
     public partial class InfinityRenderPipeline
@@ -20,6 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct TemporalColorMipData
         {
             internal TemporalColorView source;
+            internal RGConstantsHandle parameters;
             internal ComputeKernel kernel;
             internal int mipCount;
             internal int2 size;
@@ -27,11 +52,11 @@ namespace InfinityTech.Rendering.Pipeline
         static class TemporalColorBindings
         {
             internal static readonly int Color = Shader.PropertyToID("SRV_TemporalColor"), Depth = Shader.PropertyToID("SRV_TemporalDepth"),
-                Mips = Shader.PropertyToID("SRV_TemporalColorMips"), Valid = Shader.PropertyToID("TemporalColorValid"),
-                Resolution = Shader.PropertyToID("TemporalColorResolution"),
-                MipCount = Shader.PropertyToID("TemporalColorMipCount"), SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
-                SourceValid = Shader.PropertyToID("_TemporalSourceValid"), SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst"),
-                Far = Shader.PropertyToID("_TemporalFarDepth");
+                Mips = Shader.PropertyToID("SRV_TemporalColorMips"),
+                CBV_TemporalColorParameters = Shader.PropertyToID("CBV_TemporalColorParameters"),
+                CBV_TemporalColorMipParameters = Shader.PropertyToID("CBV_TemporalColorMipParameters"),
+                SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
+                SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst");
         }
         void ComputeTemporalColorPyramid(in CameraRecordContext context)
         {
@@ -78,6 +103,11 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source = source;
                 data.source.color = pass.ReadTexture(source.color);
                 data.source.depth = pass.ReadTexture(source.depth);
+                data.parameters = pass.WriteConstants(new TemporalColorMipParameters
+                {
+                    sourceValid = source.valid ? 1 : 0,
+                    farDepth = GraphicsConventions.SampledFarDepth
+                });
                 data.size = size;
                 data.mipCount = PyramidMipBatch.MipCount(baseSize.x, baseSize.y);
                 pass.WriteTexture(mips);
@@ -86,8 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
                     ComputeKernel computeKernel = data.kernel;
                     var shader = computeKernel.shader;
                     int kernel = computeKernel.index;
-                    commands.SetComputeIntParam(shader, TemporalColorBindings.SourceValid, data.source.valid ? 1 : 0);
-                    commands.SetComputeFloatParam(shader, TemporalColorBindings.Far, GraphicsConventions.SampledFarDepth);
+                    commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorMipParameters, data.parameters);
                     commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.SourceDepth, data.source.depth);
                     int2 inputSize = data.size;
                     for (int mip = 0; mip < data.mipCount; ++mip)
@@ -112,13 +141,17 @@ namespace InfinityTech.Rendering.Pipeline
             source.color = pass.ReadTexture(source.color);
             source.depth = pass.ReadTexture(source.depth);
             source.mips = pass.ReadTexture(source.mips);
+            source.parameters = pass.WriteConstants(new TemporalColorParameters
+            {
+                resolution = source.resolution,
+                valid = source.valid ? 1 : 0,
+                mipCount = source.mipCount
+            });
             return source;
         }
         static void BindTemporalColorView(in RGComputeEncoder commands, ComputeShader shader, int kernel, in TemporalColorView source)
         {
-            commands.SetComputeIntParam(shader, TemporalColorBindings.Valid, source.valid ? 1 : 0);
-            commands.SetComputeIntParam(shader, TemporalColorBindings.MipCount, source.mipCount);
-            commands.SetComputeVectorParam(shader, TemporalColorBindings.Resolution, source.resolution);
+            commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorParameters, source.parameters);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Color,source.color);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Depth,source.depth);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Mips,source.mips);

@@ -57,7 +57,7 @@ Conventions are uniform choices, not principles; static checks enforce them.
 |---|---|---|
 | Namespace | `InfinityTech.<Domain>[.<Sub>][.Editor]` | `InfinityTech.Rendering.MeshPipeline` |
 | Enum | `E` prefix | `EPassType`, `EMeshDrawBackendPolicy` |
-| GPU record | Same name in C# and HLSL, tagged `// GPU-RECORD: <HlslStruct> <hlsl file>` | `LightRecord` |
+| GPU record | Same name in C# and HLSL (a pass cbuffer adds `CBV_`), tagged `// GPU-RECORD: <HlslStruct> <hlsl file>` | `LightRecord` |
 | Handle | `Handle` suffix | `TextureHandle`, `RGMeshDrawListHandle` |
 | Render-graph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
 | Job | `*Job` suffix | `MeshInstanceCullingJob` |
@@ -67,7 +67,7 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
 - A name says what a type holds or does. Do not borrow a type prefix from another engine. On a collision choose a more descriptive name; never add a prefix or a number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
-- A variable keeps its type's head noun and may drop the domain prefix: `MeshCullingContext cullingContext`, `TextureDescriptor gbufferDescriptor`. No abbreviations. Time words are `previous` and `current`.
+- A variable keeps its type's head noun and may drop the domain prefix: `MeshCullingContext cullingContext`. No abbreviations. Time words are `previous` and `current`.
 - Acronyms stay uppercase in type and method names; a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
 - Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only inside an approved migration (§5). Do not add a divergent spelling or an old-name alias.
 - Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Volume components live in `Runtime/Volume/<domain>/`. One primary type per file unless a pass or feature group is clearer together.

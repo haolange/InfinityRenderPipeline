@@ -2,7 +2,6 @@
 #define _OcclusionCommon_
 #include "../../Library/ScreenSpaceReprojection.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
-int GTAOHistoryValid;
 Texture2D SRV_MotionMetadataTexture;
 #include "../../Library/ViewUniform.hlsl"
 
@@ -11,6 +10,7 @@ Texture2D SRV_MotionMetadataTexture;
 #define Half_PI 1.5707963
 #define Inv_Two_PI 0.15915494
 
+// The OcclusionParameters record GTAOPass writes, bound as one constant buffer.
 cbuffer CBV_OcclusionParameters
 {
     int NumRay;
@@ -18,12 +18,13 @@ cbuffer CBV_OcclusionParameters
     float Power;
     float Radius;
     float Intensity;
-    float Sharpeness;
+    float Sharpness;
     float HalfProjScale;
     float TemporalOffset;
     float TemporalDirection;
     float TemporalScale;
     float TemporalWeight;
+    int GTAOHistoryValid;
     float4 Resolution;
     float4 UpsampleSize;
 };

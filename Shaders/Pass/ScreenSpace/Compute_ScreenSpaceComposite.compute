@@ -12,7 +12,11 @@
 
 // AO is applied once in DeferredShading on IBL; SSR/SSGI sample already-lit color and must not be multiplied again.
 
-float4 Composite_Resolution;
+// The CompositeParameters record ScreenSpaceCompositePass writes, bound as one constant buffer.
+cbuffer CBV_CompositeParameters
+{
+    float4 Composite_Resolution;
+};
 #include "../../Library/ViewUniform.hlsl"
 Texture2D SRV_LightingTexture;
 Texture2D<float4> SRV_IndirectDiffuse, SRV_IndirectSpecular;

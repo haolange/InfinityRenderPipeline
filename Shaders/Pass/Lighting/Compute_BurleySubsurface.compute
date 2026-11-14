@@ -8,9 +8,15 @@
 #include "../../Library/ScreenSpaceDepth.hlsl"
 #include "../../Library/Montcalo.hlsl"
 
-float4 SSS_Resolution;
-int SSS_NumSamples;
-int SSS_ProfileCount;
+// The SubsurfaceParameters record SubsurfacePass writes, bound as one constant buffer.
+cbuffer CBV_SubsurfaceParameters
+{
+    float4 SSS_Resolution;
+    int SSS_NumSamples;
+    int SSS_ProfileCount;
+    int SSS_Padding0;
+    int SSS_Padding1;
+};
 
 struct DiffusionProfileRecord
 {

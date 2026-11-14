@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using InfinityTech.Core;
 using UnityEngine;
 using Unity.Mathematics;
@@ -11,6 +12,37 @@ using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_AtmosphereParameters Shaders/Pass/Volumetric/Compute_AtmosphericLUT.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct AtmosphereConstants
+    {
+        public Vector4 rayleighScattering;
+        public Vector4 ozoneAbsorption;
+        public Vector4 groundAlbedo;
+        public Vector4 sunDirection;
+        public Vector4 sunIlluminance;
+        public float planetRadius;
+        public float atmosphereHeight;
+        public float rayleighHeight;
+        public float mieScattering;
+        public float mieAbsorption;
+        public float mieHeight;
+        public float mieAnisotropy;
+        public float ozoneLayerCenter;
+        public float ozoneLayerWidth;
+        public float brightness;
+        public float multiScatterStrength;
+        public float drawGround;
+        public float farDepth;
+        public float aerialPerspectiveDistance;
+        public float sunAngle;
+        public int cubemapSize;
+        public int shPartialCount;
+        public int padding0;
+        public int padding1;
+        public int padding2;
+    }
+
     internal static class AtmosphericLUTPassUtilityData
     {
         internal static readonly ProfilingSampler AtmoTransmittanceSampler = new ProfilingSampler("AtmoTransmittance");
@@ -38,27 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string SunBufferName = "AtmosphereSunBuffer";
         internal static readonly string SkySHName = "AtmosphereSkySH";
         internal static readonly string SHPartialName = "AtmosphereSHPartial";
-        internal static readonly int Atmo_PlanetRadiusID = Shader.PropertyToID("Atmo_PlanetRadius");
-        internal static readonly int Atmo_AtmosphereHeightID = Shader.PropertyToID("Atmo_AtmosphereHeight");
-        internal static readonly int Atmo_RayleighScatteringID = Shader.PropertyToID("Atmo_RayleighScattering");
-        internal static readonly int Atmo_RayleighHeightID = Shader.PropertyToID("Atmo_RayleighHeight");
-        internal static readonly int Atmo_MieScatteringID = Shader.PropertyToID("Atmo_MieScattering");
-        internal static readonly int Atmo_MieAbsorptionID = Shader.PropertyToID("Atmo_MieAbsorption");
-        internal static readonly int Atmo_MieHeightID = Shader.PropertyToID("Atmo_MieHeight");
-        internal static readonly int Atmo_MieAnisotropyID = Shader.PropertyToID("Atmo_MieAnisotropy");
-        internal static readonly int Atmo_OzoneAbsorptionID = Shader.PropertyToID("Atmo_OzoneAbsorption");
-        internal static readonly int Atmo_OzoneLayerCenterID = Shader.PropertyToID("Atmo_OzoneLayerCenter");
-        internal static readonly int Atmo_OzoneLayerWidthID = Shader.PropertyToID("Atmo_OzoneLayerWidth");
-        internal static readonly int Atmo_GroundAlbedoID = Shader.PropertyToID("Atmo_GroundAlbedo");
-        internal static readonly int Atmo_BrightnessID = Shader.PropertyToID("Atmo_Brightness");
-        internal static readonly int Atmo_MultiScatterStrengthID = Shader.PropertyToID("Atmo_MultiScatterStrength");
-        internal static readonly int Atmo_DrawGroundID = Shader.PropertyToID("Atmo_DrawGround");
-        internal static readonly int Atmo_AerialPerspectiveDistanceID = Shader.PropertyToID("Atmo_AerialPerspectiveDistance");
-        internal static readonly int Atmo_SunAngleID = Shader.PropertyToID("Atmo_SunAngle");
-        internal static readonly int Atmo_SunDirectionID = Shader.PropertyToID("Atmo_SunDirection");
-        internal static readonly int Atmo_SunIlluminanceID = Shader.PropertyToID("Atmo_SunIlluminance");
-        internal static readonly int Atmo_CubemapSizeID = Shader.PropertyToID("Atmo_CubemapSize");
-        internal static readonly int Atmo_SHPartialCountID = Shader.PropertyToID("Atmo_SHPartialCount");
+        internal static readonly int CBV_AtmosphereParametersID = Shader.PropertyToID("CBV_AtmosphereParameters");
         internal static readonly int UAV_TransmittanceLUTID = Shader.PropertyToID("UAV_TransmittanceLUT");
         internal static readonly int UAV_MultiScatteringLUTID = Shader.PropertyToID("UAV_MultiScatteringLUT");
         internal static readonly int UAV_SkyViewLUTID = Shader.PropertyToID("UAV_SkyViewLUT");
@@ -89,13 +101,11 @@ namespace InfinityTech.Rendering.Pipeline
         struct AtmosphericLUTPassData
         {
             public AtmosphereParameter parameter;
-            public Vector4 sunDirection;
-            public Vector4 sunIlluminance;
+            public RGConstantsHandle parameters;
             public int generateShared;
             public int generateView;
             public int generateIBL;
             public int ggxMipCount;
-            public int shPartialCount;
             public ComputeShader atmosphericLUTShader;
             public ComputeKernel transmittanceKernel;
             public ComputeKernel multiScatteringKernel;
@@ -130,30 +140,32 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        static void BindAtmosphereParameters(in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder)
+        static AtmosphereConstants CreateAtmosphereConstants(AtmosphereParameter parameter, Vector4 sunDirection, Vector4 sunIlluminance)
         {
-            ComputeShader shader = passData.atmosphericLUTShader;
-            AtmosphereParameter parameter = passData.parameter;
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_PlanetRadiusID, parameter.planetRadius);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_AtmosphereHeightID, parameter.atmosphereHeight);
-            cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_RayleighScatteringID, parameter.RayleighScatteringPerMeter);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_RayleighHeightID, parameter.rayleighHeight);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_MieScatteringID, parameter.MieScatteringPerMeter);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_MieAbsorptionID, parameter.MieAbsorptionPerMeter);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_MieHeightID, parameter.mieHeight);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_MieAnisotropyID, parameter.mieAnisotropy);
-            cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_OzoneAbsorptionID, parameter.OzoneAbsorptionPerMeter);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_OzoneLayerCenterID, parameter.ozoneLayerCenter);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_OzoneLayerWidthID, parameter.ozoneLayerWidth);
-            cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_GroundAlbedoID, (Vector4)parameter.groundAlbedo);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_BrightnessID, parameter.brightness);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_MultiScatterStrengthID, parameter.multiScatterStrength);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_DrawGroundID, parameter.drawGround ? 1.0f : 0.0f);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_AerialPerspectiveDistanceID, parameter.aerialPerspectiveDistance);
-            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunAngleID, parameter.sunAngle);
-            cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunDirectionID, passData.sunDirection);
-            cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunIlluminanceID, passData.sunIlluminance);
-            cmdEncoder.SetComputeIntParam(shader, AtmosphericLUTPassUtilityData.Atmo_CubemapSizeID, parameter.cubemapSize);
+            return new AtmosphereConstants
+            {
+                rayleighScattering = parameter.RayleighScatteringPerMeter,
+                ozoneAbsorption = parameter.OzoneAbsorptionPerMeter,
+                groundAlbedo = (Vector4)parameter.groundAlbedo,
+                sunDirection = sunDirection,
+                sunIlluminance = sunIlluminance,
+                planetRadius = parameter.planetRadius,
+                atmosphereHeight = parameter.atmosphereHeight,
+                rayleighHeight = parameter.rayleighHeight,
+                mieScattering = parameter.MieScatteringPerMeter,
+                mieAbsorption = parameter.MieAbsorptionPerMeter,
+                mieHeight = parameter.mieHeight,
+                mieAnisotropy = parameter.mieAnisotropy,
+                ozoneLayerCenter = parameter.ozoneLayerCenter,
+                ozoneLayerWidth = parameter.ozoneLayerWidth,
+                brightness = parameter.brightness,
+                multiScatterStrength = parameter.multiScatterStrength,
+                drawGround = parameter.drawGround ? 1.0f : 0.0f,
+                farDepth = GraphicsConventions.SampledFarDepth,
+                aerialPerspectiveDistance = parameter.aerialPerspectiveDistance,
+                sunAngle = parameter.sunAngle,
+                cubemapSize = parameter.cubemapSize
+            };
         }
 
         sealed class AtmosphereProduction : IRGPassQueueObserver
@@ -255,13 +267,13 @@ namespace InfinityTech.Rendering.Pipeline
                     generateView = generateView, generateIBL = generateIBL });
                 ref AtmosphericLUTPassData passData = ref passRef.GetPassData();
                 passData.parameter = parameter;
-                passData.sunDirection = sunDirection;
-                passData.sunIlluminance = sunIlluminance;
+                AtmosphereConstants constants = CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance);
+                constants.shPartialCount = shPartialCount;
+                passData.parameters = passRef.WriteConstants(constants);
                 passData.generateShared = generateShared ? 1 : 0;
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;
                 passData.ggxMipCount = ggxMipCount;
-                passData.shPartialCount = shPartialCount;
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.transmittanceKernel = kernels.transmittanceLUT;
                 passData.multiScatteringKernel = kernels.multiScatteringLUT;
@@ -303,8 +315,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    BindAtmosphereParameters(passData, cmdEncoder);
                     ComputeShader shader = passData.atmosphericLUTShader;
+                    cmdEncoder.SetComputeConstantBufferParam(shader, AtmosphericLUTPassUtilityData.CBV_AtmosphereParametersID, passData.parameters);
 
                     if (passData.generateShared != 0)
                     {
@@ -354,7 +366,6 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoCubemapSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoSHProjectSampler);
-                        cmdEncoder.SetComputeIntParam(shader, AtmosphericLUTPassUtilityData.Atmo_SHPartialCountID, passData.shPartialCount);
                         cmdEncoder.SetComputeTextureParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.SRV_AtmosphereCubemapID, passData.atmosphereCubemap);
                         cmdEncoder.SetComputeBufferParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.UAV_SHPartialID, passData.shPartial);
                         cmdEncoder.DispatchCompute(shader, passData.shProjectKernel.index, cubemapGroups, cubemapGroups, 6);

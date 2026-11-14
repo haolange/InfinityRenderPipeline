@@ -13,16 +13,21 @@
 #include "../../Library/Lighting/LightShapes.hlsl"
 #include "../../Library/Random.hlsl"
 
-int ContactShadow_NumSteps;
-int ContactShadow_SunNumSteps;
-int ContactShadow_FrameIndex;
-float ContactShadow_MaxDistance;
-float ContactShadow_Thickness;
-float ContactShadow_Intensity;
-float ContactShadow_FadeDistance;
-float4 ContactShadow_Resolution;
-// x, y = m22, m23 of the GPU projection; z = 1 for orthographic cameras.
-float4 ContactShadow_DepthParams;
+// The ContactShadowParameters record ContactShadowPass writes, bound as one constant buffer.
+cbuffer CBV_ContactShadowParameters
+{
+    float4 ContactShadow_Resolution;
+    // x, y = m22, m23 of the GPU projection; z = 1 for orthographic cameras.
+    float4 ContactShadow_DepthParams;
+    int ContactShadow_NumSteps;
+    int ContactShadow_SunNumSteps;
+    int ContactShadow_FrameIndex;
+    float ContactShadow_MaxDistance;
+    float ContactShadow_Thickness;
+    float ContactShadow_Intensity;
+    float ContactShadow_FadeDistance;
+    int ContactShadow_Padding0;
+};
 
 #include "../../Library/ViewUniform.hlsl"
 

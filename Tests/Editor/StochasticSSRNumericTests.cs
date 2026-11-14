@@ -242,7 +242,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
             readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
             readonly RenderTexture m_HistoryMeta;
-            readonly ViewUniformBinding m_View;
+            readonly UniformBinding<ViewUniform> m_View;
 
             public Vector2Int TileCount { get; }
 
@@ -305,7 +305,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetFloat("SSR_TemporalClampScale", 1.25f);
                 s.SetFloat("SSR_HistoryValid", 0);
                 s.SetInt("SSR_DebugMode", 0);
-                m_View = new ViewUniformBinding(new ViewUniform
+                m_View = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_FlipYJitterProj = projection,
                     matrix_InvFlipYJitterProj = projection.inverse,

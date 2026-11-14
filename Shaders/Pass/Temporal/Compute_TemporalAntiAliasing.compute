@@ -4,8 +4,15 @@
 #include "../../Library/Common.hlsl"
 #include "../../Library/ScreenSpaceDepth.hlsl"
 
-float4 TAA_Resolution;
-float TAA_ResetBlend;
+// The TemporalAntiAliasingParameters record AntiAliasingPass writes, bound as one constant buffer.
+cbuffer CBV_TemporalAntiAliasingParameters
+{
+    float4 TAA_Resolution;
+    float TAA_ResetBlend;
+    int padding0;
+    int padding1;
+    int padding2;
+};
 static const float TAA_Sharpness = 0.35;
 Texture2D<float4> SRV_AliasingColorTexture;
 Texture2D<float4> SRV_HistoryColorTexture;

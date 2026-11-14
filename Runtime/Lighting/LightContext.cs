@@ -14,19 +14,13 @@ namespace InfinityTech.Rendering.LightPipeline
 {
     internal static class LightShaderIDs
     {
-        public static readonly int DirectionalLightCount = Shader.PropertyToID("g_DirectionalLightCount");
-        public static readonly int LocalLightCount = Shader.PropertyToID("g_LocalLightCount");
-        public static readonly int SunRecordIndex = Shader.PropertyToID("g_SunRecordIndex");
         public static readonly int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
         public static readonly int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
         public static readonly int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
-        public static readonly int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
         // Clustered light list (LightLoop.hlsl).
         public static readonly int LightZBins = Shader.PropertyToID("SRV_LightZBins");
         public static readonly int LightTileMasks = Shader.PropertyToID("SRV_LightTileMasks");
         public static readonly int LightTileRects = Shader.PropertyToID("SRV_LightTileRects");
-        public static readonly int LightTileParams = Shader.PropertyToID("g_LightTileParams");
-        public static readonly int LightZBinParams = Shader.PropertyToID("g_LightZBinParams");
         // Graph keys of the CPU-uploaded light-list buffers.
         public static readonly int LightTileRectBuffer = Shader.PropertyToID("_LightTileRectBuffer");
         public static readonly int LightZBinBuffer = Shader.PropertyToID("_LightZBinBuffer");
@@ -35,8 +29,6 @@ namespace InfinityTech.Rendering.LightPipeline
         public static readonly int ReflectionProbes = Shader.PropertyToID("SRV_ReflectionProbes");
         public static readonly int ProbeZBins = Shader.PropertyToID("SRV_ProbeZBins");
         public static readonly int ProbeTileMasks = Shader.PropertyToID("SRV_ProbeTileMasks");
-        public static readonly int ProbeTileParams = Shader.PropertyToID("g_ProbeTileParams");
-        public static readonly int ReflectionProbeCount = Shader.PropertyToID("g_ReflectionProbeCount");
         public static readonly int ReflectionProbeAtlas = Shader.PropertyToID("SRV_ReflectionProbeAtlas");
         public static readonly int ReflectionProbeBuffer = Shader.PropertyToID("_ReflectionProbeBuffer");
         public static readonly int ProbeTileRectBuffer = Shader.PropertyToID("_ProbeTileRectBuffer");

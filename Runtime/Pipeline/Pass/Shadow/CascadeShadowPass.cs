@@ -12,14 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class CascadeShadowPassUtilityData
     {
         internal static readonly string TextureName = "CascadeShadowMapTexture";
-        internal static readonly int CascadeSpheresID = Shader.PropertyToID("_CascadeSpheres");
-        internal static readonly int CascadeCountID = Shader.PropertyToID("_CascadeCount");
-        internal static readonly int CascadeShadowMapSizeID = Shader.PropertyToID("_CascadeShadowMapSize");
-        internal static readonly int CascadeMatricesID = Shader.PropertyToID("_CascadeMatrices");
-        internal static readonly int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
-        internal static readonly int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
-        internal static readonly int CascadeShadowParamsID = Shader.PropertyToID("_CascadeShadowParams");
-        internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
 
         // _ShadowFilterParams of ShadowSampling.hlsl.
         internal static Vector4 FilterParams(in ShadowFilterSettings settings) =>
@@ -34,13 +26,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int cascadeCount;
             public int shadowMapResolution;
-            public float shadowDistance;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
-            public Vector4[] spheres;
             public bool[] valid;
-            public int allocatedCount;
-            public Vector4 cascadeSplitDistances;
             public Vector4[] casterBias;
             public Vector4 casterLight;
             public RGMeshDrawListHandle[] meshDrawLists;
@@ -50,7 +38,6 @@ namespace InfinityTech.Rendering.Pipeline
         void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawLists)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
-            float shadowDistance = m_Settings.shadowDistance;
             int cascadeCount = ShadowAllocator.CascadeCount;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
 
@@ -68,7 +55,6 @@ namespace InfinityTech.Rendering.Pipeline
             int lightIndex = allocator.CascadeVisibleLightIndex;
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
-            Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
             RGRendererListHandle[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -113,18 +99,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref CascadeShadowPassData passData = ref passRef.GetPassData();
                 {
                     passData.cascadeCount = cascadeCount;
-                    passData.allocatedCount = allocator.CascadeAllocatedCount;
-                    passData.spheres = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeSpheres);
                     passData.valid = m_RGBuilder.GetRecordingArray<bool>(cascadeCount);
                     for (int i = 0; i < cascadeCount; i++)
                     {
                         passData.valid[i] = allocator.CascadeSlices[i].valid;
                     }
                     passData.shadowMapResolution = shadowMapResolution;
-                    passData.shadowDistance = shadowDistance;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
-                    passData.cascadeSplitDistances = cascadeSplitDistances;
                     passData.casterBias = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
                     for (int i = 0; i < cascadeCount; i++)
                     {
@@ -151,12 +133,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in CascadeShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     int halfRes = passData.shadowMapResolution;
-                    cmdEncoder.SetGlobalInt(CascadeShadowPassUtilityData.CascadeCountID, passData.allocatedCount);
-                    cmdEncoder.SetGlobalVectorArray(CascadeShadowPassUtilityData.CascadeSpheresID, passData.spheres);
-                    cmdEncoder.SetGlobalVector(CascadeShadowPassUtilityData.CascadeShadowMapSizeID, new Vector4(halfRes * 2, halfRes * 2, 1.0f / (halfRes * 2), 1.0f / (halfRes * 2)));
-                    cmdEncoder.SetGlobalMatrixArray(CascadeShadowPassUtilityData.CascadeMatricesID, passData.shadowMatrices);
-                    cmdEncoder.SetGlobalVector(CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
-                    cmdEncoder.SetGlobalFloat(CascadeShadowPassUtilityData.ShadowDistanceID, passData.shadowDistance);
 
                     for (int cascade = 0; cascade < passData.cascadeCount; ++cascade)
                     {

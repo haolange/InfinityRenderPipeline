@@ -14,30 +14,36 @@
 #include "../../Library/SphericalHarmonic.hlsl"
 #include "../../Library/AtmosphereCommon.hlsl"
 
-// Atmospheric parameters
-float Atmo_PlanetRadius;
-float Atmo_AtmosphereHeight;
-float4 Atmo_RayleighScattering;
-float Atmo_RayleighHeight;
-float Atmo_MieScattering;
-float Atmo_MieAbsorption;
-float Atmo_MieHeight;
-float Atmo_MieAnisotropy;
-float4 Atmo_OzoneAbsorption;
-float Atmo_OzoneLayerCenter;
-float Atmo_OzoneLayerWidth;
-float4 Atmo_GroundAlbedo;
-
-float Atmo_Brightness;
-float Atmo_MultiScatterStrength;
-float Atmo_DrawGround;
-float Atmo_FarDepth;
-float Atmo_AerialPerspectiveDistance;
-float Atmo_SunAngle;
-float4 Atmo_SunDirection;
-float4 Atmo_SunIlluminance;
-int Atmo_CubemapSize;
-int Atmo_SHPartialCount;
+// The AtmosphereConstants record AtmosphericLUTPass and AtmosphericSkyFogPass write, bound as one constant buffer.
+cbuffer CBV_AtmosphereParameters
+{
+    float4 Atmo_RayleighScattering;
+    float4 Atmo_OzoneAbsorption;
+    float4 Atmo_GroundAlbedo;
+    float4 Atmo_SunDirection;
+    float4 Atmo_SunIlluminance;
+    float Atmo_PlanetRadius;
+    float Atmo_AtmosphereHeight;
+    float Atmo_RayleighHeight;
+    float Atmo_MieScattering;
+    float Atmo_MieAbsorption;
+    float Atmo_MieHeight;
+    float Atmo_MieAnisotropy;
+    float Atmo_OzoneLayerCenter;
+    float Atmo_OzoneLayerWidth;
+    float Atmo_Brightness;
+    float Atmo_MultiScatterStrength;
+    float Atmo_DrawGround;
+    float Atmo_FarDepth;
+    float Atmo_AerialPerspectiveDistance;
+    float Atmo_SunAngle;
+    int Atmo_CubemapSize;
+    // Partial sums of the SH projection; the sky-and-fog pass leaves it 0.
+    int Atmo_SHPartialCount;
+    int Atmo_Padding0;
+    int Atmo_Padding1;
+    int Atmo_Padding2;
+};
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float4> SRV_TransmittanceLUT;

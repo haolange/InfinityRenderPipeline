@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("SRV_TemporalColorMips_InfinityView",new Vector4(4,4,half,half));
                 shader.SetInt("TemporalColorValid",valid?1:0);shader.SetInt("TemporalColorMipCount",4);
                 // The source was rendered at the previous jitter, (1/32, -1/16) UV from this frame's.
-                using var view=new ViewUniformBinding(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,1,0),view_JitterUV=new Vector4(0,0,1f/32,-1f/16)});
+                using var view=new UniformBinding<ViewUniform>(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,1,0),view_JitterUV=new Vector4(0,0,1f/32,-1f/16)});
                 shader.SetVector("ContractMotion",new Vector4(.125f,0,0,0));
                 shader.SetVector("ContractMetadata",new Vector4(rejectDepth?.9f:.4f,.4f,metadataValid?1:0,0));
                 var previous=Matrix4x4.identity;if(behind)previous.m33=-1;

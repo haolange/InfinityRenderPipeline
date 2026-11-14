@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBuffer buffer) => m_Core.commands.SetComputeBufferParam(computeShader, kernelIndex, nameID, buffer);
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBufferHandle bufferHandle) => m_Core.commands.SetComputeBufferParam(computeShader, kernelIndex, nameID, bufferHandle);
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer) => m_Core.SetComputeBufferParam(computeShader, kernelIndex, nameID, buffer);
-        public void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, GraphicsBuffer buffer, int offset, int size) => m_Core.commands.SetComputeConstantBufferParam(computeShader, nameID, buffer, offset, size);
+        public void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, in RGConstantsHandle constants) => m_Core.SetComputeConstantBufferParam(computeShader, nameID, constants);
         public void SetComputeParamsFromMaterial(ComputeShader computeShader, int kernelIndex, Material material) => m_Core.commands.SetComputeParamsFromMaterial(computeShader, kernelIndex, material);
         public void SetComputeRayTracingAccelerationStructure(ComputeShader computeShader, int kernelIndex, int nameID, RayTracingAccelerationStructure rayTracingAccelerationStructure)
             => m_Core.commands.SetRayTracingAccelerationStructure(computeShader, kernelIndex, nameID, rayTracingAccelerationStructure);

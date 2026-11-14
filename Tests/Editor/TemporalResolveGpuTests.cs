@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 int k=shader.FindKernel("MainDebug");
                 shader.SetVector("TAA_Resolution",new Vector4(width,height,1f/width,1f/height));
-                using var view=new ViewUniformBinding(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,0,SystemInfo.usesReversedZBuffer?1:0),view_JitterUV=jitter});
+                using var view=new UniformBinding<ViewUniform>(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,0,SystemInfo.usesReversedZBuffer?1:0),view_JitterUV=jitter});
                 shader.SetFloat("TAA_ResetBlend",historyValid);
                 shader.SetTexture(k,"SRV_AliasingColorTexture",current);shader.SetTexture(k,"SRV_HistoryColorTexture",history);
                 shader.SetTexture(k,"SRV_HistoryDepthTexture",depth);shader.SetTexture(k,"SRV_MotionTexture",motion);

@@ -136,6 +136,9 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, in RGBufferHandle buffer)
             => commands.SetComputeBufferParam(shader, kernel, nameID, resources.ResolveBuffer(buffer).resource);
 
+        internal void SetComputeConstantBufferParam(ComputeShader shader, int nameID, in RGConstantsHandle constants)
+            => commands.SetComputeConstantBufferParam(shader, nameID, resources.ResolveBuffer(constants.buffer).resource, 0, constants.size);
+
         internal void DispatchComputeIndirect(ComputeShader shader, int kernel, in RGBufferHandle argsBuffer, uint argsOffset)
         {
             RGBuffer resource = resources.ResolveBuffer(argsBuffer);

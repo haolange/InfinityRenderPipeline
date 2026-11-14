@@ -30,6 +30,47 @@ float4 Square(float4 x)
 
 // ---------------------------------------------------
 
+// The CombineLutParameterDescriptor record CombineLutPass writes, bound as one constant buffer.
+cbuffer CBV_CombineLutParameters
+{
+    float4 ColorSaturation;
+    float4 ColorContrast;
+    float4 ColorGamma;
+    float4 ColorGain;
+    float4 ColorOffset;
+    float4 ColorSaturationShadows;
+    float4 ColorContrastShadows;
+    float4 ColorGammaShadows;
+    float4 ColorGainShadows;
+    float4 ColorOffsetShadows;
+    float4 ColorSaturationMidtones;
+    float4 ColorContrastMidtones;
+    float4 ColorGammaMidtones;
+    float4 ColorGainMidtones;
+    float4 ColorOffsetMidtones;
+    float4 ColorSaturationHighlights;
+    float4 ColorContrastHighlights;
+    float4 ColorGammaHighlights;
+    float4 ColorGainHighlights;
+    float4 ColorOffsetHighlights;
+    float WhiteTemp;
+    float WhiteTint;
+    float FilmSlope;
+    float FilmToe;
+    float FilmShoulder;
+    float FilmBlackClip;
+    float FilmWhiteClip;
+    float FilmEnabled;
+    float ColorCorrectionShadowsMax;
+    float ColorCorrectionHighlightsMin;
+    float ColorCorrectionHighlightsMax;
+    float BlueCorrection;
+    float ExpandGamut;
+    int padding0;
+    int padding1;
+    int padding2;
+};
+
 #include "TonemapCommon.hlsl"
 
 
@@ -94,9 +135,6 @@ float2 PlanckianIsothermal( float Temp, float Tint )
 	return float2(x,y);
 }
 
-float WhiteTemp;
-float WhiteTint;
-
 float3 WhiteBalance(float3 LinearColor)
 {
 	float2 SrcWhiteDaylight = D_IlluminantChromaticity( WhiteTemp );
@@ -117,32 +155,9 @@ float3 WhiteBalance(float3 LinearColor)
 	return mul( WhiteBalanceMat, LinearColor );
 }
 
-float4 ColorSaturation;
-float4 ColorContrast;
-float4 ColorGamma;
-float4 ColorGain;
-float4 ColorOffset;
 
-float4 ColorSaturationShadows;
-float4 ColorContrastShadows;
-float4 ColorGammaShadows;
-float4 ColorGainShadows;
-float4 ColorOffsetShadows;
 
-float4 ColorSaturationMidtones;
-float4 ColorContrastMidtones;
-float4 ColorGammaMidtones;
-float4 ColorGainMidtones;
-float4 ColorOffsetMidtones;
 
-float4 ColorSaturationHighlights;
-float4 ColorContrastHighlights;
-float4 ColorGammaHighlights;
-float4 ColorGainHighlights;
-float4 ColorOffsetHighlights;
-
-float  ColorCorrectionShadowsMax;
-float  ColorCorrectionHighlightsMin;
 
 float3 ColorCorrect( float3 WorkingColor,
 	float4 ColorSaturation,
@@ -197,9 +212,6 @@ float3 ColorCorrectAll( float3 WorkingColor )
 	
 	return WorkingColorSMH;
 }
-
-float BlueCorrection;
-float ExpandGamut;
 
 float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 {

@@ -5,12 +5,16 @@
 #include "../../Library/Random.hlsl"
 #include "../../Library/ColorUtility.hlsl"
 
-float4 SR_Resolution;
-float4 SR_InputResolution;
-int SR_ResetHistory;
-float4 SR_Jitter;
-int SR_FrameIndex;
-float SR_Sharpness;
+// The SuperResolutionParameters record SuperResolutionPass writes, bound as one constant buffer.
+cbuffer CBV_SuperResolutionParameters
+{
+    float4 SR_Resolution;
+    float4 SR_InputResolution;
+    int SR_ResetHistory;
+    float SR_Sharpness;
+    int padding0;
+    int padding1;
+};
 
 Texture2D<float4> SRV_SceneColorTexture;
 Texture2D<float> SRV_DepthTexture;

@@ -11,22 +11,27 @@
 #include "../../Library/AtmosphereCommon.hlsl"
 #include "../../Library/CloudShell.hlsl"
 
-float4 VolCloud_Resolution;
-float VolCloud_CloudLayerBottom;
-float VolCloud_CloudLayerThickness;
-float VolCloud_DensityMultiplier;
-float VolCloud_ShapeFactor;
-float VolCloud_ErosionFactor;
-float VolCloud_Anisotropy;
-float VolCloud_SilverIntensity;
-float VolCloud_SilverSpread;
-float VolCloud_AmbientIntensity;
-int VolCloud_NumPrimarySteps;
-int VolCloud_NumLightSteps;
-float VolCloud_TemporalWeight;
-int VolCloud_FrameIndex;
-float VolCloud_PlanetRadius;
-float VolCloud_AtmosphereHeight;
+// The VolumetricCloudParameters record VolumetricCloudPass writes, bound as one constant buffer.
+cbuffer CBV_VolumetricCloudParameters
+{
+    float4 VolCloud_Resolution;
+    float VolCloud_CloudLayerBottom;
+    float VolCloud_CloudLayerThickness;
+    float VolCloud_DensityMultiplier;
+    float VolCloud_ShapeFactor;
+    float VolCloud_ErosionFactor;
+    float VolCloud_Anisotropy;
+    float VolCloud_SilverIntensity;
+    float VolCloud_SilverSpread;
+    float VolCloud_AmbientIntensity;
+    int VolCloud_NumPrimarySteps;
+    int VolCloud_NumLightSteps;
+    float VolCloud_TemporalWeight;
+    int VolCloud_FrameIndex;
+    float VolCloud_PlanetRadius;
+    float VolCloud_AtmosphereHeight;
+    int VolCloud_Padding0;
+};
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;

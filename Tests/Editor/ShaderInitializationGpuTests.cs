@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void DepthConversion_PreservesPerspectiveAndOrthographicBranches(bool orthographic, bool reversed)
         {
             var inputs = new[] { Vector4.zero, new Vector4(.25f, 0, 0, 0), new Vector4(.5f, 0, 0, 0), Vector4.one };
-            using var view = new ViewUniformBinding(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, orthographic ? 1 : 0, reversed ? 1 : 0) });
+            using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, orthographic ? 1 : 0, reversed ? 1 : 0) });
             Vector4[] results = Run("DepthContract", inputs, (_, _) => { });
             for (int i = 0; i < inputs.Length; i++)
             {
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 flags.SetPixels(new[] { Color.clear, new Color((6 << 4) / 255f, 0, 0, 0), new Color((4 << 4) / 255f, 0, 0, 0) });
                 normals.SetPixels(new[] { new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0) });
                 depth.Apply(); flags.Apply(); normals.Apply();
-                using var view = new ViewUniformBinding(new ViewUniform
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
                     matrix_InvViewFlipYJitterProj = Matrix4x4.identity
@@ -171,7 +171,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 pyramid.Apply(false, false);
                 var surfacePixels = new Color[16 * 8]; Array.Fill(surfacePixels, new Color(rawDepth, 0, 0, 0));
                 surface.SetPixels(surfacePixels); surface.Apply(false, false);
-                using var view = new ViewUniformBinding(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, 1, reversed ? 1 : 0) });
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, 1, reversed ? 1 : 0) });
                 Vector4[] results = Run("TraceContract", new[] { Vector4.zero, Vector4.one }, (shader, kernel) =>
                 {
                     Matrix4x4 projection = Matrix4x4.identity;

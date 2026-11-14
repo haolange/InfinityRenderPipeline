@@ -15,10 +15,17 @@
 #include "../../Library/Lighting/ReflectionProbes.hlsl"
 #endif
 
-float4 DV_Resolution;
-int DV_Mode;
-// x = first probe-atlas slice (ReflectionProbeAtlas), y = complexity heat-map range.
-float4 DV_Params;
+// The DebugViewParameters record DebugViewPass writes, bound as one constant buffer.
+cbuffer CBV_DebugViewParameters
+{
+    float4 DV_Resolution;
+    // x = first probe-atlas slice (ReflectionProbeAtlas), y = complexity heat-map range.
+    float4 DV_Params;
+    int DV_Mode;
+    float DV_FarDepth;
+    int DV_Padding0;
+    int DV_Padding1;
+};
 
 #if defined(DV_KERNEL_GBUFFER)
 Texture2D SRV_GBufferTextureA;
@@ -45,7 +52,6 @@ Texture2D SRV_ShadowAtlasTexture;
 
 #if defined(DV_KERNEL_LIGHTLOOP)
 #include "../../Library/ViewUniform.hlsl"
-float DV_FarDepth;
 Texture2D<float> SRV_DepthTexture;
 #endif
 

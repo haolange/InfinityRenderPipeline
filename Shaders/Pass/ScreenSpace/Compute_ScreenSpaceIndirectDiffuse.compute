@@ -23,21 +23,26 @@
 #define SSGI_TILE_SIZE SCREEN_SPACE_TRACE_TILE_SIZE
 #define SSGI_EDGE_FADE 0.05
 
-float4 SSGI_Resolution;
-float4 SSGI_TraceResolution;
-uint SSGI_TraceScale;
-uint SSGI_FrameIndex;
-uint SSGI_PreviousFrameIndex;
-float SSGI_Intensity;
-uint SSGI_HiZSteps;
-uint SSGI_TraceFlags;
-uint SSGI_Samples;
+// The SSGIParameters record SSGIPass writes, bound as one constant buffer.
+cbuffer CBV_SSGIParameters
+{
+    float4 SSGI_Resolution;
+    float4 SSGI_TraceResolution;
+    uint SSGI_TraceScale;
+    uint SSGI_FrameIndex;
+    uint SSGI_PreviousFrameIndex;
+    float SSGI_Intensity;
+    uint SSGI_HiZSteps;
+    uint SSGI_TraceFlags;
+    uint SSGI_Samples;
+    uint SSGI_HasAO;
+    float SSGI_FrameAngle;
+    float SSGI_TemporalWeight;
+    float SSGI_TemporalClampScale;
+    float SSGI_HistoryValid;
+};
+// Per spatial dispatch: 0 = wide, 1 = narrow.
 uint SSGI_SpatialPass;
-uint SSGI_HasAO;
-float SSGI_FrameAngle;
-float SSGI_TemporalWeight;
-float SSGI_TemporalClampScale;
-float SSGI_HistoryValid;
 // xyz = world position, w = 1 for orthographic cameras.
 #include "../../Library/ViewUniform.hlsl"
 

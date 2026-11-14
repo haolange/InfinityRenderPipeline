@@ -11,13 +11,22 @@ using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_SubsurfaceParameters Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SubsurfaceParameters
+    {
+        public Vector4 resolution;
+        public int numSamples;
+        public int profileCount;
+        public int padding0;
+        public int padding1;
+    }
+
     internal static class SubsurfacePassUtilityData
     {
+        internal static readonly int CBV_SubsurfaceParametersID = Shader.PropertyToID("CBV_SubsurfaceParameters");
         internal static readonly int SRV_FilteredSubsurfaceID = Shader.PropertyToID("SRV_FilteredSubsurface");
         internal static readonly string TextureName = "SubsurfaceTexture";
-        internal static readonly int SSS_ResolutionID = Shader.PropertyToID("SSS_Resolution");
-        internal static readonly int SSS_NumSamplesID = Shader.PropertyToID("SSS_NumSamples");
-        internal static readonly int SSS_ProfileCountID = Shader.PropertyToID("SSS_ProfileCount");
         internal static readonly int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
         internal static readonly int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
     }
@@ -26,8 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SubsurfacePassData
         {
-            public int numSamples;
-            public int profileCount;
+            public RGConstantsHandle parameters;
             public ComputeKernel burleyKernel, composeKernel;
             public int2 resolution;
             public RGBufferHandle profileBuffer;
@@ -96,8 +104,12 @@ namespace InfinityTech.Rendering.Pipeline
                 data.burleyKernel = kernels.burleySubsurface;
                 data.composeKernel = kernels.composeSubsurface;
                 data.resolution = size;
-                data.profileCount = count;
-                data.numSamples = volume.numSamples.value;
+                data.parameters = pass.WriteConstants(new SubsurfaceParameters
+                {
+                    resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
+                    numSamples = volume.numSamples.value,
+                    profileCount = count
+                });
                 data.profileBuffer = pass.ReadBuffer(m_RGBuilder.ImportBuffer(m_DiffusionProfileBuffer));
                 data.lightingTexture = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer));
                 data.depthTexture = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
@@ -109,9 +121,7 @@ namespace InfinityTech.Rendering.Pipeline
                 pass.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands) =>
                 {
                     var shader = d.burleyKernel.shader;
-                    commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));
-                    commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_NumSamplesID, d.numSamples);
-                    commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_ProfileCountID, d.profileCount);
+                    commands.SetComputeConstantBufferParam(shader, SubsurfacePassUtilityData.CBV_SubsurfaceParametersID, d.parameters);
                     BindSubsurface(commands, shader, d.burleyKernel.index, d);
                     commands.SetComputeTextureParam(shader, d.burleyKernel.index, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTexture);
                     commands.DispatchCompute(shader, d.burleyKernel.index, d.burleyKernel.GroupsX((d.resolution.x+1)/2), d.burleyKernel.GroupsY((d.resolution.y+1)/2), 1);

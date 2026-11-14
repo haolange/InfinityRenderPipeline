@@ -15,10 +15,16 @@
 
 StructuredBuffer<float4> _AtmosphereSkySH;
 Texture2DArray<float4> _AtmosphereGGXPrefilter;
-float _AtmosphereIBLMaxMip;
 
-float4 DeferredShading_Resolution;
-float DeferredShading_FarDepth;
+// The DeferredShadingParameters record DeferredShadingPass writes, bound as one constant buffer.
+cbuffer CBV_DeferredShadingParameters
+{
+    float4 DeferredShading_Resolution;
+    float DeferredShading_FarDepth;
+    float _AtmosphereIBLMaxMip;
+    int DeferredShading_Padding0;
+    int DeferredShading_Padding1;
+};
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D SRV_GBufferTextureA;

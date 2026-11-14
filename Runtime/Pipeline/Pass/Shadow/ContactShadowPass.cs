@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using InfinityTech.Core;
 using Unity.Mathematics;
@@ -10,19 +11,27 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_ContactShadowParameters Shaders/Pass/Shadow/Compute_ContactShadow.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ContactShadowParameters
+    {
+        public Vector4 resolution;
+        public Vector4 depthParams;
+        public int numSteps;
+        public int sunNumSteps;
+        public int frameIndex;
+        public float maxDistance;
+        public float thickness;
+        public float intensity;
+        public float fadeDistance;
+        public int padding0;
+    }
+
     internal static class ContactShadowPassUtilityData
     {
+        internal static readonly int CBV_ContactShadowParametersID = Shader.PropertyToID("CBV_ContactShadowParameters");
         internal static readonly string SunTextureName = "ContactShadowSun";
         internal static readonly string MaskTextureName = "ContactShadowMask";
-        internal static readonly int ContactShadow_NumStepsID = Shader.PropertyToID("ContactShadow_NumSteps");
-        internal static readonly int ContactShadow_SunNumStepsID = Shader.PropertyToID("ContactShadow_SunNumSteps");
-        internal static readonly int ContactShadow_FrameIndexID = Shader.PropertyToID("ContactShadow_FrameIndex");
-        internal static readonly int ContactShadow_MaxDistanceID = Shader.PropertyToID("ContactShadow_MaxDistance");
-        internal static readonly int ContactShadow_ThicknessID = Shader.PropertyToID("ContactShadow_Thickness");
-        internal static readonly int ContactShadow_IntensityID = Shader.PropertyToID("ContactShadow_Intensity");
-        internal static readonly int ContactShadow_FadeDistanceID = Shader.PropertyToID("ContactShadow_FadeDistance");
-        internal static readonly int ContactShadow_ResolutionID = Shader.PropertyToID("ContactShadow_Resolution");
-        internal static readonly int ContactShadow_DepthParamsID = Shader.PropertyToID("ContactShadow_DepthParams");
         internal static readonly int UAV_ContactShadowSunID = Shader.PropertyToID("UAV_ContactShadowSun");
         internal static readonly int UAV_ContactShadowMaskID = Shader.PropertyToID("UAV_ContactShadowMask");
         // Consumers compile contact resources only in their enabled Deferred or Forward variant.
@@ -41,10 +50,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ContactShadowPassData
         {
-            public ContactShadowSettings settings;
-            public int frameIndex;
+            public RGConstantsHandle parameters;
             public int2 resolution;
-            public Vector4 depthParams;
             public LightLoopInputs lightLoop;
             public RGBufferHandle lightRecordBuffer;
             public ComputeKernel kernel;
@@ -83,10 +90,19 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
             {
                 ref ContactShadowPassData passData = ref passRef.GetPassData();
-                passData.settings = settings;
-                passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);
-                passData.depthParams = ContactShadowPassUtilityData.DepthParams(context.camera);
+                passData.parameters = passRef.WriteConstants(new ContactShadowParameters
+                {
+                    resolution = new Vector4(width, height, 1.0f / width, 1.0f / height),
+                    depthParams = ContactShadowPassUtilityData.DepthParams(context.camera),
+                    numSteps = settings.numSteps,
+                    sunNumSteps = settings.sunNumSteps,
+                    frameIndex = Time.frameCount,
+                    maxDistance = settings.maxDistance,
+                    thickness = settings.thickness,
+                    intensity = settings.intensity,
+                    fadeDistance = settings.fadeDistance
+                });
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -102,16 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ComputeKernel kernel = passData.kernel;
                     ComputeShader shader = kernel.shader;
-                    ContactShadowSettings s = passData.settings;
-                    cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_NumStepsID, s.numSteps);
-                    cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_SunNumStepsID, s.sunNumSteps);
-                    cmdEncoder.SetComputeIntParam(shader, ContactShadowPassUtilityData.ContactShadow_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_MaxDistanceID, s.maxDistance);
-                    cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_ThicknessID, s.thickness);
-                    cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_IntensityID, s.intensity);
-                    cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_FadeDistanceID, s.fadeDistance);
-                    cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_DepthParamsID, passData.depthParams);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, ContactShadowPassUtilityData.CBV_ContactShadowParametersID, passData.parameters);
                     passData.lightLoop.Bind(cmdEncoder, shader, kernel.index);
                     cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     cmdEncoder.SetComputeTextureParam(shader, kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);

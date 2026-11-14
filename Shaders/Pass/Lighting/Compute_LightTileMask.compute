@@ -4,9 +4,15 @@
 // the near plane cover every tile. Tiles are not culled by opaque depth: transparents and fog use the same list.
 #pragma kernel BuildTileMask
 
-uint LightTile_LocalCount;
-uint LightTile_WordCount;
-float4 LightTile_TileCount;
+// The LightTileParameters record each tile-mask pass writes, bound as one constant buffer.
+cbuffer CBV_LightTileParameters
+{
+    float4 LightTile_TileCount;
+    uint LightTile_LocalCount;
+    uint LightTile_WordCount;
+    uint LightTile_Padding0;
+    uint LightTile_Padding1;
+};
 
 StructuredBuffer<int4> SRV_LightTileRects;
 RWStructuredBuffer<uint> UAV_LightTileMasks;

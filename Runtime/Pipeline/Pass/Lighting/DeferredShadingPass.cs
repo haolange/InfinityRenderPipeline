@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,15 +10,25 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_DeferredShadingParameters Shaders/Pass/Lighting/Compute_DeferredShading.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DeferredShadingParameters
+    {
+        public Vector4 resolution;
+        public float farDepth;
+        public float atmosphereIBLMaxMip;
+        public int padding0;
+        public int padding1;
+    }
+
     internal static class DeferredShadingPassUtilityData
     {
+        internal static readonly int CBV_DeferredShadingParametersID = Shader.PropertyToID("CBV_DeferredShadingParameters");
         internal static readonly int SRV_BakedDiffuseID = Shader.PropertyToID("SRV_BakedDiffuse");
         internal static readonly int SRV_BakedOcclusionID = Shader.PropertyToID("SRV_BakedOcclusion");
         internal static readonly int UAV_IndirectDiffuseID = Shader.PropertyToID("UAV_IndirectDiffuse");
         internal static readonly int UAV_IndirectSpecularID = Shader.PropertyToID("UAV_IndirectSpecular");
         internal static readonly string TextureName = "LightingTexture";
-        internal static readonly int DeferredShading_ResolutionID = Shader.PropertyToID("DeferredShading_Resolution");
-        internal static readonly int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
     }
 
     public partial class InfinityRenderPipeline
@@ -27,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int kernel;
             public int2 groupCount;
             public LightLoopInputs lightLoop;
-            public int2 resolution;
+            public RGConstantsHandle parameters;
             public bool hasSubsurface;
             public RGTextureHandle scatterDiffuse;
             public int hasAO;
@@ -49,7 +60,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle lightingTexture;
             public RGTextureHandle atmosphereGGXPrefilter;
             public RGBufferHandle atmosphereSkySH;
-            public float atmosphereIBLMaxMip;
         }
 
         void ComputeDeferredShading(in CameraRecordContext context)
@@ -104,7 +114,12 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 passData.kernel = kernel.index;
                 passData.groupCount = groupCount;
-                passData.resolution = new int2(width, height);
+                passData.parameters = passRef.WriteConstants(new DeferredShadingParameters
+                {
+                    resolution = new Vector4(width, height, 1.0f / width, 1.0f / height),
+                    farDepth = GraphicsConventions.SampledFarDepth,
+                    atmosphereIBLMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(atmosphereParameter.cubemapSize) - 1
+                });
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
@@ -134,7 +149,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
                 passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);
                 passData.atmosphereSkySH = passRef.ReadBuffer(atmosphereSkySH);
-                passData.atmosphereIBLMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(atmosphereParameter.cubemapSize) - 1;
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder) =>
@@ -149,8 +163,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_BakedOcclusionID, passData.bakedOcclusion);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.UAV_IndirectDiffuseID, passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.UAV_IndirectSpecularID, passData.indirectSpecular);
-                    cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsConventions.SampledFarDepth);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, DeferredShadingPassUtilityData.CBV_DeferredShadingParametersID, passData.parameters);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.kernel);
                     cmdEncoder.SetComputeBufferParam(shader, passData.kernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.shadows.Bind(cmdEncoder, shader, passData.kernel);
@@ -173,7 +186,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_LightingTexture, passData.lightingTexture);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
                     cmdEncoder.SetComputeBufferParam(shader, passData.kernel, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);
-                    cmdEncoder.SetComputeFloatParam(shader, InfinityShaderIDs.AtmosphereIBLMaxMip, passData.atmosphereIBLMaxMip);
 
                     cmdEncoder.DispatchCompute(shader, passData.kernel, passData.groupCount.x, passData.groupCount.y, 1);
                 });

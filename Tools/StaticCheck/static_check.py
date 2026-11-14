@@ -204,11 +204,46 @@ def parse_hlsl_struct(text, name):
     fields = []
     for line in m.group(1).splitlines():
         line = line.split('//')[0].strip()
-        fm = re.match(r'(\w+)\s+([\w\s,]+);', line)
+        fm = re.match(r'(\w+)\s+([\w\s,\[\]]+);', line)
         if fm:
             for n in fm.group(2).split(','):
-                fields.append((fm.group(1), n.strip()))
+                # An array is its elements in order: name[N] reads as N fields of the element type.
+                am = re.match(r'(\w+)\s*\[\s*(\d+)\s*\]$', n.strip())
+                if am:
+                    fields.extend((fm.group(1), f'{am.group(1)}[{i}]') for i in range(int(am.group(2))))
+                else:
+                    fields.append((fm.group(1), n.strip()))
     return fields
+
+HLSL_COMPONENTS = {'float': 1, 'int': 1, 'uint': 1, 'float2': 2, 'int2': 2, 'uint2': 2, 'float3': 3, 'int3': 3, 'uint3': 3,
+                   'float4': 4, 'int4': 4, 'uint4': 4, 'float4x4': 16}
+
+def cbuffer_offsets(types):
+    """Byte offset of each field under HLSL constant buffer packing, and the packed size; None for an unsupported type."""
+    offsets, offset = [], 0
+    for t, array in types:
+        components = HLSL_COMPONENTS.get(t)
+        if components is None: return None, 0
+        size = components * 4
+        if array:
+            offset = (offset + 15) // 16 * 16
+        # A matrix and every array element start a register; any other field moves to the next register rather than
+        # straddle one.
+        if t == 'float4x4' or offset // 16 != (offset + size - 1) // 16:
+            offset = (offset + 15) // 16 * 16
+        offsets.append(offset)
+        offset += size
+    return offsets, (offset + 15) // 16 * 16
+
+def sequential_offsets(types):
+    """Byte offset of each field of a C# sequential struct of 4-byte components, and its size."""
+    offsets, offset = [], 0
+    for t in types:
+        components = HLSL_COMPONENTS.get(t)
+        if components is None: return None, 0
+        offsets.append(offset)
+        offset += components * 4
+    return offsets, offset
 
 def check_records(repo, out):
     for p in all_files(repo, {'.cs'}):
@@ -223,6 +258,19 @@ def check_records(repo, out):
                 out.append(('ERROR', 'records', f'{csname}/{hname}: struct not parsed')); continue
             if [f[0] for f in cf] != [f[0] for f in hf] or len(cf) != len(hf):
                 out.append(('ERROR', 'records', f'{csname} ({os.path.relpath(p, repo)}) != {hname} ({hfile}):\n  C#   {cf}\n  HLSL {hf}'))
+                continue
+            # A constant buffer is uploaded byte for byte: every C# field sits at its HLSL packing offset and the
+            # record fills whole 16-byte registers.
+            if re.search(r'cbuffer\s+' + hname + r'\b', read(hp)):
+                types = [f[0] for f in cf]
+                hlsl, hlsl_size = cbuffer_offsets([(t, '[' in n) for t, n in hf])
+                cs, cs_size = sequential_offsets(types)
+                if hlsl is None or cs is None:
+                    out.append(('ERROR', 'records', f'{csname}: a constant buffer record holds only 4-byte scalars, vectors and float4x4: {types}'))
+                elif hlsl != cs or hlsl_size != cs_size:
+                    fields = [f'{n}@{c}/{h}' for (_, n), c, h in zip(cf, cs, hlsl) if c != h]
+                    out.append(('ERROR', 'records', f'{csname}: C# layout differs from cbuffer {hname} packing (C#/HLSL offsets {fields}, '
+                                                    f'size {cs_size}/{hlsl_size}); reorder or pad to 16-byte registers'))
 
 def check_sgstrings(repo, out):
     d = os.path.join(repo, 'Editor/ShaderGraph')

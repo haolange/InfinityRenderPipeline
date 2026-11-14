@@ -28,9 +28,6 @@ struct ReflectionProbeRecord
     float4 parameters;
 };
 
-int g_ReflectionProbeCount;
-// x, y = screen size of the tile grid; z = tiles per row; w = mask words per tile.
-float4 g_ProbeTileParams;
 StructuredBuffer<ReflectionProbeRecord> SRV_ReflectionProbes;
 StructuredBuffer<uint> SRV_ProbeZBins;
 StructuredBuffer<uint> SRV_ProbeTileMasks;

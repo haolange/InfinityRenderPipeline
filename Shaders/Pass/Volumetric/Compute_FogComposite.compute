@@ -6,8 +6,13 @@
 
 #include "../../Library/Common.hlsl"
 
-float4 FogComposite_Resolution;
-float FogComposite_MaxDistance;
+// The FogCompositeParameters record FogCompositePass writes, bound as one constant buffer.
+cbuffer CBV_FogCompositeParameters
+{
+    float4 FogComposite_Resolution;
+    float FogComposite_MaxDistance;
+    float3 padding0;
+};
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -11,24 +12,35 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_VolumetricFogParameters Shaders/Pass/Volumetric/Compute_VolumetricFog.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct VolumetricFogParameters
+    {
+        public Vector4 screenSize;
+        public Vector4 resolution;
+        public Vector4 albedo;
+        public float density;
+        public float height;
+        public float heightFalloff;
+        public float anisotropy;
+        public float ambientIntensity;
+        public int depthSlices;
+        public float maxDistance;
+        public float temporalWeight;
+        public int frameIndex;
+        public float aerialDistance;
+        public int padding0;
+        public int padding1;
+    }
+
     internal static class VolumetricFogPassUtilityData
     {
+        internal static readonly int CBV_VolumetricFogParametersID = Shader.PropertyToID("CBV_VolumetricFogParameters");
         internal static readonly ProfilingSampler VolFogScatterSampler = new ProfilingSampler("VolFog_Scatter");
         internal static readonly ProfilingSampler VolFogIntegrateSampler = new ProfilingSampler("VolFog_Integrate");
         internal static readonly ProfilingSampler VolFogTemporalSampler = new ProfilingSampler("VolFog_Temporal");
         internal static readonly string TextureName = "VolumetricFogTexture";
         internal static readonly string HistoryTextureName = "HistoryVolumetricFog";
-        internal static readonly int VolFog_ResolutionID = Shader.PropertyToID("VolFog_Resolution");
-        internal static readonly int VolFog_ScreenSizeID = Shader.PropertyToID("VolFog_ScreenSize");
-        internal static readonly int VolFog_DensityID = Shader.PropertyToID("VolFog_Density");
-        internal static readonly int VolFog_HeightID = Shader.PropertyToID("VolFog_Height");
-        internal static readonly int VolFog_HeightFalloffID = Shader.PropertyToID("VolFog_HeightFalloff");
-        internal static readonly int VolFog_AlbedoID = Shader.PropertyToID("VolFog_Albedo");
-        internal static readonly int VolFog_AnisotropyID = Shader.PropertyToID("VolFog_Anisotropy");
-        internal static readonly int VolFog_AmbientIntensityID = Shader.PropertyToID("VolFog_AmbientIntensity");
-        internal static readonly int VolFog_DepthSlicesID = Shader.PropertyToID("VolFog_DepthSlices");
-        internal static readonly int VolFog_TemporalWeightID = Shader.PropertyToID("VolFog_TemporalWeight");
-        internal static readonly int VolFog_FrameIndexID = Shader.PropertyToID("VolFog_FrameIndex");
         internal static readonly int SRV_HistoryVolumetricFogID = Shader.PropertyToID("SRV_HistoryVolumetricFog");
         internal static readonly int UAV_VolumetricFogTextureID = Shader.PropertyToID("UAV_VolumetricFogTexture");
     }
@@ -37,20 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct VolumetricFogPassData
         {
-            public float density;
-            public float height;
-            public float heightFalloff;
-            public Color albedo;
-            public float anisotropy;
-            public float ambientIntensity;
-            public int depthSlices;
-            public float maxDistance;
-            public float temporalWeight;
-            public int frameIndex;
-            public int2 screenSize;
+            public RGConstantsHandle parameters;
             public int3 froxelResolution;
-            public float nearPlane;
-            public float farPlane;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
@@ -63,7 +63,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyTexture;
             public RGTextureHandle skyViewLUT;
             public RGTextureHandle aerialPerspectiveLUT;
-            public float aerialDistance;
         }
 
         static TextureDescriptor CreateVolumetricFogDescriptor(int width, int height, int depthSlices, string name, bool randomWrite)
@@ -112,20 +111,23 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
                 ref VolumetricFogPassData passData = ref passRef.GetPassData();
-                passData.density = fog.density;
-                passData.height = fog.height;
-                passData.heightFalloff = fog.heightFalloff;
-                passData.albedo = fog.albedo;
-                passData.anisotropy = fog.anisotropy;
-                passData.ambientIntensity = fog.ambientIntensity;
-                passData.depthSlices = depthSlices;
-                passData.maxDistance = fog.maxDistance;
-                passData.temporalWeight = historyRead.valid ? fog.temporalWeight : 0.0f;
-                passData.frameIndex = Time.frameCount;
-                passData.screenSize = new int2(width, height);
+                passData.parameters = passRef.WriteConstants(new VolumetricFogParameters
+                {
+                    screenSize = new Vector4(width, height, 1.0f / width, 1.0f / height),
+                    resolution = new Vector4(froxelWidth, froxelHeight, depthSlices, 0),
+                    albedo = (Vector4)fog.albedo,
+                    density = fog.density,
+                    height = fog.height,
+                    heightFalloff = fog.heightFalloff,
+                    anisotropy = fog.anisotropy,
+                    ambientIntensity = fog.ambientIntensity,
+                    depthSlices = depthSlices,
+                    maxDistance = fog.maxDistance,
+                    temporalWeight = historyRead.valid ? fog.temporalWeight : 0.0f,
+                    frameIndex = Time.frameCount,
+                    aerialDistance = aerialDistance
+                });
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
-                passData.nearPlane = context.camera.nearClipPlane;
-                passData.farPlane = context.camera.farClipPlane;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -140,7 +142,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricFogTexture = passRef.WriteTexture(volumetricFogTexture);
-                passData.aerialDistance = aerialDistance;
                 passData.skyViewLUT = passRef.ReadTexture(skyViewLUT);
                 passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
 
@@ -148,19 +149,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricFogShader;
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricFogPassUtilityData.VolFog_ScreenSizeID, new Vector4(passData.screenSize.x, passData.screenSize.y, 1.0f / passData.screenSize.x, 1.0f / passData.screenSize.y));
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricFogPassUtilityData.VolFog_ResolutionID, new Vector4(passData.froxelResolution.x, passData.froxelResolution.y, passData.froxelResolution.z, 0));
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_DensityID, passData.density);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_HeightID, passData.height);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_HeightFalloffID, passData.heightFalloff);
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricFogPassUtilityData.VolFog_AlbedoID, (Vector4)passData.albedo);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_AnisotropyID, passData.anisotropy);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_AmbientIntensityID, passData.ambientIntensity);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_DepthSlicesID, passData.depthSlices);
-                    cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_MaxDistance, passData.maxDistance);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_TemporalWeightID, passData.temporalWeight);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, VolumetricFogPassUtilityData.CBV_VolumetricFogParametersID, passData.parameters);
 
                     int scatterKernel = passData.scatterDensityKernel.index;
                     cmdEncoder.SetComputeBufferParam(shader, scatterKernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);

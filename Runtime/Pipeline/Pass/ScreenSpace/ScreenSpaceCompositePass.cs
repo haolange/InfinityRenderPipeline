@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -7,12 +8,19 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_CompositeParameters Shaders/Pass/ScreenSpace/Compute_ScreenSpaceComposite.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct CompositeParameters
+    {
+        public Vector4 resolution;
+    }
+
     internal static class ScreenSpaceCompositePassUtilityData
     {
+        internal static readonly int CBV_CompositeParametersID = Shader.PropertyToID("CBV_CompositeParameters");
         internal static readonly int SRV_IndirectDiffuseID = Shader.PropertyToID("SRV_IndirectDiffuse");
         internal static readonly int SRV_IndirectSpecularID = Shader.PropertyToID("SRV_IndirectSpecular");
         internal static readonly string TextureName = "ScreenSpaceComposite";
-        internal static readonly int Composite_ResolutionID = Shader.PropertyToID("Composite_Resolution");
         internal static readonly int SRV_SSRTextureID = Shader.PropertyToID("SRV_SSRTexture");
         internal static readonly int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
     }
@@ -21,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ScreenSpaceCompositePassData
         {
-            public int2 resolution;
+            public RGConstantsHandle parameters;
             public bool hasSubsurface;
             public RGTextureHandle scatterDiffuse;
             public int hasSSR;
@@ -71,7 +79,10 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
             {
                 ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData();
-                passData.resolution = new int2(width, height);
+                passData.parameters = passRef.WriteConstants(new CompositeParameters
+                {
+                    resolution = new Vector4(width, height, 1.0f / width, 1.0f / height)
+                });
                 passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                 if (passData.hasSubsurface && hasSSGI)
                 {
@@ -115,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectDiffuseID, passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectSpecularID, passData.indirectSpecular);
-                    cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
+                    cmdEncoder.SetComputeConstantBufferParam(shader, ScreenSpaceCompositePassUtilityData.CBV_CompositeParametersID, passData.parameters);
                     cmdEncoder.SetKeyword(shader, passData.ssrKeyword, passData.hasSSR != 0);
                     cmdEncoder.SetKeyword(shader, passData.ssgiKeyword, passData.hasSSGI != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_LightingTexture, passData.lightingTexture);

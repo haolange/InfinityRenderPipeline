@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
             new Vector4(source.x - destination.x, source.y - destination.y, 0, 0);
 
         internal static readonly string TextureName = "LocalShadowMapTexture";
-        internal static readonly int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
         internal static readonly int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
         internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
     }
@@ -28,9 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct LocalShadowPassData
         {
-            public int lightCount;
             public int sliceCount;
-            public int shadowMapResolution;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
@@ -113,7 +110,6 @@ namespace InfinityTech.Rendering.Pipeline
                 cacheSlots[i] = -1;
             }
 
-            int lightCount = 0;
             int lastRecord = -1;
             int frame = Time.frameCount;
             long production = 0;
@@ -127,7 +123,6 @@ namespace InfinityTech.Rendering.Pipeline
                 if (local.recordIndex != lastRecord)
                 {
                     lastRecord = local.recordIndex;
-                    lightCount++;
                     production = m_LocalShadowCache.NextProduction();
                     Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
                     cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
@@ -188,9 +183,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref LocalShadowPassData passData = ref passRef.GetPassData();
                 {
-                    passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
-                    passData.shadowMapResolution = shadowMapResolution;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
@@ -211,12 +204,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalInt(LocalShadowPassUtilityData.LocalShadowCountID, passData.lightCount);
-                    cmdEncoder.SetGlobalVector(ShadowShaderIDs.LocalShadowMapSize, new Vector4(
-                        passData.shadowMapResolution,
-                        passData.shadowMapResolution,
-                        1.0f / passData.shadowMapResolution,
-                        1.0f / passData.shadowMapResolution));
 
                     for (int slice = 0; slice < passData.sliceCount; ++slice)
                     {

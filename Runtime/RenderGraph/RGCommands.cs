@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, in TextureView view);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, GraphicsBuffer buffer);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer);
-        void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, GraphicsBuffer buffer, int offset, int size);
+        void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, in RGConstantsHandle constants);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
         // Thread-group counts come from three uints at argsOffset (bytes) in a graph buffer created with
         // GraphicsBuffer.Target.IndirectArguments. The pass must declare the buffer with ReadBuffer.

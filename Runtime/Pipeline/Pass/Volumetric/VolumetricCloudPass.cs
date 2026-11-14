@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -11,27 +12,35 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_VolumetricCloudParameters Shaders/Pass/Volumetric/Compute_VolumetricCloud.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct VolumetricCloudParameters
+    {
+        public Vector4 resolution;
+        public float cloudLayerBottom;
+        public float cloudLayerThickness;
+        public float densityMultiplier;
+        public float shapeFactor;
+        public float erosionFactor;
+        public float anisotropy;
+        public float silverIntensity;
+        public float silverSpread;
+        public float ambientIntensity;
+        public int numPrimarySteps;
+        public int numLightSteps;
+        public float temporalWeight;
+        public int frameIndex;
+        public float planetRadius;
+        public float atmosphereHeight;
+        public int padding0;
+    }
+
     internal static class VolumetricCloudPassUtilityData
     {
+        internal static readonly int CBV_VolumetricCloudParametersID = Shader.PropertyToID("CBV_VolumetricCloudParameters");
         internal static readonly ProfilingSampler VolCloudTraceSampler = new ProfilingSampler("VolCloud_Trace");
         internal static readonly string TextureName = "VolumetricCloudTexture";
         internal static readonly string HistoryTextureName = "HistoryVolumetricCloud";
-        internal static readonly int VolCloud_ResolutionID = Shader.PropertyToID("VolCloud_Resolution");
-        internal static readonly int VolCloud_CloudLayerBottomID = Shader.PropertyToID("VolCloud_CloudLayerBottom");
-        internal static readonly int VolCloud_CloudLayerThicknessID = Shader.PropertyToID("VolCloud_CloudLayerThickness");
-        internal static readonly int VolCloud_DensityMultiplierID = Shader.PropertyToID("VolCloud_DensityMultiplier");
-        internal static readonly int VolCloud_ShapeFactorID = Shader.PropertyToID("VolCloud_ShapeFactor");
-        internal static readonly int VolCloud_ErosionFactorID = Shader.PropertyToID("VolCloud_ErosionFactor");
-        internal static readonly int VolCloud_AnisotropyID = Shader.PropertyToID("VolCloud_Anisotropy");
-        internal static readonly int VolCloud_SilverIntensityID = Shader.PropertyToID("VolCloud_SilverIntensity");
-        internal static readonly int VolCloud_SilverSpreadID = Shader.PropertyToID("VolCloud_SilverSpread");
-        internal static readonly int VolCloud_AmbientIntensityID = Shader.PropertyToID("VolCloud_AmbientIntensity");
-        internal static readonly int VolCloud_NumPrimaryStepsID = Shader.PropertyToID("VolCloud_NumPrimarySteps");
-        internal static readonly int VolCloud_NumLightStepsID = Shader.PropertyToID("VolCloud_NumLightSteps");
-        internal static readonly int VolCloud_TemporalWeightID = Shader.PropertyToID("VolCloud_TemporalWeight");
-        internal static readonly int VolCloud_FrameIndexID = Shader.PropertyToID("VolCloud_FrameIndex");
-        internal static readonly int VolCloud_PlanetRadiusID = Shader.PropertyToID("VolCloud_PlanetRadius");
-        internal static readonly int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
         internal static readonly int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
         internal static readonly int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
     }
@@ -40,24 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct VolumetricCloudPassData
         {
-            public float cloudLayerBottom;
-            public float cloudLayerThickness;
-            public float densityMultiplier;
-            public float shapeFactor;
-            public float erosionFactor;
-            public float anisotropy;
-            public float silverIntensity;
-            public float silverSpread;
-            public float ambientIntensity;
-            public int numPrimarySteps;
-            public int numLightSteps;
-            public float temporalWeight;
-            public int frameIndex;
+            public RGConstantsHandle parameters;
             public int2 resolution;
-            public float nearPlane;
-            public float farPlane;
-            public float planetRadius;
-            public float atmosphereHeight;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
@@ -110,24 +103,26 @@ namespace InfinityTech.Rendering.Pipeline
             using (var passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {
                 ref VolumetricCloudPassData passData = ref passRef.GetPassData();
-                passData.cloudLayerBottom = cloud.cloudLayerBottom;
-                passData.cloudLayerThickness = cloud.cloudLayerThickness;
-                passData.densityMultiplier = cloud.densityMultiplier;
-                passData.shapeFactor = cloud.shapeFactor;
-                passData.erosionFactor = cloud.erosionFactor;
-                passData.anisotropy = cloud.anisotropy;
-                passData.silverIntensity = cloud.silverIntensity;
-                passData.silverSpread = cloud.silverSpread;
-                passData.ambientIntensity = cloud.ambientIntensity;
-                passData.numPrimarySteps = cloud.numPrimarySteps;
-                passData.numLightSteps = cloud.numLightSteps;
-                passData.temporalWeight = historyRead.valid ? cloud.temporalWeight : 0.0f;
-                passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
-                passData.nearPlane = context.camera.nearClipPlane;
-                passData.farPlane = context.camera.farClipPlane;
-                passData.planetRadius = atmosphereParameter.planetRadius;
-                passData.atmosphereHeight = atmosphereParameter.atmosphereHeight;
+                passData.parameters = passRef.WriteConstants(new VolumetricCloudParameters
+                {
+                    resolution = new Vector4(cloudWidth, cloudHeight, 1.0f / cloudWidth, 1.0f / cloudHeight),
+                    cloudLayerBottom = cloud.cloudLayerBottom,
+                    cloudLayerThickness = cloud.cloudLayerThickness,
+                    densityMultiplier = cloud.densityMultiplier,
+                    shapeFactor = cloud.shapeFactor,
+                    erosionFactor = cloud.erosionFactor,
+                    anisotropy = cloud.anisotropy,
+                    silverIntensity = cloud.silverIntensity,
+                    silverSpread = cloud.silverSpread,
+                    ambientIntensity = cloud.ambientIntensity,
+                    numPrimarySteps = cloud.numPrimarySteps,
+                    numLightSteps = cloud.numLightSteps,
+                    temporalWeight = historyRead.valid ? cloud.temporalWeight : 0.0f,
+                    frameIndex = Time.frameCount,
+                    planetRadius = atmosphereParameter.planetRadius,
+                    atmosphereHeight = atmosphereParameter.atmosphereHeight
+                });
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -146,22 +141,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricCloudShader;
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricCloudPassUtilityData.VolCloud_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_CloudLayerBottomID, passData.cloudLayerBottom);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_CloudLayerThicknessID, passData.cloudLayerThickness);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_DensityMultiplierID, passData.densityMultiplier);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_ShapeFactorID, passData.shapeFactor);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_ErosionFactorID, passData.erosionFactor);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AnisotropyID, passData.anisotropy);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_SilverIntensityID, passData.silverIntensity);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_SilverSpreadID, passData.silverSpread);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AmbientIntensityID, passData.ambientIntensity);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_NumPrimaryStepsID, passData.numPrimarySteps);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_NumLightStepsID, passData.numLightSteps);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_TemporalWeightID, passData.temporalWeight);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_PlanetRadiusID, passData.planetRadius);
-                    cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AtmosphereHeightID, passData.atmosphereHeight);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, VolumetricCloudPassUtilityData.CBV_VolumetricCloudParametersID, passData.parameters);
                     cmdEncoder.SetComputeBufferParam(shader, passData.cloudKernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.cloudKernel.index);
                     passData.shadows.Bind(cmdEncoder, shader, passData.cloudKernel.index);

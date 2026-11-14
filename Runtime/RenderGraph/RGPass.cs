@@ -118,6 +118,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<RGResourceHandle> sampledResources;
         // Extension-defined ids a pass consumes (mesh draw-list indices). The core only stores and clears them.
         internal readonly List<int> extensionUses = new List<int>(4);
+        // Constants the graph uploads into this pass's own constant buffers when the pass begins.
+        internal readonly List<RGConstantsHandle> constants = new List<RGConstantsHandle>(2);
         public List<RGRendererListHandle> usedRendererLists;
 
         public IRGPass()
@@ -206,6 +208,7 @@ namespace InfinityTech.Rendering.RenderGraph
             customSampler = null;
             queueObserver = null;
             importedWritesAreSideEffects = true;
+            constants.Clear();
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();
@@ -411,6 +414,15 @@ namespace InfinityTech.Rendering.RenderGraph
             pass.AddTemporalResource(result.handle);
             return result;
         }
+
+        public static RGConstantsHandle WriteConstants<T>(IRGPass pass, RGResourceFactory factory, in T constants) where T : unmanaged
+        {
+            int offset = factory.constants.Write(constants, out int units);
+            var descriptor = new BufferDescriptor(units, RGConstantStaging.Unit, GraphicsBuffer.Target.Constant) { name = RGConstantsName<T>.value };
+            var handle = new RGConstantsHandle(CreatePassLocalBuffer(pass, factory, descriptor), offset, units);
+            pass.constants.Add(handle);
+            return handle;
+        }
     }
 
     // One recorded transfer pass; the pass-data type is fixed when the pass is added.
@@ -467,6 +479,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
         public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
         public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        /// <summary>Records constants this pass binds as a constant buffer; the graph uploads them when the pass begins.</summary>
+        public RGConstantsHandle WriteConstants<T>(in T constants) where T : unmanaged => RGPassDeclaration.WriteConstants(m_Pass, m_Resources, constants);
 
         public ref TData GetPassData() => ref m_Pass.passData;
         public void SetExecuteFunc(RGComputePassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
