@@ -15,7 +15,7 @@
 - `1ee1046`：大气两个缓存 key（`AtmosphereViewKey`、`AtmosphereIBLKey`）加入太阳辐亮度。改 directional light 的强度或颜色后，天空、天空环境光和 aerial perspective 必须同帧跟着变；删除方向光后天空变黑，不得残留旧表。测试里的 keyword 启用方式同步修正。
 - `4a1aedb`：删除零调用者的 `RGBuilder.SnapshotRecordingArray`；`MeshViewMotionHistory` 改名 `MeshMotionHistory`（含测试类，用例数不变）。
 - `e3310e4`：静态检查新增 `scalarupload`，docstring 补齐，`respath`、`sgstrings` 补测试。
-- B9 文档：`341d433`（CHANGELOG、FeatureStatus、Manual）、`001a80c`（Style），以及 ARCHITECTURE/AGENTS 事实核对（本提交）。
+- B9 文档：`341d433`（CHANGELOG、FeatureStatus、Manual）、`001a80c`（Style），`71a2677`（ARCHITECTURE/AGENTS 按代码核对）。
 
 ## 头号怀疑
 
@@ -41,7 +41,7 @@
   - 没有：天空与环境光变黑是预期结果，其余应一致。
 - cookie 与反射探针：用有 light cookie 和反射探针的样本，在相机 frame settings 里分别开、关 LightCookies 和 ReflectionProbes。开的时候与 `1a357c0` 一致，关的时候 cookie 与探针反射消失，Console 无 "property not set"。
 - SSGI 加 AO：关闭 AmbientOcclusion 时 SSGI 照常工作，开启时与 `1a357c0` 一致。
-- 大气缓存：Spazon 里把 directional light 的 intensity 改为一半，下一帧天空与环境光必须变暗（截前后两张）；改回后恢复。不保存场景。
+- 大气缓存：Spazon 进入 Play 模式后，把 directional light 的 intensity 改为一半，下一帧天空与环境光必须变暗（截前后两张）。只在 Play 模式里改，退出 Play 即还原，场景不会变脏。
 - DebugView：AO、SSGI、IndirectDiffuse、CascadeShadowAtlas、LightComplexity、ReflectionProbeAtlas 各截一张，与 `1a357c0` 一致。
 
 ## 构建（需要用户授权）
