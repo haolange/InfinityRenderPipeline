@@ -49,7 +49,7 @@
 
 ## 画面（1445×813，对比 `2133e38`）
 
-Spazon 与 `2133e38` 预期不同。`2133e38` 的 GTAO 参数在命名 cbuffer `CBV_OcclusionParameters` 里，却经 command buffer 逐个设置，值进不了 cbuffer。结果 kernel 读到零分辨率，不写 AO，deferred 的间接漫反射与间接高光都乘以 0：诊断实测 IndirectDiffuse、IndirectSpecular 均为 0.00，而候选为 23.13 / 8.52。Spazon 以候选为新基线，判据改为：IndirectDiffuse、IndirectSpecular 非零，关闭 AmbientOcclusion 只带来正常 AO 量级的变亮，阴影 atlas 与光源复杂度和 `2133e38` 一致。BoxMatix 仍要求与 `2133e38` 一致。
+Spazon 与 `2133e38` 的差异根因未定：`2133e38` 的 IndirectDiffuse 与 IndirectSpecular 都是 0.00，候选为 23.13 / 8.52；共同因子只有 AO，或天空 SH 与 GGX prefilter 同时为零。BoxMatix 要求与 `2133e38` 一致。
 
 - **Spazon、BoxMatix 基础画面**：Play mode 固定机位、移动机位、TAA 第 30 帧，逐项对比 SSR、SSGI、GTAO、接触阴影、体积雾与体积云、大气天空与雾、bloom 与曝光、tonemap 与 color grading、次表面散射。
 - **阴影**：cascade 阴影、带阴影的点光与聚光、shadowmask 距离模式，前向半透明物体上的阴影与光照也要检查，因为它们走 raster 全局路径。

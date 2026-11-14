@@ -111,38 +111,5 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Object.DestroyImmediate(shader);
             }
         }
-
-        // The platform contract the records rely on. Values set by name through a command buffer do not fill a named
-        // cbuffer that nothing binds, so a pass whose shader declares one must bind its record. Before the records,
-        // GTAO set CBV_OcclusionParameters member by member this way, its kernels read a zero resolution and wrote no
-        // occlusion, and deferred indirect lighting was multiplied by zero.
-        [Test]
-        public void ScalarSetsThroughACommandBuffer_DoNotFillANamedCBuffer()
-        {
-            if (!SystemInfo.supportsComputeShaders)
-                Assert.Ignore("Compute shaders are required.");
-            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
-            try
-            {
-                using var results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16);
-                results.SetData(new Vector4[2]);
-                int kernel = shader.FindKernel("CopyConstants");
-                using var commands = new CommandBuffer { name = "NamedCBufferScalarSets" };
-                commands.SetComputeVectorParam(shader, Shader.PropertyToID("ContractVector"), s_Vector);
-                commands.SetComputeIntParam(shader, Shader.PropertyToID("ContractCount"), 11);
-                commands.SetComputeFloatParam(shader, Shader.PropertyToID("ContractScale"), 0.5f);
-                commands.SetComputeBufferParam(shader, kernel, s_Results, results);
-                commands.DispatchCompute(shader, kernel, 1, 1, 1);
-                Graphics.ExecuteCommandBuffer(commands);
-                var values = new Vector4[2];
-                results.GetData(values);
-                Assert.AreNotEqual(s_Vector, values[0],
-                    "Unity now fills a named cbuffer from command-buffer scalar sets; the records no longer depend on explicit binding.");
-            }
-            finally
-            {
-                Object.DestroyImmediate(shader);
-            }
-        }
     }
 }
