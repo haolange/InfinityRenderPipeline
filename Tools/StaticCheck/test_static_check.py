@@ -31,6 +31,39 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
+    def test_pass_uploading_parameters_one_by_one_fails(self):
+        per_dispatch = ''.join(f'cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
+        self.write('Runtime/Pipeline/Pass/A.cs', per_dispatch + 'cmd.SetComputeConstantBufferParam(shader, CBV, parameters);')
+        self.write('Runtime/RenderGraph/RGEncoder.cs', per_dispatch * 2)
+        out = []
+        static_check.check_scalar_uploads(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParam(shader, ID_Intensity, intensity);')
+        static_check.check_scalar_uploads(str(self.repo), out)
+        self.assertEqual(['scalarupload'], [o[1] for o in out])
+
+    def test_resource_path_names_an_existing_file(self):
+        self.write('Runtime/Textures/Noise.png', '')
+        self.write('Runtime/Resources.cs', '[ResourcePath("Runtime/Textures/Noise.png")] Texture2D noise;')
+        out = []
+        static_check.check_respath(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Resources.cs', '[ResourcePath("Runtime/Textures/Missing.png")] Texture2D noise;')
+        static_check.check_respath(str(self.repo), out)
+        self.assertEqual(['respath'], [o[1] for o in out])
+
+    def test_shader_graph_strings_resolve(self):
+        self.write('Runtime/Pipeline/PipelineIDs.cs', 'static readonly ShaderTagId g = new ShaderTagId("RasterGBufferPass");')
+        self.write('Editor/ShaderGraph/InfinityPasses.cs', 'const string kGBuffer = "RasterGBufferPass";')
+        self.write('Editor/ShaderGraph/Includes/Lit.hlsl', '')
+        self.write('Editor/ShaderGraph/Target.cs', 'const string kIncludePath = "x"; var a = kIncludePath + "Lit.hlsl";')
+        out = []
+        static_check.check_sgstrings(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/ShaderGraph/Target.cs', 'var b = "Packages/com.infinity.render-pipeline/Editor/ShaderGraph/Includes/Gone.hlsl";')
+        static_check.check_sgstrings(str(self.repo), out)
+        self.assertEqual(['sgstrings'], [o[1] for o in out])
+
     def test_compatibility_residue_fails_and_unity_concept_names_pass(self):
         self.write('Runtime/A.cs', 'enum ELightProbeSystem { LegacyLightProbes }\n// legacy comment\nvar s = "Legacy Shaders/Diffuse";')
         out = []

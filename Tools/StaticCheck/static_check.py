@@ -13,8 +13,11 @@ Checks
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
+  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param calls
   silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
+  textureviews     the generated texture-view binding registry matches Tools/TextureViews.py output
+  unityboundary    MeshComponent owns no native renderer lighting or state (Renderer, lightmap and probe settings)
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
   meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
@@ -22,6 +25,8 @@ Checks
                    Camera outside the world's diagnostic counters
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
+  fprefix          no type name borrows another engine's F prefix
+  generationname   no type, file or living-document line carries a generation version (V2, V3)
   agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
   docfacts         no sentence of 80 or more characters appears in both AGENTS.md and ARCHITECTURE.md
   legacyresidue    no [Obsolete], FormerlySerializedAs or Legacy/Deprecated/Compat/Migrate identifier in package code
@@ -33,6 +38,7 @@ Checks
   hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
   physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
   rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
+  redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -281,6 +287,20 @@ def check_iterator_ref_locals(repo, out):
                     out.append(('ERROR', 'iteratorref', f'{os.path.relpath(p, repo)}:{line}: iterator {m.group(1)} holds a ref local (CS8176); move it into a separate method'))
 
 SHADER_DECLARATION = r'\b(?:float|half|int|uint|bool)(?:[1-4](?:x[1-4])?)?\s+(\w+)\s*[;\[]'
+
+SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*Param\s*\(')
+SCALAR_UPLOAD_LIMIT = 8
+SCALAR_UPLOAD_DEFINITIONS = {'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGCommandCore.cs'}
+
+def check_scalar_uploads(repo, out):
+    """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets."""
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        if rel in SCALAR_UPLOAD_DEFINITIONS:
+            continue
+        count = len(SCALAR_UPLOAD.findall(without_comments(read(p))))
+        if count > SCALAR_UPLOAD_LIMIT:
+            out.append(('ERROR', 'scalarupload', f'{rel}: {count} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
 
 def check_cbuffer_member_ids(repo, out):
     """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member
@@ -882,7 +902,7 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
