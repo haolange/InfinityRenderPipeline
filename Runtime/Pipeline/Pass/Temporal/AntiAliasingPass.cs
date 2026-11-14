@@ -14,7 +14,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_AliasingColorTextureID = Shader.PropertyToID("SRV_AliasingColorTexture");
         internal static readonly int SRV_MotionMetadataID = Shader.PropertyToID("SRV_MotionMetadata");
         internal static readonly int SRV_ReactiveMaskTextureID = Shader.PropertyToID("SRV_ReactiveMaskTexture");
-        internal static readonly int TAA_JitterUVID = Shader.PropertyToID("TAA_JitterUV");
         internal static readonly int TAA_ResetBlendID = Shader.PropertyToID("TAA_ResetBlend");
         internal static readonly int TAA_ResolutionID = Shader.PropertyToID("TAA_Resolution");
         internal static readonly int UAV_AccumulateColorTextureID = Shader.PropertyToID("UAV_AccumulateColorTexture");
@@ -29,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct AntiAliasingPassData
         {
-            public Vector4 resolution, depthParameters, jitter;
+            public Vector4 resolution;
             public bool historyValid, diagnostics;
             public int kernel;
             public int2 groups;
@@ -96,9 +95,6 @@ namespace InfinityTech.Rendering.Pipeline
                 data.kernel = temporalKernel.index;
                 data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
                 data.resolution = new Vector4(width, height, 1f / width, 1f / height);
-                data.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(context.cameraUniform.matrix_FlipYJitterProj, context.cameraUniform.matrix_FlipYProj);
-                data.jitter = new Vector4(currentJitter.x, currentJitter.y, context.cameraUniform.previousJitterUV.x, context.cameraUniform.previousJitterUV.y);
                 data.historyValid = colorRead.valid && depthRead.valid;
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
@@ -130,8 +126,6 @@ namespace InfinityTech.Rendering.Pipeline
                     int kernel = data.kernel;
                     var shader = data.shader;
                     commands.SetComputeVectorParam(shader, AntiAliasingUtilityData.TAA_ResolutionID, data.resolution);
-                    commands.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, data.depthParameters);
-                    commands.SetComputeVectorParam(shader, AntiAliasingUtilityData.TAA_JitterUVID, data.jitter);
                     commands.SetComputeFloatParam(shader, AntiAliasingUtilityData.TAA_ResetBlendID, data.historyValid ? 1 : 0);
                     commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_AliasingColorTextureID, data.input);
                     commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryColorTexture, data.historyColor);

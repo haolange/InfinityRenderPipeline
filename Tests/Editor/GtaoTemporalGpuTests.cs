@@ -68,10 +68,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var depth=Output("UAV_OcclusionHistoryDepth",GraphicsFormat.R32_SFloat);
                 shader.SetVector("Resolution",new Vector4(width,height,1f/width,1f/height));
                 shader.SetVector("UpsampleSize",new Vector4(width*2,height*2,1f/(width*2),1f/(height*2)));
-                shader.SetVector("ScreenSpaceDepthParams",new Vector4(.1f,100,1,0));
                 var projection=Matrix4x4.identity;if(mode==9)projection.m33=-1;
                 using var view=new ViewUniformBinding(new ViewUniform{matrix_InvViewFlipYJitterProj=Matrix4x4.identity,
-                    matrix_ViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYJitterProj=projection});
+                    matrix_ViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYProj=Matrix4x4.identity,matrix_LastViewFlipYJitterProj=projection,
+                    view_DepthParameters=new Vector4(.1f,100,1,0)});
                 shader.SetInt("GTAOHistoryValid",mode==1?0:1);shader.SetInt("NumRay",2);shader.SetInt("NumStep",2);
                 shader.SetFloat("TemporalScale",1.25f);shader.SetFloat("TemporalWeight",.93f);
                 shader.SetFloat("Power",2.5f);shader.SetFloat("Intensity",.6f);
@@ -127,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Input("SRV_OcclusionTexture",8,9,new Color(.5f,0,0,0));
                 shader.SetVector("Resolution",new Vector4(8,9,1f/8,1f/9));
                 shader.SetVector("UpsampleSize",new Vector4(17,19,1f/17,1f/19));
-                shader.SetVector("ScreenSpaceDepthParams",new Vector4(.1f,100,1,0));
+                using var view=new ViewUniformBinding(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,1,0)});
                 shader.SetFloat("Power",power);shader.SetFloat("Intensity",intensity);
                 shader.SetTexture(kernel,"UAV_UpsampleTexture",output);shader.Dispatch(kernel,2,2,1);
                 var readback=AsyncGPUReadback.Request(output);readback.WaitForCompletion();Assert.IsFalse(readback.hasError);

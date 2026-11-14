@@ -305,7 +305,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetFloat("SSR_TemporalClampScale", 1.25f);
                 s.SetFloat("SSR_HistoryValid", 0);
                 s.SetInt("SSR_DebugMode", 0);
-                s.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
                 m_View = new ViewUniformBinding(new ViewUniform
                 {
                     matrix_FlipYJitterProj = projection,
@@ -315,7 +314,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     matrix_ViewToWorld = Matrix4x4.identity,
                     matrix_LastViewFlipYJitterProj = projection,
                     matrix_ViewFlipYProj = projection,
-                    matrix_LastViewFlipYProj = projection
+                    matrix_LastViewFlipYProj = projection,
+                    view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0)
                 });
             }
 

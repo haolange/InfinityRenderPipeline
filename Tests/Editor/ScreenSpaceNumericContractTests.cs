@@ -101,7 +101,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     matrix_ViewFlipYJitterProj = m_Projection,
                     matrix_InvViewFlipYJitterProj = m_Projection.inverse,
                     matrix_LastViewFlipYProj = m_Projection,
-                    matrix_LastViewFlipYJitterProj = m_Projection
+                    matrix_LastViewFlipYJitterProj = m_Projection,
+                    view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0)
                 });
                 m_Depth = Solid(width, height, new Color(m_PlaneDepth, 0, 0, 0));
                 m_Motion = Solid(width, height, Color.clear);
@@ -122,7 +123,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 ComputeShader shader = Load("Shaders/Pass/ScreenSpace/Compute_GroundTruthOcclusion.compute");
                 int width = Mathf.Max(1, m_Width >> 1), height = Mathf.Max(1, m_Height >> 1);
-                SetDepthParams(shader);
                 shader.SetVector("Resolution", Resolution(width, height));
                 shader.SetVector("UpsampleSize", Resolution(m_Width, m_Height));
                 shader.SetInt("NumRay", 4);
@@ -152,11 +152,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     ("SRV_NormalTexture", Solid(m_Width, m_Height, new Color(0.5f, 0.5f, 1, 0))), ("SRV_OcclusionTexture", temporal))[0];
                 foreach (Color value in result.GetPixels()) Assert.That(value.r, Is.InRange(0.0f, 1.0001f), "GTAO range");
                 RequireSignal(result, "GTAO final occlusion", 0.01f);
-            }
-
-            static void SetDepthParams(ComputeShader shader)
-            {
-                shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
             }
 
             Texture2D[] Dispatch(ComputeShader shader, string kernelName, int width, int height, bool scalar,

@@ -22,7 +22,7 @@ float IntegrateArc_CosWeight(float2 h, float n)
 float GTAO(int numRay, int numStep, float radius, float halfProjScale, float temporalOffset, float temporalDirection, float sceneDepth, float2 screenUV, uint2 pixelPosition, float3 viewPos, float3 viewDir, float3 viewNormal, float4 resolution, float4x4 matrix_InvProj, Texture2D DepthTexture, float4 textureView, SamplerState DepthSampler)
 {
 	float2 radius_thickness = float2(radius, 1);
-	float stepRadius = (max(min((radius_thickness.x * abs(halfProjScale)) / (ScreenSpaceDepthParams.z != 0 ? 1 : max(-viewPos.z, 1e-5)), 512), (float)numStep)) / ((float)numStep + 1);
+	float stepRadius = (max(min((radius_thickness.x * abs(halfProjScale)) / (ViewIsOrthographic() ? 1 : max(-viewPos.z, 1e-5)), 512), (float)numStep)) / ((float)numStep + 1);
 	float noiseOffset = frac(GTAO_Offsets(pixelPosition) + temporalOffset);
 	float noiseDirection = GTAO_Noise(pixelPosition) + temporalDirection;
 

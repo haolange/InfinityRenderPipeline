@@ -24,6 +24,10 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_InvViewFlipYJitterProj;
         public Matrix4x4 matrix_LastViewFlipYProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
+        // Near, far, orthographic (1 or 0), reversed Z (1 or 0).
+        public Vector4 view_DepthParameters;
+        // TAA offsets in sampled framebuffer UV: this frame in xy, the previous committed frame in zw.
+        public Vector4 view_JitterUV;
     }
 
     // The camera's ViewUniform constant buffer. It is written once per camera per frame before recording and bound

@@ -57,7 +57,9 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_InvViewFlipYJitterProj;
         public Matrix4x4 matrix_LastViewFlipYProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
+        public Vector2 currentJitterUV;
         public Vector2 previousJitterUV;
+        private Vector4 m_DepthParameters;
         private Vector3 m_PreparedPosition;
         private Quaternion m_PreparedRotation;
         private Matrix4x4 m_PreparedProjection, m_LastProjection;
@@ -106,11 +108,13 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
             matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
+            currentJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+            m_DepthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
             if (resetHistory)
             {
                 // No previous camera sample exists after a reset. Seed the upload without
                 // committing last-camera state; successful frame completion still owns that.
-                previousJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+                previousJitterUV = currentJitterUV;
                 matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
                 matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
             }
@@ -125,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_LastCameraPosition = m_PreparedPosition;
             m_LastCameraRotation = m_PreparedRotation;
             m_LastProjection = m_PreparedProjection;
-            previousJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+            previousJitterUV = currentJitterUV;
             m_CommittedFrames++;
             m_HasCommittedView = true;
         }
@@ -150,7 +154,9 @@ namespace InfinityTech.Rendering.Pipeline
                 matrix_ViewFlipYJitterProj = matrix_ViewFlipYJitterProj,
                 matrix_InvViewFlipYJitterProj = matrix_InvViewFlipYJitterProj,
                 matrix_LastViewFlipYProj = matrix_LastViewFlipYProj,
-                matrix_LastViewFlipYJitterProj = matrix_LastViewFlipYJitterProj
+                matrix_LastViewFlipYJitterProj = matrix_LastViewFlipYJitterProj,
+                view_DepthParameters = m_DepthParameters,
+                view_JitterUV = new Vector4(currentJitterUV.x, currentJitterUV.y, previousJitterUV.x, previousJitterUV.y)
             });
         }
     }

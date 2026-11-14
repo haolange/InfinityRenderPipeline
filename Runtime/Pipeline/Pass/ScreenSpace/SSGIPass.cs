@@ -66,7 +66,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int frameIndex;
             public int previousFrameIndex;
             public float historyValid;
-            public Vector4 depthParameters;
             public ComputeShader ssgiShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -165,7 +164,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.previousFrameIndex = context.state.acceptedSSGIFrameIndex;
                 passData.historyValid = historyValid ? 1 : 0;
-                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
                 passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
@@ -228,7 +226,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalWeightID, settings.temporalWeight);
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalClampScaleID, settings.temporalClampScale);
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_HistoryValidID, passData.historyValid);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
 
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_FrameAngleID, (passData.frameIndex & 63) * 2.39996323f);
                     cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_HasAOID, passData.hasAO);

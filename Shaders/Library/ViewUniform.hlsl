@@ -23,6 +23,10 @@ cbuffer ViewUniform
     float4x4 Matrix_InvViewFlipYJitterProj;
     float4x4 Matrix_LastViewFlipYProj;
     float4x4 Matrix_LastViewFlipYJitterProj;
+    // Near, far, orthographic (1 or 0), reversed Z (1 or 0).
+    float4 View_DepthParameters;
+    // TAA offsets in sampled framebuffer UV: this frame in xy, the previous committed frame in zw.
+    float4 View_JitterUV;
 };
 
 // Camera facts the matrices already hold; they are read from there, not stored a second time.
@@ -39,7 +43,7 @@ float3 ViewForwardWS()
 
 bool ViewIsOrthographic()
 {
-    return Matrix_Proj._m33 == 1.0;
+    return View_DepthParameters.z != 0;
 }
 
 #endif

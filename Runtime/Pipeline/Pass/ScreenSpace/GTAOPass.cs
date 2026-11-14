@@ -72,7 +72,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float temporalWeight;
             public int2 halfResolution;
             public int2 fullResolution;
-            public Vector4 depthParameters;
             public ComputeShader ssaoShader;
             public RGTextureHandle halfResDepthTexture;
             public RGTextureHandle halfResNormalTexture;
@@ -170,7 +169,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.temporalOffset = GTAOPassUtilityData.TemporalOffsets[temporalIndex];
                 passData.temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex];
 
-                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 passData.ssaoShader = shaders.ssaoShader;
                 passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.ReadTexture(halfResNormalTexture);
@@ -198,7 +196,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssaoShader;
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
                     int halfWidth = passData.halfResolution.x;
                     int halfHeight = passData.halfResolution.y;
                     int fullWidth = passData.fullResolution.x;

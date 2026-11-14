@@ -110,7 +110,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int frameIndex;
             public float historyValid;
             public int debugMode;
-            public Vector4 depthParameters;
             public ComputeShader ssrShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -228,7 +227,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.historyValid = historyValid ? 1 : 0;
                 passData.debugMode = (int)debugView;
-                passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 passData.ssrShader = shaders.ssrShader;
                 passData.clearArgsKernel = kernels.ssrClearArgs.index;
                 passData.classifyKernel = kernels.ssrClassify.index;
@@ -315,7 +313,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_TemporalClampScaleID, settings.temporalClampScale);
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_HistoryValidID, passData.historyValid);
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_DebugModeID, passData.debugMode);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
 
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRClassifySampler);
                     int clearArgs = passData.clearArgsKernel;

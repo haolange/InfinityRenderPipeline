@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
     internal struct TemporalColorView
     {
         internal RGTextureHandle color, depth, mips;
-        internal Vector4 resolution, jitterDelta;
+        internal Vector4 resolution;
         internal int mipCount;
         internal bool valid;
     }
@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             internal static readonly int Color = Shader.PropertyToID("SRV_TemporalColor"), Depth = Shader.PropertyToID("SRV_TemporalDepth"),
                 Mips = Shader.PropertyToID("SRV_TemporalColorMips"), Valid = Shader.PropertyToID("TemporalColorValid"),
-                Resolution = Shader.PropertyToID("TemporalColorResolution"), Jitter = Shader.PropertyToID("TemporalColorJitterDelta"),
+                Resolution = Shader.PropertyToID("TemporalColorResolution"),
                 MipCount = Shader.PropertyToID("TemporalColorMipCount"), SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
                 SourceValid = Shader.PropertyToID("_TemporalSourceValid"), SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst"),
                 Far = Shader.PropertyToID("_TemporalFarDepth");
@@ -56,13 +56,10 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.autoGenerateMips = false;
             descriptor.filterMode = FilterMode.Bilinear;
             var mips = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
-            Vector2 currentJitter = TemporalJitter.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj);
             var source = new TemporalColorView
             {
                 color = m_RGBuilder.ImportTexture(colorRead.texture), depth = m_RGBuilder.ImportTexture(depthRead.texture), mips = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
-                jitterDelta = new Vector4(state.cameraUniform.previousJitterUV.x - currentJitter.x,
-                    state.cameraUniform.previousJitterUV.y - currentJitter.y, 0, 0),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
                 valid = state.acceptedTemporalColor && state.acceptedTemporalColorIsSR == sr && colorRead.valid && depthRead.valid
             };
@@ -122,7 +119,6 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetComputeIntParam(shader, TemporalColorBindings.Valid, source.valid ? 1 : 0);
             commands.SetComputeIntParam(shader, TemporalColorBindings.MipCount, source.mipCount);
             commands.SetComputeVectorParam(shader, TemporalColorBindings.Resolution, source.resolution);
-            commands.SetComputeVectorParam(shader, TemporalColorBindings.Jitter, source.jitterDelta);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Color,source.color);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Depth,source.depth);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Mips,source.mips);

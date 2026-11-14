@@ -6,7 +6,7 @@ Texture2D SRV_TemporalColor;
 Texture2D SRV_TemporalColorMips;
 Texture2D SRV_TemporalDepth;
 int TemporalColorValid, TemporalColorMipCount;
-float4 TemporalColorResolution, TemporalColorJitterDelta;
+float4 TemporalColorResolution;
 
 float4 SampleTemporalColorMip(float2 uv, uint level)
 {
@@ -31,7 +31,8 @@ float3 SampleTemporalHitColor(float2 hitUV, float hitDepth, float2 motion, float
         ReprojectSurface(hitUV,hitDepth,motion,inverseVP,previousVP,motionVP,previousMotionVP,depthUV,expectedDepth);
         // Motion metadata carries the actual previous object surface, including moving meshes.
         expectedDepth = metadata.x;
-        float2 colorUV = depthUV - TemporalColorJitterDelta.xy;
+        // The source was rendered with the previous frame's jitter.
+        float2 colorUV = depthUV - (View_JitterUV.zw - View_JitterUV.xy);
         if (all(colorUV >= 0) && all(colorUV < 1)
             && HistoryDepthConfidence(SRV_TemporalDepth,SRV_TemporalDepth_InfinityView,depthUV,expectedDepth,0) > 0)
         {

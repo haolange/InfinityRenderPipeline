@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector3 origin = new Vector3(-0.5f * tangent * 2, 0, -2);
                 Vector3 target = new Vector3(0.5f * tangent * 5, 0, -5);
                 shader.SetMatrix("Projection", projection);
-                shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
+                using var view = new ViewUniformBinding(new ViewUniform { view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0) });
                 shader.SetVector("Origin", origin); shader.SetVector("Direction", (target - origin).normalized);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "DepthPyramid", closest);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "SurfaceDepth", depth);

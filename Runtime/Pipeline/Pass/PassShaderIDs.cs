@@ -34,7 +34,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_Temporal = Shader.PropertyToID("SRV_Temporal");
         internal static readonly int SRV_TransmittanceLUT = Shader.PropertyToID("SRV_TransmittanceLUT");
         internal static readonly int ScreenParams = Shader.PropertyToID("_ScreenParams");
-        internal static readonly int ScreenSpaceDepthParams = Shader.PropertyToID("ScreenSpaceDepthParams");
         internal static readonly int ShadowCasterViewProj = Shader.PropertyToID("_ShadowCasterViewProj");
         internal static readonly int ShadowCasterBias = Shader.PropertyToID("_ShadowCasterBias");
         internal static readonly int ShadowCasterLight = Shader.PropertyToID("_ShadowCasterLight");

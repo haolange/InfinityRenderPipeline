@@ -67,8 +67,8 @@ bool InitScreenSpaceRay(float3 originVS, float3 directionVS, float4x4 projection
     float3 origin = originVS + direction * 0.01;
     float t0 = 0;
     float t1 = 1e7;
-    float nearZ = -ScreenSpaceDepthParams.x;
-    float farZ = -ScreenSpaceDepthParams.y;
+    float nearZ = -View_DepthParameters.x;
+    float farZ = -View_DepthParameters.y;
     if (abs(direction.z) <= 1e-8)
     {
         valid = valid && origin.z <= nearZ && origin.z >= farZ;

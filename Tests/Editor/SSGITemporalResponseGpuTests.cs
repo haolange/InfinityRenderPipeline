@@ -312,7 +312,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Commands.SetComputeFloatParam(shader, "SSGI_HistoryValid", Noisy(signal) || signal == Signal.RadianceNoise || signal == Signal.RadianceEdge ? 0 : 1);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalWeight", .93f);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalClampScale", 1.25f);
-                    m_Commands.SetComputeVectorParam(shader, "ScreenSpaceDepthParams", new Vector4(.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
                     m_View = new ViewUniformBinding(new ViewUniform
                     {
                         matrix_FlipYJitterProj = projection,
@@ -321,7 +320,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         matrix_WorldToView = Matrix4x4.identity,
                         matrix_LastViewFlipYJitterProj = projection,
                         matrix_ViewFlipYProj = projection,
-                        matrix_LastViewFlipYProj = projection
+                        matrix_LastViewFlipYProj = projection,
+                        view_DepthParameters = new Vector4(.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0)
                     }, m_Commands);
                     for (int frame = 1; frame <= m_Frames; ++frame)
                     {
