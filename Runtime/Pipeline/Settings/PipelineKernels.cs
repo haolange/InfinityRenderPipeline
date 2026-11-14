@@ -80,14 +80,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ComputeKernel exposureReduce;
         internal readonly ComputeKernel combineLut;
 
-        internal readonly ComputeKernel debugViewGBuffer;
-        internal readonly ComputeKernel debugViewMotion;
-        internal readonly ComputeKernel debugViewSceneColor;
-        internal readonly ComputeKernel debugViewOptional;
-        internal readonly ComputeKernel debugViewMissing;
-        internal readonly ComputeKernel debugViewShadow;
-        internal readonly ComputeKernel debugViewLightLoop;
-        internal readonly ComputeKernel debugViewProbeAtlas;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // Indexed by EDebugViewKernel.
+        internal readonly ComputeKernel[] debugView;
+#endif
 
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
         internal readonly LocalKeyword deferredShadingSubsurface;
@@ -187,15 +183,20 @@ namespace InfinityTech.Rendering.Pipeline
             exposureReduce = ComputeKernel.Resolve(shaders.postProcessingShader, post, "ExposureReduce");
             combineLut = ComputeKernel.Resolve(shaders.combineLUTShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.combineLUTShader), "MainCS");
 
-            const string debugView = Source + nameof(InfinityRenderPipelineRuntimeShaders.debugViewShader);
-            debugViewGBuffer = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewGBuffer");
-            debugViewMotion = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewMotion");
-            debugViewSceneColor = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewSceneColor");
-            debugViewOptional = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewOptional");
-            debugViewMissing = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewMissing");
-            debugViewShadow = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewShadow");
-            debugViewLightLoop = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewLightLoop");
-            debugViewProbeAtlas = ComputeKernel.Resolve(shaders.debugViewShader, debugView, "DebugViewProbeAtlas");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            const string debugViewShader = Source + nameof(InfinityRenderPipelineRuntimeShaders.debugViewShader);
+            debugView = new ComputeKernel[]
+            {
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewGBuffer"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewMotion"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewSceneColor"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewOptional"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewMissing"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewShadow"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewLightLoop"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewProbeAtlas")
+            };
+#endif
 
             deferredShadingSubsurface = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_OUTPUT");
             deferredShadingOcclusion = Keyword(shaders.deferredShadingShader, "DEFERRED_AO");
@@ -215,9 +216,10 @@ namespace InfinityTech.Rendering.Pipeline
         {
             Require(filterArrayToArray,
                 transmittanceLUT, multiScatteringLUT, skyViewLUT, aerialPerspectiveLUT, atmosphereCubemap, sunBuffer,
-                atmosphereComposite, atmosphereSHProject, atmosphereSHReduce, combineLut,
-                debugViewGBuffer, debugViewMotion, debugViewSceneColor, debugViewOptional, debugViewMissing,
-                debugViewShadow, debugViewLightLoop, debugViewProbeAtlas);
+                atmosphereComposite, atmosphereSHProject, atmosphereSHReduce, combineLut);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Require(debugView);
+#endif
         }
 
         static void Require(params ComputeKernel[] kernels)

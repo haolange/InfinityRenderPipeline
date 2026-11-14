@@ -173,7 +173,9 @@ namespace InfinityTech.Rendering.Pipeline
             RasterPostProcessing(context, plan, target);
             if (plan.linearIntermediate)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 ComputeDebugView(context);
+#endif
 #if UNITY_EDITOR
                 if (plan.editorDepth)
                 {
