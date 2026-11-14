@@ -13,6 +13,7 @@ Checks
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
+  silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
@@ -84,9 +85,17 @@ def check_meta(repo, out):
                 out.append(('ERROR', 'meta', f'missing meta: {display_path(rel, n)}'))
     return guids
 
+# main() reads every source once per run; the check functions called directly (tests) always read the file.
+_SOURCE_CACHE = None
+
 def read(p):
+    if _SOURCE_CACHE is not None and p in _SOURCE_CACHE:
+        return _SOURCE_CACHE[p]
     with open(p, encoding='utf-8', errors='replace') as source:
-        return source.read()
+        text = source.read()
+    if _SOURCE_CACHE is not None:
+        _SOURCE_CACHE[p] = text
+    return text
 
 def all_files(repo, exts):
     for dp, _, fns in walk(repo):
@@ -291,6 +300,21 @@ def check_cbuffer_member_ids(repo, out):
                 if m.group(1) in members and m.group(1) not in loose:
                     line = text.count('\n', 0, m.start()) + 1
                     out.append(('ERROR', 'cbuffermember', f'{os.path.relpath(p, repo)}:{line}: {m.group(1)} exists only inside a named cbuffer; write it into the record and bind the cbuffer'))
+
+SILENT_FALLBACK = re.compile(r'\bTexture2D\.(whiteTexture|blackTexture|grayTexture|normalTexture|redTexture|linearGrayTexture)\b')
+# Core RP's Adaptive Probe Volume debug draw takes a texture argument it samples only in its own debug modes.
+SILENT_FALLBACK_ALLOWED = {('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
+
+def check_silent_fallback(repo, out):
+    """A built-in texture bound where a resource does not exist forges that resource (P1); gate the reader instead."""
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        text = without_comments(read(p))
+        for m in SILENT_FALLBACK.finditer(text):
+            if (rel, m.group(1)) in SILENT_FALLBACK_ALLOWED:
+                continue
+            line = text.count('\n', 0, m.start()) + 1
+            out.append(('ERROR', 'silentfallback', f'{rel}:{line}: Texture2D.{m.group(1)} stands in for a missing resource; gate the shader input with a keyword'))
 
 def check_records(repo, out):
     for p in all_files(repo, {'.cs'}):
@@ -853,10 +877,12 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
     a = ap.parse_args(); repo = os.path.abspath(a.repo); out = []
+    global _SOURCE_CACHE
+    _SOURCE_CACHE = {}
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
