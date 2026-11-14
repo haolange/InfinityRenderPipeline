@@ -11,8 +11,11 @@
   - B8e：cookie atlas 与探针 atlas 改为 `INFINITY_LIGHT_COOKIES` / `INFINITY_REFLECTION_PROBES` 两个 keyword 开关，SSGI 的 AO 改为局部 keyword `SSGI_AMBIENT_OCCLUSION`；不再绑定 `whiteTexture`、空探针 atlas 或拿深度纹理冒充 AO。
   - B8g：opaque 与 fogged scene color 由各自的合成 pass 决定；history 拷贝按 feature 门控。
 - `3d5f036`：静态检查新增 `silentfallback`。
-- B8f：DebugView 改为查表，录制只存在于 Editor 和 Development 构建。
-- B9：文档收尾。
+- `96002a3`（B8f）：DebugView 改为查表，录制只存在于 Editor 和 Development 构建。
+- `1ee1046`：大气两个缓存 key（`AtmosphereViewKey`、`AtmosphereIBLKey`）加入太阳辐亮度。改 directional light 的强度或颜色后，天空、天空环境光和 aerial perspective 必须同帧跟着变；删除方向光后天空变黑，不得残留旧表。测试里的 keyword 启用方式同步修正。
+- `4a1aedb`：删除零调用者的 `RGBuilder.SnapshotRecordingArray`；`MeshViewMotionHistory` 改名 `MeshMotionHistory`（含测试类，用例数不变）。
+- `e3310e4`：静态检查新增 `scalarupload`，docstring 补齐，`respath`、`sgstrings` 补测试。
+- B9 文档：`341d433`（CHANGELOG、FeatureStatus、Manual）、`001a80c`（Style），以及 ARCHITECTURE/AGENTS 事实核对（本提交）。
 
 ## 头号怀疑
 
@@ -38,12 +41,13 @@
   - 没有：天空与环境光变黑是预期结果，其余应一致。
 - cookie 与反射探针：用有 light cookie 和反射探针的样本，在相机 frame settings 里分别开、关 LightCookies 和 ReflectionProbes。开的时候与 `1a357c0` 一致，关的时候 cookie 与探针反射消失，Console 无 "property not set"。
 - SSGI 加 AO：关闭 AmbientOcclusion 时 SSGI 照常工作，开启时与 `1a357c0` 一致。
+- 大气缓存：Spazon 里把 directional light 的 intensity 改为一半，下一帧天空与环境光必须变暗（截前后两张）；改回后恢复。不保存场景。
 - DebugView：AO、SSGI、IndirectDiffuse、CascadeShadowAtlas、LightComplexity、ReflectionProbeAtlas 各截一张，与 `1a357c0` 一致。
 
 ## 构建（需要用户授权）
 
 - 做一次 macOS release player build，Development Build 关闭。
-- shader 编译日志无错误，`INFINITY_*` 与 `SSGI_AMBIENT_OCCLUSION` 的变体都被编译。
+- shader 编译日志无错误，`INFINITY_*` 与 `SSGI_AMBIENT_OCCLUSION` 的变体都被编译。回报 `InfinityRP shader stripping:` 那一行的原文。
 - `Data/Managed`（Mono）中没有 `Unity.RenderPipelines.Infinity.Validation.dll`。Runtime DLL 中搜不到 `RenderCaptureService`、`ComputeDebugView`、`RenderFaultValidation` 三个名字。
 - player 能启动并出画（Spazon 场景，截一张图）。
 

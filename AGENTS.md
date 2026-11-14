@@ -60,9 +60,9 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | GPU record | Same name in C# and HLSL (a pass cbuffer adds `CBV_`), tagged `// GPU-RECORD: <HlslStruct> <hlsl file>` | `LightRecord` |
 | Handle | `Handle` suffix | `TextureHandle`, `RGMeshDrawListHandle` |
 | Render-graph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
-| Job | `*Job` suffix | `MeshInstanceCullingJob` |
+| Job | `*Job` suffix | `MeshDrawGatherJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
-| Static field | `s_` prefix; IDs, keywords and samplers are `static readonly` | `s_Shader` |
+| Static field | `s_` prefix; IDs, keywords and samplers are `static readonly` | `s_NameID` |
 | Shader property IDs | One ID per property name; shared names on a `*ShaderIDs` holder | `PassShaderIDs.SRV_DepthTexture` |
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
