@@ -1,0 +1,20 @@
+// Copies one constant buffer record into a buffer, so a test can read back what the dispatch saw.
+#pragma kernel CopyConstants
+
+cbuffer CBV_ContractConstants
+{
+    float4 ContractVector;
+    uint ContractCount;
+    float ContractScale;
+    uint ContractPadding0;
+    uint ContractPadding1;
+};
+
+RWStructuredBuffer<float4> ContractResults;
+
+[numthreads(1, 1, 1)]
+void CopyConstants(uint3 id : SV_DispatchThreadID)
+{
+    ContractResults[0] = ContractVector;
+    ContractResults[1] = float4(ContractCount, ContractScale, 0, 0);
+}
