@@ -2,9 +2,9 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // A view stores references, never a second matrix table. Sparse views retain
-    // their own accepted scene version until their next successful submission.
-    internal sealed class MeshViewMotionHistory
+    // The scene transform version a camera's last submitted frame accepted, by reference, never a second matrix
+    // table. A camera that renders sparsely keeps its accepted version until its next successful submission.
+    internal sealed class MeshMotionHistory
     {
         MeshTransformVersion m_Accepted, m_Pending;
         internal MeshTransformVersion accepted => m_Accepted;

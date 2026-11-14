@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (build == null) Assert.Ignore("Compute_MeshDrawPipeline is not available.");
             Assert.IsNotNull(sample);
             var pool = new ResourcePool(); var world = new MeshWorld(pool, build);
-            var a = new MeshViewMotionHistory(); var b = new MeshViewMotionHistory();
+            var a = new MeshMotionHistory(); var b = new MeshMotionHistory();
             try
             {
                 MeshEntityId id, last = default;

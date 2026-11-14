@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly UniformBuffer<ViewUniform> viewUniform = new UniformBuffer<ViewUniform>();
         internal readonly UniformBuffer<ShadowUniform> shadowUniform = new UniformBuffer<ShadowUniform>();
         internal readonly UniformBuffer<LightLoopUniform> lightLoopUniform = new UniformBuffer<LightLoopUniform>();
-        internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
+        internal readonly MeshMotionHistory meshMotionHistory = new MeshMotionHistory();
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
         public FrameFeatureSet features;

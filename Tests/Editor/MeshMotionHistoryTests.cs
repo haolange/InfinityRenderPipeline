@@ -6,12 +6,12 @@ using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
-    public class MeshViewMotionHistoryTests
+    public class MeshMotionHistoryTests
     {
         ResourcePool m_Pool;
         MeshWorld m_World;
-        readonly MeshViewMotionHistory m_A = new MeshViewMotionHistory();
-        readonly MeshViewMotionHistory m_B = new MeshViewMotionHistory();
+        readonly MeshMotionHistory m_A = new MeshMotionHistory();
+        readonly MeshMotionHistory m_B = new MeshMotionHistory();
 
         [SetUp]
         public void SetUp()

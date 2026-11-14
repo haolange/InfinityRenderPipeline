@@ -138,13 +138,6 @@ namespace InfinityTech.Rendering.RenderGraph
             return array;
         }
 
-        internal T[] SnapshotRecordingArray<T>(T[] source)
-        {
-            var destination = GetRecordingArray<T>(source.Length);
-            Array.Copy(source, destination, source.Length);
-            return destination;
-        }
-
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Set by a diagnostics session; null otherwise.
         internal static IRGExecutionObserver executionObserver;
