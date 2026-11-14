@@ -9,6 +9,8 @@
 
 `LightSourceShape` is the analytic emitter: type, spot shape, source radius, soft source radius, source length, source width and height, barn-door angle and length, source angle, soft source angle, pyramid aspect and box size. When the Infinity component has authored that shape, it is the authority. Edits and API setters write the derived native fields (`type`, `shapeRadius`, `areaSize`, `shadowAngle`) so the lightmapper, culling and gizmos match the renderer. Loading a scene does not write those fields. A light without the component, or without an authored shape, renders the shape described by its native fields. Adding the component adopts that shape.
 
+Color, intensity and color temperature reach the pipeline as the light's final linear color from Unity's culling result. A camera that sees no directional light has no sun: the sky and the sky ambient are black until one exists.
+
 The GPU light record has no shape enum. Shape is the combination of these parameters and record flags.
 
 ## Shapes

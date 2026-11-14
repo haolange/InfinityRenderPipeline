@@ -12,7 +12,7 @@ Window > Analysis > Rendering Debugger is Unity's window. Infinity registers the
 | Infinity Timings | Record Pass Timings. When recording is on, the previous frame's total and a Passes foldout with one row per pass sampler |
 | Infinity Mesh | Entity, element, pass-cache and cached-command counts, Override Mesh Backend, the backend enum when override is on, requested backend, actual backend, and the backend reason |
 
-Choosing a view in one panel clears the other panels' views. A view whose producer did not run is magenta. The debug view is not serialized on the pipeline asset. Probe and preview cameras do not take a debug view. Game, Scene and VR cameras can.
+Debug View and capture exist only in Editor and Development builds; a release build has neither. Choosing a view in one panel clears the other panels' views. A view whose producer did not run is magenta. The debug view is not serialized on the pipeline asset. Probe and preview cameras do not take a debug view. Game, Scene and VR cameras can.
 
 Light and reflection-probe complexity count the lights and probes the clustered loop visits for that pixel's tile and depth bin. They do not count lights that pass the pixel's lighting test. Red is the top of Complexity Range.
 
