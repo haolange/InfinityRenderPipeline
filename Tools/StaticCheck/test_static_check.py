@@ -184,6 +184,18 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_iterator_ref_locals(str(self.repo), out)
         self.assertEqual(['Tests/Editor/T.cs:5'], [o[2].split(': ')[0] for o in out])
 
+    def test_cbuffer_member_id_fails_and_a_loose_global_of_the_same_name_passes(self):
+        self.write('Shaders/P.compute', 'cbuffer CBV_PassParameters\n{\n    float4 Resolution;\n    float Intensity;\n};\n')
+        self.write('Shaders/R.hlsl', 'float Intensity;\n')
+        self.write('Runtime/P.cs', 'static readonly int IntensityID = Shader.PropertyToID("Intensity");\n')
+        out = []
+        static_check.check_cbuffer_member_ids(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/P.cs', 'static readonly int IntensityID = Shader.PropertyToID("Intensity");\n'
+                   'static readonly int ResolutionID = Shader.PropertyToID("Resolution");\n')
+        static_check.check_cbuffer_member_ids(str(self.repo), out)
+        self.assertEqual(['Runtime/P.cs:2'], [o[2].split(': ')[0] for o in out])
+
     def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
         self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
                    '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'
