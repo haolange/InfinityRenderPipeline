@@ -13,7 +13,7 @@ Checks
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
-  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param calls
+  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
   silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   textureviews     the generated texture-view binding registry matches Tools/TextureViews.py output
@@ -288,12 +288,13 @@ def check_iterator_ref_locals(repo, out):
 
 SHADER_DECLARATION = r'\b(?:float|half|int|uint|bool)(?:[1-4](?:x[1-4])?)?\s+(\w+)\s*[;\[]'
 
-SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*Param\s*\(')
+SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*?Params?\s*\(')
 SCALAR_UPLOAD_LIMIT = 8
 SCALAR_UPLOAD_DEFINITIONS = {'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGCommandCore.cs'}
 
 def check_scalar_uploads(repo, out):
-    """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets."""
+    """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
+    The count is per file, a heuristic: a pass that uploads its parameters one by one exceeds it."""
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel in SCALAR_UPLOAD_DEFINITIONS:

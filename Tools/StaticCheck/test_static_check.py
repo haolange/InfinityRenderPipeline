@@ -38,7 +38,7 @@ class StaticCheckTests(unittest.TestCase):
         out = []
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual([], out)
-        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParam(shader, ID_Intensity, intensity);')
+        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParams(shader, ID_Weights, weights);')
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual(['scalarupload'], [o[1] for o in out])
 
