@@ -324,7 +324,7 @@ Subsurface scattering, when the Volume is active and a diffusion profile exists,
 
 ## 12. Atmosphere, fog, clouds and translucency
 
-`AtmosphericalProfile` on the pipeline asset is the only atmosphere configuration. `AtmosphereParameter.FromProfile(null)` throws. `ThrowIfInvalid` rejects out-of-range thickness, scattering, heights, ozone and sun angle. Lengths are meters. Scattering and absorption are stored per kilometer and multiplied by `ScatterPerKmToPerMeter` (0.001) at bind. Volume does not override the atmosphere, and there is no `AtmosphereParameter.Default()`.
+`AtmosphericalProfile` on the pipeline asset is the only atmosphere configuration. `AtmosphereParameter.FromProfile(null)` throws. `ThrowIfInvalid` rejects out-of-range thickness, scattering, heights, ozone and sun angle. Lengths are meters. Scattering and absorption are stored per kilometer and multiplied by `ScatterPerKmToPerMeter` (0.001) at bind. Volume does not override the atmosphere, and there is no `AtmosphereParameter.Default()`. The atmosphere's sun is the camera's sun record; a camera without a directional light has no sun, its sun radiance is zero and the sky and its irradiance are black.
 
 Lookup tables and the aerial-perspective volume are compute products. Cubemap faces are a `RWTexture2DArray`. Sky and fog are applied in `ComputeAtmosphericSkyAndFog` after opaque lighting and before translucent depth.
 

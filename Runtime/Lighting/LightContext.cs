@@ -735,16 +735,19 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // The sun the atmosphere scatters is the camera's sun record. Without one there is no sun: its radiance is zero,
+        // and the direction (straight up) only keeps the lookup tables' parameterisation defined.
         internal static void ResolveSun(LightContext context, out Vector4 direction, out Vector4 radiance)
         {
-            direction = new Vector4(0, 1, 0, 0);
-            radiance = new Vector4(1, 1, 1, 1);
-            if (context != null && context.TryGetSunRecord(out LightRecord sun))
+            if (context.TryGetSunRecord(out LightRecord sun))
             {
                 direction = -sun.forward;
                 direction.w = 0;
                 radiance = sun.radiance;
+                return;
             }
+            direction = new Vector4(0, 1, 0, 0);
+            radiance = Vector4.zero;
         }
 
         public void Dispose()
