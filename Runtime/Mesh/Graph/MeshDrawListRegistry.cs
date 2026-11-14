@@ -40,6 +40,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         Empty = 4
     }
 
+    /// <summary>Graph handles every consumer of a list reads: the frozen tables and the producer's outputs.</summary>
+    internal struct MeshDrawListReads
+    {
+        public RGBufferHandle matrices, generations, layers, previousMatrices, previousGenerations;
+        public bool hasPrevious;
+        public RGBufferHandle[] producerOutputs;
+    }
+
     internal struct MeshDrawListRecord
     {
         public MeshCullingContext cullingContext;
@@ -51,6 +59,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public List<int> consumerPassIndices;
         // The pass cache revision the list was recorded against; execution rejects any other.
         public uint cacheRevision;
+        public MeshDrawListReads reads;
         // CPU direct
         public MeshDrawListBuild build;
         public BufferHandle cpuInstances;
@@ -65,7 +74,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal sealed class MeshDrawListRegistry
     {
         readonly MeshWorld m_World;
-        readonly List<MeshDrawListRecord> m_Records = new List<MeshDrawListRecord>(16);
+        // Sized for a camera with every pass, four cascades and several shadowed local lights, so recording does not grow it.
+        readonly List<MeshDrawListRecord> m_Records = new List<MeshDrawListRecord>(64);
         readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
         // Start at 1 so default(RGMeshDrawListHandle) never matches a live graph.
         int m_GraphGeneration = 1;
@@ -127,6 +137,20 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Records[index] = record;
             }
             return new RGMeshDrawListHandle(this, index, m_GraphGeneration);
+        }
+
+        internal void SetReads(int index, in MeshDrawListReads reads)
+        {
+            MeshDrawListRecord record = m_Records[index];
+            record.reads = reads;
+            m_Records[index] = record;
+        }
+
+        internal void SetProducerOutputs(int index, RGBufferHandle[] outputs)
+        {
+            MeshDrawListRecord record = m_Records[index];
+            record.reads.producerOutputs = outputs;
+            m_Records[index] = record;
         }
 
         public void ClearConsumers()

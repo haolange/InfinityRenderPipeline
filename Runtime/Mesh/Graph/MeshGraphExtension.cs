@@ -54,12 +54,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int index;
         }
 
-        struct BufferPair
-        {
-            public RGBufferHandle matrices, generations, layers, previousMatrices, previousGenerations;
-            public bool hasPrevious;
-        }
-
         struct OccluderEntry
         {
             public MeshCullingContext context;
@@ -85,10 +79,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal readonly MeshWorld world;
         internal readonly MeshDrawListRegistry drawLists;
-        readonly Dictionary<int, RGBufferHandle[]> m_ProducerOutputs = new Dictionary<int, RGBufferHandle[]>();
-        readonly Dictionary<int, BufferPair> m_TableReads = new Dictionary<int, BufferPair>();
         readonly List<OccluderEntry> m_Occluders = new List<OccluderEntry>(2);
-        readonly List<RepeatEntry> m_Repeats = new List<RepeatEntry>(16);
+        // One entry per culling context and pass of the camera; sized like the registry so recording does not grow it.
+        readonly List<RepeatEntry> m_Repeats = new List<RepeatEntry>(64);
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
         MeshMotionBinding m_Motion;
 
@@ -104,8 +97,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Clear()
         {
             m_ScheduledVersions.Clear();
-            m_ProducerOutputs.Clear();
-            m_TableReads.Clear();
             m_Occluders.Clear();
             m_Repeats.Clear();
             m_Motion = default;
@@ -198,7 +189,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGMeshDrawListHandle draws = drawLists.Create(context, cache, backend, m_Motion, empty);
             MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
             // Recording references keep the frozen tables alive for this graph.
-            var tables = new BufferPair
+            var reads = new MeshDrawListReads
             {
                 matrices = builder.ImportBuffer(record.tables.version.matrices),
                 generations = builder.ImportBuffer(record.tables.version.generations),
@@ -207,11 +198,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshTransformVersion previous = record.motion.previous;
             if (previous != null)
             {
-                tables.previousMatrices = builder.ImportBuffer(previous.matrices);
-                tables.previousGenerations = builder.ImportBuffer(previous.generations);
-                tables.hasPrevious = true;
+                reads.previousMatrices = builder.ImportBuffer(previous.matrices);
+                reads.previousGenerations = builder.ImportBuffer(previous.generations);
+                reads.hasPrevious = true;
             }
-            m_TableReads[draws.index] = tables;
+            drawLists.SetReads(draws.index, reads);
 
             RGBufferHandle drawn = default;
             if (!empty)
@@ -318,7 +309,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             outputs[0] = instances;
             outputs[1] = fades;
             outputs[2] = args;
-            m_ProducerOutputs[drawIndex] = outputs;
+            drawLists.SetProducerOutputs(drawIndex, outputs);
             return written;
         }
 
@@ -341,28 +332,27 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(2);
             outputs[0] = instances;
             outputs[1] = fades;
-            m_ProducerOutputs[drawIndex] = outputs;
+            drawLists.SetProducerOutputs(drawIndex, outputs);
         }
 
         // The pass records the draw-list index; compile reads it back to find live consumers.
         internal void UseDrawList(IRGPass pass, in RGMeshDrawListHandle draws)
         {
             pass.extensionUses.Add(draws.index);
-            if (m_TableReads.TryGetValue(draws.index, out BufferPair tables))
+            MeshDrawListReads reads = drawLists.GetRecordCopy(draws.index).reads;
+            pass.AddResourceRead(reads.matrices.handle);
+            pass.AddResourceRead(reads.generations.handle);
+            pass.AddResourceRead(reads.layers.handle);
+            if (reads.hasPrevious)
             {
-                pass.AddResourceRead(tables.matrices.handle);
-                pass.AddResourceRead(tables.generations.handle);
-                pass.AddResourceRead(tables.layers.handle);
-                if (tables.hasPrevious)
-                {
-                    pass.AddResourceRead(tables.previousMatrices.handle);
-                    pass.AddResourceRead(tables.previousGenerations.handle);
-                }
+                pass.AddResourceRead(reads.previousMatrices.handle);
+                pass.AddResourceRead(reads.previousGenerations.handle);
             }
-            if (m_ProducerOutputs.TryGetValue(draws.index, out RGBufferHandle[] outputs))
+            // An empty list has no producer.
+            if (reads.producerOutputs != null)
             {
-                for (int i = 0; i < outputs.Length; ++i)
-                    pass.AddResourceRead(outputs[i].handle);
+                for (int i = 0; i < reads.producerOutputs.Length; ++i)
+                    pass.AddResourceRead(reads.producerOutputs[i].handle);
             }
         }
     }
