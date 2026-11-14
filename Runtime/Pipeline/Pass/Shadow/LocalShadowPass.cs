@@ -204,7 +204,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-
                     for (int slice = 0; slice < passData.sliceCount; ++slice)
                     {
                         bool hasDraws = passData.meshDrawLists[slice].IsValid;

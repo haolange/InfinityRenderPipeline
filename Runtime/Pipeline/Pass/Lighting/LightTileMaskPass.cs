@@ -175,8 +175,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle tileMasks;
         }
 
-        // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
-        // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
         // The camera's light-loop constants, from the light context built after culling. Probes count only when the
         // reflection probe feature records a probe list this frame.
         LightLoopUniform ResolveLightLoopUniform(FrameFeatureSet features)
@@ -195,6 +193,8 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
+        // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
+        // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
         LightLoopInputs QueryLightLoop(in CameraRecordContext context)
         {
             LightContext lightContext = renderContext.lightContext;
