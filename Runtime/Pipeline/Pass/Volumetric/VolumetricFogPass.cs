@@ -51,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int3 froxelResolution;
             public float nearPlane;
             public float farPlane;
-            public Vector4 worldSpaceCameraPos;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
@@ -127,7 +126,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
                 passData.nearPlane = context.camera.nearClipPlane;
                 passData.farPlane = context.camera.farClipPlane;
-                passData.worldSpaceCameraPos = context.camera.transform.position;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -162,7 +160,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_MaxDistance, passData.maxDistance);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricFogPassUtilityData.VolFog_TemporalWeightID, passData.temporalWeight);
                     cmdEncoder.SetComputeIntParam(shader, VolumetricFogPassUtilityData.VolFog_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeFloatParam(shader, PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
 
                     int scatterKernel = passData.scatterDensityKernel.index;

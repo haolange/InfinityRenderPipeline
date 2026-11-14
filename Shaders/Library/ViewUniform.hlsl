@@ -25,4 +25,21 @@ cbuffer ViewUniform
     float4x4 Matrix_LastViewFlipYJitterProj;
 };
 
+// Camera facts the matrices already hold; they are read from there, not stored a second time.
+float3 ViewPositionWS()
+{
+    return float3(Matrix_ViewToWorld._m03, Matrix_ViewToWorld._m13, Matrix_ViewToWorld._m23);
+}
+
+// View space looks down -Z.
+float3 ViewForwardWS()
+{
+    return -float3(Matrix_ViewToWorld._m02, Matrix_ViewToWorld._m12, Matrix_ViewToWorld._m22);
+}
+
+bool ViewIsOrthographic()
+{
+    return Matrix_Proj._m33 == 1.0;
+}
+
 #endif

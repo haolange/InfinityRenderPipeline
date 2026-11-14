@@ -25,7 +25,6 @@ float4 ContactShadow_Resolution;
 float4 ContactShadow_DepthParams;
 
 #include "../../Library/ViewUniform.hlsl"
-float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
 RWTexture2D<float> UAV_ContactShadowSun;
@@ -85,7 +84,7 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
 
     float viewDepth = ContactLinearDepth(rawDepth);
     float3 worldPos = GetWorldSpacePos(GetNDCPos(screenUV, rawDepth), Matrix_InvViewFlipYJitterProj);
-    float viewDist = length(worldPos - _WorldSpaceCameraPos);
+    float viewDist = length(worldPos - ViewPositionWS());
     float distanceFade = 1.0 - saturate((viewDist - ContactShadow_FadeDistance * 0.8) / (ContactShadow_FadeDistance * 0.2));
     float strength = ContactShadow_Intensity * distanceFade;
     // Sky pixels and faded-out pixels trace nothing.

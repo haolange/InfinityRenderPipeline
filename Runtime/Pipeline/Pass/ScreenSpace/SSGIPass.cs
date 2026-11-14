@@ -36,8 +36,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SSGI_TemporalWeightID = Shader.PropertyToID("SSGI_TemporalWeight");
         internal static readonly int SSGI_TemporalClampScaleID = Shader.PropertyToID("SSGI_TemporalClampScale");
         internal static readonly int SSGI_HistoryValidID = Shader.PropertyToID("SSGI_HistoryValid");
-        internal static readonly int SSGI_CameraPositionID = Shader.PropertyToID("SSGI_CameraPosition");
-        internal static readonly int SSGI_CameraForwardID = Shader.PropertyToID("SSGI_CameraForward");
         internal static readonly int SRV_TraceRadianceID = Shader.PropertyToID("SRV_TraceRadiance");
         internal static readonly int UAV_TraceRadianceID = Shader.PropertyToID("UAV_TraceRadiance");
         internal const string RayHitName = "SSGIRayHit";
@@ -69,8 +67,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int previousFrameIndex;
             public float historyValid;
             public Vector4 depthParameters;
-            public Vector4 cameraPosition;
-            public Vector4 cameraForward;
             public ComputeShader ssgiShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -170,9 +166,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.previousFrameIndex = context.state.acceptedSSGIFrameIndex;
                 passData.historyValid = historyValid ? 1 : 0;
                 passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector3 cameraPosition = context.camera.transform.position;
-                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, context.camera.orthographic ? 1 : 0);
-                passData.cameraForward = context.camera.transform.forward;
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
                 passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
@@ -235,8 +228,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalWeightID, settings.temporalWeight);
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_TemporalClampScaleID, settings.temporalClampScale);
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_HistoryValidID, passData.historyValid);
-                    cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGI_CameraPositionID, passData.cameraPosition);
-                    cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGI_CameraForwardID, passData.cameraForward);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
 
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGI_FrameAngleID, (passData.frameIndex & 63) * 2.39996323f);

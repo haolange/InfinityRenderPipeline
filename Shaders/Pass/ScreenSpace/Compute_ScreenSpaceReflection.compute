@@ -62,8 +62,6 @@ float SSR_TemporalClampScale;
 float SSR_HistoryValid;
 int SSR_DebugMode;
 // xyz = world position, w = 1 for orthographic cameras.
-float4 SSR_CameraPosition;
-float4 SSR_CameraForward;
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
@@ -153,7 +151,7 @@ bool LoadSurface(uint2 pixel, out SSRSurface surface)
         float3 ndc = GetNDCPos(uv, rawDepth);
         surface.positionVS = GetViewSpacePos(ndc, Matrix_InvFlipYJitterProj);
         surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewFlipYJitterProj);
-        surface.viewRayWS = SSR_CameraPosition.w != 0 ? SSR_CameraForward.xyz : normalize(surface.positionWS - SSR_CameraPosition.xyz);
+        surface.viewRayWS = ViewIsOrthographic() ? ViewForwardWS() : normalize(surface.positionWS - ViewPositionWS());
     }
     return valid;
 }

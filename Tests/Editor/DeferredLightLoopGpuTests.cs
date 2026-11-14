@@ -178,8 +178,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("g_LightZBinParams", new Vector4(1, 0, 0, 0));
                 shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
                 shader.SetFloat("DeferredShading_FarDepth", 1);
-                using var view = new ViewUniformBinding(new ViewUniform { matrix_InvFlipYJitterProj = Matrix4x4.identity, matrix_InvViewFlipYJitterProj = Matrix4x4.identity });
-                shader.SetVector("_WorldSpaceCameraPos", new Vector4(0, 0, -2, 1));
+                using var view = new ViewUniformBinding(new ViewUniform
+                {
+                    matrix_InvFlipYJitterProj = Matrix4x4.identity,
+                    matrix_InvViewFlipYJitterProj = Matrix4x4.identity,
+                    matrix_ViewToWorld = Matrix4x4.Translate(new Vector3(0, 0, -2))
+                });
                 shader.SetInt("_CascadeCount", 0); shader.SetFloat("_InfinityShadowDistance", 1000);
                 shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);

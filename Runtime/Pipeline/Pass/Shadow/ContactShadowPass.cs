@@ -45,7 +45,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int frameIndex;
             public int2 resolution;
             public Vector4 depthParams;
-            public Vector4 worldSpaceCameraPos;
             public LightLoopInputs lightLoop;
             public RGBufferHandle lightRecordBuffer;
             public ComputeKernel kernel;
@@ -88,7 +87,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);
                 passData.depthParams = ContactShadowPassUtilityData.DepthParams(context.camera);
-                passData.worldSpaceCameraPos = context.camera.transform.position;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -114,7 +112,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, ContactShadowPassUtilityData.ContactShadow_FadeDistanceID, s.fadeDistance);
                     cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeVectorParam(shader, ContactShadowPassUtilityData.ContactShadow_DepthParamsID, passData.depthParams);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     passData.lightLoop.Bind(cmdEncoder, shader, kernel.index);
                     cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     cmdEncoder.SetComputeTextureParam(shader, kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);

@@ -20,7 +20,6 @@ float _AtmosphereIBLMaxMip;
 float4 DeferredShading_Resolution;
 float DeferredShading_FarDepth;
 #include "../../Library/ViewUniform.hlsl"
-float3 _WorldSpaceCameraPos;
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
@@ -77,7 +76,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
     float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
-    float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+    float3 viewDir = normalize(ViewPositionWS() - worldPos);
     float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvFlipYJitterProj);
     float viewDepth = -viewPos.z;
 

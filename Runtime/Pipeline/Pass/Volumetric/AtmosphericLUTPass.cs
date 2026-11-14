@@ -91,7 +91,6 @@ namespace InfinityTech.Rendering.Pipeline
             public AtmosphereParameter parameter;
             public Vector4 sunDirection;
             public Vector4 sunIlluminance;
-            public Vector4 worldSpaceCameraPos;
             public int generateShared;
             public int generateView;
             public int generateIBL;
@@ -155,7 +154,6 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunDirectionID, passData.sunDirection);
             cmdEncoder.SetComputeVectorParam(shader, AtmosphericLUTPassUtilityData.Atmo_SunIlluminanceID, passData.sunIlluminance);
             cmdEncoder.SetComputeIntParam(shader, AtmosphericLUTPassUtilityData.Atmo_CubemapSizeID, parameter.cubemapSize);
-            cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
         }
 
         sealed class AtmosphereProduction : IRGPassQueueObserver
@@ -186,8 +184,8 @@ namespace InfinityTech.Rendering.Pipeline
             AtmosphereParameter parameter = context.atmosphere;
 
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
-            Vector3 cameraPosition = context.camera.transform.position;
-            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, cameraPosition,
+            // The key quantizes the position the view LUT kernels read from ViewUniform.
+            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, context.cameraUniform.matrix_ViewToWorld.GetColumn(3),
                 context.cameraUniform.matrix_WorldToView, context.cameraUniform.matrix_FlipYProj);
             AtmosphereIBLKey iblKey = AtmosphereIBLKey.Create(parameter, (Vector3)sunDirection);
 
@@ -259,7 +257,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
-                passData.worldSpaceCameraPos = cameraPosition;
                 passData.generateShared = generateShared ? 1 : 0;
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;

@@ -38,7 +38,6 @@ float4 Atmo_SunDirection;
 float4 Atmo_SunIlluminance;
 int Atmo_CubemapSize;
 int Atmo_SHPartialCount;
-float3 _WorldSpaceCameraPos;
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float4> SRV_TransmittanceLUT;
@@ -150,7 +149,7 @@ float RayCosSunAt(float h0, float cosSun0, float cosViewSun, float t, float hAt)
 
 float CameraAltitude()
 {
-    return max(_WorldSpaceCameraPos.y, MIN_ALTITUDE);
+    return max(ViewPositionWS().y, MIN_ALTITUDE);
 }
 
 // The camera sits on a planet whose center is straight below the world origin, so its local up tilts
@@ -557,7 +556,7 @@ void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
     float2 ndc = uv * 2.0 - 1.0;
     float4 world = mul(Matrix_InvViewFlipYProj, float4(ndc, 0.5, 1.0));
     world.xyz /= max(world.w, 1e-6);
-    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+    float3 viewDir = normalize(world.xyz - ViewPositionWS());
 
     float altitude = CameraAltitude();
     float tAtmosphere = RayAtmosphereExit(altitude, dot(PlanetUp(), viewDir));
@@ -643,7 +642,7 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
     float2 ndc = uv * 2.0 - 1.0;
     float4 world = mul(Matrix_InvViewFlipYJitterProj, float4(ndc, depth, 1.0));
     world.xyz /= max(world.w, 1e-6);
-    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+    float3 viewDir = normalize(world.xyz - ViewPositionWS());
 
     if (isSky)
     {
@@ -653,7 +652,7 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
+    float linearDepth = length(world.xyz - ViewPositionWS());
     float sliceT = saturate(sqrt(linearDepth / max(Atmo_AerialPerspectiveDistance, 1.0)));
     float4 aerial = InfinitySampleLevelTrilinear(SRV_AerialPerspectiveLUT,Global_trilinear_clamp_sampler,float3(uv, sliceT),0);
     float3 scene = UAV_LightingTexture[id.xy].rgb;

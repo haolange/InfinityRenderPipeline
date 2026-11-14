@@ -9,7 +9,6 @@
 float4 FogComposite_Resolution;
 float FogComposite_MaxDistance;
 #include "../../Library/ViewUniform.hlsl"
-float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float4> SRV_SceneColorTexture;
@@ -34,7 +33,7 @@ void FogComposite(uint3 id : SV_DispatchThreadID)
     float2 ndc = screenUV * 2.0 - 1.0;
     float4 world = mul(Matrix_InvViewFlipYJitterProj, float4(ndc, depth, 1.0));
     world.xyz /= max(world.w, 1e-6);
-    float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
+    float linearDepth = length(world.xyz - ViewPositionWS());
 
 #if defined(FOG_COMPOSITE_FOG)
     float fogSlice = saturate(sqrt(linearDepth / max(FogComposite_MaxDistance, 1.0)));

@@ -28,7 +28,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 groupCount;
             public LightLoopInputs lightLoop;
             public int2 resolution;
-            public Vector4 worldSpaceCameraPos;
             public bool hasSubsurface;
             public RGTextureHandle scatterDiffuse;
             public int hasAO;
@@ -106,7 +105,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = kernel.index;
                 passData.groupCount = groupCount;
                 passData.resolution = new int2(width, height);
-                passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
@@ -153,7 +151,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.UAV_IndirectSpecularID, passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsConventions.SampledFarDepth);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.kernel);
                     cmdEncoder.SetComputeBufferParam(shader, passData.kernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.shadows.Bind(cmdEncoder, shader, passData.kernel);

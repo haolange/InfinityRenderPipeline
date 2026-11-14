@@ -58,7 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float farPlane;
             public float planetRadius;
             public float atmosphereHeight;
-            public Vector4 worldSpaceCameraPos;
             public RGBufferHandle lightRecordBuffer;
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
@@ -129,7 +128,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.farPlane = context.camera.farClipPlane;
                 passData.planetRadius = atmosphereParameter.planetRadius;
                 passData.atmosphereHeight = atmosphereParameter.atmosphereHeight;
-                passData.worldSpaceCameraPos = context.camera.transform.position;
                 LightLoopInputs lightLoop = QueryLightLoop(context);
                 lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
@@ -164,7 +162,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_PlanetRadiusID, passData.planetRadius);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AtmosphereHeightID, passData.atmosphereHeight);
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeBufferParam(shader, passData.cloudKernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     passData.lightLoop.Bind(cmdEncoder, shader, passData.cloudKernel.index);
                     passData.shadows.Bind(cmdEncoder, shader, passData.cloudKernel.index);

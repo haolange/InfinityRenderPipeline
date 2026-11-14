@@ -39,8 +39,6 @@ float SSGI_TemporalWeight;
 float SSGI_TemporalClampScale;
 float SSGI_HistoryValid;
 // xyz = world position, w = 1 for orthographic cameras.
-float4 SSGI_CameraPosition;
-float4 SSGI_CameraForward;
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;

@@ -22,7 +22,6 @@ namespace InfinityTech.Rendering.Pipeline
         struct ScreenSpaceCompositePassData
         {
             public int2 resolution;
-            public Vector4 worldSpaceCameraPos;
             public bool hasSubsurface;
             public RGTextureHandle scatterDiffuse;
             public int hasSSR;
@@ -73,7 +72,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData();
                 passData.resolution = new int2(width, height);
-                passData.worldSpaceCameraPos = context.camera.transform.position;
                 passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                 if (passData.hasSubsurface && hasSSGI)
                 {
@@ -118,7 +116,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectDiffuseID, passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectSpecularID, passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.WorldSpaceCameraPos, passData.worldSpaceCameraPos);
                     cmdEncoder.SetKeyword(shader, passData.ssrKeyword, passData.hasSSR != 0);
                     cmdEncoder.SetKeyword(shader, passData.ssgiKeyword, passData.hasSSGI != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_LightingTexture, passData.lightingTexture);

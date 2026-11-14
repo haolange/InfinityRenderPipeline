@@ -50,6 +50,5 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_TileArgs = Shader.PropertyToID("UAV_TileArgs");
         internal static readonly int VolFog_AerialDistance = Shader.PropertyToID("VolFog_AerialDistance");
         internal static readonly int VolFog_MaxDistance = Shader.PropertyToID("VolFog_MaxDistance");
-        internal static readonly int WorldSpaceCameraPos = Shader.PropertyToID("_WorldSpaceCameraPos");
     }
 }

@@ -24,7 +24,6 @@ float VolFog_MaxDistance;
 float VolFog_TemporalWeight;
 int VolFog_FrameIndex;
 #include "../../Library/ViewUniform.hlsl"
-float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_CascadeShadowMap;
@@ -67,8 +66,8 @@ float3 FroxelToWorld(uint3 froxelCoord)
     float4 clipPos = float4(ndc, 0.5, 1.0);
     float4 worldPos = mul(Matrix_InvViewFlipYJitterProj, clipPos);
     worldPos /= worldPos.w;
-    float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-    return _WorldSpaceCameraPos + viewDir * depth;
+    float3 viewDir = normalize(worldPos.xyz - ViewPositionWS());
+    return ViewPositionWS() + viewDir * depth;
 }
 
 float VolumeLightAttenuation(LightRecord light, float3 worldPos)
@@ -138,7 +137,7 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
         float3 extinction = density;
         float3 scattering = density * VolFog_Albedo.rgb;
         float3 inScatter = 0;
-        float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+        float3 viewDir = normalize(worldPos - ViewPositionWS());
         float3 viewPos = mul(Matrix_WorldToView, float4(worldPos, 1.0)).xyz;
         float viewDepth = -viewPos.z;
         float2 screenUV = (id.xy + 0.5) / VolFog_Resolution.xy;
@@ -153,7 +152,7 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
         // The atmosphere lookup tables always exist: the pipeline cannot run without its atmosphere profile.
         inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
-        float linearDepth = length(worldPos - _WorldSpaceCameraPos);
+        float linearDepth = length(worldPos - ViewPositionWS());
         float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
         inScatter += aerial.rgb * density;
 

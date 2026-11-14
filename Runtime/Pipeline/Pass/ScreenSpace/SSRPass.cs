@@ -53,8 +53,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SSR_TemporalClampScaleID = Shader.PropertyToID("SSR_TemporalClampScale");
         internal static readonly int SSR_HistoryValidID = Shader.PropertyToID("SSR_HistoryValid");
         internal static readonly int SSR_DebugModeID = Shader.PropertyToID("SSR_DebugMode");
-        internal static readonly int SSR_CameraPositionID = Shader.PropertyToID("SSR_CameraPosition");
-        internal static readonly int SSR_CameraForwardID = Shader.PropertyToID("SSR_CameraForward");
         internal static readonly int RankingTileID = Shader.PropertyToID("_Ranking_Tile");
         internal static readonly int ScramblingTileID = Shader.PropertyToID("_Scrambled_Tile");
         internal static readonly int OwenScrambledSobolID = Shader.PropertyToID("_ScrambledOwen_Noise");
@@ -113,8 +111,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float historyValid;
             public int debugMode;
             public Vector4 depthParameters;
-            public Vector4 cameraPosition;
-            public Vector4 cameraForward;
             public ComputeShader ssrShader;
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
@@ -233,9 +229,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyValid = historyValid ? 1 : 0;
                 passData.debugMode = (int)debugView;
                 passData.depthParameters = new Vector4(context.camera.nearClipPlane, context.camera.farClipPlane, context.camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-                Vector3 cameraPosition = context.camera.transform.position;
-                passData.cameraPosition = new Vector4(cameraPosition.x, cameraPosition.y, cameraPosition.z, context.camera.orthographic ? 1 : 0);
-                passData.cameraForward = context.camera.transform.forward;
                 passData.ssrShader = shaders.ssrShader;
                 passData.clearArgsKernel = kernels.ssrClearArgs.index;
                 passData.classifyKernel = kernels.ssrClassify.index;
@@ -322,8 +315,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_TemporalClampScaleID, settings.temporalClampScale);
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_HistoryValidID, passData.historyValid);
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_DebugModeID, passData.debugMode);
-                    cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraPositionID, passData.cameraPosition);
-                    cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_CameraForwardID, passData.cameraForward);
                     cmdEncoder.SetComputeVectorParam(shader, PassShaderIDs.ScreenSpaceDepthParams, passData.depthParameters);
 
                     cmdEncoder.BeginSample(SSRPassUtilityData.SSRClassifySampler);

@@ -14,7 +14,6 @@
 
 float4 Composite_Resolution;
 #include "../../Library/ViewUniform.hlsl"
-float3 _WorldSpaceCameraPos;
 Texture2D SRV_LightingTexture;
 Texture2D<float4> SRV_IndirectDiffuse, SRV_IndirectSpecular;
 Texture2D SRV_GBufferTextureA;
@@ -66,7 +65,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     float2 screenUV = (pixelCoord + 0.5) * Composite_Resolution.zw;
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
     float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
-    float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+    float3 viewDir = normalize(ViewPositionWS() - worldPos);
     float4 ssrColor = SRV_SSRTexture[pixelCoord];
     float3 indirectSpecular = ssrColor.rgb;
     lighting = ReplaceIndirectContribution(lighting, SRV_IndirectSpecular[pixelCoord].rgb, EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(gbufferData.Normal, viewDir))).rgb * indirectSpecular, ssrColor.a);
