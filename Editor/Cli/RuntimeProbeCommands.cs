@@ -98,6 +98,7 @@ namespace InfinityTech.Rendering.Editor
     // pipeline's counters, so the probe does not inflate the frames it measures.
     internal sealed class RuntimeProbeSession
     {
+        const string ReloadHolder = "infinity_runtime_probe";
         internal readonly RuntimeProbeEvidence evidence;
         readonly RuntimeProbeRequest m_Request;
         readonly Camera m_Camera;
@@ -113,7 +114,7 @@ namespace InfinityTech.Rendering.Editor
         readonly double[] m_Scratch;
         int m_Frame, m_WindowSamples, m_WindowIndex;
         double m_WindowsStarted;
-        bool m_Sampling, m_HasPending, m_ReloadLocked;
+        bool m_Sampling, m_HasPending;
         // Proxy sections of frame N are final at frame N's render callback, but the complete Render scope of frame N is final
         // only at frame N+1's callback. Hold frame N's proxy values until then so each sample describes one frame.
         double m_PendingProxyMs, m_PendingTransformMs, m_PendingApplyMs, m_PendingProxyAllocations;
@@ -174,8 +175,7 @@ namespace InfinityTech.Rendering.Editor
                 EditorApplication.update += OnUpdate;
                 EditorApplication.playModeStateChanged += OnPlayModeChanged;
                 AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
-                EditorApplication.LockReloadAssemblies();
-                m_ReloadLocked = true;
+                ReloadLock.Acquire(ReloadHolder);
                 evidence.status = "Warmup";
             }
             catch (Exception error)
@@ -345,7 +345,7 @@ namespace InfinityTech.Rendering.Editor
             InfinityDebugDisplaySettings.current.mesh.backendOverride = m_PreviousBackend;
             PipelineFrameMeasurement.enabled = m_PreviousMeasurement;
             Application.runInBackground = m_PreviousRunInBackground;
-            if (m_ReloadLocked) { EditorApplication.UnlockReloadAssemblies(); m_ReloadLocked = false; }
+            ReloadLock.Release(ReloadHolder);
             evidence.restored = true;
             try { File.WriteAllText(Path.Combine(m_Request.outputDirectory, "probe.json"), JsonUtility.ToJson(evidence, true)); }
             catch (Exception write) { evidence.error += "\nEvidence write: " + write; UnityEngine.Debug.LogException(write); }

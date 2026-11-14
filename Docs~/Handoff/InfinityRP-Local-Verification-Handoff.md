@@ -37,7 +37,7 @@
 ## 3. 环境与安全规则（来自 AGENTS.md §12，必须遵守）
 
 1. 确认你持有的 Editor 与项目路径；不要操作别的会话持有的 Editor。
-2. 刷新：`Tools/RefreshUnityEditor.sh <project>` 或 `.ps1`。脚本内部先调用 `AssetDatabase.Refresh`，再调用 `CompilationPipeline.RequestScriptCompilation`，等待编译与 domain reload 完成，最后用 `Tools/VerifyScriptAssemblies.py` 核对包内每个 assembly 的 DLL 都比它最新的源码新。有过期 DLL 时脚本失败，并打印 `STALE_ASSEMBLIES=`，这时不得截图或测量。只有输出 `REFRESH_STABLE=1` 才算候选 DLL 已加载。
+2. 刷新：`Tools/RefreshUnityEditor.sh <project>` 或 `.ps1`。脚本内部先调用 `AssetDatabase.Refresh`，再调用 `CompilationPipeline.RequestScriptCompilation`，等待编译与 domain reload 完成，最后用 `Tools/VerifyScriptAssemblies.py` 核对包内每个 assembly 的 DLL 都比它最新的源码新。有过期 DLL 时脚本失败，并打印 `STALE_ASSEMBLIES=`，这时不得截图或测量。只有输出 `REFRESH_STABLE=1` 才算候选 DLL 已加载。刷新前脚本先检查 assembly reload lock，被锁时报 `RELOAD_LOCKED=1` 并退出：用 `infinity_reload_status` 查看持有者，取消对应的 capture、probe 或 validation 会话后再刷新。
 3. 日志：先打标记，只读取 `Application.consoleLogPath` 在标记之后的新窗口。之前稳定的日志不算验收证据。
 4. 截图：使用 `Tools/CaptureUnityWindow.sh`/`.ps1` 加 graph transfer capture。不要用 `com.unity.pipeline` 的 `screenshot`：它替换 `targetTexture` 并调用 `Camera.Render`，不是正常帧。
 5. 活性：Game view 不重绘时截图都一样。必须在 Play mode 下截图，或至少拿到一对 Game 区域不同的截图，才能作为活性证据。

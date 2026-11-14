@@ -5,6 +5,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_PATH="$(cd "${1:-$SCRIPT_DIR/../../..}" && pwd)"
 command -v unity >/dev/null || { echo "Unity CLI is required." >&2; exit 1; }
+# A held assembly-reload lock keeps compiled assemblies out of Library/ScriptAssemblies: refuse to refresh under one.
+LOCK_RESULT="$(unity command eval --caller plugin --skill unity-cli --project-path "$PROJECT_PATH" --format json \
+  'var canReload = typeof(UnityEditor.EditorApplication).GetMethod("CanReloadAssemblies", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static); if (canReload != null && !(bool)canReload.Invoke(null, null)) throw new System.InvalidOperationException("RELOAD_LOCKED"); return true;' || true)"
+python3 - "$LOCK_RESULT" <<'PYTHON'
+import json, sys
+try:
+    reply = json.loads(sys.argv[1])
+    unlocked = reply.get("success") and reply.get("data", {}).get("result", {}).get("success")
+except ValueError:
+    unlocked = False
+if not unlocked:
+    print(sys.argv[1])
+    raise SystemExit("RELOAD_LOCKED=1: an assembly-reload lock is held. Run infinity_reload_status, cancel its holder, then refresh again.")
+PYTHON
 REFRESH_RESULT="$(unity command eval --caller plugin --skill unity-cli --project-path "$PROJECT_PATH" --format json \
   'UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate); UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); return true;')"
 printf '%s\n' "$REFRESH_RESULT"

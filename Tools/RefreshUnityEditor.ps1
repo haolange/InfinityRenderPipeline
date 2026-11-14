@@ -8,6 +8,12 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectPath = (Resolve-Path -LiteralPath $ProjectPath).Path
 if (-not (Get-Command unity -ErrorAction SilentlyContinue)) { throw "Unity CLI is required." }
+# A held assembly-reload lock keeps compiled assemblies out of Library/ScriptAssemblies: refuse to refresh under one.
+$lock = $null
+try { $lock = (& unity command eval --caller plugin --skill unity-cli --project-path $ProjectPath --format json 'var canReload = typeof(UnityEditor.EditorApplication).GetMethod("CanReloadAssemblies", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static); if (canReload != null && !(bool)canReload.Invoke(null, null)) throw new System.InvalidOperationException("RELOAD_LOCKED"); return true;') | ConvertFrom-Json } catch { $lock = $null }
+if ($null -eq $lock -or -not $lock.success -or -not $lock.data.result.success) {
+    throw "RELOAD_LOCKED=1: an assembly-reload lock is held. Run infinity_reload_status, cancel its holder, then refresh again."
+}
 $request = (& unity command eval --caller plugin --skill unity-cli --project-path $ProjectPath --format json 'UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate); UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); return true;') | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $request.success -or -not $request.data.result.success) { throw "Editor refresh request failed." }
 $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
