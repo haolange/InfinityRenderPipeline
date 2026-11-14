@@ -1,6 +1,9 @@
 # 闸门 B8a：本地验收清单（pass 参数与相机常量进 constant buffer）
 
-分支 `claude/kind-knuth-d599st`。上一闸门 B7 在 `ea9ede6` 判 PASS；B7d 在 `2133e38` 的复验报告尚未回传，先按 B7d 的复验 prompt 跑完，再跑本闸门，两者可在同一次 Editor 会话里做。
+分支 `claude/kind-knuth-d599st`。上一闸门 B7d 在 `2133e38` 判 PASS，它是本闸门的对比基线：
+- EditMode 829 / 11 / 1，11 个失败是已知集合：ShaderStrippingTests 10 个，VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True) 1 个；
+- GC 三个窗口均为 0；
+- Spazon 六轮 marker 忙碌时间总和中，`2133e38` 三次为 1.996、1.503、1.420 ms。
 通用流程、判定标准与回报模板见 `InfinityRP-Local-Verification-Handoff.md`；本文只列本闸门特有的内容。云端无法编译 C# 与 shader，本批全部 HLSL 与 C# 改动在本地编译前都是未验证的。
 
 ## 改了什么（三个提交）
@@ -34,7 +37,7 @@
 
 ## 必跑测试
 
-全量 EditMode，与 B7 的结果对比。点名：
+全量 EditMode，与基线 829 / 11 / 1 对比：失败集合不得扩大，新增失败逐个附第一条断言。点名：
 - ShaderInitializationGpuTests（DepthConversion 4 例、TraceContract、SurfaceContract）
 - GtaoTemporalGpuTests、ScreenSpaceNumericContractTests
 - TemporalResolveGpuTests、TemporalColorSourceGpuTests
@@ -44,7 +47,7 @@
 - ColorOutputGpuTests、DefaultVolumeOutputTests、SubsurfaceGpuTests
 - 全部 RenderGraph 测试，以及新的 static check 测试 `test_cbuffer_record_requires_matching_offsets_and_whole_registers`
 
-## 画面（1445×813，对比 B7）
+## 画面（1445×813，对比 `2133e38`）
 
 - **Spazon、BoxMatix 基础画面**：Play mode 固定机位、移动机位、TAA 第 30 帧，逐项对比 SSR、SSGI、GTAO、接触阴影、体积雾与体积云、大气天空与雾、bloom 与曝光、tonemap 与 color grading、次表面散射。
 - **阴影**：cascade 阴影、带阴影的点光与聚光、shadowmask 距离模式，前向半透明物体上的阴影与光照也要检查，因为它们走 raster 全局路径。
@@ -54,8 +57,11 @@
 
 ## 性能
 
-- GC：Spazon Play mode 暖机 300 帧后，runtime probe 窗口内 `frameAllocations` 应为 0。
-- CPU：主相机 `RecordRG` 与 `ExecuteRG` 的 CPU 时间对比 B7 记录，各 300 帧均值；变差超过 5% 时附 marker 分解。
+- GC：Spazon、Play、只开 Game view、GPU Indirect，暖机 300 帧后录三个 runtime probe 窗口，`frameAllocations` 应全为 0。
+  非零帧附 GC.Alloc 调用栈。本批在 record 路径新增了 `WriteConstants` 与 pass 的 constants 列表，是头号怀疑。
+- CPU 与 GPU：A = `2133e38`，B = 本提交，按 A B A B 跑四轮，每轮 300 帧、冷却 60 秒，工作副本干净时才 checkout，结束回到本提交。
+  每轮记录主相机 `RecordRG`、`ExecuteRG` 的 CPU 均值和 pass 级 marker 忙碌时间总和（口径同 B7d）。
+  只有两对 B 都比 A 慢 5% 以上，且差值落在 RenderGraph 的 constants 上传路径（`PrePassExecute`）或改过的 pass 上时，才判 RETURN-PERF。
 
 ## 中间数据
 
