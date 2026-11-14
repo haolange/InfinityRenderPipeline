@@ -173,6 +173,17 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_records(str(self.repo), out)
         self.assertEqual(['records'], [o[1] for o in out])
 
+    def test_iterator_ref_local_fails_and_a_ref_local_in_a_helper_passes(self):
+        self.write('Tests/Editor/T.cs', 'class T\n{\n    static void Record(RGBuilder graph)\n    {\n        ref var data = ref pass.GetPassData();\n    }\n'
+                   '    public IEnumerator Run()\n    {\n        Record(graph);\n        yield return null;\n    }\n}\n')
+        out = []
+        static_check.check_iterator_ref_locals(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Tests/Editor/T.cs', 'class T\n{\n    public IEnumerator Run()\n    {\n        ref var data = ref pass.GetPassData();\n'
+                   '        yield return null;\n    }\n}\n')
+        static_check.check_iterator_ref_locals(str(self.repo), out)
+        self.assertEqual(['Tests/Editor/T.cs:5'], [o[2].split(': ')[0] for o in out])
+
     def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
         self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
                    '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'

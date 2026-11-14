@@ -11,6 +11,7 @@ Checks
   lightmode every LightMode tag used by shaders is declared in InfinityPassIDs (or a known Unity tag)
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
+  iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
@@ -244,6 +245,30 @@ def sequential_offsets(types):
         offsets.append(offset)
         offset += components * 4
     return offsets, offset
+
+ITERATOR_METHOD = re.compile(r'\bIEnumera(?:tor|ble)(?:<[^>]*>)?\s+(\w+)\s*\([^)]*\)\s*\{')
+REF_LOCAL = re.compile(r'\bref\s+(?:readonly\s+)?[\w.<>]+\s+\w+\s*=\s*ref\b')
+
+def check_iterator_ref_locals(repo, out):
+    """C# rejects a ref local in an iterator (CS8176); the syntax gate cannot see it, the compiler fails the assembly."""
+    for top in ('Runtime', 'Editor', 'Tests'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            text = without_comments(read(p))
+            for m in ITERATOR_METHOD.finditer(text):
+                start, depth, end = m.end() - 1, 0, len(text)
+                for i in range(start, len(text)):
+                    if text[i] == '{':
+                        depth += 1
+                    elif text[i] == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end = i
+                            break
+                body = text[start:end]
+                ref_local = REF_LOCAL.search(body) if re.search(r'\byield\b', body) else None
+                if ref_local:
+                    line = text.count('\n', 0, start + ref_local.start()) + 1
+                    out.append(('ERROR', 'iteratorref', f'{os.path.relpath(p, repo)}:{line}: iterator {m.group(1)} holds a ref local (CS8176); move it into a separate method'))
 
 def check_records(repo, out):
     for p in all_files(repo, {'.cs'}):
@@ -809,7 +834,7 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),

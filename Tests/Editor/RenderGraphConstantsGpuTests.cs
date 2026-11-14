@@ -39,17 +39,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public RGBufferHandle results;
         }
 
-        // The record a pass writes reaches its cbuffer through the graph's pass-local constant buffer.
-        [UnityTest]
-        public IEnumerator WrittenConstants_ReachTheBoundCBuffer()
+        // A separate method: an iterator cannot hold the ref local GetPassData returns.
+        static void RecordCopyConstants(RGBuilder graph, ComputeShader shader, GraphicsBuffer results)
         {
-            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
-                Assert.Ignore("Compute shaders and GPU readback are required.");
-            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
-            var pool = new ResourcePool();
-            var graph = new RGBuilder("ConstantsContract", pool);
-            using var results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16);
-            results.SetData(new Vector4[2]);
             using (var pass = graph.AddComputePass<ConstantsPassData>(new ProfilingSampler("ConstantsContract")))
             {
                 ref var data = ref pass.GetPassData();
@@ -65,6 +57,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     commands.DispatchCompute(d.shader, d.kernel, 1, 1, 1);
                 });
             }
+        }
+
+        // The record a pass writes reaches its cbuffer through the graph's pass-local constant buffer.
+        [UnityTest]
+        public IEnumerator WrittenConstants_ReachTheBoundCBuffer()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute shaders and GPU readback are required.");
+            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
+            var pool = new ResourcePool();
+            var graph = new RGBuilder("ConstantsContract", pool);
+            using var results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, 16);
+            results.SetData(new Vector4[2]);
+            RecordCopyConstants(graph, shader, results);
             bool executed = false;
             Exception failure = null;
             Action<ScriptableRenderContext, List<Camera>> render = (context, cameras) =>
