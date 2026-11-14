@@ -53,6 +53,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle volumetricCloudTexture = hasCloud ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricCloudBuffer) : default;
             if (!TranslucentFeatureUtility.ShouldRecordFogComposite(hasFog, hasCloud))
             {
+                // No fog to composite: the opaque scene color is the fogged scene color.
+                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, InfinityShaderIDs.FoggedSceneColorBuffer);
+                m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer));
                 return;
             }
 
@@ -119,15 +122,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, passData.kernel.index, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
-        }
-
-        void ResolveFoggedSceneColor()
-        {
-            if (!m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer, out _))
-            {
-                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, InfinityShaderIDs.FoggedSceneColorBuffer);
-            }
-            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer));
+            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, foggedSceneColor);
         }
     }
 }

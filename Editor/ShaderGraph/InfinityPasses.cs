@@ -365,7 +365,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
             Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_SSS_OUTPUT", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_SSS_OUTPUT", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
         public static PassDescriptor RasterMotionPass(InfinityTarget target) =>

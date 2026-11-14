@@ -707,7 +707,6 @@ namespace InfinityTech.Rendering.Pipeline
                 ComputeScreenSpaceIndirect(context);
             }
             ComputeScreenSpaceComposite(context);
-            ResolveOpaqueSceneColor();
             // History copies stay after the shadow window; an early graphics copy
             // would join the async effects before independent shadow rasterization.
             CopyHistorySSR(context);
@@ -725,7 +724,6 @@ namespace InfinityTech.Rendering.Pipeline
             ComputeVolumetricFog(context);
             CopyHistoryVolumetricFog(context);
             ComputeFogComposite(context);
-            ResolveFoggedSceneColor();
             RasterTranslucentT0(context, translucentT0);
             ComputeColorPyramid(context);
             RasterTranslucentT1(context, translucentT1);

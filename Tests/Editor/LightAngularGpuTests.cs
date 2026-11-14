@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.maxDrawDistance = 0;
                 if (transformed)
                     go.transform.SetPositionAndRotation(new Vector3(3, -2, 5), Quaternion.Euler(23, 61, -17));
-                Assert.IsTrue(LightRecordPack.TryPack(light, data, data.shape, 0, Vector3.zero, out LightRecord record));
+                Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, data, data.shape, 0, Vector3.zero, out LightRecord record));
 
                 // Include transition samples with known window values, not only the saturated cone interior.
                 float outer = Mathf.Cos(30 * Mathf.Deg2Rad), inner = Mathf.Cos(10 * Mathf.Deg2Rad);

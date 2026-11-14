@@ -312,11 +312,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int kernel = m_Shader.FindKernel("SSGISpatial");
                 BindSurface(kernel);
                 m_Shader.SetInt("SSGI_SpatialPass", 0);
-                m_Shader.SetInt("SSGI_HasAO", 0);
                 m_Shader.SetFloat("SSGI_FrameAngle", 0);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Trace.x, m_Trace.y, input, false));
                 m_Shader.SetTexture(kernel, "SRV_Meta", meta);
-                m_Shader.SetTexture(kernel, "SRV_Occlusion", m_Depth);
                 m_Shader.SetTexture(kernel, "UAV_Output", output);
                 DispatchTrace(kernel);
                 return Read(output, 4);

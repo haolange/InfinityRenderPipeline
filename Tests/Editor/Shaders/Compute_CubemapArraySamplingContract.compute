@@ -1,4 +1,5 @@
 #pragma kernel Compare
+#pragma multi_compile _ INFINITY_REFLECTION_PROBES
 #include "../../../Shaders/Library/Common.hlsl"
 #include "../../../Shaders/Library/Montcalo.hlsl"
 #include "../../../Shaders/Library/ImageBasedLighting.hlsl"

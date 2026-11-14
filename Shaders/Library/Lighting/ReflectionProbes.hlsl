@@ -1,10 +1,12 @@
-#ifndef INFINITY_REFLECTION_PROBES
-#define INFINITY_REFLECTION_PROBES
+#ifndef INFINITY_REFLECTION_PROBE
+#define INFINITY_REFLECTION_PROBE
 // Reflection probes as a second index space of the clustered list (LightLoop.hlsl): probes are listed by priority
 // (higher importance, then smaller volume; C# ReflectionProbePriority), get their own logarithmic z-bins and 16x16
 // tile bitmasks, and are accumulated front to back until their weights reach 1; the remainder is the sky. Deferred
 // and Forward share this evaluation.
-// Probe faces live in the probe atlas (6 slices per probe, CubemapFaceDirection layout, GGX-prefiltered mips).
+// Probe faces live in the probe atlas (6 slices per probe, CubemapFaceDirection layout, GGX-prefiltered mips). The atlas
+// is declared and sampled only under INFINITY_REFLECTION_PROBES (set when the camera produced the atlas); without it
+// the probe count is 0 and the blend returns the sky unchanged.
 #include "../Common.hlsl"
 #include "../Lighting.hlsl"
 #include "../AtmosphereCommon.hlsl"
@@ -31,7 +33,9 @@ struct ReflectionProbeRecord
 StructuredBuffer<ReflectionProbeRecord> SRV_ReflectionProbes;
 StructuredBuffer<uint> SRV_ProbeZBins;
 StructuredBuffer<uint> SRV_ProbeTileMasks;
+#if defined(INFINITY_REFLECTION_PROBES)
 Texture2DArray<float4> SRV_ReflectionProbeAtlas;
+#endif
 
 uint LoadProbeLoopWord(LightLoopState loop)
 {
@@ -125,6 +129,7 @@ float3 ProbeSampleDirection(ReflectionProbeRecord probe, float3 boxPosition, flo
     return direction;
 }
 
+#if defined(INFINITY_REFLECTION_PROBES)
 float3 SampleReflectionProbe(ReflectionProbeRecord probe, float3 directionBox, float roughness)
 {
     float3 directionWS = mul(directionBox, float3x3(probe.worldToBox0.xyz, probe.worldToBox1.xyz, probe.worldToBox2.xyz));
@@ -154,12 +159,17 @@ float3 EvaluateReflectionProbes(float3 positionWS, float3 reflectionWS, float ro
     }
     return radiance;
 }
+#endif
 
 // Specular environment: probes in priority order, the sky (already sampled by the caller) for the remainder.
 float3 BlendReflectionProbesWithSky(float3 positionWS, float3 reflectionWS, float roughness, uint2 pixelCoord, float viewDepth, float3 sky)
 {
+#if defined(INFINITY_REFLECTION_PROBES)
     float weight;
     float3 probes = EvaluateReflectionProbes(positionWS, reflectionWS, roughness, pixelCoord, viewDepth, weight);
     return probes + sky * (1.0 - weight);
+#else
+    return sky;
+#endif
 }
 #endif

@@ -30,12 +30,14 @@ namespace InfinityTech.Rendering.LightPipeline
         public static readonly int ProbeZBins = Shader.PropertyToID("SRV_ProbeZBins");
         public static readonly int ProbeTileMasks = Shader.PropertyToID("SRV_ProbeTileMasks");
         public static readonly int ReflectionProbeAtlas = Shader.PropertyToID("SRV_ReflectionProbeAtlas");
+        public static readonly GlobalKeyword ReflectionProbesKeyword = GlobalKeyword.Create("INFINITY_REFLECTION_PROBES");
         public static readonly int ReflectionProbeBuffer = Shader.PropertyToID("_ReflectionProbeBuffer");
         public static readonly int ProbeTileRectBuffer = Shader.PropertyToID("_ProbeTileRectBuffer");
         public static readonly int ProbeZBinBuffer = Shader.PropertyToID("_ProbeZBinBuffer");
         // Light cookies (Lighting/LightCookie.hlsl).
         public static readonly int LightCookies = Shader.PropertyToID("SRV_LightCookies");
         public static readonly int LightCookieAtlas = Shader.PropertyToID("SRV_LightCookieAtlas");
+        public static readonly GlobalKeyword LightCookiesKeyword = GlobalKeyword.Create("INFINITY_LIGHT_COOKIES");
         public static readonly int LightCookieBuffer = Shader.PropertyToID("_LightCookieBuffer");
     }
 
@@ -336,7 +338,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 InfinityAdditionalLightData ext = m_AdditionalData[i];
 
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
-                if (!LightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out LightRecord record))
+                if (!LightRecordPack.TryPack(visible, light, ext, shape, i, cameraPosition, out LightRecord record))
                 {
                     if (LightShapeUtility.IsValid(shape))
                     {

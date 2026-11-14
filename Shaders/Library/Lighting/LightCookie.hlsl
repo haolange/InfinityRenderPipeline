@@ -10,6 +10,8 @@
 //   Rect / disk: the cookie is the emitter texture, sampled at the specular representative point (blurred by
 //   roughness) and averaged (last mip) for diffuse.
 //   IES: cube profiles by light-space direction for every local light; 2D profiles projected for cone and pyramid.
+// The atlas is declared and sampled only under INFINITY_LIGHT_COOKIES (set when the camera produced the atlas); without
+// it no record references a cookie and the cookie factor is 1.
 #include "../Common.hlsl"
 #include "LightRecord.hlsl"
 
@@ -24,7 +26,9 @@ struct LightCookie
 };
 
 StructuredBuffer<LightCookie> SRV_LightCookies;
+#if defined(INFINITY_LIGHT_COOKIES)
 Texture2D<float4> SRV_LightCookieAtlas;
+#endif
 
 bool LightHasCookie(LightRecord light) { return light.cookieIndex >= 0; }
 
@@ -36,6 +40,7 @@ float2 CookieOctahedralEncode(float3 n)
     return e * 0.5 + 0.5;
 }
 
+#if defined(INFINITY_LIGHT_COOKIES)
 float3 SampleCookieBlock(float4 rect, float2 uv, float lod, float maxMip)
 {
     uint width, height;
@@ -46,6 +51,7 @@ float3 SampleCookieBlock(float4 rect, float2 uv, float lod, float maxMip)
     uv = clamp(uv, 0.5 / texels, 1.0 - 0.5 / texels);
     return InfinitySampleLevelTrilinear(SRV_LightCookieAtlas,Global_trilinear_clamp_sampler,rect.xy + uv * rect.zw,lod).rgb;
 }
+#endif
 
 // Position relative to the light in its own frame (right, up, forward).
 float3 LightLocalPosition(LightRecord light, float3 worldPos)
@@ -87,6 +93,7 @@ bool SpotProjectionUV(LightRecord light, float3 local, out float2 uv)
 float3 LightCookieColor(LightRecord light, float3 worldPos)
 {
     float3 color = 1.0;
+#if defined(INFINITY_LIGHT_COOKIES)
     if (light.cookieIndex >= 0)
     {
         LightCookie cookie = SRV_LightCookies[light.cookieIndex];
@@ -130,6 +137,7 @@ float3 LightCookieColor(LightRecord light, float3 worldPos)
             }
         }
     }
+#endif
     return color;
 }
 
@@ -139,11 +147,13 @@ void LightPlanarCookie(LightRecord light, float2 emitterUV, float roughness, out
 {
     diffuse = 1.0;
     specular = 1.0;
+#if defined(INFINITY_LIGHT_COOKIES)
     if (light.cookieIndex < 0 || !IsPlanarLight(light)) return;
     LightCookie cookie = SRV_LightCookies[light.cookieIndex];
     if (cookie.cookieRect.z <= 0) return;
     float maxMip = cookie.layout.y;
     diffuse = SampleCookieBlock(cookie.cookieRect, 0.5, maxMip, maxMip);
     specular = SampleCookieBlock(cookie.cookieRect, emitterUV, saturate(roughness) * maxMip, maxMip);
+#endif
 }
 #endif

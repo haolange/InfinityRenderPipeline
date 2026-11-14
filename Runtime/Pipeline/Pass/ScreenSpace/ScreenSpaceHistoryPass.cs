@@ -16,10 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryScalar(in CameraRecordContext context, int sourceId, int historyId, string name)
         {
-            if (!m_RGBuilder.scoper.TryQueryTexture(sourceId, out RGTextureHandle source))
-            {
-                return;
-            }
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(sourceId);
             TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(source);
             descriptor.name = name;
             RGTextureHandle history = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(historyId, descriptor));
@@ -50,6 +47,10 @@ namespace InfinityTech.Rendering.Pipeline
         // its meta texture (normal, depth, history age).
         void CopyHistorySSR(in CameraRecordContext context)
         {
+            if (!context.features.ShouldRecord(EFrameFeature.SSR))
+            {
+                return;
+            }
             CopyHistoryRadianceMeta(context, CustomSamplerId.CopyHistorySSR, InfinityShaderIDs.SSRTemporalBuffer, InfinityShaderIDs.SSRMetaBuffer, InfinityShaderIDs.HistorySSRRadianceBuffer, InfinityShaderIDs.HistorySSRMetaBuffer, SSRPassUtilityData.HistoryRadianceName, SSRPassUtilityData.HistoryMetaName);
             CopyHistoryScalar(context, InfinityShaderIDs.SSRVarianceBuffer, InfinityShaderIDs.HistorySSRVarianceBuffer, "HistorySSRVariance");
         }
@@ -57,6 +58,10 @@ namespace InfinityTech.Rendering.Pipeline
         // Each denoise stage keeps the combiner mix, not the temporal output.
         void CopyHistorySSGI(in CameraRecordContext context)
         {
+            if (!context.features.ShouldRecord(EFrameFeature.SSGI))
+            {
+                return;
+            }
             CopyHistoryRadianceMeta(context, CustomSamplerId.CopyHistorySSGI, InfinityShaderIDs.SSGIFilteredBuffer, InfinityShaderIDs.SSGIMetaBuffer, InfinityShaderIDs.HistorySSGIRadianceBuffer, InfinityShaderIDs.HistorySSGIMetaBuffer, SSGIPassUtilityData.HistoryRadianceName, SSGIPassUtilityData.HistoryMetaName);
             CopyHistoryScalar(context, InfinityShaderIDs.SSGICombinerNarrowBuffer, InfinityShaderIDs.HistorySSGINarrowBuffer, "HistorySSGINarrow");
         }
@@ -64,11 +69,8 @@ namespace InfinityTech.Rendering.Pipeline
         // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
         void CopyHistoryRadianceMeta(in CameraRecordContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
-            if (!m_RGBuilder.scoper.TryQueryTexture(radianceSourceId, out RGTextureHandle radianceSource) ||
-                !m_RGBuilder.scoper.TryQueryTexture(metaSourceId, out RGTextureHandle metaSource))
-            {
-                return;
-            }
+            RGTextureHandle radianceSource = m_RGBuilder.scoper.QueryTexture(radianceSourceId);
+            RGTextureHandle metaSource = m_RGBuilder.scoper.QueryTexture(metaSourceId);
 
             TextureDescriptor radianceDsc = m_RGBuilder.GetTextureDescriptor(radianceSource);
             radianceDsc.name = radianceName;
@@ -99,17 +101,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.CopyTexture(passData.metaSource, passData.metaHistory);
                 });
             }
-        }
-
-        void ResolveOpaqueSceneColor()
-        {
-            if (m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out _))
-            {
-                return;
-            }
-
-
-            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
     }
 }

@@ -89,7 +89,9 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // Returns false when the light contributes nothing this camera (invalid shape or faded out by distance).
-        public static bool TryPack(Light light, InfinityAdditionalLightData ext, in LightSourceShape shape, int visibleIndex, Vector3 cameraPosition, out LightRecord record)
+        // Transform, final color, range and spot angle come from the culling snapshot; only fields VisibleLight lacks
+        // (inner angle, shadow strength, shadow type, baking output) are read from the Light.
+        public static bool TryPack(in VisibleLight visible, Light light, InfinityAdditionalLightData ext, in LightSourceShape shape, int visibleIndex, Vector3 cameraPosition, out LightRecord record)
         {
             record = default;
             if (!LightShapeUtility.IsValid(shape))
@@ -97,10 +99,10 @@ namespace InfinityTech.Rendering.LightPipeline
                 return false;
             }
 
-            Transform transform = light.transform;
-            Vector3 position = transform.position;
-            Vector3 forward = transform.forward;
-            Vector3 right = transform.right;
+            Matrix4x4 localToWorld = visible.localToWorldMatrix;
+            Vector3 position = localToWorld.GetColumn(3);
+            Vector3 forward = ((Vector3)localToWorld.GetColumn(2)).normalized;
+            Vector3 right = ((Vector3)localToWorld.GetColumn(0)).normalized;
             bool directional = shape.type == EInfinityLightType.Directional;
 
             float fade = 1;
@@ -113,16 +115,13 @@ namespace InfinityTech.Rendering.LightPipeline
                 }
             }
 
-            // Unity Light colors are authored in sRGB; the renderer and lightmapper consume linear radiance.
-            Color color = light.color.linear;
-            if (light.useColorTemperature)
-                color *= Mathf.CorrelatedColorTemperatureToRGB(light.colorTemperature);
-            record.radiance = Radiance(color, light.intensity * fade);
+            // finalColor is linear color times color-temperature tint times intensity (GraphicsSettings.lightsUseLinearIntensity and lightsUseColorTemperature are set by the pipeline).
+            record.radiance = Radiance(visible.finalColor, fade);
             record.visibleLightIndex = visibleIndex;
             record.shadowMatrixIndex = -1;
             record.shadowSliceCount = 0;
             record.cookieIndex = -1;
-            record.positionRange = new Vector4(position.x, position.y, position.z, directional ? 0 : light.range);
+            record.positionRange = new Vector4(position.x, position.y, position.z, directional ? 0 : visible.range);
             record.forward = new Vector4(forward.x, forward.y, forward.z, 0);
             record.right = new Vector4(right.x, right.y, right.z, 0);
             record.shape = new Vector4(shape.sourceRadius, shape.softSourceRadius, shape.sourceLength, Mathf.Tan(Mathf.Clamp(shape.sourceAngle, 0, 90) * 0.5f * Mathf.Deg2Rad));
@@ -137,15 +136,15 @@ namespace InfinityTech.Rendering.LightPipeline
                     if (shape.spotShape == ESpotShape.Cone)
                     {
                         flags |= LightRecordFlags.SpotCone;
-                        float outerCos = Mathf.Cos(light.spotAngle * 0.5f * Mathf.Deg2Rad);
-                        float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, light.spotAngle) * 0.5f * Mathf.Deg2Rad);
+                        float outerCos = Mathf.Cos(visible.spotAngle * 0.5f * Mathf.Deg2Rad);
+                        float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, visible.spotAngle) * 0.5f * Mathf.Deg2Rad);
                         record.forward.w = outerCos;
                         record.right.w = 1.0f / Mathf.Max(innerCos - outerCos, 1e-4f);
                     }
                     else if (shape.spotShape == ESpotShape.Pyramid)
                     {
                         flags |= LightRecordFlags.SpotPyramid;
-                        Vector2 tangents = LightShapeUtility.PyramidTangents(light.spotAngle, shape.pyramidAspect);
+                        Vector2 tangents = LightShapeUtility.PyramidTangents(visible.spotAngle, shape.pyramidAspect);
                         record.area = new Vector4(tangents.x, tangents.y, 0, 0);
                     }
                     else

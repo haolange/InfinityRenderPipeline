@@ -329,11 +329,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         if (Spatial(signal))
                         {
                             m_Commands.SetComputeIntParam(shader, "SSGI_SpatialPass", 0);
-                            m_Commands.SetComputeIntParam(shader, "SSGI_HasAO", 0);
                             m_Commands.SetComputeFloatParam(shader, "SSGI_FrameAngle", 0);
                             Bind("SRV_Temporal", Current(frame - 1));
                             Bind("SRV_Meta", previousMeta);
-                            Bind("SRV_Occlusion", Texture((x, y) => new Color(1, 0, 0, 0)));
                             Bind("UAV_Output", colors[target]);
                         }
                         else

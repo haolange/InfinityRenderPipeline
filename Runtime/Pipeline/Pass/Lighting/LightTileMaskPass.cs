@@ -44,8 +44,9 @@ namespace InfinityTech.Rendering.Pipeline
 
     // Resources of the shared light loop (Shaders/Library/Lighting/LightLoop.hlsl), the light cookies
     // (Lighting/LightCookie.hlsl) and the reflection probes (Lighting/ReflectionProbes.hlsl). Query once at record time,
-    // declare the reads with Read, then bind. Without cookies this frame the cookie atlas binds a white texture; no
-    // record references it then.
+    // declare the reads with Read, then bind. Each atlas is declared by its shader only under its keyword
+    // (INFINITY_LIGHT_COOKIES, INFINITY_REFLECTION_PROBES), set from hasCookieAtlas / hasProbeAtlas, and is bound only
+    // when present; without it no record references a cookie and the probe count is 0.
     internal struct LightLoopInputs
     {
         public RGBufferHandle zBins;
@@ -58,21 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
         public RGBufferHandle probeTileMasks;
         public RGTextureHandle probeAtlas;
         public bool hasProbeAtlas;
-
-        // Bound for SRV_ReflectionProbeAtlas when no probe is in use (shaders never read it then).
-        static Texture2DArray s_EmptyProbeAtlas;
-        static Texture2DArray EmptyProbeAtlas
-        {
-            get
-            {
-                if (s_EmptyProbeAtlas == null)
-                {
-                    s_EmptyProbeAtlas = new Texture2DArray(1, 1, 6, TextureFormat.RGBAHalf, false, true) { name = "EmptyReflectionProbeAtlas", hideFlags = HideFlags.HideAndDontSave };
-                    s_EmptyProbeAtlas.Apply(false, true);
-                }
-                return s_EmptyProbeAtlas;
-            }
-        }
 
         public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
         {
@@ -112,6 +98,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
+            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
+            commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probes);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasks);
@@ -119,18 +107,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
             }
-            else
-            {
-                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, EmptyProbeAtlas, TextureView.Whole(EmptyProbeAtlas));
-            }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookies);
             if (hasCookieAtlas)
             {
                 commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, cookieAtlas);
-            }
-            else
-            {
-                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, Texture2D.whiteTexture, TextureView.Whole(Texture2D.whiteTexture));
             }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasks);
@@ -138,6 +118,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
+            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
+            commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
             commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probes);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasks);
@@ -145,18 +127,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
             }
-            else
-            {
-                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, EmptyProbeAtlas, TextureView.Whole(EmptyProbeAtlas));
-            }
             commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookies);
             if (hasCookieAtlas)
             {
                 commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, cookieAtlas);
-            }
-            else
-            {
-                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, Texture2D.whiteTexture, TextureView.Whole(Texture2D.whiteTexture));
             }
             commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBins);
             commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasks);

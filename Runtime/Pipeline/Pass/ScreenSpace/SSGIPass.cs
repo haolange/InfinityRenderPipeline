@@ -23,11 +23,11 @@ namespace InfinityTech.Rendering.Pipeline
         public uint hiZSteps;
         public uint traceFlags;
         public uint samples;
-        public uint hasAO;
         public float frameAngle;
         public float temporalWeight;
         public float temporalClampScale;
         public float historyValid;
+        public uint padding0;
     }
 
     // One 8x8 group traces its own pixels, then two temporal-then-world-space denoise stages, then a full-resolution upsample.
@@ -85,6 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyMeta;
             public RGTextureHandle occlusion;
             public bool hasAO;
+            public LocalKeyword occlusionKeyword;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public RGTextureHandle rayHit;
             public bool captureRayHit;
@@ -169,13 +170,13 @@ namespace InfinityTech.Rendering.Pipeline
                     hiZSteps = (uint)math.max(1, settings.hiZSteps),
                     traceFlags = (uint)((settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0)),
                     samples = (uint)math.clamp(settings.samples, 1, 4),
-                    hasAO = hasAO ? 1u : 0u,
                     frameAngle = (Time.frameCount & 63) * 2.39996323f,
                     temporalWeight = settings.temporalWeight,
                     temporalClampScale = settings.temporalClampScale,
                     historyValid = historyValid ? 1 : 0
                 });
                 passData.hasAO = hasAO;
+                passData.occlusionKeyword = kernels.ssgiOcclusion;
                 passData.tileCount = tileCount;
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
@@ -311,7 +312,11 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_SpatialPassID, pass);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Temporal, current);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Meta, passData.meta);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.hasAO ? passData.occlusion : passData.depthTexture);
+            cmdEncoder.SetKeyword(shader, passData.occlusionKeyword, passData.hasAO);
+            if (passData.hasAO)
+            {
+                cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.occlusion);
+            }
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Output, output);
         }
 

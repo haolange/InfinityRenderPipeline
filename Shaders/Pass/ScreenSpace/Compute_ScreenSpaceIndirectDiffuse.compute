@@ -8,6 +8,7 @@
 #pragma kernel SSGISpatial
 #pragma kernel SSGIUpsample
 #pragma kernel SSGITraceDebug SSGI_DIAGNOSTICS
+#pragma multi_compile_local _ SSGI_AMBIENT_OCCLUSION
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/ScreenSpaceDepth.hlsl"
@@ -35,11 +36,11 @@ cbuffer CBV_SSGIParameters
     uint SSGI_HiZSteps;
     uint SSGI_TraceFlags;
     uint SSGI_Samples;
-    uint SSGI_HasAO;
     float SSGI_FrameAngle;
     float SSGI_TemporalWeight;
     float SSGI_TemporalClampScale;
     float SSGI_HistoryValid;
+    uint SSGI_Padding0;
 };
 // Per spatial dispatch: 0 = wide, 1 = narrow.
 uint SSGI_SpatialPass;
@@ -58,7 +59,9 @@ Texture2D<uint2> SRV_HistoryMeta;
 Texture2D<float4> SRV_TraceRadiance;
 Texture2D<float4> SRV_Current;
 Texture2D<float4> SRV_Temporal;
+#if defined(SSGI_AMBIENT_OCCLUSION)
 Texture2D<float> SRV_Occlusion;
+#endif
 Texture2D<float4> SRV_Filtered;
 Texture2D<uint2> SRV_Meta;
 
@@ -278,11 +281,10 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
     float fView = lerp(0.5, 1.5, saturate(viewZ / 20));
     float fVariance = max(saturate(variance / (variance + 0.02)), 0.05);
     float ao = 1;
-    if (SSGI_HasAO != 0)
-    {
-        uint2 fullPixel = min(TraceToFullPixel(pixel), (uint2)SSGI_Resolution.xy - 1);
-        ao = saturate(SRV_Occlusion[fullPixel].x);
-    }
+#if defined(SSGI_AMBIENT_OCCLUSION)
+    uint2 fullPixel = min(TraceToFullPixel(pixel), (uint2)SSGI_Resolution.xy - 1);
+    ao = saturate(SRV_Occlusion[fullPixel].x);
+#endif
     float fAo = max(ao, 0.25);
     float baseRadius = SSGI_SpatialPass == 0 ? 6.0 : 3.0;
     float radius = baseRadius * fView * fVariance * fAo;

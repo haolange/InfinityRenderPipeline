@@ -57,6 +57,8 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle ssgiTexture = hasSSGI ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer) : default;
             if (!hasSSR && !hasSSGI)
             {
+                // Nothing to composite: the deferred lighting is the opaque scene color.
+                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
                 return;
             }
 

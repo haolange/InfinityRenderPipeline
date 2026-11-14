@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
                 Assert.AreEqual(EInfinityLightType.Directional, shape.type);
-                Assert.IsTrue(LightRecordPack.TryPack(light, ext, shape, 0, Vector3.zero, out LightRecord record));
+                Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, ext, shape, 0, Vector3.zero, out LightRecord record));
                 Assert.AreEqual(light.color.linear.r * light.intensity, record.radiance.x, 1e-4f);
                 Assert.AreEqual(1.0f, record.radiance.w, 1e-4f);
                 Assert.IsTrue(record.IsDirectional);
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var extracted = new UnityEngine.Experimental.GlobalIllumination.PointLight();
                     UnityEngine.Experimental.GlobalIllumination.LightmapperUtils.Extract(light, ref extracted);
                     var expected = extracted.color;
-                    Assert.IsTrue(LightRecordPack.TryPack(light, null, LightShapeUtility.FromUnityLight(light), 0, Vector3.zero, out LightRecord record));
+                    Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, null, LightShapeUtility.FromUnityLight(light), 0, Vector3.zero, out LightRecord record));
                     Assert.AreEqual(expected.red * expected.intensity, record.radiance.x, 1e-5f, "Red: " + color);
                     Assert.AreEqual(expected.green * expected.intensity, record.radiance.y, 1e-5f, "Green: " + color);
                     Assert.AreEqual(expected.blue * expected.intensity, record.radiance.z, 1e-5f, "Blue: " + color);
@@ -115,8 +115,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 ext.maxDrawDistance = 10;
                 ext.maxDrawDistanceFade = 2;
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
-                Assert.IsFalse(LightRecordPack.TryPack(light, ext, shape, 0, new Vector3(0, 0, 20), out _));
-                Assert.IsTrue(LightRecordPack.TryPack(light, ext, shape, 0, new Vector3(0, 0, 9), out LightRecord record));
+                Assert.IsFalse(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, ext, shape, 0, new Vector3(0, 0, 20), out _));
+                Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, ext, shape, 0, new Vector3(0, 0, 9), out LightRecord record));
                 Assert.AreEqual(light.intensity * 0.5f, record.radiance.x, 1e-4f);
             }
             finally

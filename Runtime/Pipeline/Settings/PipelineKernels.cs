@@ -92,6 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
         internal readonly LocalKeyword deferredShadingSubsurface;
         internal readonly LocalKeyword deferredShadingOcclusion;
+        internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword deferredShadingContactShadow;
         internal readonly LocalKeyword compositeSubsurface;
         internal readonly LocalKeyword compositeSSR;
@@ -199,6 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
             deferredShadingSubsurface = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_OUTPUT");
             deferredShadingOcclusion = Keyword(shaders.deferredShadingShader, "DEFERRED_AO");
             deferredShadingContactShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_CONTACT_SHADOW");
+            ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
             compositeSubsurface = Keyword(shaders.screenSpaceCompositeShader, "INFINITY_SSS_OUTPUT");
             compositeSSR = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSR");
             compositeSSGI = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSGI");

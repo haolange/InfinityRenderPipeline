@@ -3,6 +3,7 @@
 #pragma kernel Temporal
 #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LIGHT_COOKIES
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/Lighting.hlsl"
