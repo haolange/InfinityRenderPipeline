@@ -160,7 +160,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))
                 {
                     shader.SetBuffer(kernel, "SRV_LightCookies", Buffer(new[] { Matrix4x4.zero }, 64));
-                    shader.EnableKeyword("INFINITY_LIGHT_COOKIES");
+                    // The production keywords are global (the pipeline sets them per pass); restored in finally.
+                    Shader.EnableKeyword("INFINITY_LIGHT_COOKIES");
                     shader.SetTexture(kernel, "SRV_LightCookieAtlas", black);
                 }
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/ReflectionProbes.hlsl"))
@@ -170,7 +171,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetBuffer(kernel, "SRV_ReflectionProbes", Buffer(new[] { probe }, 112));
                     shader.SetBuffer(kernel, "SRV_ProbeZBins", Buffer(new[] { 0x0000ffffu }, 4));
                     shader.SetBuffer(kernel, "SRV_ProbeTileMasks", Buffer(new[] { 0u }, 4));
-                    shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
+                    Shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
                     shader.SetTexture(kernel, "SRV_ReflectionProbeAtlas", environment);
                 }
                 shader.SetBuffer(kernel, "_AtmosphereSkySH", Buffer(new Vector4[9], 16));
@@ -226,6 +227,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                Shader.DisableKeyword("INFINITY_LIGHT_COOKIES");
+                Shader.DisableKeyword("INFINITY_REFLECTION_PROBES");
                 RenderTexture.active = previous;
                 foreach (var buffer in buffers) buffer.Dispose();
                 foreach (var item in owned) UnityEngine.Object.DestroyImmediate(item);

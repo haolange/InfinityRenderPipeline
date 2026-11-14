@@ -197,9 +197,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
             // The key quantizes the position the view LUT kernels read from ViewUniform.
-            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, context.cameraUniform.matrix_ViewToWorld.GetColumn(3),
+            AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, (Vector3)sunIlluminance, context.cameraUniform.matrix_ViewToWorld.GetColumn(3),
                 context.cameraUniform.matrix_WorldToView, context.cameraUniform.matrix_FlipYProj);
-            AtmosphereIBLKey iblKey = AtmosphereIBLKey.Create(parameter, (Vector3)sunDirection);
+            AtmosphereIBLKey iblKey = AtmosphereIBLKey.Create(parameter, (Vector3)sunDirection, (Vector3)sunIlluminance);
 
             TextureDescriptor transmittanceDsc = CreateAtmosphereLUTDescriptor(parameter.transmittanceLUTWidth, parameter.transmittanceLUTHeight, AtmosphericLUTPassUtilityData.TransmittanceName);
             TextureDescriptor multiScatterDsc = CreateAtmosphereLUTDescriptor(parameter.multiScatteringLUTSize, parameter.multiScatteringLUTSize, AtmosphericLUTPassUtilityData.MultiScatteringName);

@@ -42,29 +42,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Matrix4x4 view = Matrix4x4.Translate(-new Vector3(10.2f, 4.9f, -3.1f));
             Matrix4x4 movedView = Matrix4x4.Translate(-new Vector3(10.8f, 4.1f, -3.9f));
             Matrix4x4 turnedView = Matrix4x4.Rotate(Quaternion.Euler(0, 90, 0)) * view;
-            AtmosphereViewKey a = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.2f, 4.9f, -3.1f), view, projection);
-            AtmosphereViewKey b = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.8f, 4.1f, -3.9f), movedView, projection);
-            AtmosphereViewKey c = AtmosphereViewKey.Create(parameter, sun, new Vector3(11.0f, 4.9f, -3.1f), view, projection);
-            AtmosphereViewKey turned = AtmosphereViewKey.Create(parameter, sun, new Vector3(10.2f, 4.9f, -3.1f), turnedView, projection);
+            AtmosphereViewKey a = AtmosphereViewKey.Create(parameter, sun, Vector3.one, new Vector3(10.2f, 4.9f, -3.1f), view, projection);
+            AtmosphereViewKey b = AtmosphereViewKey.Create(parameter, sun, Vector3.one, new Vector3(10.8f, 4.1f, -3.9f), movedView, projection);
+            AtmosphereViewKey c = AtmosphereViewKey.Create(parameter, sun, Vector3.one, new Vector3(11.0f, 4.9f, -3.1f), view, projection);
+            AtmosphereViewKey turned = AtmosphereViewKey.Create(parameter, sun, Vector3.one, new Vector3(10.2f, 4.9f, -3.1f), turnedView, projection);
+            AtmosphereViewKey dimmer = AtmosphereViewKey.Create(parameter, sun, new Vector3(0.5f, 0.5f, 0.5f), new Vector3(10.2f, 4.9f, -3.1f), view, projection);
+            AtmosphereViewKey noSun = AtmosphereViewKey.Create(parameter, sun, Vector3.zero, new Vector3(10.2f, 4.9f, -3.1f), view, projection);
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsFalse(a.Equals(c));
             Assert.IsFalse(a.Equals(turned));
+            Assert.IsFalse(a.Equals(dimmer), "The view tables scale with the sun's illuminance.");
+            Assert.IsFalse(a.Equals(noSun), "Removing the sun at the same default direction regenerates the view tables.");
             Assert.AreEqual(10, a.cameraX);
             Assert.AreEqual(4, a.cameraY);
             Assert.AreEqual(-4, a.cameraZ);
         }
 
         [Test]
-        public void IBLKey_UsesParameterAndSun()
+        public void IBLKey_UsesParameterSunDirectionAndIlluminance()
         {
             AtmosphereParameter parameter = ValidParameter();
-            AtmosphereIBLKey a = AtmosphereIBLKey.Create(parameter, new Vector3(0, 1, 0));
-            AtmosphereIBLKey b = AtmosphereIBLKey.Create(parameter, new Vector3(0, 1, 0));
-            AtmosphereIBLKey c = AtmosphereIBLKey.Create(parameter, new Vector3(0, 0, 1));
+            AtmosphereIBLKey a = AtmosphereIBLKey.Create(parameter, new Vector3(0, 1, 0), Vector3.one);
+            AtmosphereIBLKey b = AtmosphereIBLKey.Create(parameter, new Vector3(0, 1, 0), Vector3.one);
+            AtmosphereIBLKey c = AtmosphereIBLKey.Create(parameter, new Vector3(0, 0, 1), Vector3.one);
+            AtmosphereIBLKey noSun = AtmosphereIBLKey.Create(parameter, new Vector3(0, 1, 0), Vector3.zero);
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsFalse(a.Equals(c));
+            Assert.IsFalse(a.Equals(noSun), "The sky cubemap scales with the sun's illuminance.");
         }
 
         [Test]
