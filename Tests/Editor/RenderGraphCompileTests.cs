@@ -341,12 +341,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             recording[0] = 42;
             int[] temp = pool.GetTempArray<int>(2);
             temp[0] = 1;
-            pool.ReleaseAllTempAlloc();
-            int[] reused = pool.GetTempArray<int>(2);
-            Assert.AreEqual(42, recording[0]);
-            reused[0] = 7;
-            Assert.AreEqual(42, recording[0]);
-            pool.ReleaseRecordingAlloc();
+            int[] later = pool.GetTempArray<int>(2);
+            later[0] = 7;
+            Assert.AreNotSame(recording, temp);
+            Assert.AreNotSame(recording, later);
+            Assert.AreEqual(42, recording[0], "A recording array stays intact while execution scratch is rented.");
+            pool.Reset();
+            int[] again = pool.GetRecordingArray<int>(2);
+            Assert.AreSame(recording, again);
+            Assert.AreEqual(0, again[0]);
         }
 
         [Test]

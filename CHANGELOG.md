@@ -9,6 +9,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Render-graph recording and execution arrays come from one arena per graph. It resets when the graph is cleared, replacing the per-type length pools.
 - Render graph passes are one `RGPass<T>`. The four public handles keep kind-specific operations; shared Read, Write and Create declarations are one extension on `IPassHandle`.
 - A mesh draw list is created inside the raster pass that consumes it. `CreateMeshDrawList` declares the producer; compile places it after its inputs and at the start of the consumer's native group. `DeclareComputePass` and `DeclareTransferPass` are the graph slots. `RecordCamera` no longer holds draw-list handles, and shadow producers run immediately before the shadow group.
 - Screen-space reflection rejects a history sample whose confidence is below half the current resolve, and does not let a kept history go darker than this frame's hit color. The blend weight stays this frame's edge fade. A dead history was covering that hit at the history weight and drawing the floor black in the SSR buffer.

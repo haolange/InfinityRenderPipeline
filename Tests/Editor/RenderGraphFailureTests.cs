@@ -98,7 +98,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                graph.Dispose(); commands.Dispose(); pool.ReleaseAllTempAlloc();
+                graph.Dispose(); commands.Dispose(); pool.Reset();
                 foreach (var handle in handles) handle?.Release();
                 depthHandle?.Release();
                 foreach (var texture in textures) if (texture != null) UnityEngine.Object.DestroyImmediate(texture);

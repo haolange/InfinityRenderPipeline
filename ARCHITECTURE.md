@@ -108,7 +108,7 @@ Pass types are fixed by the work. Transfer copies. Raster draws. Compute dispatc
 
 `EnableNativeRenderPass(false)` is used only where a native render-pass attachment cannot represent the target: gizmos and wire overlay, because Unity forbids gizmos inside `BeginRenderPass`; final output, because the backbuffer has no owning `RenderTexture` from which to resolve `AttachmentDescriptor.graphicsFormat`; and UI overlay, because Unity does not expose the overlay renderer list as a native render-pass payload.
 
-`RGBuilder.Execute` propagates the original exception. Graph commands are isolated from the enclosing camera profiler scope. Unreturned graph allocations return to the pool only after submit. `RGProfilingScope` is a pass range: on one segment the parent sampler begins on the first live pass and ends on the last. A segment split closes it and opens it again. It does not insert a pass. Pass GPU names come from `pass.customSampler`.
+`RGBuilder.Execute` propagates the original exception. Graph commands are isolated from the enclosing camera profiler scope. Recording arrays and execution scratch share one arena on the builder. A slot is reused when its element type and length match, and the cursor resets when the recorded graph is cleared, after submit. Pass objects return to their pool at that clear. `RGProfilingScope` is a pass range: on one segment the parent sampler begins on the first live pass and ends on the last. A segment split closes it and opens it again. It does not insert a pass. Pass GPU names come from `pass.customSampler`.
 
 ### Contracts
 

@@ -131,12 +131,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal int passCount => m_PassList.Count;
         internal IRGPass GetPass(int index) => m_PassList[index];
         internal bool IsCulled(int passIndex) => m_PassCompileInfos[passIndex].culled;
-        internal T[] GetRecordingArray<T>(int count)
-        {
-            T[] array = m_ObjectPool.GetRecordingArray<T>(count);
-            Array.Clear(array, 0, count);
-            return array;
-        }
+        internal T[] GetRecordingArray<T>(int count) => m_ObjectPool.GetRecordingArray<T>(count);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Set by a diagnostics session; null otherwise.
@@ -622,25 +617,6 @@ namespace InfinityTech.Rendering.RenderGraph
                         Debug.LogException(cleanupError);
                     }
                 }
-                finally
-                {
-                    try
-                    {
-                        m_ObjectPool.ReleaseAllTempAlloc();
-                        m_ObjectPool.ReleaseRecordingAlloc();
-                    }
-                    catch (Exception cleanupError)
-                    {
-                        if (failure == null)
-                        {
-                            failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError);
-                        }
-                        else
-                        {
-                            Debug.LogException(cleanupError);
-                        }
-                    }
-                }
             }
             failure?.Throw();
         }
@@ -719,7 +695,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             m_PassList.Clear();
-            m_ObjectPool.ReleaseRecordingAlloc();
+            m_ObjectPool.Reset();
             for (int i = 0; i < m_ProfileScopes.Count; ++i)
             {
                 m_ScopePool.Push(m_ProfileScopes[i]);
