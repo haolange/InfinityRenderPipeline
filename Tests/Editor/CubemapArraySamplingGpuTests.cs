@@ -245,7 +245,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     m_Shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                         "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/Compute_CubemapArraySamplingContract.compute"));
-                    m_Shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
                     m_Cube = new Cubemap(16, TextureFormat.RGBAFloat, true) { filterMode = FilterMode.Trilinear };
                     m_Array = new Texture2DArray(16, 16, 6, TextureFormat.RGBAFloat, true, true);
                     m_Atlas = new Texture2DArray(16, 16, 12, TextureFormat.RGBAFloat, true, true);

@@ -1,5 +1,6 @@
 #pragma kernel Compare
-#pragma multi_compile_local _ INFINITY_REFLECTION_PROBES
+// The contract compares the reflection probe sampling path, so this fixture always compiles it.
+#define INFINITY_REFLECTION_PROBES
 #include "../../../Shaders/Library/Common.hlsl"
 #include "../../../Shaders/Library/Montcalo.hlsl"
 #include "../../../Shaders/Library/ImageBasedLighting.hlsl"

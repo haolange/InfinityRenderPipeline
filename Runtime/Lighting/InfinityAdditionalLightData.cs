@@ -84,12 +84,19 @@ namespace InfinityTech.Component
             {
                 return;
             }
-            m_Shape = LightShapeUtility.FromUnityLight(light);
-            m_ShapeAuthored = true;
+            FreezeNativeShape();
             m_ShadowFilter = light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF;
 #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(this);
 #endif
+        }
+
+        // Makes the shape derived from the native Light the authored shape without writing anything else, so the
+        // light renders the same where the native extent fields do not exist (a player).
+        internal void FreezeNativeShape()
+        {
+            m_Shape = LightShapeUtility.FromUnityLight(attachedLight);
+            m_ShapeAuthored = true;
         }
 
         // Adopts the native shape when the component is added, so adding it never changes how the light renders.
