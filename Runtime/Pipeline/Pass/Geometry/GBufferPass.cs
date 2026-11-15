@@ -32,9 +32,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle dBufferCHandle;
         }
 
-        void RasterGBuffer(in CameraRecordContext context, in RGMeshDrawListHandle gbufferMeshDrawListHandle)
+        void RasterGBuffer(in CameraRecordContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.GBuffer);
+            RGMeshDrawListHandle gbufferMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterGBufferPass));
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor gbufferADsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);

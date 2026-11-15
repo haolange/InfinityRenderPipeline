@@ -144,6 +144,14 @@ namespace InfinityTech.Rendering.RenderGraph
 #endif
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
+        // Passes declared outside the sequence. Compile inserts each one; Clear releases any that were not inserted.
+        readonly List<IRGPass> m_DeclaredPasses = new List<IRGPass>(16);
+        readonly List<IRGPass> m_PlacedPasses = new List<IRGPass>(128);
+        readonly List<RGNativePassGroup> m_ProvisionalGroups = new List<RGNativePassGroup>(8);
+        int[] m_ProvisionalGroupStart = Array.Empty<int>();
+        int[] m_DeclaredInsertAt = Array.Empty<int>();
+        int[] m_DeclaredGroupLimit = Array.Empty<int>();
+        int[] m_DeclaredOrder = Array.Empty<int>();
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
@@ -460,23 +468,66 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTransferPassHandle<T> AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
-            transferPass.Clear();
-            transferPass.name = PassName(profilerSampler);
-            transferPass.customSampler = profilerSampler;
+            RGTransferPass<T> transferPass = NewTransferPass<T>(profilerSampler);
             RegisterPass(transferPass);
+            return new RGTransferPassHandle<T>(transferPass, m_Resources);
+        }
+
+        /// <summary>
+        /// Records a transfer pass outside the sequence. Compile inserts it after the passes that write its inputs
+        /// and at the start of the native group that contains its first consumer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTransferPassHandle<T> DeclareTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGTransferPass<T> transferPass = NewTransferPass<T>(profilerSampler);
+            DeclarePass(transferPass);
             return new RGTransferPassHandle<T>(transferPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassHandle<T> AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
+            RGComputePass<T> computePass = NewComputePass<T>(profilerSampler);
+            RegisterPass(computePass);
+            return new RGComputePassHandle<T>(computePass, m_Resources);
+        }
+
+        /// <summary>
+        /// Records a compute pass outside the sequence. Compile inserts it after the passes that write its inputs
+        /// and at the start of the native group that contains its first consumer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGComputePassHandle<T> DeclareComputePass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGComputePass<T> computePass = NewComputePass<T>(profilerSampler);
+            DeclarePass(computePass);
+            return new RGComputePassHandle<T>(computePass, m_Resources);
+        }
+
+        RGTransferPass<T> NewTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
+            transferPass.Clear();
+            transferPass.name = PassName(profilerSampler);
+            transferPass.customSampler = profilerSampler;
+            return transferPass;
+        }
+
+        RGComputePass<T> NewComputePass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
             RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
             computePass.Clear();
             computePass.name = PassName(profilerSampler);
             computePass.customSampler = profilerSampler;
-            RegisterPass(computePass);
-            return new RGComputePassHandle<T>(computePass, m_Resources);
+            return computePass;
+        }
+
+        void DeclarePass(IRGPass pass)
+        {
+            pass.index = -1;
+            m_DeclaredPasses.Add(pass);
+            NoteProfiledPass(pass);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -644,6 +695,25 @@ namespace InfinityTech.Rendering.RenderGraph
                     Debug.LogException(error);
                 }
             }
+            foreach (var pass in m_DeclaredPasses)
+            {
+                try
+                {
+                    pass.Release(m_ObjectPool);
+                }
+                catch (Exception error)
+                {
+                    if (failure == null)
+                    {
+                        failure = error;
+                    }
+                    else
+                    {
+                        Debug.LogException(error);
+                    }
+                }
+            }
+            m_DeclaredPasses.Clear();
             foreach (var pass in m_PassList)
             {
                 try

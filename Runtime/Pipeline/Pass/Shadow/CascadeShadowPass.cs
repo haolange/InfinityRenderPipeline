@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererListsHandle;
         }
 
-        void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawListsHandle)
+        void RasterCascadeShadow(in CameraRecordContext context)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;
@@ -55,6 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
             int lightIndex = allocator.CascadeVisibleLightIndex;
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
+            RGMeshDrawListHandle[] cascadeMeshDrawListsHandle = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
             RGRendererListHandle[] cascadeRendererListsHandle = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -78,7 +79,8 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         continue;
                     }
-
+                    cascadeMeshDrawListsHandle[cascade] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
+                        CameraCulling.Context(context.camera, shadowLight, slice.splitData), InfinityPassIDs.RasterShadowPass));
                     if (!hasNativeCasters)
                     {
                         continue;

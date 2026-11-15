@@ -19,6 +19,19 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         static void Compile(RGBuilder graph)
             => typeof(RGBuilder).GetMethod("CompilePass", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(graph, null);
 
+        static int IndexOfPass(RGBuilder graph, string name)
+        {
+            for (int i = 0; i < graph.passCount; ++i)
+            {
+                if (graph.GetPass(i).name == name)
+                {
+                    return i;
+                }
+            }
+            Assert.Fail("Missing pass " + name);
+            return -1;
+        }
+
         static int CountPasses(RGBuilder graph, string samplerName, bool liveOnly)
         {
             int count = 0;
@@ -34,14 +47,16 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         static RGTextureHandle Target(RGBuilder graph)
             => graph.CreateTexture(new TextureDescriptor(1, 1) { colorFormat = GraphicsFormat.R8G8B8A8_UNorm, dimension = TextureDimension.Tex2D });
 
-        // An occluder pyramid stand-in that a raster pass writes, so producers read a written texture.
+        // An occluder pyramid stand-in that a compute pass writes. A raster writer would join the consumer's native group,
+        // and the producer would then read an attachment written inside that group.
         static RGTextureHandle WrittenTarget(RGBuilder graph)
         {
             RGTextureHandle textureHandle = Target(graph);
             {
-                RGRasterPassHandle<EmptyRasterData> passHandle = graph.AddRasterPass<EmptyRasterData>(new ProfilingSampler("WriteOccluder"));
-                passHandle.SetColorAttachment(textureHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passHandle.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
+                RGComputePassHandle<EmptyRasterData> passHandle = graph.AddComputePass<EmptyRasterData>(new ProfilingSampler("WriteOccluder"));
+                passHandle.WriteTexture(textureHandle);
+                passHandle.EnablePassCulling(false);
+                passHandle.SetExecuteFunc((in EmptyRasterData data, in RGComputeEncoder encoder) => { });
             }
             return textureHandle;
         }
@@ -495,16 +510,74 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshDrawListHandle gbufferHandle = graph.CreateMeshDrawList(new MeshDrawListDesc(main, InfinityPassIDs.RasterGBufferPass));
                     RGMeshDrawListHandle cascadeShadowHandle = graph.CreateMeshDrawList(new MeshDrawListDesc(LightContext(0), InfinityPassIDs.RasterShadowPass));
                     RGMeshDrawListHandle localShadowHandle = graph.CreateMeshDrawList(new MeshDrawListDesc(LightContext(1), InfinityPassIDs.RasterShadowPass));
+                    RGTextureHandle shadowTargetHandle = graph.CreateTexture(new TextureDescriptor(2, 2) { colorFormat = GraphicsFormat.R8G8B8A8_UNorm, dimension = TextureDimension.Tex2D });
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, depthHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
-                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, cascadeShadowHandle, true);
-                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterLocalShadow, localShadowHandle, true);
+                    AddConsumer(graph, shadowTargetHandle, CustomSamplerId.RasterCascadeShadow, cascadeShadowHandle, true);
+                    AddConsumer(graph, shadowTargetHandle, CustomSamplerId.RasterLocalShadow, localShadowHandle, true);
                     Compile(graph);
                     Assert.AreEqual(4, CountPasses(graph, "ComputeMeshDrawList", true), "Visibility is evaluated inside each list's producer.");
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", false));
-                    string compiled = graph.DescribeCompiledGraph();
-                    Assert.Less(compiled.IndexOf("ComputeMeshDrawList", System.StringComparison.Ordinal),
-                        compiled.IndexOf(ProfilingSampler.Get(CustomSamplerId.RasterDepth).name, System.StringComparison.Ordinal));
+                    int depth = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterDepth).name);
+                    int gbuffer = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterGBuffer).name);
+                    int cascade = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow).name);
+                    int local = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow).name);
+                    Assert.AreEqual(graph.CompiledPass(depth).mergeGroup, graph.CompiledPass(gbuffer).mergeGroup);
+                    Assert.GreaterOrEqual(graph.CompiledPass(depth).mergeGroup, 0);
+                    Assert.AreNotEqual(graph.CompiledPass(depth).mergeGroup, graph.CompiledPass(cascade).mergeGroup);
+                    int geometryProducers = 0, shadowProducers = 0;
+                    for (int i = 0; i < graph.passCount; ++i)
+                    {
+                        if (graph.GetPass(i).name != "ComputeMeshDrawList" || graph.IsCulled(i))
+                        {
+                            continue;
+                        }
+                        Assert.IsFalse(graph.CompiledPass(i).enableAsyncCompute, "A mesh producer stays on the graphics queue.");
+                        if (i < depth)
+                        {
+                            geometryProducers++;
+                        }
+                        else if (i > gbuffer && i < cascade)
+                        {
+                            shadowProducers++;
+                        }
+                    }
+                    Assert.AreEqual(2, geometryProducers, "Depth and GBuffer producers sit before their shared native group.");
+                    Assert.AreEqual(2, shadowProducers, "Shadow producers sit before the shadow group and after geometry.");
+                    Assert.Less(cascade, local);
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        [Test]
+        public void LightContext_IgnoresAnOccluderRegisteredForTheMainContext()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "LightOccluder", EMeshDrawBackendPolicy.GPUIndirect);
+                try
+                {
+                    MeshTransformVersion version = fixture.world.transformVersions.current;
+                    graph.SetMeshMotion(new MeshMotionBinding(version, version));
+                    MeshCullingContext main = MeshTestUtility.CameraContext();
+                    MeshCullingContext light = LightContext(0);
+                    RGTextureHandle earlyHandle = WrittenTarget(graph);
+                    graph.RegisterMeshOccluder(main, new MeshOccluder(earlyHandle, Matrix4x4.identity, new int2(2, 2), 1, false));
+                    RGMeshDrawListHandle lightHandle = graph.CreateMeshDrawList(new MeshDrawListDesc(light, InfinityPassIDs.RasterShadowPass));
+                    RGMeshDrawListHandle lightAgainHandle = graph.CreateMeshDrawList(new MeshDrawListDesc(light, InfinityPassIDs.RasterShadowPass));
+                    AddConsumer(graph, Target(graph), CustomSamplerId.RasterCascadeShadow, lightHandle, true);
+                    AddConsumer(graph, Target(graph), CustomSamplerId.RasterCascadeShadow, lightAgainHandle, true);
+                    Compile(graph);
+
+                    MeshDrawListRegistry lists = MeshGraphExtension.Of(graph).drawLists;
+                    Assert.AreEqual(EMeshDrawListState.Scheduled, lists.GetRecordCopy(lightHandle.index).state);
+                    Assert.AreEqual(EMeshDrawListState.Empty, lists.GetRecordCopy(lightAgainHandle.index).state,
+                        "The light context has no occluder, so the first list leaves nothing.");
+                    int producer = IndexOfPass(graph, "ComputeMeshDrawList");
+                    string reads = graph.DescribeCompiledGraph().Split('\n')[producer + 1];
+                    StringAssert.DoesNotContain("Texture:" + earlyHandle.handle.index + ",", reads);
                 }
                 finally { MeshTestUtility.Release(graph); }
             }

@@ -8,8 +8,8 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
-    // One instance per builder. Contribute runs once per compile after liveness, and does not add or reorder passes.
-    // Clear runs whenever the recorded graph is dropped, with or without execution.
+    // One instance per builder. Contribute runs once per compile after liveness and does not reorder passes.
+    // A declared pass is inserted by PlaceDeclaredPasses before liveness. Clear runs whenever the recorded graph is dropped.
     internal interface IRGGraphExtension
     {
         void Contribute(RGBuilder builder);
@@ -133,8 +133,282 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly int[][] m_PassLocalOwners = { Array.Empty<int>(), Array.Empty<int>() };
         readonly Stack<RGProfileScope> m_ScopePool = new Stack<RGProfileScope>(8);
 
+        static bool IsAttachmentRaster(IRGPass pass)
+        {
+            if (pass.passType != EPassType.Raster || !pass.enableNativeRenderPass)
+            {
+                return false;
+            }
+            return pass.depthBufferHandle.IsValid() || pass.colorBufferMaxIndex >= 0;
+        }
+
+        static void Ensure(ref int[] values, int count)
+        {
+            if (values.Length < count)
+            {
+                values = new int[Mathf.NextPowerOfTwo(Mathf.Max(count, 1))];
+            }
+        }
+
+        static bool PassTouches(List<RGResourceHandle>[] lists, in RGResourceHandle handle)
+        {
+            List<RGResourceHandle> list = lists[(int)handle.type];
+            for (int i = 0; i < list.Count; ++i)
+            {
+                if (list[i].Equals(handle))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Declared passes stay out of the recorded sequence. Each one is inserted after every pass that writes an
+        // input, at the start of the native group that contains its first consumer, so it does not split that group.
+        // A pass with no consumer is inserted after its inputs and then follows ordinary culling.
+        void PlaceDeclaredPasses()
+        {
+            int declared = m_DeclaredPasses.Count;
+            if (declared == 0)
+            {
+                return;
+            }
+            int sequenced = m_PassList.Count;
+            Ensure(ref m_ProvisionalGroupStart, sequenced);
+            Ensure(ref m_DeclaredInsertAt, declared);
+            Ensure(ref m_DeclaredGroupLimit, declared);
+            Ensure(ref m_DeclaredOrder, declared);
+            BuildProvisionalGroupStarts(sequenced);
+
+            for (int i = 0; i < declared; ++i)
+            {
+                m_DeclaredOrder[i] = i;
+                IRGPass pass = m_DeclaredPasses[i];
+                int ready = -1;
+                RGResourceHandle blockedHandle = default;
+                int blockedWriter = -1;
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+                {
+                    List<RGResourceHandle> reads = pass.resourceReadLists[type];
+                    for (int r = 0; r < reads.Count; ++r)
+                    {
+                        RGResourceHandle handle = reads[r];
+                        for (int p = sequenced - 1; p >= 0; --p)
+                        {
+                            if (!PassTouches(m_PassList[p].resourceWriteLists, handle))
+                            {
+                                continue;
+                            }
+                            if (p > ready)
+                            {
+                                ready = p;
+                                blockedHandle = handle;
+                                blockedWriter = p;
+                            }
+                            break;
+                        }
+                    }
+                }
+                int consumer = -1;
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+                {
+                    List<RGResourceHandle> writes = pass.resourceWriteLists[type];
+                    for (int w = 0; w < writes.Count; ++w)
+                    {
+                        RGResourceHandle handle = writes[w];
+                        for (int p = 0; p < sequenced; ++p)
+                        {
+                            if (!PassTouches(m_PassList[p].resourceReadLists, handle))
+                            {
+                                continue;
+                            }
+                            if (consumer < 0 || p < consumer)
+                            {
+                                consumer = p;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (consumer < 0)
+                {
+                    m_DeclaredGroupLimit[i] = -1;
+                    m_DeclaredInsertAt[i] = ready + 1;
+                    continue;
+                }
+                int limit = m_ProvisionalGroupStart[consumer];
+                if (limit < 0)
+                {
+                    limit = consumer;
+                }
+                m_DeclaredGroupLimit[i] = limit;
+                if (ready >= limit)
+                {
+                    throw new InvalidOperationException(
+                        $"'{PassLabel(pass)}' reads '{m_Resources.GetResourceName(blockedHandle)}' written by '{PassLabel(m_PassList[blockedWriter])}', which is inside or after the native group of '{PassLabel(m_PassList[consumer])}'.");
+                }
+                m_DeclaredInsertAt[i] = limit;
+            }
+
+            for (int guard = 0; guard <= declared; ++guard)
+            {
+                bool moved = false;
+                for (int i = 0; i < declared; ++i)
+                {
+                    IRGPass pass = m_DeclaredPasses[i];
+                    for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+                    {
+                        List<RGResourceHandle> reads = pass.resourceReadLists[type];
+                        for (int r = 0; r < reads.Count; ++r)
+                        {
+                            RGResourceHandle handle = reads[r];
+                            for (int j = 0; j < declared; ++j)
+                            {
+                                if (j == i || !PassTouches(m_DeclaredPasses[j].resourceWriteLists, handle))
+                                {
+                                    continue;
+                                }
+                                int limit = m_DeclaredGroupLimit[i];
+                                if (limit >= 0)
+                                {
+                                    if (m_DeclaredInsertAt[j] > limit || (m_DeclaredInsertAt[j] == limit && j > i))
+                                    {
+                                        throw new InvalidOperationException(
+                                            $"'{PassLabel(pass)}' reads '{m_Resources.GetResourceName(handle)}' written by '{PassLabel(m_DeclaredPasses[j])}', which cannot be placed before the native group of '{PassLabel(pass)}'s first consumer.");
+                                    }
+                                }
+                                else if (m_DeclaredInsertAt[i] <= m_DeclaredInsertAt[j])
+                                {
+                                    m_DeclaredInsertAt[i] = m_DeclaredInsertAt[j] + 1;
+                                    moved = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!moved)
+                {
+                    break;
+                }
+                if (guard == declared)
+                {
+                    throw new InvalidOperationException("Declared passes read each other's outputs in a cycle.");
+                }
+            }
+
+            for (int i = 1; i < declared; ++i)
+            {
+                int key = m_DeclaredOrder[i];
+                int at = m_DeclaredInsertAt[key];
+                int j = i - 1;
+                while (j >= 0)
+                {
+                    int other = m_DeclaredOrder[j];
+                    if (m_DeclaredInsertAt[other] < at || (m_DeclaredInsertAt[other] == at && other < key))
+                    {
+                        break;
+                    }
+                    m_DeclaredOrder[j + 1] = other;
+                    j--;
+                }
+                m_DeclaredOrder[j + 1] = key;
+            }
+
+            int end = sequenced;
+            for (int i = 0; i < declared; ++i)
+            {
+                if (m_DeclaredInsertAt[i] > end)
+                {
+                    end = m_DeclaredInsertAt[i];
+                }
+            }
+            int needed = sequenced + declared;
+            if (m_PlacedPasses.Capacity < needed)
+            {
+                m_PlacedPasses.Capacity = needed;
+            }
+            if (m_PassList.Capacity < needed)
+            {
+                m_PassList.Capacity = needed;
+            }
+            m_PlacedPasses.Clear();
+            int cursor = 0;
+            for (int i = 0; i <= end; ++i)
+            {
+                while (cursor < declared && m_DeclaredInsertAt[m_DeclaredOrder[cursor]] == i)
+                {
+                    m_PlacedPasses.Add(m_DeclaredPasses[m_DeclaredOrder[cursor]]);
+                    cursor++;
+                }
+                if (i < sequenced)
+                {
+                    m_PlacedPasses.Add(m_PassList[i]);
+                }
+            }
+            m_PassList.Clear();
+            for (int i = 0; i < m_PlacedPasses.Count; ++i)
+            {
+                IRGPass pass = m_PlacedPasses[i];
+                pass.index = i;
+                m_PassList.Add(pass);
+            }
+            m_DeclaredPasses.Clear();
+        }
+
+        RGNativePassGroup RentProvisionalGroup()
+        {
+            for (int i = 0; i < m_ProvisionalGroups.Count; ++i)
+            {
+                RGNativePassGroup group = m_ProvisionalGroups[i];
+                if (group.firstPass < 0 && group.attachments.Count == 0)
+                {
+                    return group;
+                }
+            }
+            var created = new RGNativePassGroup();
+            m_ProvisionalGroups.Add(created);
+            return created;
+        }
+
+        static string PassLabel(IRGPass pass) => string.IsNullOrEmpty(pass.name) ? "declared pass" : pass.name;
+
+        void BuildProvisionalGroupStarts(int count)
+        {
+            for (int i = 0; i < m_ProvisionalGroups.Count; ++i)
+            {
+                m_ProvisionalGroups[i].Clear();
+            }
+            RGNativePassGroup current = null;
+            for (int passIndex = 0; passIndex < count; ++passIndex)
+            {
+                m_ProvisionalGroupStart[passIndex] = -1;
+                IRGPass pass = m_PassList[passIndex];
+                if (!IsAttachmentRaster(pass))
+                {
+                    current = null;
+                    continue;
+                }
+                if (current == null || !TryJoinPass(current, pass))
+                {
+                    current = RentProvisionalGroup();
+                    current.Clear();
+                    if (!TryJoinPass(current, pass))
+                    {
+                        current = null;
+                        continue;
+                    }
+                }
+                if (current.firstPass < 0)
+                {
+                    current.firstPass = passIndex;
+                }
+                m_ProvisionalGroupStart[passIndex] = current.firstPass;
+            }
+        }
+
         void CompilePass()
         {
+            PlaceDeclaredPasses();
             RunLiveness();
             if (!m_ExtensionContributed)
             {
@@ -560,7 +834,6 @@ namespace InfinityTech.Rendering.RenderGraph
         bool TryJoinGroup(RGNativePassGroup group, int passIndex)
         {
             ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
-            IRGPass pass = info.pass;
             if (info.segment >= 0 && group.subpasses.Count > 0)
             {
                 int firstSegment = m_PassCompileInfos[group.subpasses[0].passIndex].segment;
@@ -569,6 +842,13 @@ namespace InfinityTech.Rendering.RenderGraph
                     return false;
                 }
             }
+            return TryJoinPass(group, info.pass);
+        }
+
+        // Attachment rules shared by the compiled groups and the provisional groups that place declared passes.
+        // A failure returns before any attachment is added.
+        bool TryJoinPass(RGNativePassGroup group, IRGPass pass)
+        {
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                 if (!pass.colorBuffersHandle[i].IsValid())
                 {

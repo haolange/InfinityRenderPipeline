@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(in CameraRecordContext context, RGMeshDrawListHandle[] preparedListsHandle)
+        void RasterLocalShadow(in CameraRecordContext context)
         {
             int shadowMapResolution = m_Settings.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
@@ -161,9 +161,8 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                // A cached-sampling slice whose tile re-renders has no list from CreateLocalMeshLists; it gets one here.
-                sliceMeshDrawListsHandle[slice] = preparedListsHandle[slice].IsValid ? preparedListsHandle[slice]
-                    : CreateMeshList(CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass);
+                sliceMeshDrawListsHandle[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
+                    CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass));
 
                 if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {
