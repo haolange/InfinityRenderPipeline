@@ -468,7 +468,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTransferPassHandle<T> AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGTransferPass<T> transferPass = NewTransferPass<T>(profilerSampler);
+            RGPass<T> transferPass = NewPass<T>(profilerSampler, EPassType.Transfer);
             RegisterPass(transferPass);
             return new RGTransferPassHandle<T>(transferPass, m_Resources);
         }
@@ -480,7 +480,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTransferPassHandle<T> DeclareTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGTransferPass<T> transferPass = NewTransferPass<T>(profilerSampler);
+            RGPass<T> transferPass = NewPass<T>(profilerSampler, EPassType.Transfer);
             DeclarePass(transferPass);
             return new RGTransferPassHandle<T>(transferPass, m_Resources);
         }
@@ -488,7 +488,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassHandle<T> AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGComputePass<T> computePass = NewComputePass<T>(profilerSampler);
+            RGPass<T> computePass = NewPass<T>(profilerSampler, EPassType.Compute);
             RegisterPass(computePass);
             return new RGComputePassHandle<T>(computePass, m_Resources);
         }
@@ -500,27 +500,19 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassHandle<T> DeclareComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGComputePass<T> computePass = NewComputePass<T>(profilerSampler);
+            RGPass<T> computePass = NewPass<T>(profilerSampler, EPassType.Compute);
             DeclarePass(computePass);
             return new RGComputePassHandle<T>(computePass, m_Resources);
         }
 
-        RGTransferPass<T> NewTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        RGPass<T> NewPass<T>(ProfilingSampler profilerSampler, EPassType passType) where T : struct
         {
-            RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
-            transferPass.Clear();
-            transferPass.name = PassName(profilerSampler);
-            transferPass.customSampler = profilerSampler;
-            return transferPass;
-        }
-
-        RGComputePass<T> NewComputePass<T>(ProfilingSampler profilerSampler) where T : struct
-        {
-            RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
-            computePass.Clear();
-            computePass.name = PassName(profilerSampler);
-            computePass.customSampler = profilerSampler;
-            return computePass;
+            RGPass<T> pass = m_ObjectPool.Get<RGPass<T>>();
+            pass.Clear();
+            pass.Prepare(passType);
+            pass.name = PassName(profilerSampler);
+            pass.customSampler = profilerSampler;
+            return pass;
         }
 
         void DeclarePass(IRGPass pass)
@@ -550,10 +542,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGRayTracingPassHandle<T> AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
-            rayTracingPass.Clear();
-            rayTracingPass.name = PassName(profilerSampler);
-            rayTracingPass.customSampler = profilerSampler;
+            RGPass<T> rayTracingPass = NewPass<T>(profilerSampler, EPassType.RayTracing);
             RegisterPass(rayTracingPass);
             return new RGRayTracingPassHandle<T>(rayTracingPass, m_Resources);
         }
@@ -561,10 +550,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGRasterPassHandle<T> AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
-            rasterPass.Clear();
-            rasterPass.name = PassName(profilerSampler);
-            rasterPass.customSampler = profilerSampler;
+            RGPass<T> rasterPass = NewPass<T>(profilerSampler, EPassType.Raster);
             RegisterPass(rasterPass);
             return new RGRasterPassHandle<T>(rasterPass, m_Resources, m_RendererListRecords, extension);
         }
