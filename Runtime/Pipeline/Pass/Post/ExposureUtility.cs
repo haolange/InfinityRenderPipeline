@@ -8,7 +8,6 @@ namespace InfinityTech.Rendering.Pipeline
         public const int HistogramBinCount = 256;
         public const float HistogramMinLog = -10.0f;
         public const float HistogramMaxLog = 4.0f;
-        public const float MidGray = 0.18f;
 
         public static float EvToMultiplier(float ev)
         {
@@ -33,10 +32,10 @@ namespace InfinityTech.Rendering.Pipeline
             return exposure.mode.value == EExposureMode.Auto;
         }
 
-        public static float ResolveManualMultiplier(Exposure exposure)
+        /// <summary>The linear exposure multiplier applied before the LUT; it applies in every mode.</summary>
+        public static float ResolveMultiplier(Exposure exposure)
         {
-            ValidateSnapshot(exposure);
-            return exposure.mode.value == EExposureMode.Manual ? EvToMultiplier(exposure.evCompensation.value) : 1.0f;
+            return EvToMultiplier(ResolveCpuEvCompensation(exposure));
         }
     }
 }

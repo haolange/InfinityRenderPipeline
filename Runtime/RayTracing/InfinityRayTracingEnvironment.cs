@@ -91,13 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
             return current;
         }
 
-        public static ERayTracingBackend ResolveBackend()
-        {
-            EnsureOwned();
-            return lastBackend;
-        }
-
-        public static bool CanRecord(InfinityRenderPipelineAsset asset, InfinityRenderPipelineRuntimeShaders shaders)
+        public static bool CanRecord(InfinityRenderPipelineRuntimeShaders shaders)
         {
             InfinityRayTracingEnvironment env = EnsureOwned();
             if (!env.IsReady)

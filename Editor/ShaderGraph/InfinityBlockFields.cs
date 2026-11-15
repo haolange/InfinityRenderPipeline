@@ -10,9 +10,9 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         public struct SurfaceDescription
         {
             public static string name = "SurfaceDescription";
-            public static BlockFieldDescriptor Roughness = new BlockFieldDescriptor(SurfaceDescription.name, "Roughness", "Roughness", "SURFACEDESCRIPTION_ROUGHNESS",
+            public static readonly BlockFieldDescriptor Roughness = new BlockFieldDescriptor(SurfaceDescription.name, "Roughness", "Roughness", "SURFACEDESCRIPTION_ROUGHNESS",
                 new FloatControl(0.5f), ShaderStage.Fragment);
-            public static BlockFieldDescriptor SpecularLevel = new BlockFieldDescriptor(SurfaceDescription.name, "SpecularLevel", "Specular Level", "SURFACEDESCRIPTION_SPECULARLEVEL",
+            public static readonly BlockFieldDescriptor SpecularLevel = new BlockFieldDescriptor(SurfaceDescription.name, "SpecularLevel", "Specular Level", "SURFACEDESCRIPTION_SPECULARLEVEL",
                 new FloatControl(0.5f), ShaderStage.Fragment);
         }
     }

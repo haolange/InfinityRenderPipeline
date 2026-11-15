@@ -35,12 +35,12 @@ void OcclusionTrace(uint3 id : SV_DispatchThreadID)
     }
 
 	float3 ScreenPos = GetScreenSpacePos(sourceUV, SceneDepth);
-	float3 ViewPos = GetViewSpacePos(ScreenPos, Matrix_InvProj);
+	float3 ViewPos = GetViewSpacePos(ScreenPos, Matrix_InvFlipYJitterProj);
 
     WorldNormal *= rsqrt(normalLength);
     float3 ViewNormal = mul((float3x3)Matrix_WorldToView, WorldNormal);
 
-    float Occlusion = GTAO(NumRay, NumStep, Radius, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, Global_point_clamp_sampler);
+    float Occlusion = GTAO(NumRay, NumStep, Radius, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvFlipYJitterProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, Global_point_clamp_sampler);
     UAV_OcclusionTexture[id.xy] = Occlusion;
 }
 
@@ -120,8 +120,8 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
             float2 motion = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0).xy;
             float2 historyUV;
             float expectedDepth;
-            ReprojectSurface(sourceUV,currentDepth,motion,Matrix_InvViewProj,Matrix_HistoryViewProj,
-                Matrix_MotionViewProj,Matrix_LastMotionViewProj,historyUV,expectedDepth);
+            ReprojectSurface(sourceUV,currentDepth,motion,Matrix_InvViewFlipYJitterProj,Matrix_LastViewFlipYJitterProj,
+                Matrix_ViewFlipYProj,Matrix_LastViewFlipYProj,historyUV,expectedDepth);
             expectedDepth = metadata.x;
             if (all(historyUV >= 0) && all(historyUV < 1)
                 && HistoryDepthConfidence(SRV_HistoryDepthTexture,SRV_HistoryDepthTexture_InfinityView,historyUV,expectedDepth,0) > 0)

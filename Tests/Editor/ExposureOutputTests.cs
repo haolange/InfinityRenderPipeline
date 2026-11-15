@@ -36,19 +36,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 exposure.active = true;
                 Assert.IsTrue(VolumeComponentActive(exposure));
                 Assert.AreEqual(0.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
-                Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
+                Assert.AreEqual(1.0f, ExposureUtility.ResolveMultiplier(exposure));
                 Assert.IsFalse(ExposureUtility.ShouldRecordAuto(exposure));
 
                 exposure.evCompensation.overrideState = true;
                 Assert.IsTrue(VolumeComponentActive(exposure));
                 exposure.evCompensation.value = 1.0f;
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
-                Assert.AreEqual(2.0f, ExposureUtility.ResolveManualMultiplier(exposure), 1e-6f);
+                Assert.AreEqual(2.0f, ExposureUtility.ResolveMultiplier(exposure), 1e-6f);
 
                 exposure.mode.overrideState = true;
                 exposure.mode.value = EExposureMode.Auto;
                 Assert.IsTrue(ExposureUtility.ShouldRecordAuto(exposure));
-                Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
+                Assert.AreEqual(2.0f, ExposureUtility.ResolveMultiplier(exposure), 1e-6f, "Compensation applies in automatic mode too.");
 
                 exposure.active = false;
                 Assert.IsFalse(VolumeComponentActive(exposure));
@@ -191,21 +191,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(encoding == EHDREncoding.Rec2020_Linear ? EOutputEncodePolicy.ShaderRec2020Linear
                     : EOutputEncodePolicy.ShaderScRGBLinear, decision.policy);
             }
-        }
-
-        [Test]
-        public void CombineLutKey_FieldEquals_IncludesOutputMode()
-        {
-            CombineLutParameterDescriptor a = default;
-            a.WhiteTemp = 6500.0f;
-            a.OutputMode = (int)EOutputMode.SDR;
-            a.HDREncoding = (int)EHDREncoding.PQ_Rec2020;
-
-            CombineLutParameterDescriptor b = a;
-            Assert.IsTrue(a.Equals(b));
-
-            b.OutputMode = (int)EOutputMode.HDR;
-            Assert.IsFalse(a.Equals(b));
         }
 
         [Test]

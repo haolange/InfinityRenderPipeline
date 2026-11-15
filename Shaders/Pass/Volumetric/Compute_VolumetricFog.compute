@@ -3,6 +3,7 @@
 #pragma kernel Temporal
 #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LIGHT_COOKIES
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/Lighting.hlsl"
@@ -11,22 +12,26 @@
 #include "../../Library/Random.hlsl"
 #include "../../Library/AtmosphereCommon.hlsl"
 
-float4 VolFog_ScreenSize;
-float4 VolFog_Resolution;
-float VolFog_Density;
-float VolFog_Height;
-float VolFog_HeightFalloff;
-float4 VolFog_Albedo;
-float VolFog_Anisotropy;
-float VolFog_AmbientIntensity;
-int VolFog_DepthSlices;
-float VolFog_MaxDistance;
-float VolFog_TemporalWeight;
-int VolFog_FrameIndex;
-float4x4 Matrix_WorldToView;
-
-float4x4 Matrix_InvViewProj;
-float3 _WorldSpaceCameraPos;
+// The VolumetricFogParameters record VolumetricFogPass writes, bound as one constant buffer.
+cbuffer CBV_VolumetricFogParameters
+{
+    float4 VolFog_ScreenSize;
+    float4 VolFog_Resolution;
+    float4 VolFog_Albedo;
+    float VolFog_Density;
+    float VolFog_Height;
+    float VolFog_HeightFalloff;
+    float VolFog_Anisotropy;
+    float VolFog_AmbientIntensity;
+    int VolFog_DepthSlices;
+    float VolFog_MaxDistance;
+    float VolFog_TemporalWeight;
+    int VolFog_FrameIndex;
+    float VolFog_AerialDistance;
+    int VolFog_Padding0;
+    int VolFog_Padding1;
+};
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_CascadeShadowMap;
@@ -34,9 +39,6 @@ Texture2D<float> SRV_LocalShadowMap;
 Texture2D<float4> SRV_SkyViewLUT;
 Texture3D<float4> SRV_AerialPerspectiveLUT;
 Texture3D<float4> SRV_HistoryVolumetricFog;
-int VolFog_HasSkyView;
-int VolFog_HasAerial;
-float VolFog_AerialDistance;
 RWTexture3D<float4> UAV_VolumetricFogTexture;
 
 float SliceToDepth(float slice, float maxDistance, int numSlices)
@@ -69,10 +71,10 @@ float3 FroxelToWorld(uint3 froxelCoord)
     float depth = SliceToDepth(froxelCoord.z + 0.5, VolFog_MaxDistance, VolFog_DepthSlices);
     float2 ndc = screenUV * 2.0 - 1.0;
     float4 clipPos = float4(ndc, 0.5, 1.0);
-    float4 worldPos = mul(Matrix_InvViewProj, clipPos);
+    float4 worldPos = mul(Matrix_InvViewFlipYJitterProj, clipPos);
     worldPos /= worldPos.w;
-    float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-    return _WorldSpaceCameraPos + viewDir * depth;
+    float3 viewDir = normalize(worldPos.xyz - ViewPositionWS());
+    return ViewPositionWS() + viewDir * depth;
 }
 
 float VolumeLightAttenuation(LightRecord light, float3 worldPos)
@@ -142,7 +144,7 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
         float3 extinction = density;
         float3 scattering = density * VolFog_Albedo.rgb;
         float3 inScatter = 0;
-        float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+        float3 viewDir = normalize(worldPos - ViewPositionWS());
         float3 viewPos = mul(Matrix_WorldToView, float4(worldPos, 1.0)).xyz;
         float viewDepth = -viewPos.z;
         float2 screenUV = (id.xy + 0.5) / VolFog_Resolution.xy;
@@ -155,21 +157,11 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
         AccumulateLocalLights(worldPos, viewDir, scattering, viewDepth, screenUV, inScatter, SRV_CascadeShadowMap, SRV_LocalShadowMap);
 
-        if (VolFog_HasSkyView != 0)
-        {
-            inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
-        }
-        else
-        {
-            inScatter += scattering * VolFog_AmbientIntensity;
-        }
-
-        if (VolFog_HasAerial != 0)
-        {
-            float linearDepth = length(worldPos - _WorldSpaceCameraPos);
-            float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
-            inScatter += aerial.rgb * density;
-        }
+        // The atmosphere lookup tables always exist: the pipeline cannot run without its atmosphere profile.
+        inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
+        float linearDepth = length(worldPos - ViewPositionWS());
+        float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
+        inScatter += aerial.rgb * density;
 
         UAV_VolumetricFogTexture[uint3(id.xy, z)] = float4(inScatter, extinction.x);
     }

@@ -1,7 +1,9 @@
 #ifndef INFINITY_SCREEN_SPACE_INDIRECT_SURFACE
 #define INFINITY_SCREEN_SPACE_INDIRECT_SURFACE
 
-// SRV_DepthTexture, SRV_GBufferB/C, SSGI_Resolution and inverse matrices are bound by the caller.
+#include "ViewUniform.hlsl"
+
+// SRV_DepthTexture, SRV_GBufferB/C and SSGI_Resolution are bound by the caller; the inverse matrices come from ViewUniform.
 struct SSGISurface
 {
     float rawDepth;
@@ -35,8 +37,8 @@ bool LoadSurface(uint2 pixel, out SSGISurface surface)
         surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
         float2 uv = (pixel + 0.5) * SSGI_Resolution.zw;
         float3 ndc = GetNDCPos(uv, rawDepth);
-        surface.positionVS = GetViewSpacePos(ndc, Matrix_InvProj);
-        surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewProj);
+        surface.positionVS = GetViewSpacePos(ndc, Matrix_InvFlipYJitterProj);
+        surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewFlipYJitterProj);
     }
     return valid;
 }

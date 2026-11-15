@@ -12,10 +12,7 @@
 
 #define LIGHT_TILE_SIZE 16u
 
-// x, y = screen size of the tile grid, z = tiles per row, w = mask words per tile.
-float4 g_LightTileParams;
-// x = bin count, y = scale, z = bias: bin = floor(log2(depth) * scale + bias).
-float4 g_LightZBinParams;
+#include "LightLoopUniform.hlsl"
 StructuredBuffer<uint> SRV_LightZBins;
 StructuredBuffer<uint> SRV_LightTileMasks;
 

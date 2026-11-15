@@ -20,9 +20,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("A compute graphics device is required for the angular contract.");
             ComputeShader shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Shader);
             Assert.IsNotNull(shader, k_Shader);
-            using (var records = new ComputeBuffer(1, Marshal.SizeOf<LightRecord>()))
-            using (var points = new ComputeBuffer(positions.Length, 16))
-            using (var results = new ComputeBuffer(positions.Length, 8))
+            using (var records = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, Marshal.SizeOf<LightRecord>()))
+            using (var points = new GraphicsBuffer(GraphicsBuffer.Target.Structured, positions.Length, 16))
+            using (var results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, positions.Length, 8))
             {
                 records.SetData(new[] { record });
                 points.SetData(positions);
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.maxDrawDistance = 0;
                 if (transformed)
                     go.transform.SetPositionAndRotation(new Vector3(3, -2, 5), Quaternion.Euler(23, 61, -17));
-                Assert.IsTrue(LightRecordPack.TryPack(light, data, data.shape, 0, Vector3.zero, out LightRecord record));
+                Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, data, data.shape, 0, Vector3.zero, out LightRecord record));
 
                 // Include transition samples with known window values, not only the saturated cone interior.
                 float outer = Mathf.Cos(30 * Mathf.Deg2Rad), inner = Mathf.Cos(10 * Mathf.Deg2Rad);

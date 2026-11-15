@@ -1,0 +1,16 @@
+// Reads the camera facts compute shaders derive from ViewUniform, and the same translation through mul, so a test can
+// compare the accessors with what the matrices hold.
+#pragma kernel ReadView
+#include "../../../Shaders/Library/ViewUniform.hlsl"
+
+RWStructuredBuffer<float4> ContractResults;
+
+[numthreads(1, 1, 1)]
+void ReadView(uint3 id : SV_DispatchThreadID)
+{
+    ContractResults[0] = float4(ViewPositionWS(), 1);
+    ContractResults[1] = float4(ViewForwardWS(), 0);
+    ContractResults[2] = float4(ViewIsOrthographic() ? 1 : 0, View_DepthParameters.x, View_DepthParameters.y, View_DepthParameters.w);
+    ContractResults[3] = mul(Matrix_ViewToWorld, float4(0, 0, 0, 1));
+    ContractResults[4] = float4(mul((float3x3)Matrix_ViewToWorld, float3(0, 0, -1)), 0);
+}

@@ -242,6 +242,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
             readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
             readonly RenderTexture m_HistoryMeta;
+            readonly UniformBinding<ViewUniform> m_View;
 
             public Vector2Int TileCount { get; }
 
@@ -304,22 +305,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetFloat("SSR_TemporalClampScale", 1.25f);
                 s.SetFloat("SSR_HistoryValid", 0);
                 s.SetInt("SSR_DebugMode", 0);
-                s.SetVector("SSR_CameraPosition", Vector4.zero);
-                s.SetVector("SSR_CameraForward", new Vector4(0, 0, -1, 0));
-                s.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
-                s.SetMatrix("Matrix_Proj", projection);
-                s.SetMatrix("Matrix_InvProj", projection.inverse);
-                s.SetMatrix("Matrix_InvViewProj", projection.inverse);
-                s.SetMatrix("Matrix_WorldToView", Matrix4x4.identity);
-                s.SetMatrix("Matrix_HistoryViewProj", projection);
-                s.SetMatrix("Matrix_MotionViewProj", projection);
-                s.SetMatrix("Matrix_LastMotionViewProj", projection);
+                m_View = new UniformBinding<ViewUniform>(new ViewUniform
+                {
+                    matrix_FlipYJitterProj = projection,
+                    matrix_InvFlipYJitterProj = projection.inverse,
+                    matrix_InvViewFlipYJitterProj = projection.inverse,
+                    matrix_WorldToView = Matrix4x4.identity,
+                    matrix_ViewToWorld = Matrix4x4.identity,
+                    matrix_LastViewFlipYJitterProj = projection,
+                    matrix_ViewFlipYProj = projection,
+                    matrix_LastViewFlipYProj = projection,
+                    view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0)
+                });
             }
 
             public uint[] Classify()
             {
                 m_Args.SetData(new uint[] { 0, 1, 1 });
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.ClassifyKernelName);
+                int kernel = m_Shader.FindKernel("SSRClassify");
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "UAV_TileArgs", m_Args);
                 m_Shader.SetBuffer(kernel, "UAV_TileList", m_TileList);
@@ -348,7 +351,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 using (var cmd = new CommandBuffer())
                 {
-                    int kernel = m_Shader.FindKernel(SSRPassUtilityData.TraceKernelName);
+                    int kernel = m_Shader.FindKernel("SSRTrace");
                     BindSurface(kernel);
                     cmd.SetComputeBufferParam(m_Shader, kernel, "SRV_TileList", m_TileList);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TileClass", m_TileClass);
@@ -409,7 +412,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             void DispatchResolve()
             {
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.ResolveKernelName);
+                int kernel = m_Shader.FindKernel("SSRResolve");
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "SRV_Samples", m_Samples);
                 m_Shader.SetTexture(kernel, "UAV_Resolved", m_Resolved);
@@ -424,7 +427,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetFloat("SSR_HistoryValid", 1);
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                int kernel = m_Shader.FindKernel("SSRTemporal");
                 m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", Solid(m_Width, m_Height, current, false));
@@ -448,7 +451,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                int kernel = m_Shader.FindKernel("SSRTemporal");
                 m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", m_Resolved);
@@ -471,7 +474,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public float[] Spatial(Color input)
             {
                 RenderTexture output = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
-                int kernel = m_Shader.FindKernel(SSRPassUtilityData.BilateralKernelName);
+                int kernel = m_Shader.FindKernel("SSRBilateral");
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Width, m_Height, input, false));
                 m_Shader.SetTexture(kernel, "SRV_Variance", Solid(m_Width, m_Height, Color.clear, false));
@@ -549,6 +552,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
+                m_View.Dispose();
                 foreach (GraphicsBuffer buffer in m_Buffers) buffer.Release();
                 foreach (UnityEngine.Object obj in m_Objects)
                 {

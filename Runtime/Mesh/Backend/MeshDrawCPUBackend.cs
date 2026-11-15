@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -38,9 +37,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades, in MeshView view)
+        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
         {
-            using (MeshDrawProfiling.Cpu("Complete", view, cache.desc.lightMode).Auto())
+            using (cache.completeMarker.Auto())
             {
                 build.job.Complete();
             }
@@ -53,7 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            using (MeshDrawProfiling.Cpu("Upload", view, cache.desc.lightMode).Auto())
+            using (cache.uploadMarker.Auto())
             {
                 commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
                 commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
@@ -61,23 +60,23 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
-            in MeshWorldGPUTables tables, in MeshMotionBinding motion, in MeshView view)
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion)
         {
             if (build.draws.Length == 0)
             {
                 return;
             }
-            using var cpuDraw = MeshDrawProfiling.Cpu("Draw", view, cache.desc.lightMode).Auto();
-            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(view.kind, false));
+            using var cpuDraw = cache.drawMarker.Auto();
+            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(cache.desc, false);
             marker.Begin(commands);
             bool dithering = false;
             try
             {
                 m_Properties.Clear();
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, instances.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceFade, fades.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, instances.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, fades.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 foreach (MeshDrawCall draw in build.draws)
                 {
@@ -92,7 +91,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         dithering = draw.fading;
                         commands.SetKeyword(s_LodDither, dithering);
                     }
-                    m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, draw.instanceOffset);
+                    m_Properties.SetInt(MeshShaderIDs.InstanceOffset, draw.instanceOffset);
                     commands.DrawMeshInstancedProcedural(binding.mesh, binding.submesh, binding.material, binding.passIndex, draw.instanceCount, m_Properties);
                 }
             }

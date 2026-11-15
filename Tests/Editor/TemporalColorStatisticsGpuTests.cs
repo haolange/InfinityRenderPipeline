@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader=Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                 "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/TemporalColorStatistics.compute"));
             var texture=new Texture2D(16,16,TextureFormat.RGBAFloat,false,true);
-            using var results=new ComputeBuffer(8,16);
+            using var results=new GraphicsBuffer(GraphicsBuffer.Target.Structured, 8,16);
             try
             {
                 var pixels=new Color[256];

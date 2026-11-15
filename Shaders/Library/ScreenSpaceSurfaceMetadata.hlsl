@@ -28,7 +28,7 @@ float SurfaceHistoryDepthConfidence(Texture2D<uint2> surfaceTexture, float4 text
         uint width, height; surfaceTexture.GetDimensions(width, height);
         if (textureView.x > 0) { width = (uint)textureView.x; height = (uint)textureView.y; }
         int2 pixel = (int2)(uv * uint2(width, height));
-        float low = ScreenSpaceDepthParams.y, high = ScreenSpaceDepthParams.x;
+        float low = View_DepthParameters.y, high = View_DepthParameters.x;
         [unroll] for (int y = -1; y <= 1; ++y)
         [unroll] for (int x = -1; x <= 1; ++x)
         {

@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class AtmosphereCacheTests
     {
+        ResourcePool m_Pool;
         AtmosphereSharedCache m_Shared;
         AtmosphereViewCache m_View;
 
@@ -17,8 +18,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SetUp()
         {
             RTHandles.Initialize(64, 64);
-            m_Shared = new AtmosphereSharedCache();
-            m_View = new AtmosphereViewCache();
+            m_Pool = new ResourcePool();
+            m_Shared = new AtmosphereSharedCache(m_Pool);
+            m_View = new AtmosphereViewCache(m_Pool);
         }
 
         [TearDown]
@@ -28,6 +30,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View?.Dispose();
             m_Shared = null;
             m_View = null;
+            m_Pool?.Dispose();
+            m_Pool = null;
         }
 
         [Test]
@@ -44,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(hit);
             Assert.AreNotSame(first.texture, second.texture);
             Assert.IsTrue(first.texture.rt.IsCreated());
-            m_Shared.DiscardUnproducedPending();
+            m_Shared.CameraFailed(false);
             m_Shared.CommitFrame();
             m_Shared.BeginFrame();
             m_Shared.ResolveShared(b, trans, multi, out _, out _, out hit);
@@ -70,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var descriptor = MakeLut(8, 8, "CameraHistory");
                 for (int i = 0; i < 2; i++)
                 {
-                    var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess };
+                    var state = new CameraFrameState(90 + i, m_Pool) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess };
                     states.Add(i, state);
                     state.historyCache.GetTexture(123, descriptor);
                     state.historyCache.GetWriteTexture(123, descriptor);
@@ -80,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shared.BeginFrame();
                 m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out _);
                 if (sharedProduced) m_Shared.MarkSharedProduced();
-                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, submitted, 50);
+                InfinityRenderPipeline.CompleteFrameTransaction(new IFrameTransaction[] { m_Shared }, states, submitted);
                 for (int i = 0; i < 2; i++)
                 {
                     bool success = submitted && (i == 0 ? firstSuccess : secondSuccess);
@@ -104,13 +108,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
-            var inactive = new CameraFrameState(92) { lastSeenFrame = 50, preparedThisRender = false };
+            var inactive = new CameraFrameState(92, m_Pool) { lastSeenFrame = 50, preparedThisRender = false };
             try
             {
                 var states = new Dictionary<int, CameraFrameState> { { 92, inactive } };
-                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, false, 50);
+                InfinityRenderPipeline.CompleteFrameTransaction(new IFrameTransaction[] { m_Shared }, states, false);
                 Assert.IsFalse(inactive.requiresHistoryReset);
-                Assert.AreEqual(0, inactive.successfulRenderCount);
             }
             finally { inactive.Dispose(); if (ownsVolumes) VolumeManager.instance.Deinitialize(); }
         }
@@ -194,11 +197,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ViewCache_SameQuantizedPose_IsHit()
         {
             AtmosphereParameter parameter = ValidParameter();
-            AtmosphereViewKey keyA = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.2f, 2.4f, 3.6f));
-            AtmosphereViewKey keyB = AtmosphereViewKey.Create(parameter, Vector3.up, new Vector3(1.9f, 2.1f, 3.2f));
+            AtmosphereViewKey keyA = AtmosphereViewKey.Create(parameter, Vector3.up, Vector3.one, new Vector3(1.2f, 2.4f, 3.6f), Matrix4x4.identity, Matrix4x4.identity);
+            AtmosphereViewKey keyB = AtmosphereViewKey.Create(parameter, Vector3.up, Vector3.one, new Vector3(1.9f, 2.1f, 3.2f), Matrix4x4.identity, Matrix4x4.identity);
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
-            BufferDescriptor sun = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
+            BufferDescriptor sun = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
 
             m_View.BeginFrame();
             m_View.Resolve(keyA, sky, aerial, sun, out _, out _, out _, out bool firstHit);
@@ -209,6 +212,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.BeginFrame();
             m_View.Resolve(keyB, sky, aerial, sun, out _, out _, out _, out bool hit);
             Assert.IsTrue(hit);
+            m_View.CommitFrame();
+
+            // The aerial perspective volume follows the frustum: turning in place is a miss.
+            AtmosphereViewKey turned = AtmosphereViewKey.Create(parameter, Vector3.up, Vector3.one, new Vector3(1.2f, 2.4f, 3.6f),
+                Matrix4x4.Rotate(Quaternion.Euler(0, 90, 0)), Matrix4x4.identity);
+            m_View.BeginFrame();
+            m_View.Resolve(turned, sky, aerial, sun, out _, out _, out _, out bool turnedHit);
+            Assert.IsFalse(turnedHit);
         }
 
         [Test]
@@ -217,10 +228,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AtmosphereParameter parameter = ValidParameter();
             Vector3 sun = Vector3.up;
             Vector3 camera = new Vector3(1.2f, 2.4f, 3.6f);
-            AtmosphereViewKey key = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey key = AtmosphereViewKey.Create(parameter, sun, Vector3.one, camera, Matrix4x4.identity, Matrix4x4.identity);
             TextureDescriptor sky = MakeLut(16, 8, "Sky");
             TextureDescriptor aerial = MakeAerial(8);
-            BufferDescriptor sunBuffer = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
+            BufferDescriptor sunBuffer = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
 
             m_View.BeginFrame();
             m_View.Resolve(key, sky, aerial, sunBuffer, out _, out _, out _, out _);
@@ -228,7 +239,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.CommitFrame();
 
             parameter.atmosphereHeight = 80000.0f;
-            AtmosphereViewKey thicknessKey = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey thicknessKey = AtmosphereViewKey.Create(parameter, sun, Vector3.one, camera, Matrix4x4.identity, Matrix4x4.identity);
             m_View.BeginFrame();
             m_View.Resolve(thicknessKey, sky, aerial, sunBuffer, out _, out _, out _, out bool thicknessHit);
             Assert.IsFalse(thicknessHit);
@@ -236,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View.CommitFrame();
 
             parameter.rayleighScattering = new Color(0.01f, 0.02f, 0.04f, 1.0f);
-            AtmosphereViewKey rayleighKey = AtmosphereViewKey.Create(parameter, sun, camera);
+            AtmosphereViewKey rayleighKey = AtmosphereViewKey.Create(parameter, sun, Vector3.one, camera, Matrix4x4.identity, Matrix4x4.identity);
             m_View.BeginFrame();
             m_View.Resolve(rayleighKey, sky, aerial, sunBuffer, out _, out _, out _, out bool rayleighHit);
             Assert.IsFalse(rayleighHit);
@@ -246,10 +257,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void IBLCache_ThicknessOrRayleighChange_IsMiss()
         {
             AtmosphereParameter parameter = ValidParameter();
-            AtmosphereIBLKey key = AtmosphereIBLKey.Create(parameter, Vector3.up);
+            AtmosphereIBLKey key = AtmosphereIBLKey.Create(parameter, Vector3.up, Vector3.one);
             TextureDescriptor cubemap = MakeCubemap(16, "Cube", false);
             TextureDescriptor prefilter = MakeCubemap(16, "Prefilter", true);
-            BufferDescriptor sh = new BufferDescriptor(9, 16, ComputeBufferType.Structured);
+            BufferDescriptor sh = new BufferDescriptor(9, 16, GraphicsBuffer.Target.Structured);
 
             m_Shared.BeginFrame();
             m_Shared.ResolveIBL(key, cubemap, prefilter, sh, out _, out _, out _, out bool firstHit);
@@ -258,7 +269,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Shared.CommitFrame();
 
             parameter.atmosphereHeight = 80000.0f;
-            AtmosphereIBLKey thicknessKey = AtmosphereIBLKey.Create(parameter, Vector3.up);
+            AtmosphereIBLKey thicknessKey = AtmosphereIBLKey.Create(parameter, Vector3.up, Vector3.one);
             m_Shared.BeginFrame();
             m_Shared.ResolveIBL(thicknessKey, cubemap, prefilter, sh, out _, out _, out _, out bool thicknessHit);
             Assert.IsFalse(thicknessHit);
@@ -266,7 +277,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Shared.CommitFrame();
 
             parameter.rayleighScattering = new Color(0.01f, 0.02f, 0.04f, 1.0f);
-            AtmosphereIBLKey rayleighKey = AtmosphereIBLKey.Create(parameter, Vector3.up);
+            AtmosphereIBLKey rayleighKey = AtmosphereIBLKey.Create(parameter, Vector3.up, Vector3.one);
             m_Shared.BeginFrame();
             m_Shared.ResolveIBL(rayleighKey, cubemap, prefilter, sh, out _, out _, out _, out bool rayleighHit);
             Assert.IsFalse(rayleighHit);

@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
     [DisplayName("Infinity RP")]
-    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "global-settings.md")]
+    [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "global-settings.md")]
     public sealed class InfinityRenderPipelineGlobalSettings : RenderPipelineGlobalSettings<InfinityRenderPipelineGlobalSettings, InfinityRenderPipeline>
     {
         public const string PackagePath = InfinityRenderPipelineRuntimeShaders.PackagePath;
@@ -65,6 +65,28 @@ namespace InfinityTech.Rendering.Pipeline
             if (GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>() == this &&
                 GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset asset)
                 asset.RequestEditorRecreation();
+        }
+
+        // Explicit Editor action (Wizard fix). Unity does not add a container type introduced after the asset was created,
+        // and loading never repairs the asset. Marks the asset dirty; the user saves it.
+        internal bool AddMissingCaptureShaders()
+        {
+            if (TryGet(typeof(InfinityRenderPipelineCaptureShaders), out _))
+                return false;
+            var capture = new InfinityRenderPipelineCaptureShaders
+            {
+                captureTextureShader = AssetDatabase.LoadAssetAtPath<ComputeShader>(PackagePath + "/" + InfinityRenderPipelineCaptureShaders.CaptureTexturePath),
+                captureDepthShader = AssetDatabase.LoadAssetAtPath<ComputeShader>(PackagePath + "/" + InfinityRenderPipelineCaptureShaders.CaptureDepthPath),
+            };
+            if (capture.captureTextureShader == null || capture.captureDepthShader == null)
+                throw new InvalidOperationException("InfinityRP: the package capture shaders are missing; reimport the package.");
+            Undo.RecordObject(this, "Add Infinity Capture Shaders");
+            m_Settings.settingsList.Add(capture);
+            // Rebuild the type lookup that TryGet reads, as deserialization would.
+            if (this is ISerializationCallbackReceiver receiver)
+                receiver.OnAfterDeserialize();
+            EditorUtility.SetDirty(this);
+            return true;
         }
 
         public override void Initialize(RenderPipelineGlobalSettings source = null)

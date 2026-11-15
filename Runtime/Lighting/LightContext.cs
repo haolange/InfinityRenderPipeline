@@ -14,19 +14,13 @@ namespace InfinityTech.Rendering.LightPipeline
 {
     internal static class LightShaderIDs
     {
-        public static int DirectionalLightCount = Shader.PropertyToID("g_DirectionalLightCount");
-        public static int LocalLightCount = Shader.PropertyToID("g_LocalLightCount");
-        public static int SunRecordIndex = Shader.PropertyToID("g_SunRecordIndex");
-        public static int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
-        public static int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
-        public static int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
-        public static int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
+        public static readonly int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
+        public static readonly int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
+        public static readonly int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
         // Clustered light list (LightLoop.hlsl).
         public static readonly int LightZBins = Shader.PropertyToID("SRV_LightZBins");
         public static readonly int LightTileMasks = Shader.PropertyToID("SRV_LightTileMasks");
         public static readonly int LightTileRects = Shader.PropertyToID("SRV_LightTileRects");
-        public static readonly int LightTileParams = Shader.PropertyToID("g_LightTileParams");
-        public static readonly int LightZBinParams = Shader.PropertyToID("g_LightZBinParams");
         // Graph keys of the CPU-uploaded light-list buffers.
         public static readonly int LightTileRectBuffer = Shader.PropertyToID("_LightTileRectBuffer");
         public static readonly int LightZBinBuffer = Shader.PropertyToID("_LightZBinBuffer");
@@ -35,15 +29,15 @@ namespace InfinityTech.Rendering.LightPipeline
         public static readonly int ReflectionProbes = Shader.PropertyToID("SRV_ReflectionProbes");
         public static readonly int ProbeZBins = Shader.PropertyToID("SRV_ProbeZBins");
         public static readonly int ProbeTileMasks = Shader.PropertyToID("SRV_ProbeTileMasks");
-        public static readonly int ProbeTileParams = Shader.PropertyToID("g_ProbeTileParams");
-        public static readonly int ReflectionProbeCount = Shader.PropertyToID("g_ReflectionProbeCount");
         public static readonly int ReflectionProbeAtlas = Shader.PropertyToID("SRV_ReflectionProbeAtlas");
+        public static readonly GlobalKeyword ReflectionProbesKeyword = GlobalKeyword.Create("INFINITY_REFLECTION_PROBES");
         public static readonly int ReflectionProbeBuffer = Shader.PropertyToID("_ReflectionProbeBuffer");
         public static readonly int ProbeTileRectBuffer = Shader.PropertyToID("_ProbeTileRectBuffer");
         public static readonly int ProbeZBinBuffer = Shader.PropertyToID("_ProbeZBinBuffer");
         // Light cookies (Lighting/LightCookie.hlsl).
         public static readonly int LightCookies = Shader.PropertyToID("SRV_LightCookies");
         public static readonly int LightCookieAtlas = Shader.PropertyToID("SRV_LightCookieAtlas");
+        public static readonly GlobalKeyword LightCookiesKeyword = GlobalKeyword.Create("INFINITY_LIGHT_COOKIES");
         public static readonly int LightCookieBuffer = Shader.PropertyToID("_LightCookieBuffer");
     }
 
@@ -110,8 +104,10 @@ namespace InfinityTech.Rendering.LightPipeline
 
         int m_DirectionalCount;
         int m_LocalCount;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         int m_UnsupportedShapeCount;
         int m_DistanceCulledCount;
+#endif
         int m_OffscreenCount;
         int m_SunRecordIndex;
         int m_ContactLightCount;
@@ -140,6 +136,11 @@ namespace InfinityTech.Rendering.LightPipeline
         GraphicsBuffer m_CookieBuffer;
         int m_CookieCapacity;
         readonly List<LightCookieGPU> m_Cookies = new List<LightCookieGPU>();
+        // InfinityAdditionalLightData of each visible light this frame, read once from the registry by visible index.
+        InfinityAdditionalLightData[] m_AdditionalData = System.Array.Empty<InfinityAdditionalLightData>();
+
+        // The registered additional data of a visible light, or null for a plain Unity light.
+        internal InfinityAdditionalLightData AdditionalData(int visibleLightIndex) => m_AdditionalData[visibleLightIndex];
         LightCookieGPU[] m_CookieUpload = new LightCookieGPU[1];
         static readonly int CookieStride = Marshal.SizeOf<LightCookieGPU>();
         NativeList<LightRecord> m_Records;
@@ -210,11 +211,13 @@ namespace InfinityTech.Rendering.LightPipeline
         // The sun record traces contact shadows.
         internal bool SunHasContactShadow => m_SunRecordIndex >= 0 && m_SunRecordIndex < m_Records.Length
             && (m_Records[m_SunRecordIndex].flags & LightRecordFlags.EnableContactShadow) != 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Visible lights skipped because their shape is invalid (for example a zero-area rect) or their native type is
-        // unknown; they are counted, never substituted.
+        // unknown; the Rendering Debugger counts them, nothing substitutes them.
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
         // Local lights culled this camera by their Maximum Distance.
         internal int DistanceCulledCount => m_DistanceCulledCount;
+#endif
         // Local lights Unity reported visible whose bounds project outside the screen.
         internal int OffscreenCount => m_OffscreenCount;
         internal int SunRecordIndex => m_SunRecordIndex;
@@ -264,8 +267,10 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalCandidates.Clear();
             m_DirectionalCount = 0;
             m_LocalCount = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             m_UnsupportedShapeCount = 0;
             m_DistanceCulledCount = 0;
+#endif
             m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
             m_ContactLightCount = 0;
@@ -306,6 +311,21 @@ namespace InfinityTech.Rendering.LightPipeline
             float far = camera != null ? camera.farClipPlane : 1000.0f;
             m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
 
+            // The registry is the only source: InfinityAdditionalLightData registers itself before the frame's proxy update.
+            if (m_AdditionalData.Length < visibleLights.Length)
+            {
+                m_AdditionalData = new InfinityAdditionalLightData[math.ceilpow2(visibleLights.Length)];
+            }
+            for (int i = 0; i < visibleLights.Length; ++i)
+            {
+                Light light = visibleLights[i].light;
+                m_AdditionalData[i] = null;
+                if (light != null)
+                {
+                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
+                }
+            }
+
             for (int i = 0; i < visibleLights.Length; ++i)
             {
                 VisibleLight visible = visibleLights[i];
@@ -317,24 +337,18 @@ namespace InfinityTech.Rendering.LightPipeline
 
                 if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     m_UnsupportedShapeCount++;
+#endif
                     continue;
                 }
 
-                InfinityAdditionalLightData ext = null;
-                if (worldLightLookup != null)
-                {
-                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext);
-                }
-
-                if (ext == null)
-                {
-                    light.TryGetComponent(out ext);
-                }
+                InfinityAdditionalLightData ext = m_AdditionalData[i];
 
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
-                if (!LightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out LightRecord record))
+                if (!LightRecordPack.TryPack(visible, light, ext, shape, i, cameraPosition, out LightRecord record))
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (LightShapeUtility.IsValid(shape))
                     {
                         m_DistanceCulledCount++;
@@ -343,6 +357,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     {
                         m_UnsupportedShapeCount++;
                     }
+#endif
                     continue;
                 }
 
@@ -393,7 +408,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
-            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings, meshWorld, shadowCache);
+            m_ShadowAllocator.Allocate(m_Records, cullingResults, m_AdditionalData, camera, settings, meshWorld, shadowCache);
             EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }
 
@@ -488,8 +503,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // changed textures. The cookie texture is the Unity Light's; the IES profile is InfinityAdditionalLightData's.
         // Point lights need cubemap cookies (stored octahedral); every other shape takes a 2D cookie. Cube IES profiles
         // apply to every local shape by direction; 2D IES profiles only to cone and pyramid spots.
-        internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults,
-            Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup, int frame)
+        internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults, int frame)
         {
             m_Cookies.Clear();
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
@@ -500,11 +514,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 if (atlas != null && atlas.Enabled && record.visibleLightIndex >= 0 && record.visibleLightIndex < visibleLights.Length)
                 {
                     Light light = visibleLights[record.visibleLightIndex].light;
-                    InfinityAdditionalLightData ext = null;
-                    if (light != null && (worldLightLookup == null || !worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext)))
-                    {
-                        light.TryGetComponent(out ext);
-                    }
+                    InfinityAdditionalLightData ext = m_AdditionalData[record.visibleLightIndex];
                     if (light != null && TryResolveCookie(atlas, record, light, ext, frame, out LightCookieGPU cookie))
                     {
                         record.cookieIndex = m_Cookies.Count;
@@ -737,16 +747,19 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // The sun the atmosphere scatters is the camera's sun record. Without one there is no sun: its radiance is zero,
+        // and the direction (straight up) only keeps the lookup tables' parameterisation defined.
         internal static void ResolveSun(LightContext context, out Vector4 direction, out Vector4 radiance)
         {
-            direction = new Vector4(0, 1, 0, 0);
-            radiance = new Vector4(1, 1, 1, 1);
-            if (context != null && context.TryGetSunRecord(out LightRecord sun))
+            if (context.TryGetSunRecord(out LightRecord sun))
             {
                 direction = -sun.forward;
                 direction.w = 0;
                 radiance = sun.radiance;
+                return;
             }
+            direction = new Vector4(0, 1, 0, 0);
+            radiance = Vector4.zero;
         }
 
         public void Dispose()

@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsFalse(snapshot.evCompensation.overrideState,
                     "CoreRP resets scene override flags even when defaults provide nonzero values.");
                 Assert.AreEqual(2.0f, ExposureUtility.ResolveCpuEvCompensation(snapshot));
-                Assert.AreEqual(4.0f, ExposureUtility.ResolveManualMultiplier(snapshot));
+                Assert.AreEqual(4.0f, ExposureUtility.ResolveMultiplier(snapshot), 1e-6f);
                 var descriptor = CombineLutParameterUtility.FromVolumeStack(
                     manager.stack.GetComponent<FilmTonemap>(), manager.stack.GetComponent<ColorGrading>());
                 Assert.AreEqual(0.7f, descriptor.FilmSlope);
@@ -217,15 +217,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             AssertFieldChangesEquals(a, d => { d.ColorCorrectionHighlightsMax = 2.0f; return d; });
             AssertFieldChangesEquals(a, d => { d.BlueCorrection = 0.1f; return d; });
             AssertFieldChangesEquals(a, d => { d.ExpandGamut = 0.2f; return d; });
-            AssertFieldChangesEquals(a, d => { d.ColorScale = new float4(2, 1, 1, 0); return d; });
-            AssertFieldChangesEquals(a, d => { d.OverlayColor = new float4(1, 0, 0, 1); return d; });
-            AssertFieldChangesEquals(a, d => { d.MappingPolynomial = new float4(1, 2, 3, 4); return d; });
-            AssertFieldChangesEquals(a, d => { d.OutputGamut = 2; return d; });
-            AssertFieldChangesEquals(a, d => { d.OutputDevice = 3; return d; });
-            AssertFieldChangesEquals(a, d => { d.OutputMode = (int)EOutputMode.HDR; return d; });
-            AssertFieldChangesEquals(a, d => { d.HDREncoding = (int)EHDREncoding.HLG_Rec2020; return d; });
-            AssertFieldChangesEquals(a, d => { d.InverseGamma = new float4(1, 2, 3, 4); return d; });
-            AssertFieldChangesEquals(a, d => { d.ColorShadowTint2 = new float4(1, 0, 0, 1); return d; });
         }
 
         [Test]
@@ -341,15 +332,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             descriptor.ColorCorrectionHighlightsMax = 1.0f;
             descriptor.BlueCorrection = 0.6f;
             descriptor.ExpandGamut = 1.0f;
-            descriptor.ColorScale = new float4(1, 1, 1, 0);
-            descriptor.OverlayColor = new float4(0, 0, 0, 0);
-            descriptor.MappingPolynomial = new float4(0, 1, 0, 1);
-            descriptor.OutputGamut = OutputTransformUtility.OutputGamutSRGB;
-            descriptor.OutputDevice = OutputTransformUtility.OutputDeviceLinear;
-            descriptor.OutputMode = (int)EOutputMode.SDR;
-            descriptor.HDREncoding = (int)EHDREncoding.PQ_Rec2020;
-            descriptor.InverseGamma = new float4(1.0f / 2.2f, 1, 1, 0);
-            descriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
             return descriptor;
         }
 

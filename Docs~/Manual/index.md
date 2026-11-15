@@ -24,5 +24,3 @@ Editor windows use Unity Editor styles. This manual describes their behavior. It
 - [Rendering Debugger](rendering-debugger.md)
 - [Editor tools](editor.md)
 - [UI](ui.md)
-- [Upgrade 0.3 to 0.4](upgrade-0.3-to-0.4.md)
-- [Upgrade 0.4 to 0.5](upgrade-0.4-to-0.5.md)

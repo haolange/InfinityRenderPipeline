@@ -14,32 +14,37 @@
 #include "../../Library/SphericalHarmonic.hlsl"
 #include "../../Library/AtmosphereCommon.hlsl"
 
-// Atmospheric parameters
-float Atmo_PlanetRadius;
-float Atmo_AtmosphereHeight;
-float4 Atmo_RayleighScattering;
-float Atmo_RayleighHeight;
-float Atmo_MieScattering;
-float Atmo_MieAbsorption;
-float Atmo_MieHeight;
-float Atmo_MieAnisotropy;
-float4 Atmo_OzoneAbsorption;
-float Atmo_OzoneLayerCenter;
-float Atmo_OzoneLayerWidth;
-float4 Atmo_GroundAlbedo;
-
-float Atmo_Brightness;
-float Atmo_MultiScatterStrength;
-float Atmo_DrawGround;
-float Atmo_FarDepth;
-float Atmo_AerialPerspectiveDistance;
-float Atmo_SunAngle;
-float4 Atmo_SunDirection;
-float4 Atmo_SunIlluminance;
-int Atmo_CubemapSize;
-int Atmo_SHPartialCount;
-float3 _WorldSpaceCameraPos;
-float4x4 Matrix_InvViewProj;
+// The AtmosphereConstants record AtmosphericLUTPass and AtmosphericSkyFogPass write, bound as one constant buffer.
+cbuffer CBV_AtmosphereParameters
+{
+    float4 Atmo_RayleighScattering;
+    float4 Atmo_OzoneAbsorption;
+    float4 Atmo_GroundAlbedo;
+    float4 Atmo_SunDirection;
+    float4 Atmo_SunIlluminance;
+    float Atmo_PlanetRadius;
+    float Atmo_AtmosphereHeight;
+    float Atmo_RayleighHeight;
+    float Atmo_MieScattering;
+    float Atmo_MieAbsorption;
+    float Atmo_MieHeight;
+    float Atmo_MieAnisotropy;
+    float Atmo_OzoneLayerCenter;
+    float Atmo_OzoneLayerWidth;
+    float Atmo_Brightness;
+    float Atmo_MultiScatterStrength;
+    float Atmo_DrawGround;
+    float Atmo_FarDepth;
+    float Atmo_AerialPerspectiveDistance;
+    float Atmo_SunAngle;
+    int Atmo_CubemapSize;
+    // Partial sums of the SH projection; the sky-and-fog pass leaves it 0.
+    int Atmo_SHPartialCount;
+    int Atmo_Padding0;
+    int Atmo_Padding1;
+    int Atmo_Padding2;
+};
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float4> SRV_TransmittanceLUT;
 Texture2D<float4> SRV_MultiScatteringLUT;
@@ -150,7 +155,7 @@ float RayCosSunAt(float h0, float cosSun0, float cosViewSun, float t, float hAt)
 
 float CameraAltitude()
 {
-    return max(_WorldSpaceCameraPos.y, MIN_ALTITUDE);
+    return max(ViewPositionWS().y, MIN_ALTITUDE);
 }
 
 // The camera sits on a planet whose center is straight below the world origin, so its local up tilts
@@ -555,9 +560,9 @@ void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
     float distance = Atmo_AerialPerspectiveDistance * sliceT * sliceT;
 
     float2 ndc = uv * 2.0 - 1.0;
-    float4 world = mul(Matrix_InvViewProj, float4(ndc, 0.5, 1.0));
+    float4 world = mul(Matrix_InvViewFlipYProj, float4(ndc, 0.5, 1.0));
     world.xyz /= max(world.w, 1e-6);
-    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+    float3 viewDir = normalize(world.xyz - ViewPositionWS());
 
     float altitude = CameraAltitude();
     float tAtmosphere = RayAtmosphereExit(altitude, dot(PlanetUp(), viewDir));
@@ -641,9 +646,9 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
     bool isSky = abs(depth - Atmo_FarDepth) <= 1e-4;
 
     float2 ndc = uv * 2.0 - 1.0;
-    float4 world = mul(Matrix_InvViewProj, float4(ndc, depth, 1.0));
+    float4 world = mul(Matrix_InvViewFlipYJitterProj, float4(ndc, depth, 1.0));
     world.xyz /= max(world.w, 1e-6);
-    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+    float3 viewDir = normalize(world.xyz - ViewPositionWS());
 
     if (isSky)
     {
@@ -653,7 +658,7 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
+    float linearDepth = length(world.xyz - ViewPositionWS());
     float sliceT = saturate(sqrt(linearDepth / max(Atmo_AerialPerspectiveDistance, 1.0)));
     float4 aerial = InfinitySampleLevelTrilinear(SRV_AerialPerspectiveLUT,Global_trilinear_clamp_sampler,float3(uv, sliceT),0);
     float3 scene = UAV_LightingTexture[id.xy].rgb;

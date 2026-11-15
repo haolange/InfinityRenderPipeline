@@ -2,6 +2,7 @@
   "name": "Unity.RenderPipelines.Infinity.Cli.Editor",
   "references": [
     "Unity.RenderPipelines.Infinity.Runtime",
+    "Unity.RenderPipelines.Infinity.Validation",
     "Unity.RenderPipelines.Infinity.Editor",
     "Unity.RenderPipelines.Core.Runtime",
     "Unity.Pipeline",

@@ -55,9 +55,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal CameraDimensionDescriptor WithCapacity(int2 internalCapacity, int2 displayCapacity)
             => new CameraDimensionDescriptor(this, internalCapacity, displayCapacity);
 
-        public static CameraDimensionDescriptor FromCamera(Camera camera, InfinityRenderPipelineAsset asset, InfinityAdditionalCameraData additional)
+        public static CameraDimensionDescriptor FromCamera(Camera camera, bool superResolution, float renderScale, InfinityAdditionalCameraData additional)
         {
-            bool srEnabled = asset != null && asset.enableSuperResolution;
+            bool srEnabled = superResolution;
             if (additional != null && additional.superResolutionOverride == ESuperResolutionOverride.Off)
             {
                 srEnabled = false;
@@ -68,8 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
                 srEnabled = false;
             }
 
-            float scale = asset != null ? asset.renderScale : 1.0f;
-            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), scale, srEnabled, camera.pixelRect);
+            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), renderScale, srEnabled, camera.pixelRect);
         }
     }
 }

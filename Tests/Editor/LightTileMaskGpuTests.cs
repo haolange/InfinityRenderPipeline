@@ -17,7 +17,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             if (!SystemInfo.supportsComputeShaders || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 Assert.Ignore("Compute shaders are required.");
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath);
+            // A clone: the pipeline binds constant buffers on the shared asset, which would override values set by name.
+            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             Assert.IsNotNull(shader, ShaderPath);
 
             const int lightCount = 45;
@@ -35,40 +36,44 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             rects[40] = new int4(6, 4, 6, 4); // the last tile only
 
             int total = tileCount.x * tileCount.y * wordCount;
-            using (var rectBuffer = new ComputeBuffer(lightCount, 16))
-            using (var maskBuffer = new ComputeBuffer(total, 4))
+            try
             {
-                rectBuffer.SetData(rects);
-                maskBuffer.SetData(new uint[total]);
-                int kernel = shader.FindKernel("BuildTileMask");
-                shader.SetInt("LightTile_LocalCount", lightCount);
-                shader.SetInt("LightTile_WordCount", wordCount);
-                shader.SetVector("LightTile_TileCount", new Vector4(tileCount.x, tileCount.y, 0, 0));
-                shader.SetBuffer(kernel, "SRV_LightTileRects", rectBuffer);
-                shader.SetBuffer(kernel, "UAV_LightTileMasks", maskBuffer);
-                shader.Dispatch(kernel, (total + 63) / 64, 1, 1);
-                var masks = new uint[total];
-                maskBuffer.GetData(masks);
-
-                for (int ty = 0; ty < tileCount.y; ty++)
+                using (var rectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, lightCount, 16))
+                using (var maskBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, total, 4))
                 {
-                    for (int tx = 0; tx < tileCount.x; tx++)
+                    rectBuffer.SetData(rects);
+                    maskBuffer.SetData(new uint[total]);
+                    int kernel = shader.FindKernel("BuildTileMask");
+                    shader.SetInt("LightTile_LocalCount", lightCount);
+                    shader.SetInt("LightTile_WordCount", wordCount);
+                    shader.SetVector("LightTile_TileCount", new Vector4(tileCount.x, tileCount.y, 0, 0));
+                    shader.SetBuffer(kernel, "SRV_LightTileRects", rectBuffer);
+                    shader.SetBuffer(kernel, "UAV_LightTileMasks", maskBuffer);
+                    shader.Dispatch(kernel, (total + 63) / 64, 1, 1);
+                    var masks = new uint[total];
+                    maskBuffer.GetData(masks);
+
+                    for (int ty = 0; ty < tileCount.y; ty++)
                     {
-                        for (int w = 0; w < wordCount; w++)
+                        for (int tx = 0; tx < tileCount.x; tx++)
                         {
-                            uint expected = 0;
-                            for (int bit = 0; bit < 32 && w * 32 + bit < lightCount; bit++)
+                            for (int w = 0; w < wordCount; w++)
                             {
-                                int4 r = rects[w * 32 + bit];
-                                if (tx >= r.x && ty >= r.y && tx <= r.z && ty <= r.w) expected |= 1u << bit;
+                                uint expected = 0;
+                                for (int bit = 0; bit < 32 && w * 32 + bit < lightCount; bit++)
+                                {
+                                    int4 r = rects[w * 32 + bit];
+                                    if (tx >= r.x && ty >= r.y && tx <= r.z && ty <= r.w) expected |= 1u << bit;
+                                }
+                                int index = (ty * tileCount.x + tx) * wordCount + w;
+                                Assert.AreEqual(expected, masks[index], $"tile ({tx}, {ty}) word {w}");
                             }
-                            int index = (ty * tileCount.x + tx) * wordCount + w;
-                            Assert.AreEqual(expected, masks[index], $"tile ({tx}, {ty}) word {w}");
                         }
                     }
+                    Assert.AreNotEqual(0u, masks[0] & (1u << 3), "The full-screen light covers the first tile.");
                 }
-                Assert.AreNotEqual(0u, masks[0] & (1u << 3), "The full-screen light covers the first tile.");
             }
+            finally { Object.DestroyImmediate(shader); }
         }
     }
 }

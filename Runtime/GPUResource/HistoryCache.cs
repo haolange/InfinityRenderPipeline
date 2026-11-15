@@ -1,84 +1,73 @@
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
-    public class HistoryCache
+    // A committed history texture and whether it holds an earlier frame's contents of the requested layout.
+    internal readonly struct HistoryRead
+    {
+        internal readonly TextureHandle texture;
+        internal readonly bool valid;
+
+        internal HistoryRead(in TextureHandle texture, bool valid)
+        {
+            this.texture = texture;
+            this.valid = valid;
+        }
+    }
+
+    // Double-buffered history per id: one committed and one pending acquisition from the resource pool. A replaced or
+    // discarded acquisition is retired and returned to the pool with the frame's reuse fence; the pool owns physical
+    // lifetime, so history never allocates or destroys a resource itself.
+    internal class HistoryCache : IFrameTransaction
     {
         class TextureSlot
         {
-            public RTHandle committed;
-            public RTHandle pending;
-            public TextureDescriptor committedDescriptor, pendingDescriptor;
+            public TextureHandle committed;
+            public TextureHandle pending;
             public int generation;
             public bool producedThisFrame;
-            public bool invalidateNextGet;
         }
 
         class BufferSlot
         {
-            public ComputeBuffer committed;
-            public ComputeBuffer pending;
-            public BufferDescriptor committedDescriptor, pendingDescriptor;
+            public BufferHandle committed;
+            public BufferHandle pending;
             public int generation;
             public bool producedThisFrame;
-            public bool invalidateNextGet;
         }
 
+        readonly ResourcePool m_Pool;
         TextureCapacityContext m_TextureCapacity;
         public void SetTextureCapacity(TextureCapacityContext capacity) => m_TextureCapacity = capacity;
-        readonly Dictionary<int, TextureSlot> m_Textures;
-        readonly Dictionary<int, BufferSlot> m_Buffers;
-        readonly List<RTHandle> m_RetiredTextures;
-        readonly List<ComputeBuffer> m_RetiredBuffers;
-        readonly List<PendingDestroy> m_PendingDestroys = new List<PendingDestroy>();
-        struct PendingDestroy
-        {
-            public RTHandle texture;
-            public ComputeBuffer buffer;
-            public ResourceReuseFence fence;
-        }
+        readonly Dictionary<int, TextureSlot> m_Textures = new Dictionary<int, TextureSlot>();
+        readonly Dictionary<int, BufferSlot> m_Buffers = new Dictionary<int, BufferSlot>();
+        readonly List<TextureHandle> m_RetiredTextures = new List<TextureHandle>();
+        readonly List<BufferHandle> m_RetiredBuffers = new List<BufferHandle>();
 
         internal bool RetiredResourcesAreAlive
         {
             get
             {
-                foreach (RTHandle texture in m_RetiredTextures)
-                    if (texture == null || texture.rt == null || !texture.rt.IsCreated())
+                foreach (TextureHandle texture in m_RetiredTextures)
+                    if (texture.texture.rt == null || !texture.texture.rt.IsCreated())
                     {
                         return false;
                     }
-                foreach (ComputeBuffer buffer in m_RetiredBuffers)
-                    if (buffer == null || !buffer.IsValid())
+                foreach (BufferHandle buffer in m_RetiredBuffers)
+                    if (!buffer.buffer.IsValid())
                     {
                         return false;
                     }
-                for (int i = 0; i < m_PendingDestroys.Count; ++i)
-                {
-                    PendingDestroy pending = m_PendingDestroys[i];
-                    if (pending.texture != null && (pending.texture.rt == null || !pending.texture.rt.IsCreated()))
-                    {
-                        return false;
-                    }
-                    if (pending.buffer != null && !pending.buffer.IsValid())
-                    {
-                        return false;
-                    }
-                }
                 return true;
             }
         }
 
         public int RetiredQueuedCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
 
-        public HistoryCache()
+        public HistoryCache(ResourcePool pool)
         {
-            m_Textures = new Dictionary<int, TextureSlot>();
-            m_Buffers = new Dictionary<int, BufferSlot>();
-            m_RetiredTextures = new List<RTHandle>();
-            m_RetiredBuffers = new List<ComputeBuffer>();
+            m_Pool = pool ?? throw new System.ArgumentNullException(nameof(pool));
         }
 
         public int TextureGeneration(in int id)
@@ -89,27 +78,32 @@ namespace InfinityTech.Rendering.GPUResource
         public BufferHandle GetBuffer(in int id, in BufferDescriptor descriptor)
         {
             BufferSlot slot = GetOrCreateBufferSlot(id);
-            ReallocCommittedBufferIfNeeded(slot, descriptor);
-            return new BufferHandle(-1, descriptor, slot.committed);
+            if (slot.committed.buffer != null && !descriptor.Equals(slot.committed.descriptor))
+            {
+                Retire(slot.committed);
+                slot.committed = default;
+            }
+            if (slot.committed.buffer == null)
+            {
+                slot.committed = m_Pool.GetBuffer(descriptor);
+            }
+            return slot.committed;
         }
 
         public BufferHandle GetWriteBuffer(in int id, in BufferDescriptor descriptor)
         {
             BufferSlot slot = GetOrCreateBufferSlot(id);
-            if (slot.pending != null && !descriptor.Equals(slot.pendingDescriptor))
+            if (slot.pending.buffer != null && !descriptor.Equals(slot.pending.descriptor))
             {
                 Retire(slot.pending);
-                slot.pending = null;
+                slot.pending = default;
                 slot.producedThisFrame = false;
             }
-
-            if (slot.pending == null)
+            if (slot.pending.buffer == null)
             {
-                slot.pending = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
+                slot.pending = m_Pool.GetBuffer(descriptor);
             }
-
-            slot.pendingDescriptor = descriptor;
-            return new BufferHandle(-1, descriptor, slot.pending);
+            return slot.pending;
         }
 
         public TextureHandle GetTexture(in int id, in TextureDescriptor descriptor)
@@ -121,66 +115,56 @@ namespace InfinityTech.Rendering.GPUResource
         {
             var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
-            created = slot.committed == null;
+            created = slot.committed.texture == null;
             if (created)
             {
-                slot.committed = AllocTexture(descriptor);
-                slot.committedDescriptor = descriptor;
+                slot.committed = m_Pool.GetTexture(descriptor);
             }
             else
             {
                 // Reading never replaces accepted history. Keep its own logical view until commit.
                 var requestedLogical = descriptor;
-                var committedLogical = slot.committedDescriptor;
+                var committedLogical = slot.committed.descriptor;
                 requestedLogical.allocationWidth = requestedLogical.allocationHeight = 0;
                 committedLogical.allocationWidth = committedLogical.allocationHeight = 0;
                 created = !requestedLogical.Equals(committedLogical);
             }
-            if (slot.invalidateNextGet)
-            {
-                created = true;
-                slot.invalidateNextGet = false;
-            }
+            return slot.committed;
+        }
 
-            return new TextureHandle(-1, slot.committedDescriptor, slot.committed);
+        // The one validity rule for history: the committed texture has the requested logical layout, was committed at least
+        // once, and the camera did not discard its history this frame. A feature that may skip frames also checks that it
+        // produced in the last committed frame.
+        public HistoryRead Read(in int id, in TextureDescriptor descriptor, bool resetHistory)
+        {
+            TextureHandle texture = GetTexture(id, descriptor, out bool created);
+            return new HistoryRead(texture, !resetHistory && !created && TextureGeneration(id) > 0);
         }
 
         public TextureHandle GetWriteTexture(in int id, in TextureDescriptor requestedDescriptor)
         {
             var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
-            if (slot.pending != null && !descriptor.PhysicalDescriptor().Equals(slot.pendingDescriptor.PhysicalDescriptor()))
+            if (slot.pending.texture != null && !descriptor.PhysicalDescriptor().Equals(slot.pending.descriptor.PhysicalDescriptor()))
             {
                 Retire(slot.pending);
-                slot.pending = null;
+                slot.pending = default;
                 slot.producedThisFrame = false;
             }
-
-            if (slot.pending == null)
+            if (slot.pending.texture == null)
             {
-                slot.pending = AllocTexture(descriptor);
+                slot.pending = m_Pool.GetTexture(descriptor);
             }
-
-            slot.pendingDescriptor = descriptor;
-            return new TextureHandle(-1, descriptor, slot.pending);
-        }
-
-        public void Invalidate(in int id)
-        {
-            if (m_Textures.TryGetValue(id, out TextureSlot textureSlot))
+            else if (!descriptor.Equals(slot.pending.descriptor))
             {
-                textureSlot.invalidateNextGet = true;
+                // Same physical allocation, new logical view: keep the acquisition and carry the requested view.
+                slot.pending = new TextureHandle(slot.pending.lease, descriptor, slot.pending.texture);
             }
-
-            if (m_Buffers.TryGetValue(id, out BufferSlot bufferSlot))
-            {
-                bufferSlot.invalidateNextGet = true;
-            }
+            return slot.pending;
         }
 
         public void BeginFrame()
         {
-            ReleaseCompletedDestroys();
             foreach (TextureSlot slot in m_Textures.Values)
             {
                 slot.producedThisFrame = false;
@@ -209,14 +193,11 @@ namespace InfinityTech.Rendering.GPUResource
         {
             foreach (TextureSlot slot in m_Textures.Values)
             {
-                if (slot.producedThisFrame && slot.pending != null)
+                if (slot.producedThisFrame && slot.pending.texture != null)
                 {
-                    RTHandle previous = slot.committed;
+                    TextureHandle previous = slot.committed;
                     slot.committed = slot.pending;
                     slot.pending = previous;
-                    var previousDescriptor = slot.committedDescriptor;
-                    slot.committedDescriptor = slot.pendingDescriptor;
-                    slot.pendingDescriptor = previousDescriptor;
                     slot.generation++;
                 }
 
@@ -225,14 +206,11 @@ namespace InfinityTech.Rendering.GPUResource
 
             foreach (BufferSlot slot in m_Buffers.Values)
             {
-                if (slot.producedThisFrame && slot.pending != null)
+                if (slot.producedThisFrame && slot.pending.buffer != null)
                 {
-                    ComputeBuffer previous = slot.committed;
+                    BufferHandle previous = slot.committed;
                     slot.committed = slot.pending;
                     slot.pending = previous;
-                    var previousDescriptor = slot.committedDescriptor;
-                    slot.committedDescriptor = slot.pendingDescriptor;
-                    slot.pendingDescriptor = previousDescriptor;
                     slot.generation++;
                 }
 
@@ -243,7 +221,7 @@ namespace InfinityTech.Rendering.GPUResource
         // The committed texture of a slot without creating or resizing it (editor tools read the last frame's result).
         public bool TryGetCommittedTexture(int id, out RTHandle texture)
         {
-            texture = m_Textures.TryGetValue(id, out TextureSlot slot) ? slot.committed : null;
+            texture = m_Textures.TryGetValue(id, out TextureSlot slot) ? slot.committed.texture : null;
             return texture != null && texture.rt != null;
         }
 
@@ -252,13 +230,13 @@ namespace InfinityTech.Rendering.GPUResource
             if (m_Textures.TryGetValue(id, out TextureSlot texture))
             {
                 Retire(texture.pending);
-                texture.pending = null;
+                texture.pending = default;
                 texture.producedThisFrame = false;
             }
             if (m_Buffers.TryGetValue(id, out BufferSlot buffer))
             {
                 Retire(buffer.pending);
-                buffer.pending = null;
+                buffer.pending = default;
                 buffer.producedThisFrame = false;
             }
         }
@@ -272,7 +250,7 @@ namespace InfinityTech.Rendering.GPUResource
                     continue;
                 }
                 Retire(slot.pending);
-                slot.pending = null;
+                slot.pending = default;
             }
             foreach (BufferSlot slot in m_Buffers.Values)
             {
@@ -281,7 +259,7 @@ namespace InfinityTech.Rendering.GPUResource
                     continue;
                 }
                 Retire(slot.pending);
-                slot.pending = null;
+                slot.pending = default;
             }
         }
 
@@ -289,132 +267,62 @@ namespace InfinityTech.Rendering.GPUResource
         {
             foreach (TextureSlot slot in m_Textures.Values)
             {
-                if (slot.pending != null && slot.pending != slot.committed)
-                {
-                    Retire(slot.pending);
-                    slot.pending = null;
-                }
+                Retire(slot.pending);
+                slot.pending = default;
 
                 slot.producedThisFrame = false;
             }
 
             foreach (BufferSlot slot in m_Buffers.Values)
             {
-                if (slot.pending != null && slot.pending != slot.committed)
-                {
-                    Retire(slot.pending);
-                    slot.pending = null;
-                }
+                Retire(slot.pending);
+                slot.pending = default;
 
                 slot.producedThisFrame = false;
             }
         }
 
-        public void FlushRetired() => FlushRetired(default);
+        // A camera-owned history holds only that camera's writes, so a failed camera discards all of them.
+        public void CameraFailed(bool queueUncertain) => RollbackPending();
 
-        // A fence parks the physical destroy until the GPU has finished the frame that retired it.
-        // Without a fence (tests, devices that cannot create one) the resources are released now.
-        // The fence type stays internal, matching MeshWorld.FlushRetired.
-        internal void FlushRetired(ResourceReuseFence fence)
+        // Returns every retired acquisition to the pool. The pool reuses or destroys it only after the fence and its own
+        // recorded GPU uses complete.
+        public void FlushRetired(ResourceReuseFence fence)
         {
-            ReleaseCompletedDestroys();
-            bool wait = fence.hasGraphics || fence.hasCompute;
-            if (!wait)
+            // An entry leaves the list before it is returned, so a failed return never repeats an earlier one.
+            for (int i = m_RetiredTextures.Count - 1; i >= 0; --i)
             {
-                ReleaseRetiredNow();
-                return;
+                TextureHandle texture = m_RetiredTextures[i];
+                m_RetiredTextures.RemoveAt(i);
+                m_Pool.ReleaseTexture(texture, fence);
             }
-
-            for (int i = 0; i < m_RetiredTextures.Count; ++i)
+            for (int i = m_RetiredBuffers.Count - 1; i >= 0; --i)
             {
-                if (m_RetiredTextures[i] != null)
-                    m_PendingDestroys.Add(new PendingDestroy { texture = m_RetiredTextures[i], fence = fence });
-            }
-            for (int i = 0; i < m_RetiredBuffers.Count; ++i)
-            {
-                if (m_RetiredBuffers[i] != null)
-                    m_PendingDestroys.Add(new PendingDestroy { buffer = m_RetiredBuffers[i], fence = fence });
-            }
-            m_RetiredTextures.Clear();
-            m_RetiredBuffers.Clear();
-        }
-
-        void ReleaseRetiredNow()
-        {
-            for (int i = 0; i < m_RetiredTextures.Count; ++i)
-                if (m_RetiredTextures[i] != null)
-                {
-                    RTHandles.Release(m_RetiredTextures[i]);
-                }
-            m_RetiredTextures.Clear();
-            for (int i = 0; i < m_RetiredBuffers.Count; ++i)
-                if (m_RetiredBuffers[i] != null)
-                {
-                    m_RetiredBuffers[i].Release();
-                }
-            m_RetiredBuffers.Clear();
-        }
-
-        void ReleaseCompletedDestroys()
-        {
-            for (int i = m_PendingDestroys.Count - 1; i >= 0; --i)
-            {
-                if (!m_PendingDestroys[i].fence.passed)
-                {
-                    continue;
-                }
-                DestroyPending(m_PendingDestroys[i]);
-                m_PendingDestroys.RemoveAt(i);
+                BufferHandle buffer = m_RetiredBuffers[i];
+                m_RetiredBuffers.RemoveAt(i);
+                m_Pool.ReleaseBuffer(buffer, fence);
             }
         }
 
-        static void DestroyPending(PendingDestroy pending)
-        {
-            if (pending.texture != null)
-            {
-                RTHandles.Release(pending.texture);
-            }
-            if (pending.buffer != null)
-            {
-                pending.buffer.Release();
-            }
-        }
+        public void Dispose() => Dispose(default);
 
-        public void Release()
+        // Retires every slot and returns all acquisitions to the pool with fence, which covers GPU use outside the
+        // graph's own tracking; the owner disposes before the pool does.
+        internal void Dispose(ResourceReuseFence fence)
         {
             foreach (TextureSlot slot in m_Textures.Values)
             {
                 Retire(slot.committed);
-                if (slot.pending != null && slot.pending != slot.committed)
-                {
-                    Retire(slot.pending);
-                }
+                Retire(slot.pending);
             }
             m_Textures.Clear();
-
             foreach (BufferSlot slot in m_Buffers.Values)
             {
                 Retire(slot.committed);
-                if (slot.pending != null && slot.pending != slot.committed)
-                {
-                    Retire(slot.pending);
-                }
+                Retire(slot.pending);
             }
             m_Buffers.Clear();
-        }
-
-        public void ForceFlushForTeardown()
-        {
-            ReleaseCompletedDestroys();
-            ReleaseRetiredNow();
-            // Teardown has no later frame to poll. Completed fences are already released; anything still
-            // in flight is orphaned and destroyed when its fence passes.
-            if (m_PendingDestroys.Count == 0)
-            {
-                return;
-            }
-            PendingDestroyQueue.Adopt(m_PendingDestroys);
-            m_PendingDestroys.Clear();
+            FlushRetired(fence);
         }
 
         TextureSlot GetOrCreateTextureSlot(in int id)
@@ -439,108 +347,19 @@ namespace InfinityTech.Rendering.GPUResource
             return slot;
         }
 
-        void ReallocCommittedBufferIfNeeded(BufferSlot slot, in BufferDescriptor descriptor)
+        void Retire(in TextureHandle texture)
         {
-            if (slot.committed != null && !descriptor.Equals(slot.committedDescriptor))
-            {
-                Retire(slot.committed);
-                slot.committed = null;
-            }
-
-            if (slot.committed == null)
-            {
-                slot.committed = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
-                slot.committedDescriptor = descriptor;
-            }
-            else
-            {
-                slot.committedDescriptor = descriptor;
-            }
-        }
-
-        static RTHandle AllocTexture(in TextureDescriptor descriptor)
-        {
-            return RTHandles.Alloc(
-                descriptor.physicalWidth,
-                descriptor.physicalHeight,
-                descriptor.slices,
-                (DepthBits)descriptor.depthBufferBits,
-                descriptor.colorFormat,
-                descriptor.filterMode,
-                descriptor.wrapMode,
-                descriptor.dimension,
-                descriptor.enableRandomWrite,
-                descriptor.useMipMap,
-                descriptor.autoGenerateMips,
-                descriptor.isShadowMap,
-                descriptor.anisoLevel,
-                descriptor.mipMapBias,
-                (MSAASamples)descriptor.msaaSamples,
-                descriptor.bindTextureMS,
-                false,
-                false,
-                descriptor.memoryless,
-                VRTextureUsage.None,
-                descriptor.name);
-        }
-
-        void Retire(RTHandle texture)
-        {
-            if (texture != null)
+            if (texture.texture != null)
             {
                 m_RetiredTextures.Add(texture);
             }
         }
 
-        void Retire(ComputeBuffer buffer)
+        void Retire(in BufferHandle buffer)
         {
-            if (buffer != null)
+            if (buffer.buffer != null)
             {
                 m_RetiredBuffers.Add(buffer);
-            }
-        }
-
-        static class PendingDestroyQueue
-        {
-            static readonly List<PendingDestroy> s_Orphaned = new List<PendingDestroy>();
-            static bool s_Polling;
-
-            public static void Adopt(List<PendingDestroy> pending)
-            {
-                s_Orphaned.AddRange(pending);
-                if (s_Polling || s_Orphaned.Count == 0)
-                {
-                    return;
-                }
-                s_Polling = true;
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.update += Poll;
-#else
-                Application.onBeforeRender += Poll;
-#endif
-            }
-
-            static void Poll()
-            {
-                for (int i = s_Orphaned.Count - 1; i >= 0; --i)
-                {
-                    if (!s_Orphaned[i].fence.passed)
-                    {
-                        continue;
-                    }
-                    DestroyPending(s_Orphaned[i]);
-                    s_Orphaned.RemoveAt(i);
-                }
-                if (s_Orphaned.Count != 0)
-                {
-                    return;
-                }
-                s_Polling = false;
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.update -= Poll;
-#else
-                Application.onBeforeRender -= Poll;
-#endif
             }
         }
     }

@@ -56,42 +56,16 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeBloom,
         RasterPostCombine,
         ComputeExposure,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         ComputeDebugView,
+#endif
         RasterWireOverlay,
         RasterGizmos,
         RasterUIOverlay,
         RasterOutputCopy,
         RasterUpscaleDepthForEditorOverlays,
         RasterFinalOutput,
-        Depth,
-        GBuffer,
-        ObjectMotion,
-        CascadeShadow,
-        LocalShadow,
-        Forward,
         Max,
-    }
-
-    public static class InfinityCustomSamplerExtension
-    {
-        static CustomSampler[] s_Samplers;
-
-        public static CustomSampler GetSampler(this CustomSamplerId samplerId)
-        {
-            // Lazy init
-            if (s_Samplers == null)
-            {
-                s_Samplers = new CustomSampler[(int)CustomSamplerId.Max];
-
-                for (int i = 0; i < (int)CustomSamplerId.Max; ++i)
-                {
-                    var id = (CustomSamplerId)i;
-                    s_Samplers[i] = CustomSampler.Create("C#_" + id);
-                }
-            }
-
-            return s_Samplers[(int)samplerId];
-        }
     }
 
     // Semantic graph resources are RGResourceKey (registered in RGScoper); plain shader property IDs stay int.
@@ -172,6 +146,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey TemporalColorDepthBuffer = new RGResourceKey("_TemporalColorDepthTexture");
         public static readonly RGResourceKey OpaqueSceneColorBuffer = new RGResourceKey("_OpaqueSceneColorTexture");
         public static readonly RGResourceKey FoggedSceneColorBuffer = new RGResourceKey("_FoggedSceneColorTexture");
+        // Role: scene color after fog, translucency and temporal resolve. Its latest producer publishes it; post reads it.
+        public static readonly RGResourceKey ResolvedSceneColor = new RGResourceKey("ResolvedSceneColor");
         public static readonly RGResourceKey ReactiveMaskBuffer = new RGResourceKey("_ReactiveMaskTexture");
         public static readonly RGResourceKey HistoryVolumetricFogBuffer = new RGResourceKey("_HistoryVolumetricFogTexture");
         public static readonly RGResourceKey HistoryVolumetricCloudBuffer = new RGResourceKey("_HistoryVolumetricCloudTexture");
@@ -198,31 +174,20 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey ExposureEVBuffer = new RGResourceKey("_ExposureEVTexture");
         public static readonly int MainTexture = Shader.PropertyToID("_MainTex");
         public static readonly int ScaleBias = Shader.PropertyToID("_ScaleBais");
-        // Mesh entity interface (GPUScene.hlsl).
-        public static readonly int InstanceOffset = Shader.PropertyToID("InstanceOffset");
-        public static readonly int InstanceToEntity = Shader.PropertyToID("InstanceToEntity");
-        public static readonly int InstanceFade = Shader.PropertyToID("InstanceFade");
-        public static readonly int EntityTransforms = Shader.PropertyToID("EntityTransforms");
-        public static readonly int EntityGenerations = Shader.PropertyToID("EntityGenerations");
-        public static readonly int EntityRenderingLayers = Shader.PropertyToID("EntityRenderingLayers");
-        public static readonly int PreviousEntityTransforms = Shader.PropertyToID("PreviousEntityTransforms");
-        public static readonly int PreviousEntityGenerations = Shader.PropertyToID("PreviousEntityGenerations");
-        public static readonly int PreviousEntityCount = Shader.PropertyToID("PreviousEntityCount");
-        public static readonly int PreviousEntityValid = Shader.PropertyToID("PreviousEntityValid");
     }
 
     public static class InfinityPassIDs
     {
-        public static ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
-        public static ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
-        public static ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
-        public static ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
-        public static ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
-        public static ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
-        public static ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
-        public static ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
-        public static ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
-        public static ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
+        public static readonly ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
+        public static readonly ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
+        public static readonly ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
+        public static readonly ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
+        public static readonly ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
+        public static readonly ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
+        public static readonly ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
+        public static readonly ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
+        public static readonly ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
+        public static readonly ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
     }
 
     public static class InfinityRenderQueue

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 namespace InfinityTech.Rendering.Pipeline
 {
     // Values are mirrored as DEBUGVIEW_* defines in Shaders/Library/DebugViewModes.hlsl.
@@ -45,3 +46,4 @@ namespace InfinityTech.Rendering.Pipeline
         ContactShadows
     }
 }
+#endif

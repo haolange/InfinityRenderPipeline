@@ -1,64 +1,89 @@
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    internal struct MeshFrustumBatchData
+    /// <summary>
+    /// A Hi-Z occluder for one culling context: the furthest-depth pyramid (mip 0 is half the full extent), the
+    /// view-projection it was built with and the full-resolution extent. A history occluder is the previous frame's pyramid
+    /// and proves occlusion only for entities whose transform did not change since.
+    /// </summary>
+    internal readonly struct MeshOccluder
     {
-        public MeshWorld world;
-        public MeshFrustumView[] views;
-        public int viewCount;
-        public int stride;
-        public string sampleName;
-        public MeshCullInputs inputs;
-        public RGBufferHandle visibility;
-        public ComputeBuffer viewTable;
+        internal readonly RGTextureHandle furthest;
+        internal readonly Matrix4x4 viewProjection;
+        internal readonly int2 extent;
+        internal readonly int mipCount;
+        internal readonly bool history;
+
+        internal MeshOccluder(RGTextureHandle furthest, Matrix4x4 viewProjection, int2 extent, int mipCount, bool history)
+        {
+            this.furthest = furthest;
+            this.viewProjection = viewProjection;
+            this.extent = extent;
+            this.mipCount = mipCount;
+            this.history = history;
+        }
     }
 
     /// <summary>
     /// Per-builder mesh state. The render graph knows this object only as an <see cref="IRGGraphExtension"/>:
     /// it calls Contribute once per compile and Clear whenever the recorded graph is dropped.
     /// </summary>
-    internal sealed partial class MeshGraphExtension : IRGGraphExtension
+    internal sealed class MeshGraphExtension : IRGGraphExtension
     {
-        struct MeshDrawPreparePassData
+        struct MeshDrawProducerData
+        {
+            public MeshDrawListRegistry lists;
+            public int index;
+            public MeshCullInputs inputs;
+            public bool occluded;
+            public MeshOccluderInputs occluder;
+            public RGBufferHandle drawn;
+            public bool remainder;
+        }
+
+        struct MeshDrawUploadData
         {
             public MeshDrawListRegistry lists;
             public int index;
         }
 
+        struct OccluderEntry
+        {
+            public MeshCullingContext context;
+            public MeshOccluder occluder;
+        }
+
+        // The draws of one culling context and pass so far. Only a list tested against the previous frame's pyramid can leave
+        // something visible undrawn: it records which candidates it drew (tracked), and the next list of the context and pass,
+        // tested against a newer occluder, draws the rest. A list tested against this frame's depth, or against nothing, leaves
+        // nothing that a newer occluder could reveal, so every later list of the context and pass is empty.
+        struct RepeatEntry
+        {
+            public MeshCullingContext context;
+            public ShaderTagId passTag;
+            public RGBufferHandle drawn;
+            public bool tracked;
+        }
+
+        static readonly RGComputePassExecuteAction<MeshDrawProducerData> s_Produce = static (in MeshDrawProducerData data, in RGComputeEncoder encoder)
+            => data.lists.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawn, data.remainder);
+        static readonly RGTransferPassExecuteAction<MeshDrawUploadData> s_Upload = static (in MeshDrawUploadData data, in RGTransferEncoder encoder)
+            => data.lists.Upload(data.index, encoder.m_Core.commands);
+
         internal readonly MeshWorld world;
         internal readonly MeshDrawListRegistry drawLists;
-        readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
-        readonly Dictionary<int, BufferPair> m_TableReads = new Dictionary<int, BufferPair>();
-        readonly Dictionary<MeshVisibilityKey, RGBufferHandle> m_GPUCullVisibility = new Dictionary<MeshVisibilityKey, RGBufferHandle>(8);
-        readonly Dictionary<MeshVisibilityKey, GpuVisibilityBinding> m_OcclusionFinal = new Dictionary<MeshVisibilityKey, GpuVisibilityBinding>(4);
-        readonly List<MeshView> m_FrustumSources = new List<MeshView>(8);
-        readonly List<MeshView> m_PendingFrustum = new List<MeshView>(8);
-        readonly HashSet<MeshVisibilityKey> m_PendingFrustumKeys = new HashSet<MeshVisibilityKey>();
-        GpuVisibilityBinding m_FrustumBinding;
-        readonly Dictionary<MeshVisibilityKey, int> m_FrustumSlice = new Dictionary<MeshVisibilityKey, int>(8);
-        MeshFrustumView[] m_FrustumRecords = System.Array.Empty<MeshFrustumView>();
+        readonly List<OccluderEntry> m_Occluders = new List<OccluderEntry>(2);
+        // One entry per culling context and pass of the camera; sized like the registry so recording does not grow it.
+        readonly List<RepeatEntry> m_Repeats = new List<RepeatEntry>(64);
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
-
-        struct BufferPair
-        {
-            public RGBufferHandle matrices, generations, layers, previousMatrices, previousGenerations;
-            public bool hasPrevious;
-        }
-
-        struct GpuVisibilityBinding
-        {
-            public RGBufferHandle handle;
-            public BufferHandle buffer;
-        }
-
-        int m_BoundFrustumStride;
+        MeshMotionBinding m_Motion;
 
         internal MeshGraphExtension(MeshWorld world)
         {
@@ -72,289 +97,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Clear()
         {
             m_ScheduledVersions.Clear();
-            m_GPUCullVisibility.Clear();
-            m_OcclusionFinal.Clear();
-            m_PendingFrustum.Clear();
-            m_PendingFrustumKeys.Clear();
-            m_FrustumSlice.Clear();
-            m_FrustumBinding = default;
-            m_PreparedDrawLists.Clear();
-            m_TableReads.Clear();
+            m_Occluders.Clear();
+            m_Repeats.Clear();
+            m_Motion = default;
             drawLists.ReleaseAll();
         }
 
         public void Contribute(RGBuilder builder)
-        {
-            CompileMeshDrawLists(builder);
-        }
-
-        internal RGMeshDrawListHandle CreateMeshDrawList(RGBuilder builder, in MeshView view, in MeshPassDesc desc)
-        {
-            view.lodProjection.ThrowIfInvalid();
-            RGMeshDrawListHandle draws = drawLists.Declare(view, desc);
-            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
-            // Recording references keep the frozen tables alive for this graph.
-            var tables = new BufferPair
-            {
-                matrices = builder.ImportBuffer(record.tables.version.matrices),
-                generations = builder.ImportBuffer(record.tables.version.generations),
-                layers = builder.ImportBuffer(record.tables.renderingLayers)
-            };
-            MeshTransformVersion previous = record.motion.previous;
-            if (previous != null)
-            {
-                tables.previousMatrices = builder.ImportBuffer(previous.matrices);
-                tables.previousGenerations = builder.ImportBuffer(previous.generations);
-                tables.hasPrevious = true;
-            }
-            m_TableReads[draws.index] = tables;
-            if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
-            {
-                RequestMeshGPUCulling(builder, view, draws);
-            }
-            return draws;
-        }
-
-        MeshCullInputs CullInputs(RGBuilder builder, RGComputePassHandle pass, bool boundsOnly = false)
-        {
-            MeshWorldGPU gpu = world.gpu;
-            var inputs = new MeshCullInputs
-            {
-                entityCount = world.entityHighWater,
-                boundsCenter = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsCenter)),
-                boundsExtent = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsExtent)),
-                lodChains = pass.ReadBuffer(builder.ImportBuffer(gpu.lodChains))
-            };
-            if (boundsOnly)
-            {
-                return inputs;
-            }
-            inputs.flags = pass.ReadBuffer(builder.ImportBuffer(gpu.flags));
-            inputs.layerMask = pass.ReadBuffer(builder.ImportBuffer(gpu.layerMask));
-            inputs.sceneCullingMask = pass.ReadBuffer(builder.ImportBuffer(gpu.sceneCullingMask));
-            inputs.renderingLayers = pass.ReadBuffer(builder.ImportBuffer(gpu.renderingLayers));
-            return inputs;
-        }
-
-        internal void RequestMeshGPUCulling(RGBuilder builder, in MeshView view, in RGMeshDrawListHandle draws)
-        {
-            view.lodProjection.ThrowIfInvalid();
-            if (OcclusionCovers(view))
-                return;
-            var key = new MeshVisibilityKey(view, true);
-            if (m_FrustumSlice.ContainsKey(key) || !m_PendingFrustumKeys.Add(key))
-                return;
-            m_PendingFrustum.Add(view);
-        }
-
-        bool OcclusionCovers(in MeshView view)
-        {
-            if (view.visibilityPhase == EMeshVisibilityPhase.Final && m_OcclusionFinal.ContainsKey(CoverageKey(view)))
-                return true;
-            return m_GPUCullVisibility.ContainsKey(new MeshVisibilityKey(view, true));
-        }
-
-        internal void FlushFrustumCulling(RGBuilder builder)
-        {
-            if (m_PendingFrustum.Count == 0)
-                return;
-            m_FrustumSources.Clear();
-            bool depth = false, shadows = false;
-            for (int i = 0; i < m_PendingFrustum.Count; ++i)
-            {
-                MeshView view = m_PendingFrustum[i];
-                var key = new MeshVisibilityKey(view, true);
-                m_FrustumSlice[key] = m_FrustumSources.Count;
-                m_FrustumSources.Add(view);
-                if (view.isShadow)
-                    shadows = true;
-                else
-                    depth = true;
-            }
-            m_FrustumBinding = RecordFrustumBatch(builder, m_FrustumSources.Count, MeshDrawProfiling.FrustumGroup(depth, shadows));
-            m_PendingFrustum.Clear();
-            m_PendingFrustumKeys.Clear();
-        }
-
-        static MeshVisibilityKey CoverageKey(in MeshView view)
-        {
-            var plain = view;
-            plain.visibilityPhase = EMeshVisibilityPhase.Final;
-            plain.visibilityHistory = 0;
-            return new MeshVisibilityKey(plain, false);
-        }
-
-        internal bool TryOcclusionFinal(in MeshView view, out RGBufferHandle handle, out BufferHandle buffer)
-        {
-            if (m_OcclusionFinal.TryGetValue(CoverageKey(view), out GpuVisibilityBinding binding))
-            {
-                handle = binding.handle;
-                buffer = binding.buffer;
-                return true;
-            }
-            handle = default;
-            buffer = default;
-            return false;
-        }
-
-        bool OcclusionPhase(in MeshDrawListRecord record, out GpuVisibilityBinding binding)
-        {
-            binding = default;
-            if (record.view.visibilityPhase == EMeshVisibilityPhase.Final && TryOcclusionFinal(record.view, out RGBufferHandle finalHandle, out BufferHandle finalBuffer))
-            {
-                binding = new GpuVisibilityBinding { handle = finalHandle, buffer = finalBuffer };
-                return true;
-            }
-            foreach (var pair in m_GPUCullVisibility)
-            {
-                if (pair.Key.viewKey != record.view.viewKey || pair.Key.phase != record.view.visibilityPhase)
-                {
-                    continue;
-                }
-                binding = new GpuVisibilityBinding { handle = pair.Value, buffer = world.GetGPUVisibilityBuffer(record.view) };
-                return true;
-            }
-            return false;
-        }
-
-        GpuVisibilityBinding RecordFrustumBatch(RGBuilder builder, int viewCount, string sampleName)
-        {
-            if (!world.gpuBackend.isSupported)
-            {
-                throw new InvalidOperationException("GPU mesh culling requires Compute_MeshDrawPipeline.");
-            }
-            if (m_FrustumRecords.Length < viewCount)
-            {
-                int grown = Mathf.NextPowerOfTwo(Mathf.Max(4, viewCount));
-                m_FrustumRecords = new MeshFrustumView[grown];
-            }
-            for (int i = 0; i < viewCount; ++i)
-            {
-                m_FrustumRecords[i] = MeshFrustumView.FromView(m_FrustumSources[i]);
-            }
-            BufferHandle batch = world.gpuVisibility.EnsureFrustumBatch(world.entityHighWater, viewCount, out int stride);
-            m_BoundFrustumStride = stride;
-            RGBufferHandle visibility = builder.ImportBuffer(batch);
-            using (RGComputePassHandle pass = builder.AddComputePass<MeshFrustumBatchData>(MeshDrawProfiling.culling))
-            {
-                ref MeshFrustumBatchData data = ref pass.GetPassData<MeshFrustumBatchData>();
-                data.world = world;
-                MeshFrustumView[] stored = builder.GetRecordingArray<MeshFrustumView>(viewCount);
-                System.Array.Copy(m_FrustumRecords, stored, viewCount);
-                data.views = stored;
-                data.viewCount = viewCount;
-                data.stride = stride;
-                data.sampleName = sampleName;
-                data.inputs = CullInputs(builder, pass);
-                data.visibility = pass.WriteBuffer(visibility);
-                data.viewTable = world.gpuVisibility.frustumViews.buffer;
-                pass.KeepImportedWritesLocal();
-                pass.SetExecuteFunc(static (in MeshFrustumBatchData data, in RGComputeEncoder commands) =>
-                {
-                    if (data.viewCount > 0)
-                    {
-                        commands.SetBufferData(data.viewTable, data.views, 0, 0, data.viewCount);
-                    }
-                    ProfilingSampler sample = CachedSampler.Get(data.sampleName);
-                    commands.BeginSample(sample);
-                    try
-                    {
-                        data.world.gpuBackend.DispatchCullFrustumBatch(commands, data.inputs, data.viewCount, data.stride, data.viewTable, data.visibility, data.world.stats);
-                    }
-                    finally
-                    {
-                        commands.EndSample(sample);
-                    }
-                });
-            }
-            return new GpuVisibilityBinding { handle = visibility, buffer = batch };
-        }
-
-        void BindVisibilityRead(RGBuilder builder, in MeshDrawListRecord record, RGBufferHandle visibility)
-        {
-            for (int c = 0; c < record.consumerPassIndices.Count; ++c)
-                builder.GetPass(record.consumerPassIndices[c]).AddResourceRead(visibility.handle);
-        }
-
-        void BindGpuCulling(RGBuilder builder)
-        {
-            for (int i = 0; i < drawLists.Count; ++i)
-            {
-                MeshDrawListRecord record = drawLists.GetRecordCopy(i);
-                if (record.state != EMeshDrawListState.Live || record.backend != EMeshDrawBackendPolicy.GPUIndirect)
-                    continue;
-                if (!record.gpuVisibility.IsValid())
-                    throw new InvalidOperationException("A GPU draw list was not prepared after its culling pass.");
-                BindVisibilityRead(builder, record, record.gpuVisibility);
-            }
-        }
-
-        internal void PrepareMeshDrawList(RGBuilder builder, in RGMeshDrawListHandle draws)
-        {
-            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
-            record.cacheRevision = record.cache.revision;
-            if (record.cache.memberCount == 0)
-            {
-                record.state = EMeshDrawListState.Empty;
-                drawLists.SetRecord(draws.index, record);
-                return;
-            }
-            record.tables.version.owner.Record(builder, record.tables.version, world.meshDrawShader, m_ScheduledVersions);
-            if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
-            {
-                int visibilityBase = 0;
-                GpuVisibilityBinding binding;
-                if (!OcclusionPhase(record, out binding))
-                {
-                    RequestMeshGPUCulling(builder, record.view, draws);
-                    var key = new MeshVisibilityKey(record.view, true);
-                    if (!m_FrustumSlice.ContainsKey(key))
-                        FlushFrustumCulling(builder);
-                    visibilityBase = m_FrustumSlice[key] * m_BoundFrustumStride;
-                    binding = m_FrustumBinding;
-                }
-                drawLists.BindGPUVisibility(draws.index, binding.handle, binding.buffer, visibilityBase);
-                record = drawLists.GetRecordCopy(draws.index);
-                record.cacheRevision = record.cache.revision;
-                drawLists.EnsureGpuPayload(ref record);
-            }
-            else if (record.cpuInstances.buffer == null)
-            {
-                world.cpuBackend.AllocateInstances(record.cache.memberCount, out record.cpuInstances, out record.cpuFades);
-            }
-            drawLists.SetRecord(draws.index, record);
-            if (!m_PreparedDrawLists.ContainsKey(draws.index))
-            {
-                m_PreparedDrawLists.Add(draws.index, RecordPreparation(builder, draws.index));
-            }
-        }
-
-        // The pass records the draw-list index; compile reads it back to find live consumers.
-        internal void UsePreparedList(IRGPass pass, in RGMeshDrawListHandle draws)
-        {
-            pass.extensionUses.Add(draws.index);
-            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
-            if (record.gpuVisibility.IsValid())
-                pass.AddResourceRead(record.gpuVisibility.handle);
-            if (m_TableReads.TryGetValue(draws.index, out BufferPair tables))
-            {
-                pass.AddResourceRead(tables.matrices.handle);
-                pass.AddResourceRead(tables.generations.handle);
-                pass.AddResourceRead(tables.layers.handle);
-                if (tables.hasPrevious)
-                {
-                    pass.AddResourceRead(tables.previousMatrices.handle);
-                    pass.AddResourceRead(tables.previousGenerations.handle);
-                }
-            }
-            if (m_PreparedDrawLists.TryGetValue(draws.index, out RGBufferHandle[] outputs))
-            {
-                for (int i = 0; i < outputs.Length; ++i)
-                    pass.AddResourceRead(outputs[i].handle);
-            }
-        }
-
-        void CompileMeshDrawLists(RGBuilder builder)
         {
             drawLists.ClearConsumers();
             for (int passIndex = 0; passIndex < builder.passCount; ++passIndex)
@@ -369,87 +118,265 @@ namespace InfinityTech.Rendering.MeshPipeline
                     drawLists.MarkLiveConsumer(used[i], passIndex);
                 }
             }
-            BindGpuCulling(builder);
             drawLists.PrepareLive();
         }
 
-        // One upload producer per live list and, for GPU indirect, one compute producer.
-        RGBufferHandle[] RecordPreparation(RGBuilder builder, int drawIndex)
+        /// <summary>The camera's current and accepted transform versions, set once per graph before its first draw list.</summary>
+        internal void SetMotion(in MeshMotionBinding motion)
+        {
+            if (!motion.isValid)
+            {
+                throw new ArgumentException("Mesh motion needs the current transform version.", nameof(motion));
+            }
+            m_Motion = motion;
+        }
+
+        /// <summary>Later draw lists of this context test against the occluder; the latest registration wins.</summary>
+        internal void RegisterOccluder(in MeshCullingContext context, in MeshOccluder occluder)
+        {
+            if (occluder.history && m_Motion.previous == null)
+            {
+                throw new InvalidOperationException("A history occluder needs the camera's accepted transform version.");
+            }
+            m_Occluders.Add(new OccluderEntry { context = context, occluder = occluder });
+        }
+
+        bool TryOccluder(in MeshCullingContext context, out MeshOccluder occluder)
+        {
+            for (int i = m_Occluders.Count - 1; i >= 0; --i)
+            {
+                if (m_Occluders[i].context.Equals(context))
+                {
+                    occluder = m_Occluders[i].occluder;
+                    return true;
+                }
+            }
+            occluder = default;
+            return false;
+        }
+
+        int FindRepeat(in MeshCullingContext context, ShaderTagId passTag)
+        {
+            for (int i = 0; i < m_Repeats.Count; ++i)
+            {
+                if (m_Repeats[i].passTag == passTag && m_Repeats[i].context.Equals(context))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        internal RGMeshDrawListHandle Create(RGBuilder builder, in MeshCullingContext context, in MeshPassDesc desc)
+        {
+            MeshPassCache cache = world.GetPassCache(desc);
+            cache.EnsureShaderBindings();
+            if (desc.requirePreviousTransforms && !m_Motion.isValid)
+            {
+                throw new InvalidOperationException($"Mesh pass '{desc.lightMode}' requires the camera's mesh motion (SetMeshMotion).");
+            }
+            EMeshDrawBackendPolicy backend = world.SelectBackend(desc);
+            bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
+            int repeat = FindRepeat(context, desc.passTag);
+            MeshOccluder occluder = default;
+            bool occluded = gpu && TryOccluder(context, out occluder);
+            bool remainder = repeat >= 0 && m_Repeats[repeat].tracked;
+            if (remainder && (!occluded || occluder.history))
+            {
+                throw new InvalidOperationException($"The remainder of '{desc.lightMode}' needs a newer occluder than the previous frame's pyramid.");
+            }
+            bool empty = cache.memberCount == 0 || (repeat >= 0 && !remainder);
+            RGMeshDrawListHandle draws = drawLists.Create(context, cache, backend, m_Motion, empty);
+            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
+            // Recording references keep the frozen tables alive for this graph.
+            var reads = new MeshDrawListReads
+            {
+                matrices = builder.ImportBuffer(record.tables.version.matrices),
+                generations = builder.ImportBuffer(record.tables.version.generations),
+                layers = builder.ImportBuffer(record.tables.renderingLayers)
+            };
+            MeshTransformVersion previous = record.motion.previous;
+            if (previous != null)
+            {
+                reads.previousMatrices = builder.ImportBuffer(previous.matrices);
+                reads.previousGenerations = builder.ImportBuffer(previous.generations);
+                reads.hasPrevious = true;
+            }
+            drawLists.SetReads(draws.index, reads);
+
+            RGBufferHandle drawn = default;
+            if (!empty)
+            {
+                record.tables.version.owner.Record(builder, record.tables.version, m_ScheduledVersions);
+                if (gpu)
+                {
+                    drawn = RecordProducer(builder, draws.index, occluded, occluder, remainder ? m_Repeats[repeat].drawn : default, remainder);
+                }
+                else
+                {
+                    RecordUpload(builder, draws.index);
+                }
+            }
+            if (repeat < 0)
+            {
+                m_Repeats.Add(new RepeatEntry { context = context, passTag = desc.passTag, drawn = drawn, tracked = !empty && occluded && occluder.history });
+            }
+            else if (remainder)
+            {
+                RepeatEntry entry = m_Repeats[repeat];
+                entry.tracked = false;
+                m_Repeats[repeat] = entry;
+            }
+            return draws;
+        }
+
+        MeshCullInputs CullInputs<TPassData>(RGBuilder builder, RGComputePassHandle<TPassData> pass) where TPassData : struct
+        {
+            MeshWorldGPU gpu = world.gpu;
+            return new MeshCullInputs
+            {
+                boundsCenter = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsCenter)),
+                boundsExtent = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsExtent)),
+                lodChains = pass.ReadBuffer(builder.ImportBuffer(gpu.lodChains)),
+                flags = pass.ReadBuffer(builder.ImportBuffer(gpu.flags)),
+                layerMask = pass.ReadBuffer(builder.ImportBuffer(gpu.layerMask)),
+                sceneCullingMask = pass.ReadBuffer(builder.ImportBuffer(gpu.sceneCullingMask)),
+                renderingLayers = pass.ReadBuffer(builder.ImportBuffer(gpu.renderingLayers))
+            };
+        }
+
+        // One compute producer per nonempty GPU list, recorded where the list is created. A history-occluded list returns the
+        // drawn table it writes; a remainder list reads the one it is given.
+        RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawn, bool remainder)
         {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
-            bool gpu = record.backend == EMeshDrawBackendPolicy.GPUIndirect;
-            RGBufferHandle uploaded = builder.ImportBuffer(gpu ? record.payload.commandMeta : record.cpuInstances);
-            RGBufferHandle cpuFades = gpu ? default : builder.ImportBuffer(record.cpuFades);
-            using (RGTransferPassHandle upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
+            MeshGPUDrawPayload payload = record.payload;
+            RGBufferHandle instances = builder.ImportBuffer(payload.instanceToEntity);
+            RGBufferHandle fades = builder.ImportBuffer(payload.instanceFade);
+            RGBufferHandle args = builder.ImportBuffer(payload.indirectArgs);
+            RGBufferHandle written = occluded && occluder.history
+                ? builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" })
+                : default;
+            using (var pass = builder.AddComputePass<MeshDrawProducerData>(MeshDrawProfiling.production))
             {
-                upload.KeepImportedWritesLocal();
-                upload.WriteBuffer(uploaded);
-                if (gpu && record.gpuVisibility.IsValid())
-                {
-                    upload.ReadBuffer(record.gpuVisibility);
-                }
-                if (!gpu)
-                {
-                    upload.WriteBuffer(cpuFades);
-                }
-                ref MeshDrawPreparePassData data = ref upload.GetPassData<MeshDrawPreparePassData>();
+                pass.KeepImportedWritesLocal();
+                ref MeshDrawProducerData data = ref pass.GetPassData();
+                data = default;
                 data.lists = drawLists;
                 data.index = drawIndex;
-                upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands) => data.lists.Upload(data.index, commands.m_CommandBuffer));
-            }
-            if (!gpu)
-            {
-                RGBufferHandle[] cpuOutputs = builder.GetRecordingArray<RGBufferHandle>(2);
-                cpuOutputs[0] = uploaded;
-                cpuOutputs[1] = cpuFades;
-                return cpuOutputs;
-            }
-
-            RGBufferHandle instances = builder.ImportBuffer(record.payload.instanceToEntity);
-            RGBufferHandle fades = builder.ImportBuffer(record.payload.instanceFade);
-            RGBufferHandle args = builder.ImportBuffer(record.payload.indirectArgs);
-            RGBufferHandle candidates = builder.ImportBuffer(record.cache.candidateBuffer);
-            using (RGComputePassHandle compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
-            {
-                compact.KeepImportedWritesLocal();
-                compact.ReadBuffer(uploaded);
-                compact.ReadBuffer(candidates);
-                compact.ReadBuffer(record.gpuVisibility);
-                compact.WriteBuffer(instances);
-                compact.WriteBuffer(fades);
-                compact.WriteBuffer(args);
-                ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
-                data.lists = drawLists;
-                data.index = drawIndex;
-                compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_CommandBuffer));
+                data.inputs = CullInputs(builder, pass);
+                pass.ReadBuffer(builder.ImportBuffer(record.cache.candidateBuffer));
+                pass.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBuffer));
+                pass.WriteBuffer(builder.ImportBuffer(payload.cullingContext));
+                pass.WriteBuffer(instances);
+                pass.WriteBuffer(fades);
+                pass.WriteBuffer(args);
+                data.occluded = occluded;
+                if (occluded)
+                {
+                    data.occluder = new MeshOccluderInputs
+                    {
+                        furthest = pass.ReadTexture(occluder.furthest),
+                        viewProjection = occluder.viewProjection,
+                        extent = new Vector4(occluder.extent.x, occluder.extent.y, 0, 0),
+                        mipCount = occluder.mipCount,
+                        history = occluder.history
+                    };
+                    if (occluder.history)
+                    {
+                        MeshTransformVersion current = m_Motion.current, previous = m_Motion.previous;
+                        current.owner.Record(builder, current, m_ScheduledVersions);
+                        data.occluder.currentCount = current.count;
+                        data.occluder.previousCount = previous.count;
+                        data.occluder.currentTransforms = pass.ReadBuffer(builder.ImportBuffer(current.matrices));
+                        data.occluder.currentGenerations = pass.ReadBuffer(builder.ImportBuffer(current.generations));
+                        data.occluder.previousTransforms = pass.ReadBuffer(builder.ImportBuffer(previous.matrices));
+                        data.occluder.previousGenerations = pass.ReadBuffer(builder.ImportBuffer(previous.generations));
+                    }
+                    if (occluder.history)
+                    {
+                        data.drawn = pass.WriteBuffer(written);
+                    }
+                    else if (remainder)
+                    {
+                        data.drawn = pass.ReadBuffer(remainderDrawn);
+                        data.remainder = true;
+                    }
+                }
+                pass.SetExecuteFunc(s_Produce);
             }
             RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(3);
             outputs[0] = instances;
             outputs[1] = fades;
             outputs[2] = args;
-            return outputs;
+            drawLists.SetProducerOutputs(drawIndex, outputs);
+            return written;
+        }
+
+        // One upload producer per nonempty CPU list; its build job is scheduled at compile when the list is live.
+        void RecordUpload(RGBuilder builder, int drawIndex)
+        {
+            MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
+            RGBufferHandle instances = builder.ImportBuffer(record.cpuInstances);
+            RGBufferHandle fades = builder.ImportBuffer(record.cpuFades);
+            using (var upload = builder.AddTransferPass<MeshDrawUploadData>(MeshDrawProfiling.upload))
+            {
+                upload.KeepImportedWritesLocal();
+                upload.WriteBuffer(instances);
+                upload.WriteBuffer(fades);
+                ref MeshDrawUploadData data = ref upload.GetPassData();
+                data.lists = drawLists;
+                data.index = drawIndex;
+                upload.SetExecuteFunc(s_Upload);
+            }
+            RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(2);
+            outputs[0] = instances;
+            outputs[1] = fades;
+            drawLists.SetProducerOutputs(drawIndex, outputs);
+        }
+
+        // The pass records the draw-list index; compile reads it back to find live consumers.
+        internal void UseDrawList(IRGPass pass, in RGMeshDrawListHandle draws)
+        {
+            pass.extensionUses.Add(draws.index);
+            MeshDrawListReads reads = drawLists.GetRecordCopy(draws.index).reads;
+            pass.AddResourceRead(reads.matrices.handle);
+            pass.AddResourceRead(reads.generations.handle);
+            pass.AddResourceRead(reads.layers.handle);
+            if (reads.hasPrevious)
+            {
+                pass.AddResourceRead(reads.previousMatrices.handle);
+                pass.AddResourceRead(reads.previousGenerations.handle);
+            }
+            // An empty list has no producer.
+            if (reads.producerOutputs != null)
+            {
+                for (int i = 0; i < reads.producerOutputs.Length; ++i)
+                    pass.AddResourceRead(reads.producerOutputs[i].handle);
+            }
         }
     }
 
     /// <summary>
-    /// One view and one mesh pass. The constructor only stores the two fields. <see cref="MeshGraphRecording.CreateMeshDrawList"/>
-    /// checks that the tag is one of the nine mesh passes and that the view's LOD projection is valid.
+    /// One culling context and one mesh pass, the mesh counterpart of <c>RendererListDesc</c>. The constructor only stores
+    /// the two fields; <see cref="MeshGraphRecording.CreateMeshDrawList"/> checks that the tag is one of the nine mesh passes.
     /// </summary>
     public readonly struct MeshDrawListDesc
     {
-        public readonly MeshView view;
+        public readonly MeshCullingContext cullingContext;
         public readonly ShaderTagId passTag;
 
-        public MeshDrawListDesc(MeshView view, ShaderTagId passTag)
+        public MeshDrawListDesc(in MeshCullingContext cullingContext, ShaderTagId passTag)
         {
-            this.view = view;
+            this.cullingContext = cullingContext;
             this.passTag = passTag;
         }
     }
 
     /// <summary>
-    /// Pass-facing mesh recording API. Submitting a mesh draw list records its draw calls into the raster encoder.
-    /// Native command-buffer submission keeps the words native submit and submission segment.
+    /// Pass-facing mesh recording API. Creating a draw list records its producer at that point of the graph; submitting it
+    /// records its draw calls into the raster encoder. Native command-buffer submission keeps the words native submit and
+    /// submission segment.
     /// </summary>
     public static class MeshGraphRecording
     {
@@ -467,34 +394,26 @@ namespace InfinityTech.Rendering.MeshPipeline
             builder.extension = new MeshGraphExtension(meshWorld);
         }
 
+        /// <summary>
+        /// Records the list's producer here, before its raster consumer. A later list of the same context and pass draws only
+        /// what earlier ones left: after a list tested against the previous frame's pyramid, what a newer occluder no longer
+        /// hides; otherwise nothing.
+        /// </summary>
         public static RGMeshDrawListHandle CreateMeshDrawList(this RGBuilder builder, in MeshDrawListDesc desc)
         {
             if (!MeshPassTable.TryGet(desc.passTag, out MeshPassDesc pass))
                 throw new ArgumentException($"'{desc.passTag.name}' is not a mesh pass.", nameof(desc));
-            desc.view.lodProjection.ThrowIfInvalid();
-            return MeshGraphExtension.Of(builder).CreateMeshDrawList(builder, desc.view, pass);
+            return MeshGraphExtension.Of(builder).Create(builder, desc.cullingContext, pass);
         }
 
-        /// <summary>Records GPU frustum culling for a view ahead of its draw lists when this camera draws on the GPU backend.</summary>
-        public static void RequestMeshGPUCulling(this RGBuilder builder, in MeshView view)
-        {
-            MeshGraphExtension extension = MeshGraphExtension.Of(builder);
-            if (extension.world.SelectBackend(MeshPassTable.Depth) != EMeshDrawBackendPolicy.GPUIndirect)
-            {
-                return;
-            }
-            view.lodProjection.ThrowIfInvalid();
-            extension.RequestMeshGPUCulling(builder, view, RGMeshDrawListHandle.Invalid);
-        }
+        internal static void SetMeshMotion(this RGBuilder builder, in MeshMotionBinding motion)
+            => MeshGraphExtension.Of(builder).SetMotion(motion);
 
-        public static void FlushMeshFrustumCulling(this RGBuilder builder)
-            => MeshGraphExtension.Of(builder).FlushFrustumCulling(builder);
-
-        public static void PrepareMeshDrawList(this RGBuilder builder, in RGMeshDrawListHandle draws)
-            => MeshGraphExtension.Of(builder).PrepareMeshDrawList(builder, draws);
+        internal static void RegisterMeshOccluder(this RGBuilder builder, in MeshCullingContext context, in MeshOccluder occluder)
+            => MeshGraphExtension.Of(builder).RegisterOccluder(context, occluder);
 
         /// <summary>Declares the pass as a consumer. A handle from another builder or an earlier graph fails here.</summary>
-        public static RGMeshDrawListHandle UseMeshDrawList(this RGRasterPassHandle pass, in RGMeshDrawListHandle draws)
+        public static RGMeshDrawListHandle UseMeshDrawList<TPassData>(this RGRasterPassHandle<TPassData> pass, in RGMeshDrawListHandle draws) where TPassData : struct
         {
             if (!(pass.extension is MeshGraphExtension owner))
             {
@@ -504,7 +423,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new InvalidOperationException("The draw list belongs to another builder or an earlier graph.");
             }
-            owner.UsePreparedList(pass.pass, draws);
+            owner.UseDrawList(pass.pass, draws);
             return draws;
         }
 
@@ -514,15 +433,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new InvalidOperationException("This pass's builder has no MeshWorld.");
             }
-            owner.drawLists.SubmitMeshDrawList(encoder.m_CommandBuffer, draws);
+            owner.drawLists.SubmitMeshDrawList(encoder.m_Core.commands, draws);
         }
-
-        internal static MeshOcclusionLists RecordMeshOcclusionPrediction(this RGBuilder builder, MeshView view, MeshMotionBinding motion,
-            RGTextureHandle previousFurthest, Matrix4x4 previousProjection, Unity.Mathematics.int2 extent, ulong historyVersion)
-            => MeshGraphExtension.Of(builder).RecordMeshOcclusionPrediction(builder, view, motion, previousFurthest, previousProjection, extent, historyVersion);
-
-        internal static void RecordMeshOcclusionRecovery(this RGBuilder builder, in MeshOcclusionLists lists, RGTextureHandle furthest,
-            Matrix4x4 projection, Unity.Mathematics.int2 extent)
-            => MeshGraphExtension.Of(builder).RecordMeshOcclusionRecovery(builder, lists, furthest, projection, extent);
     }
 }

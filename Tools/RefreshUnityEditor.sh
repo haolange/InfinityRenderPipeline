@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
-# Refresh one explicitly selected running Editor through Unity's public AssetDatabase API.
+# Refresh one explicitly selected running Editor through Unity's public AssetDatabase and CompilationPipeline APIs,
+# then fail unless every package assembly in Library/ScriptAssemblies is newer than its sources.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_PATH="$(cd "${1:-$SCRIPT_DIR/../../..}" && pwd)"
 command -v unity >/dev/null || { echo "Unity CLI is required." >&2; exit 1; }
+# A held assembly-reload lock keeps compiled assemblies out of Library/ScriptAssemblies: refuse to refresh under one.
+LOCK_RESULT="$(unity command eval --caller plugin --skill unity-cli --project-path "$PROJECT_PATH" --format json \
+  'var canReload = typeof(UnityEditor.EditorApplication).GetMethod("CanReloadAssemblies", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static); if (canReload != null && !(bool)canReload.Invoke(null, null)) throw new System.InvalidOperationException("RELOAD_LOCKED"); return true;' || true)"
+python3 - "$LOCK_RESULT" <<'PYTHON'
+import json, sys
+try:
+    reply = json.loads(sys.argv[1])
+    unlocked = reply.get("success") and reply.get("data", {}).get("result", {}).get("success")
+except ValueError:
+    unlocked = False
+if not unlocked:
+    print(sys.argv[1])
+    raise SystemExit("RELOAD_LOCKED=1: an assembly-reload lock is held. Run infinity_reload_status, cancel its holder, then refresh again.")
+PYTHON
 REFRESH_RESULT="$(unity command eval --caller plugin --skill unity-cli --project-path "$PROJECT_PATH" --format json \
-  'UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate); return true;')"
+  'UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate); UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); return true;')"
 printf '%s\n' "$REFRESH_RESULT"
 python3 - "$PROJECT_PATH" "${STABLE_MS:-4000}" "${TIMEOUT_MS:-180000}" "$REFRESH_RESULT" <<'PYTHON'
 import json, subprocess, sys, time
@@ -28,7 +43,7 @@ while time.monotonic() < deadline:
     if ready:
         since = time.monotonic() if since is None else since
         if time.monotonic() - since >= stable:
-            print("REFRESH_STABLE=1")
+            print("EDITOR_READY=1")
             break
     else:
         since = None
@@ -36,3 +51,5 @@ while time.monotonic() < deadline:
 else:
     raise SystemExit("Editor did not finish refresh/reload within the deadline.")
 PYTHON
+python3 "$SCRIPT_DIR/VerifyScriptAssemblies.py" "$PROJECT_PATH" "$SCRIPT_DIR/.."
+echo "REFRESH_STABLE=1"

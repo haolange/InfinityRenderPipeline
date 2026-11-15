@@ -117,26 +117,25 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        // Shape of a light that has no authored Infinity shape: derived from Unity's native fields, so lights created
-        // by scripts, imported or authored before 0.5.0 render with the shape Unity shows for them.
+        // Shape of a light that has no authored Infinity shape, derived from Unity's native fields so lights created by
+        // scripts or imported render with the shape Unity shows for them. Area size and sun angle exist only in the
+        // Editor: a player build freezes each scene light's shape into its InfinityAdditionalLightData, and a light
+        // created in a player without SetShape renders its type's default extent.
         public static LightSourceShape FromUnityLight(Light light)
         {
             if (light == null)
             {
                 throw new ArgumentNullException(nameof(light));
             }
-            Vector2 area = light.areaSize;
             LightSourceShape shape;
             switch (light.type)
             {
                 case LightType.Directional:
                     shape = LightSourceShape.Default(EInfinityLightType.Directional);
-                    shape.sourceAngle = Mathf.Max(0, light.shadowAngle);
                     break;
                 case LightType.Tube:
                     shape = LightSourceShape.Default(EInfinityLightType.Point);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
-                    shape.sourceLength = Mathf.Max(0, area.x);
                     break;
                 case LightType.Spot:
                 case LightType.Pyramid:
@@ -144,31 +143,53 @@ namespace InfinityTech.Rendering.LightPipeline
                     shape = LightSourceShape.Default(EInfinityLightType.Spot);
                     shape.spotShape = light.type == LightType.Spot ? ESpotShape.Cone : (light.type == LightType.Pyramid ? ESpotShape.Pyramid : ESpotShape.Box);
                     shape.sourceRadius = light.type == LightType.Box ? 0 : Mathf.Max(0, light.shapeRadius);
-                    if (light.type == LightType.Pyramid)
-                    {
-                        shape.pyramidAspect = area.x > 0 ? area.x : 1;
-                    }
-                    if (light.type == LightType.Box)
-                    {
-                        shape.boxSize = new Vector2(Mathf.Max(area.x, 1e-3f), Mathf.Max(area.y, 1e-3f));
-                    }
                     break;
                 case LightType.Rectangle:
                     shape = LightSourceShape.Default(EInfinityLightType.Rect);
-                    shape.sourceWidth = Mathf.Max(0, area.x);
-                    shape.sourceHeight = Mathf.Max(0, area.y);
                     break;
                 case LightType.Disc:
                     shape = LightSourceShape.Default(EInfinityLightType.Disk);
-                    shape.sourceRadius = Mathf.Max(0, area.x);
                     break;
                 default:
                     shape = LightSourceShape.Default(EInfinityLightType.Point);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
                     break;
             }
+#if UNITY_EDITOR
+            ReadNativeExtent(light, ref shape);
+#endif
             return shape;
         }
+
+#if UNITY_EDITOR
+        // The native extent fields only the Editor has (the lightmapper reads them): area size and sun angle.
+        static void ReadNativeExtent(Light light, ref LightSourceShape shape)
+        {
+            Vector2 area = light.areaSize;
+            switch (light.type)
+            {
+                case LightType.Directional:
+                    shape.sourceAngle = Mathf.Max(0, light.shadowAngle);
+                    break;
+                case LightType.Tube:
+                    shape.sourceLength = Mathf.Max(0, area.x);
+                    break;
+                case LightType.Pyramid:
+                    shape.pyramidAspect = area.x > 0 ? area.x : 1;
+                    break;
+                case LightType.Box:
+                    shape.boxSize = new Vector2(Mathf.Max(area.x, 1e-3f), Mathf.Max(area.y, 1e-3f));
+                    break;
+                case LightType.Rectangle:
+                    shape.sourceWidth = Mathf.Max(0, area.x);
+                    shape.sourceHeight = Mathf.Max(0, area.y);
+                    break;
+                case LightType.Disc:
+                    shape.sourceRadius = Mathf.Max(0, area.x);
+                    break;
+            }
+        }
+#endif
 
         public static LightType NativeType(in LightSourceShape shape)
         {
@@ -191,12 +212,20 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        // The native fields Unity derives from the shape (type, shapeRadius, areaSize, shadowAngle), starting from the
-        // light's current values so fields a shape does not own keep them.
-        static void DeriveNative(Light light, in LightSourceShape shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle)
+        // The native fields a player has (type, shape radius), derived from the shape; a field the shape does not own
+        // keeps the light's current value.
+        static void DeriveNativeType(Light light, in LightSourceShape shape, out LightType type, out float shapeRadius)
         {
             type = NativeType(shape);
-            shapeRadius = light.shapeRadius;
+            bool ownsRadius = shape.type == EInfinityLightType.Point || (shape.type == EInfinityLightType.Spot && shape.spotShape != ESpotShape.Box);
+            shapeRadius = ownsRadius ? shape.sourceRadius : light.shapeRadius;
+        }
+
+#if UNITY_EDITOR
+        // The native extent fields only the Editor has (area size, sun angle), derived from the shape; a field the shape
+        // does not own keeps the light's current value.
+        static void DeriveNativeExtent(Light light, in LightSourceShape shape, out Vector2 areaSize, out float shadowAngle)
+        {
             areaSize = light.areaSize;
             shadowAngle = light.shadowAngle;
             switch (shape.type)
@@ -205,17 +234,12 @@ namespace InfinityTech.Rendering.LightPipeline
                     shadowAngle = shape.sourceAngle;
                     break;
                 case EInfinityLightType.Point:
-                    shapeRadius = shape.sourceRadius;
                     if (shape.sourceLength > 0)
                     {
                         areaSize = new Vector2(shape.sourceLength, areaSize.y);
                     }
                     break;
                 case EInfinityLightType.Spot:
-                    if (shape.spotShape != ESpotShape.Box)
-                    {
-                        shapeRadius = shape.sourceRadius;
-                    }
                     if (shape.spotShape == ESpotShape.Pyramid)
                     {
                         areaSize = new Vector2(shape.pyramidAspect, 1);
@@ -242,12 +266,15 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 throw new ArgumentNullException(nameof(light));
             }
-            DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
+            DeriveNativeType(light, shape, out LightType type, out float shapeRadius);
+            DeriveNativeExtent(light, shape, out Vector2 areaSize, out float shadowAngle);
             return light.type == type && Mathf.Approximately(light.shapeRadius, shapeRadius) && light.areaSize == areaSize
                 && Mathf.Approximately(light.shadowAngle, shadowAngle);
         }
+#endif
 
-        // Writes the native fields Unity derives from the shape. Returns true when anything changed. Callers record Undo
+        // Writes the native fields Unity derives from the shape: type and shape radius everywhere, and in the Editor the
+        // area size and sun angle the lightmapper reads. Returns true when anything changed. Editor callers record Undo
         // on the Light first.
         public static bool ApplyToUnityLight(Light light, in LightSourceShape shape)
         {
@@ -255,9 +282,12 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 throw new ArgumentNullException(nameof(light));
             }
-            DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
+            DeriveNativeType(light, shape, out LightType type, out float shapeRadius);
+#if UNITY_EDITOR
+            DeriveNativeExtent(light, shape, out Vector2 areaSize, out float shadowAngle);
             // Native Disc assignment changes the bake mode; the shape does not own that setting.
             LightmapBakeType bakeType = light.lightmapBakeType;
+#endif
             bool changed = false;
             if (light.type != type)
             {
@@ -269,6 +299,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 light.shapeRadius = shapeRadius;
                 changed = true;
             }
+#if UNITY_EDITOR
             if (light.areaSize != areaSize)
             {
                 light.areaSize = areaSize;
@@ -284,7 +315,10 @@ namespace InfinityTech.Rendering.LightPipeline
                 light.lightmapBakeType = bakeType;
             }
             if (light.lightmapBakeType != bakeType)
+            {
                 throw new InvalidOperationException("Unity rejected the existing light bake mode after a shape edit.");
+            }
+#endif
             return changed;
         }
 

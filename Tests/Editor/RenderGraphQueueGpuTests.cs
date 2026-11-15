@@ -20,29 +20,31 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             internal ComputeShader shader;
             internal int kernel, value;
             internal RGBufferHandle input, output;
-            internal List<ComputeBuffer> physical;
+            internal List<GraphicsBuffer> physical;
+            internal RGResourceFactory resources;
         }
 
         static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle input, RGBufferHandle output,
-            bool async, int value, List<ComputeBuffer> physical = null)
+            bool async, int value, List<GraphicsBuffer> physical = null)
         {
             bool copy = input.IsValid();
             using (var pass = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite")))
             {
                 pass.EnableAsyncCompute(async);
                 pass.EnablePassCulling(false);
-                ref Data data = ref pass.GetPassData<Data>();
+                ref Data data = ref pass.GetPassData();
                 data.shader = shader;
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
                 data.value = value;
                 data.physical = physical;
+                data.resources = (RGResourceFactory)typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
                 data.input = copy ? pass.ReadBuffer(input) : default;
                 data.output = pass.WriteBuffer(output);
                 pass.SetExecuteFunc((in Data d, in RGComputeEncoder commands) =>
                 {
-                    d.physical?.Add(d.output);
-                    commands.SetComputeIntParam(d.shader, "Count", Count);
-                    commands.SetComputeIntParam(d.shader, "Value", d.value);
+                    d.physical?.Add(d.resources.ResolveBuffer(d.output).resource);
+                    commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Count"), Count);
+                    commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Value"), d.value);
                     if (d.input.IsValid()) commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
                     commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.output);
                     commands.DispatchCompute(d.shader, d.kernel, Count / 64, 1, 1);
@@ -66,14 +68,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("This GPU/API cannot execute the fixture.");
             var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/RenderGraphHazard.compute");
             Assert.IsNotNull(shader);
-            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
-            // The render context owns a mesh world; its allocations stay out of the pool under test.
-            var contextPool = new ResourcePool();
             var graph = new RGBuilder("QueueGpuContract", pool);
-            var outputs = new ComputeBuffer[4];
-            var physical = new List<ComputeBuffer>();
-            var shared = new ComputeBuffer(Count, sizeof(uint));
+            var outputs = new GraphicsBuffer[4];
+            var physical = new List<GraphicsBuffer>();
+            var shared = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Count, sizeof(uint));
             var descriptor = new BufferDescriptor(Count, sizeof(uint));
             var initial = new uint[Count];
             Array.Fill(initial, 1u);
@@ -82,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var result = new RGBufferHandle[outputs.Length];
             for (int i = 0; i < outputs.Length; ++i)
             {
-                outputs[i] = new ComputeBuffer(Count, sizeof(uint));
+                outputs[i] = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Count, sizeof(uint));
                 result[i] = graph.ImportBuffer(new BufferHandle(-1, descriptor, outputs[i]));
             }
             Add(graph, shader, imported, result[0], async, 0);
@@ -104,8 +103,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using (var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context })
-                    using (var commands = new CommandBuffer()) graph.Execute(state, commands);
+                    using (var commands = new CommandBuffer()) graph.Execute(context, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
                         var tail = new ResourceReuseFence { hasGraphics = true };
@@ -152,7 +150,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RenderPipelineManager.beginContextRendering -= render;
                 graph.Dispose();
                 pool.Dispose();
-                contextPool.Dispose();
+               
                 shared.Release();
                 foreach (var output in outputs) output.Release();
                 if (previousFocus != null) previousFocus.Focus();

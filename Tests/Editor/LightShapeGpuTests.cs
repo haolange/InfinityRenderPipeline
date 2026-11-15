@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             try
             {
-                using (var output = new ComputeBuffer(Names.Length, 16))
+                using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Names.Length, 16))
                 {
                     int kernel = shader.FindKernel("ShapeIrradiance");
                     shader.SetVector("ShapeDistance", new Vector4(distance, 0, 0, 0));

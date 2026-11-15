@@ -16,7 +16,7 @@ float CrossBilateralWeight(float radius, float sampleDepth, float sceneDepth)
 {
 	float blurSigma = (float)BLUR_RADIUS * 0.5;
 	float blurFalloff = 1 / (2 * blurSigma * blurSigma);
-    float edgeStop = (sceneDepth - sampleDepth) * Sharpeness / max(0.01 * sceneDepth, 0.001);
+    float edgeStop = (sceneDepth - sampleDepth) * Sharpness / max(0.01 * sceneDepth, 0.001);
 	return exp2(-radius * radius * blurFalloff - edgeStop * edgeStop);
 }
 

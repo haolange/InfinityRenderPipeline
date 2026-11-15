@@ -261,23 +261,32 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
+    // What the per-camera atmosphere LUTs depend on, the sun's illuminance included: the sky-view and aerial-perspective
+    // tables and the sun buffer scale with it. The camera position is quantized to 1 m, an accepted approximation; the aerial perspective volume is aligned to the view frustum, so the view direction and
+    // projection (FlipYProj times the rotation of WorldToView, the unjittered transform the kernel inverts) are exact.
     internal struct AtmosphereViewKey : IEquatable<AtmosphereViewKey>
     {
         public AtmosphereParameter parameter;
         public Vector3 sunDirection;
+        public Vector3 sunIlluminance;
         public int cameraX;
         public int cameraY;
         public int cameraZ;
+        public Matrix4x4 directionProjection;
 
-        public static AtmosphereViewKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 cameraPosition)
+        public static AtmosphereViewKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 sunIlluminance,
+            Vector3 cameraPosition, Matrix4x4 worldToView, Matrix4x4 flipYProjection)
         {
+            worldToView.SetColumn(3, new Vector4(0, 0, 0, 1));
             return new AtmosphereViewKey
             {
                 parameter = parameter,
                 sunDirection = sunDirection,
+                sunIlluminance = sunIlluminance,
                 cameraX = Mathf.FloorToInt(cameraPosition.x),
                 cameraY = Mathf.FloorToInt(cameraPosition.y),
-                cameraZ = Mathf.FloorToInt(cameraPosition.z)
+                cameraZ = Mathf.FloorToInt(cameraPosition.z),
+                directionProjection = flipYProjection * worldToView
             };
         }
 
@@ -287,9 +296,11 @@ namespace InfinityTech.Rendering.Pipeline
                 && sunDirection.x == other.sunDirection.x
                 && sunDirection.y == other.sunDirection.y
                 && sunDirection.z == other.sunDirection.z
+                && sunIlluminance.Equals(other.sunIlluminance)
                 && cameraX == other.cameraX
                 && cameraY == other.cameraY
-                && cameraZ == other.cameraZ;
+                && cameraZ == other.cameraZ
+                && directionProjection.Equals(other.directionProjection);
         }
 
         public override bool Equals(object obj)
@@ -306,25 +317,30 @@ namespace InfinityTech.Rendering.Pipeline
                 hash = hash * 23 + sunDirection.x.GetHashCode();
                 hash = hash * 23 + sunDirection.y.GetHashCode();
                 hash = hash * 23 + sunDirection.z.GetHashCode();
+                hash = hash * 23 + sunIlluminance.GetHashCode();
                 hash = hash * 23 + cameraX;
                 hash = hash * 23 + cameraY;
                 hash = hash * 23 + cameraZ;
+                hash = hash * 23 + directionProjection.GetHashCode();
                 return hash;
             }
         }
     }
 
+    // The sky cubemap, its GGX prefilter and SH scale with the sun's illuminance as well as its direction.
     internal struct AtmosphereIBLKey : IEquatable<AtmosphereIBLKey>
     {
         public AtmosphereParameter parameter;
         public Vector3 sunDirection;
+        public Vector3 sunIlluminance;
 
-        public static AtmosphereIBLKey Create(in AtmosphereParameter parameter, Vector3 sunDirection)
+        public static AtmosphereIBLKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 sunIlluminance)
         {
             return new AtmosphereIBLKey
             {
                 parameter = parameter,
-                sunDirection = sunDirection
+                sunDirection = sunDirection,
+                sunIlluminance = sunIlluminance
             };
         }
 
@@ -333,7 +349,8 @@ namespace InfinityTech.Rendering.Pipeline
             return parameter.Equals(other.parameter)
                 && sunDirection.x == other.sunDirection.x
                 && sunDirection.y == other.sunDirection.y
-                && sunDirection.z == other.sunDirection.z;
+                && sunDirection.z == other.sunDirection.z
+                && sunIlluminance.Equals(other.sunIlluminance);
         }
 
         public override bool Equals(object obj)
@@ -350,6 +367,7 @@ namespace InfinityTech.Rendering.Pipeline
                 hash = hash * 23 + sunDirection.x.GetHashCode();
                 hash = hash * 23 + sunDirection.y.GetHashCode();
                 hash = hash * 23 + sunDirection.z.GetHashCode();
+                hash = hash * 23 + sunIlluminance.GetHashCode();
                 return hash;
             }
         }

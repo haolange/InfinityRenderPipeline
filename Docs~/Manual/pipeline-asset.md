@@ -4,6 +4,8 @@ The pipeline asset owns quality and scene-wide rendering settings. Runtime shade
 
 ## Settings
 
+The pipeline reads these values once when it is created. Edit them in the Inspector, which recreates the pipeline; a value written from script at run time has no effect.
+
 - `renderScale` in `[0.5, 1]` — Game cameras only, Super Resolution path. Internal size is `ceil(display * scale)`.
 - Optional `qualityVolumeProfile` passed to `VolumeManager.Initialize(default, quality)`.
 - Shadows ([Shadows](shadows.md)), the light-probe system and Adaptive Probe Volumes ([Baked lighting](baked-gi.md)), reflection-probe resolution and slot count, the cookie atlas, frame settings for cameras and reflection-probe captures, output mode, and default materials.

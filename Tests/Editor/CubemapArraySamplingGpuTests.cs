@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int m_FilterPending;
             public Vector4[] filteredCube { get; private set; }
             public Vector4[] filteredArray { get; private set; }
-            ComputeBuffer m_Samples, m_Output;
+            GraphicsBuffer m_Samples, m_Output;
             Cubemap m_Cube;
             Texture2DArray m_Array, m_Atlas;
             readonly int m_Count;
@@ -267,8 +267,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             m_Atlas.SetPixels(Enumerable.Repeat(new Color(8, 4, 2, 1), size * size).ToArray(), face, mip);
                         }
                     m_Cube.Apply(false); m_Array.Apply(false); m_Atlas.Apply(false);
-                    m_Samples = new ComputeBuffer(m_Count, 16); m_Samples.SetData(samples);
-                    m_Output = new ComputeBuffer(m_Count * 3, 16);
+                    m_Samples = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Count, 16); m_Samples.SetData(samples);
+                    m_Output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Count * 3, 16);
                 }
                 catch { Dispose(); throw; }
             }

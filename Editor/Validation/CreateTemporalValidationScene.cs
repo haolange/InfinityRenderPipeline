@@ -7,6 +7,7 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Component;
 using InfinityTech.Rendering.Editor;
 using InfinityTech.Rendering.Volume;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
@@ -122,7 +123,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             material.SetColor("_BaseColor", baseColor);
             material.SetFloat("_Roughness", roughness);
             material.SetFloat("_SpecularLevel", specular);
-            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(material);
+            MaterialRouteUtility.ApplyPassState(material);
             AssetDatabase.CreateAsset(material, assetPath);
             return material;
         }

@@ -16,8 +16,8 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 
 | Document | Role |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Implementation: frame order, graph, mesh drawing pipeline, lighting, history and output |
-| [AGENTS.md](AGENTS.md) | Normative rules for contributors and coding agents |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Implementation and normative system contracts: frame order, graph, mesh drawing pipeline, lighting, history and output |
+| [AGENTS.md](AGENTS.md) | Principles, design rules, conventions and work method for contributors and coding agents |
 | [Docs~/Manual/index.md](Docs~/Manual/index.md) | Authoring: settings, lights, materials, volumes, Editor windows |
 | [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) | What has been recorded, tested, image-checked and measured |
 | [Docs~/Project/Audit/UnityIntegrationAudit.md](Docs~/Project/Audit/UnityIntegrationAudit.md) | Ownership boundary with Unity and inspected engine packages |

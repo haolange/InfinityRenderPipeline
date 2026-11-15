@@ -6,20 +6,41 @@ Exit code 1 when any ERROR is found. WARN lines are informational.
 
 Checks
   meta      every asset/folder has a .meta, every .meta has an asset, GUIDs are unique
-  kernels   kernel-name string literals used from C# exist as `#pragma kernel` somewhere
+  kernels   kernel names resolved from C# exist as `#pragma kernel` in the shader they are resolved from
   respath   every [ResourcePath("...")] target exists in the package
   lightmode every LightMode tag used by shaders is declared in InfinityPassIDs (or a known Unity tag)
   links     relative Markdown links resolve
-  records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
+  records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
+  iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
+  cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
+  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
+  silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
-  graphdependency  Runtime/RenderGraph never references the mesh pipeline
+  textureviews     the generated texture-view binding registry matches Tools/TextureViews.py output
+  unityboundary    MeshComponent owns no native renderer lighting or state (Renderer, lightmap and probe settings)
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
-  meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
+  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
+  meshmechanism    the mesh mechanism names no pipeline concept: no shader IDs of the pipeline, capture or view kinds, and no
+                   Camera outside the world's diagnostic counters
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
+  fprefix          no type name borrows another engine's F prefix
+  generationname   no type, file or living-document line carries a generation version (V2, V3)
+  agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
+  docfacts         no sentence of 80 or more characters appears in both AGENTS.md and ARCHITECTURE.md
+  legacyresidue    no [Obsolete], FormerlySerializedAs or Legacy/Deprecated/Compat/Migrate identifier in package code
+  unusedtypes      every type declared in Runtime is referenced outside its declaration
+  assemblies       Infinity assemblies grant InternalsVisibleTo to each Infinity consumer; diagnostics exist only in Editor/Development builds
+  diagnostics      runtime code reaches capture and diagnostics symbols only inside #if UNITY_EDITOR || DEVELOPMENT_BUILD
+  layering         lower runtime layers never name an upper layer's namespace (dependencies point down)
+  staticid         setup-time IDs, tags, keywords and samplers are static readonly, never mutable statics
+  hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
+  physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
+  rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
+  redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
 """
-import argparse, hashlib, json, os, re, sys, runpy
+import argparse, collections, hashlib, json, os, re, sys, runpy
 
 IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github'}
 UNITY_LIGHTMODES = {'ShadowCaster', 'Meta', 'SRPDefaultUnlit', 'Always', 'ForwardBase', 'DepthOnly', 'MotionVectors', 'RTAO'}
@@ -70,9 +91,17 @@ def check_meta(repo, out):
                 out.append(('ERROR', 'meta', f'missing meta: {display_path(rel, n)}'))
     return guids
 
+# main() reads every source once per run; the check functions called directly (tests) always read the file.
+_SOURCE_CACHE = None
+
 def read(p):
+    if _SOURCE_CACHE is not None and p in _SOURCE_CACHE:
+        return _SOURCE_CACHE[p]
     with open(p, encoding='utf-8', errors='replace') as source:
-        return source.read()
+        text = source.read()
+    if _SOURCE_CACHE is not None:
+        _SOURCE_CACHE[p] = text
+    return text
 
 def all_files(repo, exts):
     for dp, _, fns in walk(repo):
@@ -81,19 +110,26 @@ def all_files(repo, exts):
                 yield os.path.join(dp, f)
 
 def check_kernels(repo, out):
-    kernels = set()
+    kernels, per_file = set(), {}
     for p in all_files(repo, {'.compute'}):
-        kernels |= set(re.findall(r'^\s*#pragma\s+kernel\s+(\w+)', read(p), re.M))
-    pat = re.compile(r'(?:FindKernel|HasKernel)\(\s*"(\w+)"\s*\)|HasRequiredKernels\([^)]*\)|RequiredKernels\s*=\s*\{([^}]*)\}|new\[\]\s*\{([^}]*)\}\s*;\s*//\s*kernels')
+        names = set(re.findall(r'^\s*#pragma\s+kernel\s+(\w+)', read(p), re.M))
+        kernels |= names
+        per_file[os.path.relpath(p, repo).replace(os.sep, '/')] = names
+    shaders = os.path.join(repo, 'Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs')
+    fields = dict((f, path) for path, f in re.findall(r'ResourcePath\("([^"]+)"\)\]\s*public ComputeShader (\w+);', read(shaders))) if os.path.exists(shaders) else {}
     for p in all_files(repo, {'.cs'}):
         t = read(p)
+        rel = os.path.relpath(p, repo)
         for m in re.finditer(r'(?:FindKernel|HasKernel)\(\s*"(\w+)"\s*\)', t):
             if m.group(1) not in kernels:
-                out.append(('ERROR', 'kernels', f'{os.path.relpath(p, repo)}: unknown kernel "{m.group(1)}"'))
-        for m in re.finditer(r'HasRequiredKernels\(([^;]*?)\)\s*[);]', t, re.S):
-            for k in re.findall(r'"(\w+)"', m.group(1)):
-                if k not in kernels:
-                    out.append(('ERROR', 'kernels', f'{os.path.relpath(p, repo)}: unknown kernel "{k}"'))
+                out.append(('ERROR', 'kernels', f'{rel}: unknown kernel "{m.group(1)}"'))
+        # Table entries: the kernel must be declared by the .compute its RuntimeShaders field resolves to.
+        for m in re.finditer(r'ComputeKernel\.Resolve\(\s*([^,]+?)\s*,[^,;]+,\s*"(\w+)"\s*\)', t):
+            source, name = m.group(1), m.group(2)
+            field = re.fullmatch(r'shaders\.(\w+)', source)
+            declared = per_file.get(fields[field.group(1)], set()) if field and field.group(1) in fields else kernels
+            if name not in declared:
+                out.append(('ERROR', 'kernels', f'{rel}: kernel "{name}" is not declared by {source}'))
 
 def check_respath(repo, out):
     for p in all_files(repo, {'.cs'}):
@@ -180,16 +216,126 @@ def parse_cs_struct(text, name):
     return fields
 
 def parse_hlsl_struct(text, name):
-    m = re.search(r'struct\s+' + name + r'\s*\{(.*?)\};', text, re.S)
+    m = re.search(r'(?:struct|cbuffer)\s+' + name + r'\s*\{(.*?)\};', text, re.S)
     if not m: return None
     fields = []
     for line in m.group(1).splitlines():
         line = line.split('//')[0].strip()
-        fm = re.match(r'(\w+)\s+([\w\s,]+);', line)
+        fm = re.match(r'(\w+)\s+([\w\s,\[\]]+);', line)
         if fm:
             for n in fm.group(2).split(','):
-                fields.append((fm.group(1), n.strip()))
+                # An array is its elements in order: name[N] reads as N fields of the element type.
+                am = re.match(r'(\w+)\s*\[\s*(\d+)\s*\]$', n.strip())
+                if am:
+                    fields.extend((fm.group(1), f'{am.group(1)}[{i}]') for i in range(int(am.group(2))))
+                else:
+                    fields.append((fm.group(1), n.strip()))
     return fields
+
+HLSL_COMPONENTS = {'float': 1, 'int': 1, 'uint': 1, 'float2': 2, 'int2': 2, 'uint2': 2, 'float3': 3, 'int3': 3, 'uint3': 3,
+                   'float4': 4, 'int4': 4, 'uint4': 4, 'float4x4': 16}
+
+def cbuffer_offsets(types):
+    """Byte offset of each field under HLSL constant buffer packing, and the packed size; None for an unsupported type."""
+    offsets, offset = [], 0
+    for t, array in types:
+        components = HLSL_COMPONENTS.get(t)
+        if components is None: return None, 0
+        size = components * 4
+        if array:
+            offset = (offset + 15) // 16 * 16
+        # A matrix and every array element start a register; any other field moves to the next register rather than
+        # straddle one.
+        if t == 'float4x4' or offset // 16 != (offset + size - 1) // 16:
+            offset = (offset + 15) // 16 * 16
+        offsets.append(offset)
+        offset += size
+    return offsets, (offset + 15) // 16 * 16
+
+def sequential_offsets(types):
+    """Byte offset of each field of a C# sequential struct of 4-byte components, and its size."""
+    offsets, offset = [], 0
+    for t in types:
+        components = HLSL_COMPONENTS.get(t)
+        if components is None: return None, 0
+        offsets.append(offset)
+        offset += components * 4
+    return offsets, offset
+
+ITERATOR_METHOD = re.compile(r'\bIEnumera(?:tor|ble)(?:<[^>]*>)?\s+(\w+)\s*\([^)]*\)\s*\{')
+REF_LOCAL = re.compile(r'\bref\s+(?:readonly\s+)?[\w.<>]+\s+\w+\s*=\s*ref\b')
+
+def check_iterator_ref_locals(repo, out):
+    """C# rejects a ref local in an iterator (CS8176); the syntax gate cannot see it, the compiler fails the assembly."""
+    for top in ('Runtime', 'Editor', 'Tests'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            text = without_comments(read(p))
+            for m in ITERATOR_METHOD.finditer(text):
+                start, depth, end = m.end() - 1, 0, len(text)
+                for i in range(start, len(text)):
+                    if text[i] == '{':
+                        depth += 1
+                    elif text[i] == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end = i
+                            break
+                body = text[start:end]
+                ref_local = REF_LOCAL.search(body) if re.search(r'\byield\b', body) else None
+                if ref_local:
+                    line = text.count('\n', 0, start + ref_local.start()) + 1
+                    out.append(('ERROR', 'iteratorref', f'{os.path.relpath(p, repo)}:{line}: iterator {m.group(1)} holds a ref local (CS8176); move it into a separate method'))
+
+SHADER_DECLARATION = r'\b(?:float|half|int|uint|bool)(?:[1-4](?:x[1-4])?)?\s+(\w+)\s*[;\[]'
+
+SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*?Params?\s*\(')
+SCALAR_UPLOAD_LIMIT = 8
+SCALAR_UPLOAD_DEFINITIONS = {'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGCommandCore.cs'}
+
+def check_scalar_uploads(repo, out):
+    """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
+    The count is per file, a heuristic: a pass that uploads its parameters one by one exceeds it."""
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        if rel in SCALAR_UPLOAD_DEFINITIONS:
+            continue
+        count = len(SCALAR_UPLOAD.findall(without_comments(read(p))))
+        if count > SCALAR_UPLOAD_LIMIT:
+            out.append(('ERROR', 'scalarupload', f'{rel}: {count} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+
+def check_cbuffer_member_ids(repo, out):
+    """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member
+    by member, before its record existed) left its occlusion at zero, so C# may not resolve an ID for such a name."""
+    members, loose = set(), set()
+    for p in all_files(os.path.join(repo, 'Shaders'), {'.hlsl', '.compute', '.shader', '.raytrace', '.urtshader'}):
+        text = read(p)
+        for block in re.finditer(r'\bcbuffer\s+\w+\s*\{(.*?)\};', text, re.S):
+            members.update(d.group(1) for d in re.finditer(SHADER_DECLARATION, block.group(1)))
+        outside = re.sub(r'\bcbuffer\s+\w+\s*\{.*?\};', '', text, flags=re.S)
+        outside = re.sub(r'CBUFFER_START\(\w+\).*?CBUFFER_END', '', outside, flags=re.S)
+        loose.update(d.group(1) for d in re.finditer(r'^\s*' + SHADER_DECLARATION, outside, re.M))
+    for top in ('Runtime', 'Editor'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            text = without_comments(read(p))
+            for m in re.finditer(r'PropertyToID\("(\w+)"\)', text):
+                if m.group(1) in members and m.group(1) not in loose:
+                    line = text.count('\n', 0, m.start()) + 1
+                    out.append(('ERROR', 'cbuffermember', f'{os.path.relpath(p, repo)}:{line}: {m.group(1)} exists only inside a named cbuffer; write it into the record and bind the cbuffer'))
+
+SILENT_FALLBACK = re.compile(r'\bTexture2D\.(whiteTexture|blackTexture|grayTexture|normalTexture|redTexture|linearGrayTexture)\b')
+# Core RP's Adaptive Probe Volume debug draw takes a texture argument it samples only in its own debug modes.
+SILENT_FALLBACK_ALLOWED = {('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
+
+def check_silent_fallback(repo, out):
+    """A built-in texture bound where a resource does not exist forges that resource (P1); gate the reader instead."""
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        text = without_comments(read(p))
+        for m in SILENT_FALLBACK.finditer(text):
+            if (rel, m.group(1)) in SILENT_FALLBACK_ALLOWED:
+                continue
+            line = text.count('\n', 0, m.start()) + 1
+            out.append(('ERROR', 'silentfallback', f'{rel}:{line}: Texture2D.{m.group(1)} stands in for a missing resource; gate the shader input with a keyword'))
 
 def check_records(repo, out):
     for p in all_files(repo, {'.cs'}):
@@ -204,6 +350,19 @@ def check_records(repo, out):
                 out.append(('ERROR', 'records', f'{csname}/{hname}: struct not parsed')); continue
             if [f[0] for f in cf] != [f[0] for f in hf] or len(cf) != len(hf):
                 out.append(('ERROR', 'records', f'{csname} ({os.path.relpath(p, repo)}) != {hname} ({hfile}):\n  C#   {cf}\n  HLSL {hf}'))
+                continue
+            # A constant buffer is uploaded byte for byte: every C# field sits at its HLSL packing offset and the
+            # record fills whole 16-byte registers.
+            if re.search(r'cbuffer\s+' + hname + r'\b', read(hp)):
+                types = [f[0] for f in cf]
+                hlsl, hlsl_size = cbuffer_offsets([(t, '[' in n) for t, n in hf])
+                cs, cs_size = sequential_offsets(types)
+                if hlsl is None or cs is None:
+                    out.append(('ERROR', 'records', f'{csname}: a constant buffer record holds only 4-byte scalars, vectors and float4x4: {types}'))
+                elif hlsl != cs or hlsl_size != cs_size:
+                    fields = [f'{n}@{c}/{h}' for (_, n), c, h in zip(cf, cs, hlsl) if c != h]
+                    out.append(('ERROR', 'records', f'{csname}: C# layout differs from cbuffer {hname} packing (C#/HLSL offsets {fields}, '
+                                                    f'size {cs_size}/{hlsl_size}); reorder or pad to 16-byte registers'))
 
 def check_sgstrings(repo, out):
     d = os.path.join(repo, 'Editor/ShaderGraph')
@@ -262,21 +421,6 @@ def check_unity_boundary(repo, out):
         text = read(p)
         if re.search(r'GetComponent\s*<\s*(?:Mesh)?Renderer\s*>|forceRenderingOff|LightmapSettings|LightProbes|BakedLightingSource', text):
             out.append(('ERROR', 'unityboundary', os.path.relpath(p, repo) + ': custom Mesh must not own native renderer lighting/state'))
-    surface = os.path.join(repo, 'Shaders/Surface/InfinityLit-Instanced.shader')
-    if os.path.exists(surface) and re.search(r'INFINITY_MESH_(?:LIGHTMAP|DIRECTIONAL|SHADOWMASK)|meshBakedLightingBuffer|meshProbeLightingBuffer', read(surface)):
-        out.append(('ERROR', 'unityboundary', 'custom Mesh contains per-instance baked/probe bindings'))
-    for name in ('MeshBakedLighting.cs', 'MeshProbeLighting.cs'):
-        if os.path.exists(os.path.join(repo, 'Runtime/Mesh', name)):
-            out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
-
-
-def check_graph_dependency(repo, out):
-    # The render graph is extended by the mesh pipeline through IRGGraphExtension; it must not depend on it.
-    # Both share an assembly, so any MeshPipeline token (full, namespace-relative, alias or using static) is the dependency.
-    root = os.path.join(repo, 'Runtime/RenderGraph')
-    for p in all_files(root, {'.cs'}):
-        if re.search(r'\bMeshPipeline\b', without_comments(read(p))):
-            out.append(('ERROR', 'graphdependency', os.path.relpath(p, repo) + ': RenderGraph must not reference InfinityTech.Rendering.MeshPipeline'))
 
 
 MESH_DIR = 'Runtime/Mesh'
@@ -284,7 +428,6 @@ MESH_SHADERS = ('Shaders/Library/GPUScene.hlsl',
                 'Shaders/Library/MeshLOD.hlsl',
                 'Shaders/Mesh/Compute_MeshDrawPipeline.compute',
                 'Shaders/Mesh/MeshOcclusion.hlsl')
-MESH_ID_SOURCES = ('Runtime/Pipeline/PipelineIDs.cs',)
 HLSL_GLOBAL = re.compile(r'^(?:RW)?(?:StructuredBuffer|Texture2D)<[^>]+>\s+([\w\s,]+);|^(?:uint|int|float|float2|float3|float4|float4x4)\s+([\w\s,\[\]0-9]+);', re.M)
 PROPERTY_ID = re.compile(r'PropertyToID\("(\w+)"\)')
 
@@ -311,12 +454,6 @@ def check_mesh_bindings(repo, out):
         runtime_ids |= ids
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel.startswith(MESH_DIR): mesh_ids |= ids
-    for rel in MESH_ID_SOURCES:
-        path = os.path.join(repo, rel)
-        if os.path.exists(path):
-            text = without_comments(read(path))
-            section = text[text.find('Mesh entity interface'):] if 'Mesh entity interface' in text else ''
-            mesh_ids |= set(PROPERTY_ID.findall(section[:section.find('\n\n')] if section else ''))
     for name in sorted(shader_names - runtime_ids):
         out.append(('ERROR', 'meshbindings', f'mesh shader global {name} has no C# PropertyToID binding'))
     for name in sorted(mesh_ids - shader_names):
@@ -348,18 +485,18 @@ def check_mesh_submit(repo, out):
             continue
         for token in ('DispatchCompute(', 'SetBufferData(', 'SetData(', 'GetBuffer(', 'RentPayload(', 'AllocateInstances('):
             if token in body: out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList calls {token.rstrip("(")}'))
-        if 'MeshDrawProfiling.Draw(' not in body:
+        if 'MeshDrawProfiling.DrawSampler(' not in body:
             out.append(('ERROR', 'meshsubmit', f'{rel}: SubmitMeshDrawList does not open the MeshDrawProfiling draw marker'))
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):
         text = without_comments(read(extension))
-        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.compaction', 'PrepareMeshDrawList'):
+        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'RecordProducer'):
             if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
 
 
 MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
                    'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
-MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'MeshVisibilityHandle', 'scriptableRenderContext.CreateRendererList',
+MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
 
 
@@ -370,6 +507,23 @@ def check_mesh_passes(repo, out):
         text = without_comments(read(path))
         for token in MESH_PASS_FORBIDDEN:
             if token in text: out.append(('ERROR', 'meshpasses', f'{rel} references {token}'))
+
+
+MESH_MECHANISM = ('World', 'Pass', 'View', 'DrawList', 'Backend')
+MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|RenderCapture\w*|ECaptureBuffer|EMeshViewKind|MeshView)\b')
+MESH_CAMERA = re.compile(r'\bCamera\b')
+
+
+def check_mesh_mechanism(repo, out):
+    for directory in MESH_MECHANISM:
+        for p in all_files(os.path.join(repo, MESH_DIR, directory), {'.cs'}):
+            text = without_comments(read(p))
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            for match in MESH_PIPELINE_CONCEPT.finditer(text):
+                out.append(('ERROR', 'meshmechanism', f'{rel} names {match.group(1)}'))
+            # A culling context carries what a list culls against; no camera reaches the culling path.
+            if directory != 'World' and MESH_CAMERA.search(text):
+                out.append(('ERROR', 'meshmechanism', f'{rel} names Camera'))
 
 
 SERIALIZED_FIELD = re.compile(r'(?:\[[^\]]*\bSerializeField\b[^\]]*\][^;{}]*?|public\s+)(?:readonly\s+)?[\w<>\[\],\s.?]+?\s(\w+)\s*(?:=[^;]*)?;')
@@ -475,17 +629,291 @@ def check_lod_dither(repo, out):
                 out.append(('ERROR', 'lodither', f'{os.path.relpath(p, repo)}: {light} does not cross-fade with INFINITY_LOD_DITHER'))
 
 
+AGENTS_LIMIT = 15 * 1024
+
+
+def check_agents_size(repo, out):
+    agents = os.path.join(repo, 'AGENTS.md')
+    size = os.path.getsize(agents) if os.path.exists(agents) else 0
+    if size > AGENTS_LIMIT:
+        out.append(('ERROR', 'agentsize', f'AGENTS.md is {size} bytes; the limit is {AGENTS_LIMIT}'))
+
+
+def doc_sentences(text):
+    text = re.sub(r'```.*?```', ' ', text, flags=re.S)
+    text = re.sub(r'\s+', ' ', text)
+    return {t.strip() for t in re.split(r'(?<=[.!?])\s+', text) if len(t.strip()) >= 80}
+
+
+def check_doc_facts(repo, out):
+    paths = [os.path.join(repo, name) for name in ('AGENTS.md', 'ARCHITECTURE.md')]
+    if not all(os.path.exists(p) for p in paths):
+        return
+    shared = doc_sentences(read(paths[0])) & doc_sentences(read(paths[1]))
+    for sentence in sorted(shared):
+        out.append(('ERROR', 'docfacts', 'stated in both AGENTS.md and ARCHITECTURE.md: ' + sentence[:120]))
+
+
+# Unity concept names that contain a flagged word but are not compatibility residue.
+LEGACY_ALLOWED = {'LegacyLightProbes', 'BuiltinLegacy'}
+# Members a Unity interface still requires although Unity marks them obsolete.
+ENGINE_OBSOLETE_MEMBERS = {'probeVolumeSceneData'}
+LEGACY_IDENTIFIER = re.compile(r'\b\w*(?:Legacy|Deprecated|Migrat|Compat(?![a-z]))\w*\b')
+
+
+def code_only(text):
+    return re.sub(r'"(?:\\.|[^"\\\n])*"', '""', without_comments(text))
+
+
+def check_legacy_residue(repo, out):
+    for root in ('Runtime', 'Editor', 'Shaders', 'Tests'):
+        for p in all_files(os.path.join(repo, root), {'.cs', '.hlsl', '.shader', '.compute'}):
+            rel = os.path.relpath(p, repo).replace('\\', '/')
+            if LEGACY_IDENTIFIER.search(os.path.basename(p)):
+                out.append(('ERROR', 'legacyresidue', rel + ': compatibility-residue file name'))
+            text = code_only(read(p))
+            obsolete = [m.group(1) for m in re.finditer(r'\[\s*(?:System\.)?Obsolete\b[^\]]*\]\s*[\w<>.\s]*?\b(\w+)\s*(?:=>|\{|\(|;)', text)]
+            if any(name not in ENGINE_OBSOLETE_MEMBERS for name in obsolete) or 'FormerlySerializedAs' in text:
+                out.append(('ERROR', 'legacyresidue', rel + ': [Obsolete] or FormerlySerializedAs'))
+            for name in sorted({m.group(0) for m in LEGACY_IDENTIFIER.finditer(text)} - LEGACY_ALLOWED):
+                out.append(('ERROR', 'legacyresidue', f'{rel}: compatibility-residue identifier {name}'))
+
+
+# Types created by Unity or by reflection have no textual caller.
+UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|BaseComponent|RenderPipelineAsset|'
+                               r'RenderPipelineGlobalSettings|IRenderPipelineResources|IRenderPipelineGraphicsSettings|InfinityVolumeComponent)\b')
+# In-development features (AGENTS R15) keep types that have no caller yet.
+UNUSED_TYPE_DIRECTORIES = ('Runtime/Terrain/',)
+
+
+def check_unused_types(repo, out):
+    sources = {}
+    for root in ('Runtime', 'Editor', 'Tests', 'Shaders'):
+        for p in all_files(os.path.join(repo, root), {'.cs', '.hlsl', '.shader', '.compute'}):
+            sources[os.path.relpath(p, repo).replace('\\', '/')] = code_only(read(p))
+    declaration = re.compile(r'(\bstatic\s+)?\b(?:class|struct|enum|interface)\s+(\w+)([^{;]*)')
+    # One pass over all sources: identifier counts, minus constructor and finalizer names, which are not uses.
+    words, constructors = collections.Counter(), collections.Counter()
+    for text in sources.values():
+        words.update(re.findall(r'\b\w+\b', text))
+        constructors.update(re.findall(r'(?:(?:public|internal|private|protected|static)\s+|~)(\w+)\s*\(', text))
+    for rel, text in sources.items():
+        if not rel.startswith('Runtime/') or not rel.endswith('.cs') or rel.startswith(UNUSED_TYPE_DIRECTORIES):
+            continue
+        for match in declaration.finditer(text):
+            name, tail = match.group(2), match.group(3)
+            if UNUSED_TYPE_BASES.search(tail):
+                continue
+            if match.group(1) and re.search(r'\(\s*this\s', text):
+                continue  # extension-method holder, used through its methods
+            uses = words[name] - constructors[name]
+            if uses <= 1:
+                out.append(('ERROR', 'unusedtypes', f'{rel}: type {name} has no reference outside its declaration'))
+
+
+DIAGNOSTICS_CONSTRAINT = 'UNITY_EDITOR || DEVELOPMENT_BUILD'
+
+
+def check_assemblies(repo, out):
+    assemblies = {}
+    for p in all_files(repo, {'.asmdef'}):
+        data = json.loads(read(p))
+        if data.get('name', '').startswith('Unity.RenderPipelines.Infinity.'):
+            assemblies[data['name']] = (p, data)
+    grants = {}
+    for name, (p, _) in assemblies.items():
+        info = os.path.join(os.path.dirname(p), 'AssemblyInfo.cs')
+        grants[name] = set(re.findall(r'InternalsVisibleTo\("([^"]+)"\)', read(info))) if os.path.exists(info) else set()
+    for name, (p, data) in assemblies.items():
+        for reference in data.get('references', []):
+            if reference in assemblies and name not in grants[reference]:
+                out.append(('ERROR', 'assemblies', f'{reference} does not grant InternalsVisibleTo to its consumer {name}'))
+    validation = assemblies.get('Unity.RenderPipelines.Infinity.Validation')
+    if validation and DIAGNOSTICS_CONSTRAINT not in validation[1].get('defineConstraints', []):
+        out.append(('ERROR', 'assemblies', 'Unity.RenderPipelines.Infinity.Validation must be constrained to ' + DIAGNOSTICS_CONSTRAINT))
+    runtime = assemblies.get('Unity.RenderPipelines.Infinity.Runtime')
+    if runtime and 'Unity.RenderPipelines.Infinity.Validation' in runtime[1].get('references', []):
+        out.append(('ERROR', 'assemblies', 'Runtime must not reference the Validation assembly'))
+
+
+DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession|RenderCaptureRequest|NativeDisplayProbe|RawCaptureStatistics|'
+                                r'PipelineDiagnostics|PipelineFrameObserver|PipelineFrameResult|IRGExecutionObserver|executionObserver|'
+                                r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
+                                r'RecordDeferredLightingCapture|captureSession|displayProbe|'
+                                r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
+                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend)\b')
+DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
+
+
+def diagnostic_guarded_lines(text):
+    # Yields (line number, guarded) per line; a branch is guarded when its #if/#elif condition names UNITY_EDITOR.
+    stack = []
+    for number, line in enumerate(text.split('\n'), 1):
+        m = DIRECTIVE.match(line)
+        if m:
+            kind, condition = m.group(1), m.group(2)
+            if kind == 'if':
+                stack.append('UNITY_EDITOR' in condition)
+            elif kind == 'elif' and stack:
+                stack[-1] = 'UNITY_EDITOR' in condition
+            elif kind == 'else' and stack:
+                stack[-1] = False
+            elif kind == 'endif' and stack:
+                stack.pop()
+            continue
+        yield number, line, any(stack)
+
+
+def check_diagnostics(repo, out):
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        if rel.startswith('Runtime/Validation/'):
+            continue  # the Validation assembly is itself constrained to Editor and Development builds
+        for number, line, guarded in diagnostic_guarded_lines(code_only(read(p))):
+            if not guarded and DIAGNOSTIC_SYMBOLS.search(line):
+                out.append(('ERROR', 'diagnostics', f'{rel}:{number}: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'))
+
+
+# Each lower runtime directory and the namespaces above it that it must not name.
+UPPER = ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph', 'GPUResource')
+LAYERS = {
+    'Runtime/Core/': UPPER,
+    'Runtime/GPUResource/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+    'Runtime/RenderGraph/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere'),
+    'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+}
+# The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
+for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList'):
+    LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
+
+
+STATIC_ID_INIT = re.compile(r'^\s*(?:(?:public|internal|private|protected)\s+)?static\s+(?!readonly\b)(?!const\b)[\w.<>\[\]]+\s+(\w+)\s*=\s*'
+                            r'(?:Shader\.PropertyToID|new\s+ShaderTagId|new\s+ProfilingSampler|GlobalKeyword\.Create|new\s+LocalKeyword)\s*\(', re.M)
+
+def check_static_ids(repo, out):
+    for top in ('Runtime', 'Editor'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            for m in STATIC_ID_INIT.finditer(read(p)):
+                out.append(('ERROR', 'staticid', f'{os.path.relpath(p, repo)}: {m.group(1)} is a mutable static; make it static readonly'))
+
+
+HOT_PATH_DIRS = ('Runtime/Pipeline/Pass', 'Runtime/Mesh', 'Runtime/Lighting')
+HOT_PATH_LOOKUPS = re.compile(r'\b(FindKernel|HasKernel|FindPass)\s*\(|\bnew\s+LocalKeyword\s*\(')
+DIAGNOSTICS_FILE = re.compile(r'^\ufeff?#if UNITY_EDITOR \|\| DEVELOPMENT_BUILD\s*$', re.M)
+
+def check_hot_path_lookups(repo, out):
+    for top in HOT_PATH_DIRS:
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            text = without_comments(read(p))
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            for m in HOT_PATH_LOOKUPS.finditer(text):
+                out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: {m.group(0).strip()} belongs in a setup-time table'))
+            # A diagnostics-only file builds request-rate capture names; only literal names must be hoisted there.
+            diagnostics = DIAGNOSTICS_FILE.match(read(p).lstrip('\ufeff')) is not None
+            for m in re.finditer(r'Shader\.PropertyToID\(', text):
+                start = max(text.rfind(';', 0, m.start()), text.rfind('}', 0, m.start()))
+                if re.search(r'\bstatic\s+readonly\b', text[start + 1:m.start()]):
+                    continue
+                if diagnostics and not re.match(r'\s*"[^"]*"\s*\)', text[m.end():]):
+                    continue
+                out.append(('ERROR', 'hotpathlookup', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: Shader.PropertyToID outside a static readonly initializer'))
+
+
+PHYSICAL_ALLOC = re.compile(r'RTHandles\.Alloc\(|new\s+GraphicsBuffer\(|new\s+RenderTexture\(|RenderTexture\.GetTemporary\(')
+
+def check_physical_alloc(repo, out):
+    for top in ('Runtime/GPUResource', 'Runtime/RenderGraph'):
+        for p in all_files(os.path.join(repo, top), {'.cs'}):
+            rel = os.path.relpath(p, repo).replace(os.sep, '/')
+            if rel == 'Runtime/GPUResource/ResourcePool.cs':
+                continue
+            text = without_comments(read(p))
+            for m in PHYSICAL_ALLOC.finditer(text):
+                # Wrapping an existing render target (identifier plus name) allocates nothing.
+                if m.group(0) == 'RTHandles.Alloc(' and re.match(r'\s*\w+\s*,\s*"[^"]*"\s*\)', text[m.end():]):
+                    continue
+                out.append(('ERROR', 'physicalalloc', f'{rel}:{text.count(chr(10), 0, m.start()) + 1}: {m.group(0)} allocates outside ResourcePool'))
+
+
+RG_API_FILES = ('Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommandCore.cs')
+# Unity exposes these ray-tracing entry points by name only.
+RG_API_STRING_ONLY = {'passName', 'rayGenName'}
+RG_API_STRING_METHODS = {'SetUnifiedAccelerationStructure'}
+
+def check_rg_api(repo, out):
+    for rel in RG_API_FILES:
+        path = os.path.join(repo, rel)
+        if not os.path.exists(path):
+            continue
+        text = without_comments(read(path))
+        for m in re.finditer(r'(\w+)\s*\(([^)]*)\)', text):
+            method, parameters = m.group(1), m.group(2)
+            line = text.count('\n', 0, m.start()) + 1
+            if re.search(r'\bparams\s', parameters):
+                out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes params'))
+            for name in re.findall(r'\bstring\s+(\w+)', parameters):
+                if name not in RG_API_STRING_ONLY and method not in RG_API_STRING_METHODS:
+                    out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes a string {name}'))
+
+
+PIPELINE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipeline\b')
+CLASS_MEMBER = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|readonly)\s+)*[\w<>\[\],.]+\s+(\w+)\s*(?:=>|=|;)', re.M)
+CLASS_METHOD = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|override|unsafe)\s+)*[\w<>\[\],.]+\s+(\w+)\s*\(([^)]*)\)', re.M)
+
+def check_redundant_parameters(repo, out):
+    """A pipeline instance method never takes a parameter named like a pipeline field or property: it shadows it."""
+    bodies = []
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        text = without_comments(read(p))
+        for match in PIPELINE_PARTIAL.finditer(text):
+            body = method_body(text[match.start():], '{') or ''
+            offset = match.start() + text[match.start():].index(body)
+            bodies.append((os.path.relpath(p, repo).replace(os.sep, '/'), text, body, offset))
+    members = set()
+    for _, _, body, _ in bodies:
+        members |= set(CLASS_MEMBER.findall(body))
+    for rel, text, body, offset in bodies:
+        for m in CLASS_METHOD.finditer(body):
+            if re.search(r'\bstatic\b', body[m.start():m.start(1)]):
+                continue
+            for name in re.findall(r'(\w+)\s*(?:=[^,]*)?(?:,|$)', m.group(2).strip()):
+                if name in members:
+                    line = text.count(chr(10), 0, offset + m.start()) + 1
+                    out.append(('ERROR', 'redundantparam', f'{rel}:{line}: {m.group(1)} takes {name}, which shadows the pipeline member'))
+
+
+def check_layering(repo, out):
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        for prefix, forbidden in LAYERS.items():
+            if not rel.startswith(prefix):
+                continue
+            names = '|'.join(forbidden)
+            pattern = re.compile(r'\bnamespace\s+InfinityTech\.Rendering\.(?:' + names + r')\b|\busing\s+InfinityTech\.Rendering\.(?:' + names + r')\s*;|'
+                                 r'(?<![\w.])(?:InfinityTech\.Rendering\.)?(?:' + names + r')\.[A-Z]')
+            for number, line in enumerate(code_only(read(p)).split('\n'), 1):
+                if pattern.search(line):
+                    out.append(('ERROR', 'layering', f'{rel}:{number}: names an upper layer ({prefix} may not depend on {", ".join(forbidden)})'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
     a = ap.parse_args(); repo = os.path.abspath(a.repo); out = []
+    global _SOURCE_CACHE
+    _SOURCE_CACHE = {}
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
-                     ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
-                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
-                     ('fprefix', check_fprefix), ('generationname', check_generationname)):
+                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
+                     ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
+                     ('fprefix', check_fprefix), ('generationname', check_generationname),
+                     ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
+                     ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
+                     ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
+                     ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
+                     ('redundantparam', check_redundant_parameters)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

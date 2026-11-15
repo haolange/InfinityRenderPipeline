@@ -7,11 +7,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         static FeatureSupportContext NoShaders(bool temporal) => new FeatureSupportContext
         {
-            shaders = null,
+            resourceReasons = FeatureRegistry.ResolveResourceSupport(new PipelineKernels(new InfinityRenderPipelineRuntimeShaders()), new InfinityRenderPipelineRuntimeTextures()),
             temporal = temporal,
             rayTracedOcclusionReady = false,
             rayTracedOcclusionReason = "test",
-            presentAvailable = true,
         };
 
         [Test]
@@ -48,6 +47,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void MissingUngatedKernel_FailsResolution()
+        {
+            var kernels = new PipelineKernels(new InfinityRenderPipelineRuntimeShaders());
+            var failure = Assert.Throws<InvalidOperationException>(kernels.RequireUngatedKernels);
+            StringAssert.Contains("cubeFilterShader", failure.Message);
+        }
+
+        [Test]
         public void NonTemporalCamera_BlocksHistoryFeatures()
         {
             var features = new FrameFeatureSet();
@@ -61,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void CustomSupport_ReportsItsReason()
+        public void CameraSupport_ReportsItsReason()
         {
             var features = new FrameFeatureSet();
             features.Request(EFrameFeature.RTAO);

@@ -425,34 +425,29 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void SelectBackend_FollowsOverrideThenDebuggerThenAsset_AndRecordsCpuPassesOnCpu()
+        public void ResolveMeshBackend_FollowsDiagnosticsThenDebuggerThenAsset()
+        {
+            Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, InfinityRenderPipeline.ResolveMeshBackend(null, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.GPUIndirect), "The debugger precedes the asset.");
+            Assert.AreEqual(EMeshDrawBackendPolicy.GPUIndirect, InfinityRenderPipeline.ResolveMeshBackend(EMeshDrawBackendPolicy.GPUIndirect, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.CPUDirect), "A diagnostics override precedes the debugger.");
+            Assert.AreEqual(EMeshDrawBackendPolicy.Auto, InfinityRenderPipeline.ResolveMeshBackend(null, null, EMeshDrawBackendPolicy.Auto));
+        }
+
+        [Test]
+        public void SelectBackend_FollowsRequestAndCapability_AndRecordsCpuPassesOnCpu()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                InfinityDebugDisplaySettingsMesh debug = InfinityDebugDisplaySettings.current.mesh;
-                EMeshDrawBackendPolicy? previousDebugOverride = debug.backendOverride;
                 EMeshDrawBackendPolicy indirect = world.gpuBackend.isSupported ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
-                try
-                {
-                    world.assetBackendPolicy = EMeshDrawBackendPolicy.GPUIndirect;
-                    debug.backendOverride = EMeshDrawBackendPolicy.CPUDirect;
-                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer), "The debugger precedes the asset.");
-                    world.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "An explicit override precedes the debugger.");
-                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "A pass that records on the CPU stays there.");
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth), "Translucent depth follows device capability.");
-
-                    world.SetBackendOverride(null);
-                    debug.backendOverride = null;
-                    world.assetBackendPolicy = EMeshDrawBackendPolicy.CPUDirect;
-                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer));
-                    world.assetBackendPolicy = EMeshDrawBackendPolicy.Auto;
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "Auto follows device capability.");
-                    Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0));
-                    Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth));
-                }
-                finally { debug.backendOverride = previousDebugOverride; }
+                world.requestedBackend = EMeshDrawBackendPolicy.GPUIndirect;
+                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer));
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "A pass that records on the CPU stays there.");
+                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth), "Translucent depth follows device capability.");
+                world.requestedBackend = EMeshDrawBackendPolicy.CPUDirect;
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer));
+                world.requestedBackend = EMeshDrawBackendPolicy.Auto;
+                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "Auto follows device capability.");
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0));
             }
         }
     }

@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("A compute device with GPU readback is required.");
             const int directionalCount = 3;
             var owned = new List<UnityEngine.Object>();
-            var buffers = new List<ComputeBuffer>();
+            var buffers = new List<GraphicsBuffer>();
             RenderTexture previous = RenderTexture.active;
             try
             {
@@ -110,9 +110,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RenderTexture.active = previous;
                     return target;
                 }
-                ComputeBuffer Buffer<T>(T[] data, int stride) where T : struct
+                GraphicsBuffer Buffer<T>(T[] data, int stride) where T : struct
                 {
-                    var buffer = new ComputeBuffer(data.Length, stride); buffers.Add(buffer); buffer.SetData(data); return buffer;
+                    var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, data.Length, stride); buffers.Add(buffer); buffer.SetData(data); return buffer;
                 }
                 var black = Texture(Color.clear);
                 var layer = Texture(new Color(64f / 255, 0, 0, 1f / 255));
@@ -160,6 +160,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))
                 {
                     shader.SetBuffer(kernel, "SRV_LightCookies", Buffer(new[] { Matrix4x4.zero }, 64));
+                    // The production keywords are global (the pipeline sets them per pass); restored in finally.
+                    Shader.EnableKeyword("INFINITY_LIGHT_COOKIES");
                     shader.SetTexture(kernel, "SRV_LightCookieAtlas", black);
                 }
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/ReflectionProbes.hlsl"))
@@ -169,18 +171,26 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetBuffer(kernel, "SRV_ReflectionProbes", Buffer(new[] { probe }, 112));
                     shader.SetBuffer(kernel, "SRV_ProbeZBins", Buffer(new[] { 0x0000ffffu }, 4));
                     shader.SetBuffer(kernel, "SRV_ProbeTileMasks", Buffer(new[] { 0u }, 4));
+                    Shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
                     shader.SetTexture(kernel, "SRV_ReflectionProbeAtlas", environment);
-                    shader.SetInt("g_ReflectionProbeCount", 0);
                 }
                 shader.SetBuffer(kernel, "_AtmosphereSkySH", Buffer(new Vector4[9], 16));
-                shader.SetInt("g_LocalLightCount", localCount); shader.SetInt("g_DirectionalLightCount", directionalCount);
-                shader.SetVector("g_LightTileParams", new Vector4(size, size, tileCount, words));
-                shader.SetVector("g_LightZBinParams", new Vector4(1, 0, 0, 0));
+                using var lightLoop = new UniformBinding<LightLoopUniform>(new LightLoopUniform
+                {
+                    tileParameters = new Vector4(size, size, tileCount, words),
+                    zBinParameters = new Vector4(1, 0, 0, 0),
+                    directionalCount = directionalCount,
+                    localCount = localCount
+                });
                 shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
                 shader.SetFloat("DeferredShading_FarDepth", 1);
-                shader.SetMatrix("Matrix_InvProj", Matrix4x4.identity); shader.SetMatrix("Matrix_InvViewProj", Matrix4x4.identity);
-                shader.SetVector("_WorldSpaceCameraPos", new Vector4(0, 0, -2, 1));
-                shader.SetInt("_CascadeCount", 0); shader.SetFloat("_InfinityShadowDistance", 1000);
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform
+                {
+                    matrix_InvFlipYJitterProj = Matrix4x4.identity,
+                    matrix_InvViewFlipYJitterProj = Matrix4x4.identity,
+                    matrix_ViewToWorld = Matrix4x4.Translate(new Vector3(0, 0, -2))
+                });
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowDistance = 1000 });
                 shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
                 shader.SetTexture(kernel, "SRV_GBufferTextureC", layer); shader.SetTexture(kernel, "SRV_DepthTexture", black);
@@ -217,6 +227,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                Shader.DisableKeyword("INFINITY_LIGHT_COOKIES");
+                Shader.DisableKeyword("INFINITY_REFLECTION_PROBES");
                 RenderTexture.active = previous;
                 foreach (var buffer in buffers) buffer.Dispose();
                 foreach (var item in owned) UnityEngine.Object.DestroyImmediate(item);

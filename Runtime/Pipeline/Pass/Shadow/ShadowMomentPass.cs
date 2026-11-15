@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -10,9 +11,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ShadowMomentPassUtilityData
     {
-        internal const string KernelFromDepth = "MomentFromDepth";
-        internal const string KernelBlurH = "MomentBlurH";
-        internal const string KernelBlurV = "MomentBlurV";
         internal const string CascadeTextureName = "CascadeShadowMoments";
         internal const string LocalTextureName = "LocalShadowMoments";
         // Smallest moment standard deviation in depth units (_ShadowMomentParams.z); hides acne on flat receivers.
@@ -35,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ShadowMomentPassData
         {
-            public ComputeShader shader;
+            public ComputeKernel fromDepth, blurH, blurV;
             public int sliceCount;
             // Per slice: rect in moment pixels, depth params, (mode, exponent, 1 / far, blur radius).
             public Vector4[] rects;
@@ -48,17 +46,17 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Builds the VSM / EVSM moment atlases for the slices whose light needs them. Each atlas has half the resolution
         // of its depth atlas and the same UV layout; it exists only on frames where a visible shadowed light uses it.
-        void ComputeShadowMoments(RenderContext renderContext)
+        void ComputeShadowMoments(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ShadowMoments))
+            if (!context.features.ShouldRecord(EFrameFeature.ShadowMoments))
             {
                 return;
             }
             // A visible VSM / EVSM light makes the moments a required producer: a blocked feature fails at record time.
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
+            context.features.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = m_Settings.shadowFilter;
 
             if (allocator.CascadeUsesMoments)
             {
@@ -80,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                     momentParams[count] = new Vector4(mode, filter.evsmExponent, 1, filter.momentBlurRadius);
                     count++;
                 }
-                int atlasSize = math.max(1, pipelineAsset.cascadeShadowMapResolution);
+                int atlasSize = math.max(1, m_Settings.cascadeShadowMapResolution);
                 AddShadowMomentPass(InfinityShaderIDs.CascadeShadowMap, InfinityShaderIDs.CascadeShadowMoments, ShadowMomentPassUtilityData.CascadeTextureName,
                     atlasSize, count, rects, depthParams, momentParams);
             }
@@ -105,12 +103,12 @@ namespace InfinityTech.Rendering.Pipeline
                     momentParams[count] = new Vector4(ShadowMomentPassUtilityData.Mode(slice.shadowFilter), filter.evsmExponent, gpu.momentParams.x, filter.momentBlurRadius);
                     count++;
                 }
-                int atlasSize = math.max(1, pipelineAsset.localShadowMapResolution / 2);
+                int atlasSize = math.max(1, m_Settings.localShadowMapResolution / 2);
                 AddShadowMomentPass(InfinityShaderIDs.LocalShadowMap, InfinityShaderIDs.LocalShadowMoments, ShadowMomentPassUtilityData.LocalTextureName,
                     atlasSize, count, rects, depthParams, momentParams);
             }
 
-            MarkFeatureProduced(EFrameFeature.ShadowMoments);
+            context.features.MarkProduced(EFrameFeature.ShadowMoments);
         }
 
         void AddShadowMomentPass(RGResourceKey depthKey, RGResourceKey momentKey, string name, int atlasSize, int sliceCount,
@@ -126,17 +124,19 @@ namespace InfinityTech.Rendering.Pipeline
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
-            RGTextureHandle moments = m_RGScoper.CreateAndRegisterTexture(momentKey, descriptor);
+            RGTextureHandle moments = m_RGBuilder.scoper.CreateAndRegisterTexture(momentKey, descriptor);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
+            using (var passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
             {
-                ref ShadowMomentPassData passData = ref passRef.GetPassData<ShadowMomentPassData>();
-                passData.shader = shaders.shadowMomentShader;
+                ref ShadowMomentPassData passData = ref passRef.GetPassData();
+                passData.fromDepth = kernels.momentFromDepth;
+                passData.blurH = kernels.momentBlurH;
+                passData.blurV = kernels.momentBlurV;
                 passData.sliceCount = sliceCount;
                 passData.rects = rects;
                 passData.depthParams = depthParams;
                 passData.momentParams = momentParams;
-                passData.depth = passRef.ReadTexture(m_RGScoper.QueryTexture(depthKey));
+                passData.depth = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(depthKey));
                 passData.moments = passRef.WriteTexture(moments);
                 descriptor.name = name + "BlurTemp";
                 passData.blurTemp = passRef.CreatePassLocalTexture(descriptor);
@@ -144,33 +144,31 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ShadowMomentPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ComputeShader shader = passData.shader;
-                    int fromDepth = shader.FindKernel(ShadowMomentPassUtilityData.KernelFromDepth);
-                    int blurH = shader.FindKernel(ShadowMomentPassUtilityData.KernelBlurH);
-                    int blurV = shader.FindKernel(ShadowMomentPassUtilityData.KernelBlurV);
+                    ComputeKernel fromDepth = passData.fromDepth;
+                    ComputeKernel blurH = passData.blurH;
+                    ComputeKernel blurV = passData.blurV;
+                    ComputeShader shader = fromDepth.shader;
                     for (int i = 0; i < passData.sliceCount; ++i)
                     {
                         Vector4 rect = passData.rects[i];
-                        int groupsX = ((int)rect.z + 7) / 8;
-                        int groupsY = ((int)rect.w + 7) / 8;
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentSliceRectID, rect);
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentDepthParamsID, passData.depthParams[i]);
                         cmdEncoder.SetComputeVectorParam(shader, ShadowMomentPassUtilityData.MomentParamsID, passData.momentParams[i]);
 
-                        cmdEncoder.SetComputeTextureParam(shader, fromDepth, ShadowMomentPassUtilityData.SRV_ShadowDepthID, passData.depth);
-                        cmdEncoder.SetComputeTextureParam(shader, fromDepth, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
-                        cmdEncoder.DispatchCompute(shader, fromDepth, groupsX, groupsY, 1);
+                        cmdEncoder.SetComputeTextureParam(shader, fromDepth.index, ShadowMomentPassUtilityData.SRV_ShadowDepthID, passData.depth);
+                        cmdEncoder.SetComputeTextureParam(shader, fromDepth.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
+                        cmdEncoder.DispatchCompute(shader, fromDepth.index, fromDepth.GroupsX((int)rect.z), fromDepth.GroupsY((int)rect.w), 1);
 
                         if (passData.momentParams[i].w < 1)
                         {
                             continue;
                         }
-                        cmdEncoder.SetComputeTextureParam(shader, blurH, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.moments);
-                        cmdEncoder.SetComputeTextureParam(shader, blurH, ShadowMomentPassUtilityData.UAV_MomentsID, passData.blurTemp);
-                        cmdEncoder.DispatchCompute(shader, blurH, groupsX, groupsY, 1);
-                        cmdEncoder.SetComputeTextureParam(shader, blurV, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.blurTemp);
-                        cmdEncoder.SetComputeTextureParam(shader, blurV, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
-                        cmdEncoder.DispatchCompute(shader, blurV, groupsX, groupsY, 1);
+                        cmdEncoder.SetComputeTextureParam(shader, blurH.index, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.moments);
+                        cmdEncoder.SetComputeTextureParam(shader, blurH.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.blurTemp);
+                        cmdEncoder.DispatchCompute(shader, blurH.index, blurH.GroupsX((int)rect.z), blurH.GroupsY((int)rect.w), 1);
+                        cmdEncoder.SetComputeTextureParam(shader, blurV.index, ShadowMomentPassUtilityData.SRV_MomentInputID, passData.blurTemp);
+                        cmdEncoder.SetComputeTextureParam(shader, blurV.index, ShadowMomentPassUtilityData.UAV_MomentsID, passData.moments);
+                        cmdEncoder.DispatchCompute(shader, blurV.index, blurV.GroupsX((int)rect.z), blurV.GroupsY((int)rect.w), 1);
                     }
                 });
             }

@@ -1,41 +1,46 @@
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_SuperResolutionParameters Shaders/Pass/Temporal/Compute_SuperResolution.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SuperResolutionParameters
+    {
+        public Vector4 resolution;
+        public Vector4 inputResolution;
+        public int resetHistory;
+        public float sharpness;
+        public int padding0;
+        public int padding1;
+    }
+
     internal static class SuperResolutionPassUtilityData
     {
-        internal static string TextureName = "SuperResolutionTexture";
-        internal static string HistoryColorTextureName = "HistorySuperResolutionColor";
-        internal static int HistoryColorTextureID = Shader.PropertyToID("HistorySuperResolutionColor");
+        internal static readonly int CBV_SuperResolutionParametersID = Shader.PropertyToID("CBV_SuperResolutionParameters");
+        internal static readonly string TextureName = "SuperResolutionTexture";
+        internal static readonly string HistoryColorTextureName = "HistorySuperResolutionColor";
+        internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistorySuperResolutionColor");
         internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistorySuperResolutionDepth");
         internal static readonly int UAV_HistoryColorTextureID = Shader.PropertyToID("UAV_SRHistoryColorTexture");
         internal static readonly int UAV_HistoryDepthTextureID = Shader.PropertyToID("UAV_SRHistoryDepthTexture");
-        internal static int SR_ResolutionID = Shader.PropertyToID("SR_Resolution");
-        internal static int SR_JitterID = Shader.PropertyToID("SR_Jitter");
-        internal static int SR_FrameIndexID = Shader.PropertyToID("SR_FrameIndex");
-        internal static int SR_SharpnessID = Shader.PropertyToID("SR_Sharpness");
-        internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
-        internal static int SRV_HistoryColorTextureID = Shader.PropertyToID("SRV_HistoryColorTexture");
-        internal static int UAV_SuperResolutionTextureID = Shader.PropertyToID("UAV_SuperResolutionTexture");
+        internal static readonly int UAV_SuperResolutionTextureID = Shader.PropertyToID("UAV_SuperResolutionTexture");
     }
 
     public partial class InfinityRenderPipeline
     {
         struct SuperResolutionPassData
         {
-            public int2 resolution, inputResolution;
-            public bool resetHistory;
-            public float2 jitter;
-            public int frameIndex, kernel;
-            public float sharpness;
+            public RGConstantsHandle parameters;
+            public int kernel;
+            public int2 groups;
             public ComputeShader superResolutionShader;
             public RGTextureHandle sceneColorTexture;
             public RGTextureHandle depthTexture;
@@ -44,57 +49,55 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle superResolutionTexture, pendingColor, pendingDepth;
         }
 
-        void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
+        void ComputeSuperResolution(in CameraRecordContext context)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
+            context.features.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
 
-            if (shaders.superResolutionShader == null)
-            {
-                throw new InvalidOperationException("InfinityRP: enableSuperResolution is true but superResolutionShader is not assigned.");
-            }
-
-            int width = m_ActiveFrameState.dimensions.displaySize.x;
-            int height = m_ActiveFrameState.dimensions.displaySize.y;
+            int width = context.dimensions.displaySize.x;
+            int height = context.dimensions.displaySize.y;
 
             TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
-            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
-            m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
-            var pendingColor = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            HistoryRead colorRead = context.historyCache.Read(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, context.resetsHistory);
+            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(colorRead.texture);
+            m_RGBuilder.scoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
+            var pendingColor = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
                 "HistorySuperResolutionDepth", true, ETextureSizingDomain.Display);
-            var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
-            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
-            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
+            var pendingDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
+            context.historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
+            context.historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
 
             TextureDescriptor superResDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             {
                 superResDsc.name = SuperResolutionPassUtilityData.TextureName;
                 superResDsc.dimension = TextureDimension.Tex2D;
                 superResDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                superResDsc.depthBufferBits = EDepthBits.None;
                 superResDsc.enableRandomWrite = true;
             }
-            RGTextureHandle superResolutionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
+            RGTextureHandle superResolutionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
+            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, superResolutionTexture);
 
-            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
+            using (var passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
             {
-                ref SuperResolutionPassData passData = ref passRef.GetPassData<SuperResolutionPassData>();
-                passData.resolution = new int2(width, height);
-                passData.inputResolution = m_ActiveFrameState.dimensions.internalSize;
-                passData.resetHistory = m_CameraUniform.historyReset || historyCreated
-                    || historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
-                passData.jitter = jitter;
-                passData.frameIndex = Time.frameCount;
-                passData.kernel = shaders.superResolutionShader.FindKernel("SuperResolutionCS");
-                passData.sharpness = 0.5f;
-                passData.superResolutionShader = shaders.superResolutionShader;
+                ref SuperResolutionPassData passData = ref passRef.GetPassData();
+                int2 inputSize = context.dimensions.internalSize;
+                passData.parameters = passRef.WriteConstants(new SuperResolutionParameters
+                {
+                    resolution = new Vector4(width, height, 1.0f / width, 1.0f / height),
+                    inputResolution = new Vector4(inputSize.x, inputSize.y, 1f / inputSize.x, 1f / inputSize.y),
+                    resetHistory = colorRead.valid ? 0 : 1,
+                    sharpness = 0.5f,
+                });
+                passData.kernel = kernels.superResolution.index;
+                passData.groups = new int2(kernels.superResolution.GroupsX(width), kernels.superResolution.GroupsY(height));
+                passData.superResolutionShader = kernels.superResolution.shader;
                 passData.sceneColorTexture = passRef.ReadTexture(lightingTexture);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
@@ -106,25 +109,20 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, Shader.PropertyToID("SR_InputResolution"), new Vector4(passData.inputResolution.x, passData.inputResolution.y, 1f / passData.inputResolution.x, 1f / passData.inputResolution.y));
-                    cmdEncoder.SetComputeIntParam(passData.superResolutionShader, Shader.PropertyToID("SR_ResetHistory"), passData.resetHistory ? 1 : 0);
-                    cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_JitterID, new Vector4(passData.jitter.x, passData.jitter.y, 0, 0));
-                    cmdEncoder.SetComputeIntParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_FrameIndexID, passData.frameIndex);
-                    cmdEncoder.SetComputeFloatParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_SharpnessID, passData.sharpness);
+                    cmdEncoder.SetComputeConstantBufferParam(passData.superResolutionShader, SuperResolutionPassUtilityData.CBV_SuperResolutionParametersID, passData.parameters);
 
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_HistoryColorTextureID, passData.historyColorTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, PassShaderIDs.SRV_HistoryColorTexture, passData.historyColorTexture);
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_SuperResolutionTextureID, passData.superResolutionTexture);
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryColorTextureID, passData.pendingColor);
                     cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryDepthTextureID, passData.pendingDepth);
-                    cmdEncoder.DispatchCompute(passData.superResolutionShader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.DispatchCompute(passData.superResolutionShader, passData.kernel, passData.groups.x, passData.groups.y, 1);
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.SuperResolution);
+            context.features.MarkProduced(EFrameFeature.SuperResolution);
         }
 
     }

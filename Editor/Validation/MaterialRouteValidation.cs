@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {

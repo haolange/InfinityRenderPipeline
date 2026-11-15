@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using InfinityTech.Component;
 using InfinityTech.Rendering.Editor;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
@@ -70,7 +71,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 groundMaterial.SetColor("_EmissionColor", new Color(0.35f, 0.35f, 0.32f, 1.0f));
             }
-            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(groundMaterial);
+            MaterialRouteUtility.ApplyPassState(groundMaterial);
             AssetDatabase.CreateAsset(groundMaterial, groundMatPath);
             ground.GetComponent<MeshRenderer>().sharedMaterial = groundMaterial;
 

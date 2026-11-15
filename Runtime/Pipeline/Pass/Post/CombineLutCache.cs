@@ -3,13 +3,18 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal sealed class CombineLutCache : IDisposable
+    internal sealed class CombineLutCache : IFrameTransaction, IDisposable
     {
-        readonly HistoryCache m_History = new HistoryCache();
+        readonly HistoryCache m_History;
         CombineLutParameterDescriptor m_Key;
         CombineLutParameterDescriptor m_PendingKey;
         bool m_HasKey;
         bool m_ProducedThisFrame;
+
+        public CombineLutCache(ResourcePool pool)
+        {
+            m_History = new HistoryCache(pool);
+        }
 
         public int RetiredQueuedCount => m_History.RetiredQueuedCount;
 
@@ -56,21 +61,25 @@ namespace InfinityTech.Rendering.Pipeline
             m_ProducedThisFrame = false;
         }
 
+        // A camera-owned cache: a failed camera discards all of its pending writes.
+        public void CameraFailed(bool queueUncertain) => RollbackPending();
+
         public void RollbackPending()
         {
             m_History.RollbackPending();
             m_ProducedThisFrame = false;
         }
 
-        public void FlushRetired(ResourceReuseFence fence = default)
+        public void FlushRetired(ResourceReuseFence fence)
         {
             m_History.FlushRetired(fence);
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(default);
+
+        internal void Dispose(ResourceReuseFence fence)
         {
-            m_History.Release();
-            m_History.ForceFlushForTeardown();
+            m_History.Dispose(fence);
         }
     }
 }

@@ -8,6 +8,7 @@
         "Unity.Mathematics",
         "Unity.Collections",
         "Unity.RenderPipelines.Infinity.Runtime",
+        "Unity.RenderPipelines.Infinity.Validation",
         "Unity.RenderPipelines.Infinity.Editor",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Core.Editor"

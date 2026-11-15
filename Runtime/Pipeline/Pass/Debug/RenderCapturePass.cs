@@ -1,6 +1,8 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.GPUResource;
@@ -8,12 +10,27 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class RenderCapturePassUtilityData
+    {
+        internal static readonly int CaptureBufferSizeID = Shader.PropertyToID("CaptureBufferSize");
+        internal static readonly int CaptureSizeID = Shader.PropertyToID("CaptureSize");
+        internal static readonly int Capture_LightTileMaskID = Shader.PropertyToID("Capture_LightTileMask");
+        internal static readonly int Capture_SSGITraceRadianceID = Shader.PropertyToID("Capture_SSGITraceRadiance");
+        internal static readonly int SRV_CaptureID = Shader.PropertyToID("SRV_Capture");
+        internal static readonly int SRV_CaptureMetadataID = Shader.PropertyToID("SRV_CaptureMetadata");
+        internal static readonly int SRV_CaptureUIntID = Shader.PropertyToID("SRV_CaptureUInt");
+        internal static readonly int SRV_DepthID = Shader.PropertyToID("SRV_Depth");
+        internal static readonly int UAV_CaptureID = Shader.PropertyToID("UAV_Capture");
+        internal static readonly int UAV_CaptureUIntBytesID = Shader.PropertyToID("UAV_CaptureUIntBytes");
+        internal static readonly int UAV_DepthID = Shader.PropertyToID("UAV_Depth");
+    }
+
     public partial class InfinityRenderPipeline
     {
         struct CaptureStageSnapshot
         {
             public bool enabled;
-            public ComputeShader shader;
+            public ComputeKernel kernel;
             public RGTextureHandle texture;
             public int width, height;
             public void Record(in RGComputeEncoder commands, RGTextureHandle source)
@@ -22,31 +39,28 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     return;
                 }
-                int kernel = shader.FindKernel("CaptureTexture");
-                commands.SetComputeVectorParam(shader, Shader.PropertyToID("CaptureSize"), new Vector4(width, height, 0, 0));
-                commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_Capture"), source);
-                commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_Capture"), texture);
-                commands.DispatchCompute(shader, kernel, (width + 7) / 8, (height + 7) / 8, 1);
+                ComputeShader shader = kernel.shader;
+                commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(width, height, 0, 0));
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.SRV_CaptureID, source);
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.UAV_CaptureID, texture);
+                commands.DispatchCompute(shader, kernel.index, kernel.GroupsX(width), kernel.GroupsY(height), 1);
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassHandle pass, string semantic, RGTextureHandle source)
+        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> pass, ECaptureBuffer buffer, RGTextureHandle source) where TPassData : struct
         {
             var session = RenderCaptureService.current;
-            if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, semantic) < 0)
+            if (session == null || !session.CaptureThisFrame || !session.Captures(buffer))
             {
                 return default;
             }
-            var shader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
-            if (shader == null || !shader.HasKernel("CaptureTexture"))
-            {
-                throw new InvalidOperationException("Stage capture shader is required.");
-            }
+            string semantic = buffer.ToString();
+            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.texture);
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
             descriptor.name = "Capture_" + semantic;
             descriptor.enableRandomWrite = true;
-            var snapshot = m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
-            return new CaptureStageSnapshot { enabled = true, shader = shader, width = descriptor.width, height = descriptor.height, texture = pass.WriteTexture(snapshot) };
+            var snapshot = m_RGBuilder.scoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
+            return new CaptureStageSnapshot { enabled = true, kernel = kernel, width = descriptor.width, height = descriptor.height, texture = pass.WriteTexture(snapshot) };
         }
 
         struct CaptureTransferPassData
@@ -61,76 +75,75 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
-        void RecordLightingCapture()
+        void RecordLightingCapture(in CameraRecordContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
-            if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, "Lighting") < 0)
+            if (session == null || !session.CaptureThisFrame || !session.Captures(ECaptureBuffer.Lighting))
             {
                 return;
             }
             // Capture the final opaque lighting before ownership moves to scene-color stages.
-            RecordCaptureTransfer(session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RecordCaptureTransfer(context, session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
 
-        void RecordDeferredLightingCapture()
+        void RecordDeferredLightingCapture(in CameraRecordContext context)
         {
             var session = RenderCaptureService.current;
-            if (session != null && session.CaptureThisFrame && Array.IndexOf(session.request.buffers, "DeferredLighting") >= 0)
-                RecordCaptureTransfer(session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
+            if (session != null && session.CaptureThisFrame && session.Captures(ECaptureBuffer.DeferredLighting))
+                RecordCaptureTransfer(context, session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
         }
 
         struct CaptureLightMaskPassData
         {
             public RGBufferHandle source;
             public RGTextureHandle destination;
-            public ComputeShader shader;
+            public ComputeKernel kernel;
             public int width, height;
         }
 
-        int RecordLightMaskCapture()
+        int RecordLightMaskCapture(in CameraRecordContext context)
         {
-            var shader = shaders.utilityShader;
-            if (shader == null || !shader.HasKernel("CaptureBufferUIntBytes"))
-                throw new InvalidOperationException("Light mask diagnostics require utilityShader.CaptureBufferUIntBytes.");
-            var context = renderContext.lightContext;
-            bool local = context.HasLocalLightList();
-            int width = local ? context.TileCount.x * context.TileWordCount : 1;
-            int height = local ? context.TileCount.y : 1;
-            int id = Shader.PropertyToID("Capture_LightTileMask");
+            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
+            var lightContext = renderContext.lightContext;
+            bool local = lightContext.HasLocalLightList();
+            int width = local ? lightContext.TileCount.x * lightContext.TileWordCount : 1;
+            int height = local ? lightContext.TileCount.y : 1;
+            int id = RenderCapturePassUtilityData.Capture_LightTileMaskID;
             var descriptor = new TextureDescriptor(width, height)
             {
                 name = "Capture_LightTileMask", dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R32G32B32A32_SFloat, enableRandomWrite = true
             };
-            var destination = m_RGScoper.CreateAndRegisterTexture(id, descriptor);
+            var destination = m_RGBuilder.scoper.CreateAndRegisterTexture(id, descriptor);
             using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureLightMaskPassData>();
-                data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
+                ref var data = ref pass.GetPassData();
+                data.source = pass.ReadBuffer(QueryLightLoop(context).tileMasks);
                 data.destination = pass.WriteTexture(destination);
-                data.shader = shader;
+                data.kernel = kernel;
                 data.width = width;
                 data.height = height;
                 pass.SetExecuteFunc((in CaptureLightMaskPassData data, in RGComputeEncoder commands) =>
                 {
-                    int kernel = data.shader.FindKernel("CaptureBufferUIntBytes");
-                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureBufferSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeBufferParam(data.shader, kernel, Shader.PropertyToID("SRV_CaptureUInt"), data.source);
-                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("UAV_CaptureUIntBytes"), data.destination);
-                    commands.DispatchCompute(data.shader, kernel, (data.width + 7) / 8, (data.height + 7) / 8, 1);
+                    ComputeShader shader = data.kernel.shader;
+                    int kernel = data.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureBufferSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeBufferParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureUIntID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureUIntBytesID, data.destination);
+                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }
             return id;
         }
 
-        void RecordNormalFrameCapture(Camera camera)
+        void RecordNormalFrameCapture(in CameraRecordContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame)
             {
                 return;
             }
-            if (Array.IndexOf(session.request.buffers, "CascadeShadow") >= 0)
+            if (session.Captures(ECaptureBuffer.CascadeShadow))
             {
                 session.RecordShadowState(renderContext.lightContext.ShadowAllocator);
             }
@@ -144,21 +157,21 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     var key = buffer == "TemporalColorMips" ? InfinityShaderIDs.TemporalColorMipBuffer :
                         buffer == "HiZClosest" ? InfinityShaderIDs.HiZClosestBuffer : InfinityShaderIDs.HiZFurthestBuffer;
-                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(key));
+                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGBuilder.scoper.QueryTexture(key));
                     for (int mip = 0; mip < PyramidMipBatch.MipCount(descriptor.width, descriptor.height); mip++)
-                        RecordCaptureTransfer(session, buffer + "_Mip" + mip, key, mip);
+                        RecordCaptureTransfer(context, session, buffer + "_Mip" + mip, key, mip);
                     continue;
                 }
                 int id;
                 switch (buffer)
                 {
                     case "TemporalColorSource": case "TemporalColorDepth":
-                        if (!m_ActiveFrameState.temporalColorView.valid)
+                        if (!context.state.temporalColorView.valid)
                             throw new InvalidOperationException("Temporal color source capture requires an accepted history.");
                         id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
                         break;
                     case "LightTileMask":
-                        id = RecordLightMaskCapture();
+                        id = RecordLightMaskCapture(context);
                         break;
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer);
@@ -218,13 +231,13 @@ namespace InfinityTech.Rendering.Pipeline
                         id = InfinityShaderIDs.SSRMetaBuffer;
                         break;
                     case "SSRTileClass":
-                        id = Shader.PropertyToID("Capture_SSRTileClass");
+                        id = PassShaderIDs.Capture_SSRTileClass;
                         break;
                     case "SSGIRayHit":
                         id = InfinityShaderIDs.SSGIRayHitBuffer;
                         break;
                     case "SSGITraceRadiance":
-                        id = Shader.PropertyToID("Capture_SSGITraceRadiance");
+                        id = RenderCapturePassUtilityData.Capture_SSGITraceRadianceID;
                         break;
                     case "SSGITemporal":
                         id = InfinityShaderIDs.SSGITemporalBuffer;
@@ -310,45 +323,44 @@ namespace InfinityTech.Rendering.Pipeline
                     default:
                         throw new InvalidOperationException("Unknown capture buffer: " + buffer);
                 }
-                RecordCaptureTransfer(session, buffer, id);
+                RecordCaptureTransfer(context, session, buffer, id);
             }
             if (session.request.includeConfidence)
-                RecordCaptureTransfer(session, "TAAConfidence", InfinityShaderIDs.TAAConfidenceBuffer);
+                RecordCaptureTransfer(context, session, "TAAConfidence", InfinityShaderIDs.TAAConfidenceBuffer);
         }
 
         struct CaptureDepthPassData
         {
             public RGTextureHandle source, destination;
-            public ComputeShader shader;
-            public int width, height, kernel;
+            public ComputeKernel kernel;
+            public int width, height;
         }
 
         RGTextureHandle ConvertCaptureDepth(RGTextureHandle source, TextureDescriptor descriptor)
         {
-            var shader = Resources.Load<ComputeShader>("Compute_CaptureDepth");
-            if (shader == null || !shader.HasKernel("CaptureDepth"))
-                throw new InvalidOperationException("Depth diagnostics require the CaptureDepth kernel.");
+            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.depth);
             descriptor.depthBufferBits = EDepthBits.None;
             descriptor.colorFormat = GraphicsFormat.R32_SFloat;
             descriptor.isShadowMap = false;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureDepthValues";
             RGTextureHandle destination = m_RGBuilder.CreateTexture(descriptor);
-            using (RGComputePassHandle pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
+            using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureDepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
-                data.shader = shader;
+                data.kernel = kernel;
                 data.width = descriptor.width;
                 data.height = descriptor.height;
                 pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
                 {
-                    int kernel = data.shader.FindKernel("CaptureDepth");
-                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("SRV_Depth"), data.source);
-                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("UAV_Depth"), data.destination);
-                    commands.DispatchCompute(data.shader, kernel, (data.width + 7) / 8, (data.height + 7) / 8, 1);
+                    ComputeShader shader = data.kernel.shader;
+                    int kernel = data.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_DepthID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_DepthID, data.destination);
+                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }
             return destination;
@@ -356,37 +368,35 @@ namespace InfinityTech.Rendering.Pipeline
 
         RGTextureHandle ConvertCaptureMetadata(RGTextureHandle source, TextureDescriptor descriptor)
         {
-            var shader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
-            if (shader == null || !shader.HasKernel("CaptureSurfaceMetadata"))
-                throw new InvalidOperationException("Surface diagnostics require CaptureSurfaceMetadata.");
+            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.surfaceMetadata);
             descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureSurfaceValues";
             var destination = m_RGBuilder.CreateTexture(descriptor);
             using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler))
             {
-                ref var data = ref pass.GetPassData<CaptureDepthPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
-                data.shader = shader;
+                data.kernel = kernel;
                 data.width = descriptor.width;
                 data.height = descriptor.height;
-                data.kernel = shader.FindKernel("CaptureSurfaceMetadata");
                 pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
                 {
-                    int kernel = data.kernel;
-                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("SRV_CaptureMetadata"), data.source);
-                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("UAV_Capture"), data.destination);
-                    commands.DispatchCompute(data.shader, kernel, (data.width + 7) / 8, (data.height + 7) / 8, 1);
+                    ComputeShader shader = data.kernel.shader;
+                    int kernel = data.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureMetadataID, data.source);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureID, data.destination);
+                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
                 });
             }
             return destination;
         }
 
-        void RecordCaptureTransfer(RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
+        void RecordCaptureTransfer(in CameraRecordContext context, RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
-            RGTextureHandle source = m_RGScoper.QueryTexture(shaderId);
+            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(shaderId);
             if (!source.IsValid())
             {
                 throw new InvalidOperationException("Capture source producer is missing: " + semantic);
@@ -411,7 +421,7 @@ namespace InfinityTech.Rendering.Pipeline
                 source = ConvertCaptureMetadata(source, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(source);
             }
-            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, m_CameraUniform.historyReset);
+            RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.resetsHistory);
             staging.evidence.sourceQueue = sourceQueue;
             // External contents predate this graph; their production frame is unknown to this capture.
             if (sourceQueue == "External")
@@ -421,10 +431,10 @@ namespace InfinityTech.Rendering.Pipeline
             staging.evidence.sourceDescriptor = sourceDescriptor;
             staging.evidence.sourceMip = sourceMip;
             RGTextureHandle destination = m_RGBuilder.ImportTexture(staging.handle);
-            using (RGTransferPassHandle pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
+            using (var pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
             {
                 pass.EnablePassCulling(false);
-                ref CaptureTransferPassData data = ref pass.GetPassData<CaptureTransferPassData>();
+                ref CaptureTransferPassData data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
                 data.staging = staging;
@@ -443,3 +453,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 }
+#endif

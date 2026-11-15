@@ -47,8 +47,8 @@ Mesh components store no lightmap and no per-instance probe data. A material may
 
 `meshBackendPolicy` on the [pipeline asset](pipeline-asset.md) selects Auto, CPU direct or GPU indirect. A camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU indirect use the GPU when the device supports compute and instancing.
 
-- CPU direct culls and sorts in Burst jobs and issues one instanced draw per run of instances that share a command.
-- GPU indirect culls and compacts in compute and issues indirect draws in state order. It has no per-instance distance order and supports two-phase Hi-Z occlusion.
+- CPU direct tests visibility, selects LOD and sorts in Burst jobs and issues one instanced draw per run of instances that share a command.
+- GPU indirect tests visibility and selects LOD in one compute producer per draw list and issues indirect draws in state order. It has no per-instance distance order. With temporal rendering and a valid Hi-Z history, opaque depth is drawn against the previous frame's Hi-Z first, then the remainder against this frame's.
 - Translucent color passes (T0/T1/T2) are sorted back to front and always use the CPU backend. The translucent depth pass sorts front to back on the selected backend.
 
 The Rendering Debugger's Infinity Mesh panel shows entity, element, pass-cache and command counts, the requested and actual backend, and the reason.
@@ -69,4 +69,3 @@ Ordinary material properties need no notification.
 - LOD selection works per object. There is no per-submesh or per-cluster LOD.
 - Receive Shadow and Affect Indirect Lighting are stored on the entity, but no pass reads them yet.
 
-Projects from 0.4 migrate with the steps in [Upgrade 0.4 to 0.5](upgrade-0.4-to-0.5.md).

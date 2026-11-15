@@ -12,7 +12,9 @@ namespace InfinityTech.Rendering.Editor
 {
     internal static class RenderingValidationCommands
     {
-        static bool s_ReloadLocked;
+        const string CaptureHolder = "infinity_capture";
+        const string VisualHolder = "infinity_visual_fixture";
+        const string MotionHolder = "infinity_camera_motion";
         static EditorWindow s_GameCaptureView;
         static RenderCaptureSession s_CaptureSession;
 
@@ -56,8 +58,7 @@ namespace InfinityTech.Rendering.Editor
             RenderCaptureService.Start(request);
             s_GameCaptureView = gameView;
             s_CaptureSession = RenderCaptureService.current;
-            EditorApplication.LockReloadAssemblies();
-            s_ReloadLocked = true;
+            ReloadLock.Acquire(CaptureHolder);
             EditorApplication.update += Pump;
             return CaptureStatus();
         }
@@ -91,8 +92,9 @@ namespace InfinityTech.Rendering.Editor
         [CliCommand("infinity_visual_fixture_start", "Run transient native/Mesh CPU/GPU baked-lighting and mixed-shadow fixtures, restoring original cameras/lights/maps after drain.")]
         public static object VisualStart(string outputDirectory, bool pauseForVisual = false, string scenario = null)
         {
-            VisualLightingValidation.Start(outputDirectory, pauseForVisual, scenario);
-            EditorApplication.LockReloadAssemblies();
+            ReloadLock.Acquire(VisualHolder);
+            try { VisualLightingValidation.Start(outputDirectory, pauseForVisual, scenario); }
+            catch { ReloadLock.Release(VisualHolder); throw; }
             EditorApplication.update += PumpVisual;
             return VisualStatus();
         }
@@ -105,10 +107,19 @@ namespace InfinityTech.Rendering.Editor
 
         static void PumpVisual()
         {
-            VisualLightingValidation.current?.Tick();
-            if (VisualLightingValidation.current != null && !VisualLightingValidation.current.Finished) return;
+            try
+            {
+                VisualLightingValidation.current?.Tick();
+                if (VisualLightingValidation.current != null && !VisualLightingValidation.current.Finished) return;
+            }
+            catch (Exception error)
+            {
+                // A failing tick never finishes; stop pumping and release the lock instead of holding it forever.
+                Debug.LogException(error);
+                VisualLightingValidation.current?.Cancel();
+            }
             EditorApplication.update -= PumpVisual;
-            EditorApplication.UnlockReloadAssemblies();
+            ReloadLock.Release(VisualHolder);
         }
 
         [CliCommand("infinity_mesh_state", "Read current MeshWorld entity, element and pass-cache data for the selected Editor without altering it.")]
@@ -130,9 +141,8 @@ namespace InfinityTech.Rendering.Editor
                 passes.Add(new { pass = cache.desc.ToString(), members = cache.memberCount, commands = cache.commandCount });
             return new { entityCount = world.entityCount, elementCount = world.elementCount, dynamicCount = world.dynamicEntityCount,
                 lastRecordedCamera = world.stats.camera != null ? world.stats.camera.name : null,
-                lastCameraRecordedCompactionLists = world.stats.compactDispatches,
-                lastCameraRecordedCompactionDispatches = world.stats.compactKernelDispatches,
-                lastCameraRecordedCullDispatches = world.stats.gpuCullDispatches, entities, passes };
+                lastCameraRecordedDrawListProductions = world.stats.drawListProductions,
+                lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches, entities, passes };
         }
 
         [CliCommand("infinity_scene_view_dock", "Restore an explicitly selected floating SceneView beside the sole Game tab; does not save assets.")]
@@ -146,8 +156,10 @@ namespace InfinityTech.Rendering.Editor
         [CliCommand("infinity_camera_motion_start", "Run normal-frame camera motion, disocclusion, resize and camera-switch captures; restore the original camera after drain.")]
         public static object MotionStart(string requestPath)
         {
-            CameraMotionValidation.Start(JsonUtility.FromJson<CameraMotionRequest>(File.ReadAllText(requestPath)));
-            EditorApplication.LockReloadAssemblies(); EditorApplication.update += PumpMotion;
+            ReloadLock.Acquire(MotionHolder);
+            try { CameraMotionValidation.Start(JsonUtility.FromJson<CameraMotionRequest>(File.ReadAllText(requestPath))); }
+            catch { ReloadLock.Release(MotionHolder); throw; }
+            EditorApplication.update += PumpMotion;
             return MotionStatus();
         }
         [CliCommand("infinity_camera_motion_status", "Read camera-motion validation status.")]
@@ -156,9 +168,18 @@ namespace InfinityTech.Rendering.Editor
         public static void MotionCancel() => CameraMotionValidation.current?.Cancel();
         static void PumpMotion()
         {
-            CameraMotionValidation.current?.Tick();
-            if (CameraMotionValidation.current == null || CameraMotionValidation.current.Finished)
-            { EditorApplication.update -= PumpMotion; EditorApplication.UnlockReloadAssemblies(); }
+            try
+            {
+                CameraMotionValidation.current?.Tick();
+                if (CameraMotionValidation.current != null && !CameraMotionValidation.current.Finished) return;
+            }
+            catch (Exception error)
+            {
+                Debug.LogException(error);
+                CameraMotionValidation.current?.Cancel();
+            }
+            EditorApplication.update -= PumpMotion;
+            ReloadLock.Release(MotionHolder);
         }
 
         [CliCommand("infinity_frame_tree_start", "Export the explicitly selected Game camera frame tree through the existing engine, restoring native state afterwards.")]
@@ -169,6 +190,20 @@ namespace InfinityTech.Rendering.Editor
         public static void FrameTreeCancel() => FrameDebuggerCapture.Cancel();
 
         static void Pump()
+        {
+            try
+            {
+                PumpCapture();
+            }
+            catch (Exception error)
+            {
+                Debug.LogException(error);
+                s_CaptureSession?.Cancel(error.Message);
+                StopCapturePump();
+            }
+        }
+
+        static void PumpCapture()
         {
             var session = s_CaptureSession;
             if (session != null && session.request.cameraType == CameraType.Game && !EditorApplication.isPlaying) session.Cancel("PlayModeEnded");
@@ -187,8 +222,7 @@ namespace InfinityTech.Rendering.Editor
         static void StopCapturePump()
         {
             EditorApplication.update -= Pump;
-            if (s_ReloadLocked) EditorApplication.UnlockReloadAssemblies();
-            s_ReloadLocked = false;
+            ReloadLock.Release(CaptureHolder);
             s_GameCaptureView = null;
             s_CaptureSession = null;
         }

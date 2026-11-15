@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Component;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
@@ -50,7 +51,6 @@ namespace InfinityTech.Rendering.Editor
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
         {
             base.AssignNewShaderToMaterial(material, oldShader, newShader);
-            InfinityMaterialMigration.Migrate(material);
             MaterialRouteUtility.ApplyPassState(material);
         }
 
@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Editor
 
             InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
             int index = (int)material.GetFloat("_SSSProfileIndex");
-            DiffusionProfile[] profiles = asset != null ? asset.diffusionProfiles : null;
+            DiffusionProfile[] profiles = asset != null ? asset.ReadDiffusionProfiles() : null;
             if (profiles == null || index < 0 || index >= profiles.Length)
             {
                 EditorGUILayout.HelpBox("SSS profile index is outside the RP Asset Diffusion Profile list.", MessageType.Warning);

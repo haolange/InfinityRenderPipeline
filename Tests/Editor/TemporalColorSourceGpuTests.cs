@@ -26,8 +26,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var mips=new Texture2D(half,half,TextureFormat.RGBAFloat,true,true) {filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
             var levels=new[] {new Color(10,20,30,.75f),new Color(40,50,60,.5f),new Color(70,80,90,.25f)};
             float[] lods={0,.5f,1,1.5f,2,3};
-            using var inputs=new ComputeBuffer(lods.Length,16);
-            using var outputs=new ComputeBuffer(lods.Length,16);
+            using var inputs=new GraphicsBuffer(GraphicsBuffer.Target.Structured, lods.Length,16);
+            using var outputs=new GraphicsBuffer(GraphicsBuffer.Target.Structured, lods.Length,16);
             try
             {
                 var pixels=new Color[full*full];var depths=new Color[full*full];
@@ -56,8 +56,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("SRV_TemporalDepth_InfinityView",new Vector4(8,8,full,full));
                 shader.SetVector("SRV_TemporalColorMips_InfinityView",new Vector4(4,4,half,half));
                 shader.SetInt("TemporalColorValid",valid?1:0);shader.SetInt("TemporalColorMipCount",4);
-                shader.SetVector("TemporalColorJitterDelta",new Vector4(1f/32,-1f/16,0,0));
-                shader.SetVector("ScreenSpaceDepthParams",new Vector4(.1f,100,1,0));
+                // The source was rendered at the previous jitter, (1/32, -1/16) UV from this frame's.
+                using var view=new UniformBinding<ViewUniform>(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,1,0),view_JitterUV=new Vector4(0,0,1f/32,-1f/16)});
                 shader.SetVector("ContractMotion",new Vector4(.125f,0,0,0));
                 shader.SetVector("ContractMetadata",new Vector4(rejectDepth?.9f:.4f,.4f,metadataValid?1:0,0));
                 var previous=Matrix4x4.identity;if(behind)previous.m33=-1;

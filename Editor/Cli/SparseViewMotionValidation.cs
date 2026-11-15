@@ -7,12 +7,14 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Unity.Pipeline.Commands;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
     // A bounded normal SceneView capture while Game frames advance native object poses.
     internal sealed class SparseViewMotionValidation
     {
+        const string ReloadHolder = "infinity_sparse_native";
         [Serializable] sealed class Sample
         {
             public int frame, gameFrames;
@@ -41,7 +43,7 @@ namespace InfinityTech.Rendering.Editor
         double m_NextRepaint, m_Started;
         int m_GameFrames;
         Vector3 m_Previous;
-        bool m_HasPrevious, m_Stopping, m_ReloadLocked;
+        bool m_HasPrevious, m_Stopping;
 
         [CliCommand("infinity_sparse_native_start", "Capture a temporary SceneView while Game frames move a native receiver; normal rendering only, bounded and restored.")]
         public static object Start(string outputDirectory, bool orthographic = false, bool rotateView = false, bool skinned = false, int translucentStage = 0, bool scaled = false)
@@ -109,7 +111,7 @@ namespace InfinityTech.Rendering.Editor
             RenderPipelineManager.beginCameraRendering += BeginCamera;
             RenderPipelineManager.endCameraRendering += EndCamera;
             EditorApplication.update += Pump;
-            EditorApplication.LockReloadAssemblies(); m_ReloadLocked = true;
+            ReloadLock.Acquire(ReloadHolder);
             }
             catch (Exception error) { Stop(error.ToString()); Cleanup(); throw; }
         }
@@ -175,7 +177,7 @@ namespace InfinityTech.Rendering.Editor
             if (m_Scene.IsValid() && m_Scene.isLoaded) SceneManager.UnloadSceneAsync(m_Scene);
             m_Evidence.status = string.IsNullOrEmpty(m_Evidence.error) ? "Completed" : "Failed";
             m_Evidence.restored = true; Save();
-            if (m_ReloadLocked) { EditorApplication.UnlockReloadAssemblies(); m_ReloadLocked = false; }
+            ReloadLock.Release(ReloadHolder);
             s_Current = null;
         }
         void Save() => File.WriteAllText(Path.Combine(m_Directory, "views.json"), JsonUtility.ToJson(m_Evidence, true));

@@ -2,8 +2,6 @@
 
 Reference: local Unity 6000.6.0f1, HDRP/CoreRP/Shader Graph 17.6.0. The reference packages are inspected, not modified or imported as runtime dependencies. Infinity's RenderGraph, ResourcePool, Mesh Drawing Pipeline and custom terrain algorithms remain Infinity-owned.
 
-The [file inventory](UnityBoundaryInventory.csv) includes every tracked or nonignored candidate file, including metadata, hidden package configuration, imported assets, tools and historical documents. Each row identifies the owner, applicable boundary, inspection/disposition, evidence reference and inspected-byte hash. Removed paths are explicit. Assets are checked through their producer/import contracts; historical material is reference-only. The generated inventory records itself as derived to avoid a recursive hash. Regenerate explicitly with `python3 Tools/StaticCheck/boundary_inventory.py --write` after reviewing the candidate; regeneration alone is not source inspection. File coverage is not a claim that every algorithm was rewritten or every platform executed.
-
 ## Decisions and consumer closure
 
 | Area | Ownership and disposition | Reference / acceptance |
@@ -24,7 +22,7 @@ The [file inventory](UnityBoundaryInventory.csv) includes every tracked or nonig
 | Shader/Shader Graph | Preserve native Unity buffers, instancing, Lightmap/LPPV/Probe and Meta contracts. Remove only custom per-instance lightmap/probe bindings. Keep the existing bounded Shader Graph asmref integration. | Static HLSL/layout/string checks, shader variants and graph generation/import. |
 | Tools/native diagnostics | Keep CLI loopback authentication, owned capture/readback retirement and explicit build entry points. Read-only Metal attachment probe uses Unity's native-plugin interface. Reflection into Frame Debugger/GameView/docking stays isolated in diagnostics, never production decisions. | Tool cancellation/restoration and normal-frame receipts. |
 | Editor process targeting | Refresh scripts call public AssetDatabase.Refresh through an explicit-project Unity CLI connection. Window capture requires the selected project/Player PID; Scene capture never falls back to another Unity process. Temporary Swift module caches are task-owned and removed on exit. | macOS refresh execution; shell syntax; Windows execution remains a platform gate. |
-| Containers/algorithms | Keep self-owned native collections, sorting, geometry, effects and placeholder feature modules; Unity Collections/Jobs/Burst are dependencies, not a reason to replace algorithms. | Existing unit/GPU suites. This audit does not claim to repair every unrelated algorithm defect. |
+| Containers/algorithms | Native containers come from the Unity Collections dependency; the package keeps no vendored or duplicate container. Self-owned sorting, geometry and effects stay. Terrain is an in-development feature and stays. | Existing unit/GPU suites. This audit does not claim to repair every unrelated algorithm defect. |
 | Assets/docs/assemblies | Preserve user resource edits, GUIDs and importer ownership. Update current contracts; historical receipts remain historical. Only explicitly authorized source assets may be migrated. | Static meta/link/assembly gates and source-byte protection. |
 
 ## Interface removals

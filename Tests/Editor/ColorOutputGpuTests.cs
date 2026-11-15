@@ -120,7 +120,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1f)]
         public void BloomScatter_ControlsWidthWithoutMultiplyingConstantEnergy(float scatter)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_PostProcessing.compute");
+            // A clone: the pipeline binds constant buffers on the shared asset, which would override values set by name.
+            var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_PostProcessing.compute"));
             Assert.IsNotNull(shader);
             var source = new Texture2D(2, 2, TextureFormat.RGBAFloat, false, true);
             var target = new RenderTexture(11, 11, 0, RenderTextureFormat.ARGBFloat) { enableRandomWrite = true };
@@ -153,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                target.Release(); UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(source);
+                target.Release(); UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(shader);
             }
         }
 
@@ -229,7 +230,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ProductionLut_NeutralDiagonalIsFiniteMonotonicAndNeutral(GraphicsFormat format)
         {
             Assert.IsTrue(SystemInfo.supportsComputeShaders && SystemInfo.supportsAsyncGPUReadback);
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_CombineLUTs.compute");
+            var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_CombineLUTs.compute"));
             Assert.IsNotNull(shader);
             var profile = DefaultVolumeProfileFactory.CreateInMemory();
             var target = new RenderTexture(new RenderTextureDescriptor(32, 32)
@@ -244,12 +245,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 profile.TryGet(out FilmTonemap film);
                 profile.TryGet(out ColorGrading grading);
                 var descriptor = CombineLutParameterUtility.FromVolumeStack(film, grading);
-                descriptor.MappingPolynomial = new float4(0, 1, 0, 0);
-                descriptor.InverseGamma = new float4(1, 1, 1, 0);
                 // Bind independently by the shader's semantic names, not the pass's property IDs.
                 foreach (FieldInfo field in typeof(CombineLutParameterDescriptor).GetFields())
                 {
-                    string name = field.Name == "ColorShadowTint2" ? "ColorShadow_Tint2" : field.Name;
+                    string name = field.Name;
                     object value = field.GetValue(descriptor);
                     if (value is float scalar) shader.SetFloat(name, scalar);
                     else if (value is int integer) shader.SetInt(name, integer);
@@ -278,6 +277,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 UnityEngine.Object.DestroyImmediate(target);
                 foreach (VolumeComponent component in profile.components) UnityEngine.Object.DestroyImmediate(component);
                 UnityEngine.Object.DestroyImmediate(profile);
+                UnityEngine.Object.DestroyImmediate(shader);
             }
         }
 

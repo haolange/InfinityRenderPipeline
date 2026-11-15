@@ -56,9 +56,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");
             m_PreviousCapture = RGDebugSession.captureEnabled; m_PreviousPause = RGDebugSession.paused; m_PreviousFocus = EditorWindow.focusedWindow; m_StateCaptured = true;
             m_World = world;
-            m_PreviousBackend = (EMeshDrawBackendPolicy?)typeof(MeshWorld).GetField("m_BackendOverride", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(m_World);
+            m_PreviousBackend = InfinityDebugDisplaySettings.current.mesh.backendOverride;
             m_InitialEntities = m_World.entityCount; m_InitialElements = m_World.elementCount;
-            m_World.SetBackendOverride(EMeshDrawBackendPolicy.GPUIndirect);
+            InfinityDebugDisplaySettings.current.mesh.backendOverride = EMeshDrawBackendPolicy.GPUIndirect;
             m_PreviousScene = SceneManager.GetActiveScene();
             m_Root = new GameObject("InfinityVisibility.Integration") { hideFlags = HideFlags.DontSave };
             m_Target = new RenderTexture(128, 128, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat);
@@ -99,15 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Requested = true;
                 try
                 {
-                    Assert.IsTrue(m_Camera.TryGetCullingParameters(out var parameters));
-                    var view = MeshView.FromCamera(m_Camera, ref parameters);
-                    var phases = new[] { EMeshVisibilityPhase.Prediction, EMeshVisibilityPhase.Deferred, EMeshVisibilityPhase.Recovered, EMeshVisibilityPhase.Final };
-                    m_Readbacks = new List<AsyncGPUReadbackRequest>(5);
-                    for (int i = 0; i < phases.Length; ++i)
-                    {
-                        view.visibilityPhase = phases[i];
-                        m_Readbacks.Add(AsyncGPUReadback.Request(m_World.GetGPUVisibilityBuffer(view).buffer));
-                    }
+                    m_Readbacks = new List<AsyncGPUReadbackRequest>(1);
                     var states = (Dictionary<int, CameraFrameState>)typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
                     var state = states.Values.Single(s => s.camera == m_Camera);
                     Assert.IsTrue(state.acceptedHiZ);
@@ -125,21 +117,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_CaptureNext = true;
             yield return Wait(() => m_Requested, "No camera submission after moving the native occluder.");
             if (m_CallbackFailure != null) throw m_CallbackFailure;
-            yield return Wait(() => m_Readbacks.All(r => r.done), "Visibility/depth readbacks did not drain.");
+            yield return Wait(() => m_Readbacks.All(r => r.done), "Depth readback did not drain.");
             foreach (var readback in m_Readbacks) Assert.IsFalse(readback.hasError);
-            int index = (int)m_Entity.Index;
-            // Prediction, recovered and final words are packed LOD visibility; the deferred word is 0/1.
-            uint[] actual = m_Readbacks.Take(4).Select(r => r.GetData<uint>()[index] != 0 ? 1u : 0u).ToArray();
-            CollectionAssert.AreEqual(new uint[] {0,1,1,1}, actual, "Prediction, deferred, recovered and final lists must describe the same object.");
-            float centerDepth = m_Readbacks[4].GetData<float>()[(m_DepthHeight / 2) * m_DepthWidth + m_DepthWidth / 2];
+            // The history pyramid hid the object, the moved occluder no longer does: only the remainder list can have drawn it.
+            float centerDepth = m_Readbacks[0].GetData<float>()[(m_DepthHeight / 2) * m_DepthWidth + m_DepthWidth / 2];
             var clip = GL.GetGPUProjectionMatrix(m_Camera.projectionMatrix, false) * m_Camera.worldToCameraMatrix * new Vector4(1000,1000,1002.75f,1);
-            Assert.That(centerDepth, Is.EqualTo(clip.z / clip.w).Within(5e-4f), "Recovery must issue a real depth draw, not just update visibility/args.");
+            Assert.That(centerDepth, Is.EqualTo(clip.z / clip.w).Within(5e-4f), "The remainder depth list must issue a real depth draw.");
             var live = m_Snapshot.passes.Where(p => !p.culled).ToList();
             int early = live.FindIndex(p => p.name == "ComputeEarlyFurthestHiZ"), recovery = live.FindIndex(p => p.name == "RasterDepthRecovery");
             Assert.GreaterOrEqual(early, 0); Assert.Greater(recovery, early);
             Assert.Less(recovery, live.FindIndex(p => p.name == "RasterGBuffer"));
             Assert.IsFalse(live[early].asyncCompute, "Immediate depth recovery must not cross to async compute.");
-            TestContext.WriteLine("Recovered mesh depth=" + centerDepth + "; object lists=" + string.Join(",", actual));
+            TestContext.WriteLine("Recovered mesh depth=" + centerDepth);
         }
         IEnumerator Wait(Func<bool> condition, string message)
         {
@@ -190,7 +179,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (m_Target != null) { m_Target.Release(); UnityEngine.Object.DestroyImmediate(m_Target); }
             if (m_NativeMaterial != null) UnityEngine.Object.DestroyImmediate(m_NativeMaterial);
             if (m_MeshMaterial != null) UnityEngine.Object.DestroyImmediate(m_MeshMaterial);
-            if (m_World != null) m_World.SetBackendOverride(m_PreviousBackend);
+            if (m_World != null) InfinityDebugDisplaySettings.current.mesh.backendOverride = m_PreviousBackend;
             RGDebugSession.captureEnabled = m_PreviousCapture; RGDebugSession.paused = m_PreviousPause;
             if (!m_PreviousCapture) RGDebugSession.Clear();
             if (m_PreviousScene.IsValid() && m_PreviousScene.isLoaded) SceneManager.SetActiveScene(m_PreviousScene);

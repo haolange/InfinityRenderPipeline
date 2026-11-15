@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Rendering.Pipeline
+namespace InfinityTech.Rendering.MaterialPipeline
 {
     public static class MaterialRouteUtility
     {
@@ -111,6 +111,9 @@ namespace InfinityTech.Rendering.Pipeline
             NotifyRoutingChanged(material);
         }
 
+        // Raised once per effective route, stage, queue or shader change; mesh components invalidate their draw structure.
+        internal static event Action<Material> routingChanged;
+
         public static void NotifyRoutingChanged(Material material)
         {
             if (material == null)
@@ -129,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
             state.stage = stage;
             state.queue = queue;
             state.shader = shader;
-            InfinityTech.Component.MeshComponent.InvalidateMaterialRouting(material);
+            routingChanged?.Invoke(material);
         }
 
         private static void SetPass(Material material, string name, bool enabled)

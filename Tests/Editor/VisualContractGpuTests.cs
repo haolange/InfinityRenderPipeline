@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string ShaderPath = "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/VisualContract.compute";
         static Vector4[] Run(ComputeShader shader, string kernelName, int count)
         {
-            using (var output = new ComputeBuffer(count, 16))
+            using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 16))
             {
                 int kernel = shader.FindKernel(kernelName);
                 shader.SetBuffer(kernel, "Results", output);
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector3 origin = new Vector3(-0.5f * tangent * 2, 0, -2);
                 Vector3 target = new Vector3(0.5f * tangent * 5, 0, -5);
                 shader.SetMatrix("Projection", projection);
-                shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0) });
                 shader.SetVector("Origin", origin); shader.SetVector("Direction", (target - origin).normalized);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "DepthPyramid", closest);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "SurfaceDepth", depth);
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 shader.SetFloat("ShadowStrength", strength);
-                shader.SetInt("_InfinityShadowmaskMode", mode); shader.SetFloat("_InfinityShadowDistance", 100);
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowmaskMode = mode, shadowDistance = 100 });
                 Vector4[] values = Run(shader, "MixedShadowContract", 12);
                 for (int i = 0; i < values.Length; i++)
                 {

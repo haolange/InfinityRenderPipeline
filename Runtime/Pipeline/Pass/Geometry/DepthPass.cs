@@ -3,13 +3,12 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
-using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DepthPassUtilityData
     {
-        internal static string TextureName = "DepthTexture";
+        internal static readonly string TextureName = "DepthTexture";
     }
 
     public partial class InfinityRenderPipeline
@@ -20,32 +19,24 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle rendererList;
         }
 
-        void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults, in RGMeshDrawListHandle depthMeshDrawList)
+        void RasterDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawList)
         {
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
-            TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
+            TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
-                rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
+            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDepthPass,
+                new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, m_Settings.enableInstanceBatch));
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
+            using (var passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
             {
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
+                ref DepthPassData passData = ref passRef.GetPassData();
                 passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
@@ -56,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.Depth);
+            context.features.MarkProduced(EFrameFeature.Depth);
         }
     }
 }

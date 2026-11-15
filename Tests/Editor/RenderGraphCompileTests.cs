@@ -56,6 +56,33 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { graph.Dispose(); }
         }
 
+        // ProfilingSampler.Get returns null in non-development players, which have no profiler.
+        [Test]
+        public void NullSampler_RecordsAnUnnamedPassAndOpensNoScope()
+        {
+            var graph = Graph();
+            try
+            {
+                var outer = new ProfilingSampler("Outer");
+                RGBufferHandle buffer = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "WrittenByUnnamedPass" });
+                graph.BeginProfilingSampler(outer);
+                graph.BeginProfilingSampler(null);
+                using (var pass = graph.AddComputePass<PassData>(null))
+                {
+                    pass.WriteBuffer(buffer);
+                    pass.EnablePassCulling(false);
+                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                graph.EndProfilingSampler(null);
+                Assert.Throws<InvalidOperationException>(() => graph.EndProfilingSampler(new ProfilingSampler("Other")),
+                    "The outer scope is still open after a null scope ends.");
+                graph.EndProfilingSampler(outer);
+                string[] rows = Compile(graph);
+                Assert.AreEqual("False", Row(rows, "")[4], "The unnamed pass is recorded and kept.");
+            }
+            finally { graph.Dispose(); }
+        }
+
         [Test]
         public void StaleHandle_IsRejectedOnTheNextGraph()
         {
@@ -98,22 +125,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void AliasPlan_ReusesOneSlotForNonOverlappingTextures()
+        public void Segment_SplitsWhereACreateWouldTakeAnAllocationReleasedInTheSameSegment()
         {
             var graph = Graph();
             try
             {
-                RGTextureHandle first = graph.CreateTexture(Color("AliasA"));
-                RGTextureHandle second = graph.CreateTexture(Color("AliasB"));
+                RGTextureHandle first = graph.CreateTexture(Color("ReuseA"));
+                RGTextureHandle second = graph.CreateTexture(Color("ReuseB"));
                 WriteThenRead(graph, "WriteA", "ReadA", first);
                 WriteThenRead(graph, "WriteB", "ReadB", second);
                 Compile(graph);
                 RGGraphSnapshot snapshot = graph.CaptureDebugSnapshot();
-                RGResourceSnapshot a = snapshot.resources.Find(resource => resource.name == "AliasA");
-                RGResourceSnapshot b = snapshot.resources.Find(resource => resource.name == "AliasB");
-                Assert.GreaterOrEqual(a.aliasSlot, 0);
-                Assert.AreEqual(a.aliasSlot, b.aliasSlot);
-                Assert.AreEqual(a.aliasGroup, b.aliasGroup);
+                int readA = snapshot.passes.FindIndex(pass => pass.name == "ReadA");
+                int writeB = snapshot.passes.FindIndex(pass => pass.name == "WriteB");
+                Assert.Greater(snapshot.passes[writeB].segment, snapshot.passes[readA].segment,
+                    "ReuseB has ReuseA's physical descriptor; the pool would hand it the allocation ReadA released.");
+                RGResourceSnapshot a = snapshot.resources.Find(resource => resource.name == "ReuseA");
+                Assert.Greater(a.estimatedBytes, 0);
+                Assert.AreEqual(a.estimatedBytes, snapshot.peakLiveBytes, "The two textures are never live at the same pass.");
             }
             finally { graph.Dispose(); }
         }
@@ -344,16 +373,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using (new RGProfilingScope(graph, parent))
                 {
                     using (var pass = graph.AddComputePass<PassData>(graphics))
+                    {
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    }
                     using (var pass = graph.AddComputePass<PassData>(asyncFirst))
                     {
                         pass.EnableAsyncCompute(true);
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
                     using (var pass = graph.AddComputePass<PassData>(asyncLast))
                     {
                         pass.EnableAsyncCompute(true);
                         pass.EnablePassCulling(false);
+                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
                 }
                 Compile(graph);

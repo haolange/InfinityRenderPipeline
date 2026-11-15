@@ -1,4 +1,5 @@
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -6,9 +7,32 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct ExposureState
+    // Why a camera discards its history this frame. CameraFrameState.ResolveHistoryReset is the only writer.
+    internal enum EHistoryReset
     {
-        public float evCompensation;
+        None,
+        // Previews and probe faces never keep history.
+        NotTemporal,
+        // A capture or validation run holds the camera at frame zero. Only Editor and Development builds produce it.
+        Locked,
+        // The camera has no committed frame.
+        NewCamera,
+        // A game camera skipped at least one frame.
+        Unseen,
+        // The camera's previous frame failed and was rolled back.
+        RolledBack,
+        // Display size, internal size or super resolution changed.
+        Dimensions,
+        // The camera jumped or its projection changed.
+        CameraCut,
+    }
+
+    // The temporal resolve a camera records, decided once in PrepareCamera from its policy and dimensions.
+    internal enum ETemporalResolve
+    {
+        None,
+        TAA,
+        SuperResolution,
     }
 
     internal class CameraFrameState : IDisposable
@@ -16,38 +40,31 @@ namespace InfinityTech.Rendering.Pipeline
         public int cameraId;
         public Camera camera;
         public bool preparedThisRender;
-        public long successfulRenderCount;
         public CameraUniform cameraUniform;
-        internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
+        internal readonly UniformBuffer<ViewUniform> viewUniform = new UniformBuffer<ViewUniform>();
+        internal readonly UniformBuffer<ShadowUniform> shadowUniform = new UniformBuffer<ShadowUniform>();
+        internal readonly UniformBuffer<LightLoopUniform> lightLoopUniform = new UniformBuffer<LightLoopUniform>();
+        internal readonly MeshMotionHistory meshMotionHistory = new MeshMotionHistory();
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
         public FrameFeatureSet features;
-        public int descriptorGeneration;
         public int lastSeenFrame;
         public CameraType cameraType;
-        public CameraDimensionDescriptor dimensions;
+        // Dimensions of the last prepared frame. PrepareCamera resets history when this frame's differ.
+        public CameraDimensionDescriptor preparedDimensions;
         internal readonly TextureCapacityState internalCapacity = new TextureCapacityState();
         internal readonly TextureCapacityState displayCapacity = new TextureCapacityState();
-        public bool postProcessingEnabled = true;
-        public bool sceneLightingEnabled = true;
-        public GraphicsFormat colorFormat;
         public AtmosphereViewCache atmosphereViewCache;
         public CombineLutCache combineLutCache;
-        public ExposureState exposureState;
         public bool executeSucceeded;
         public bool requiresHistoryReset;
         public bool loggedOutputDecision;
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
-        public CameraRenderPolicy renderPolicy;
-        public ResolvedFrameSettings frameSettings;
-        // Debug view of this camera this frame (InfinityDebugDisplaySettings.ResolveDebugView).
-        public EDebugView debugView;
         internal bool acceptedHiZ;
         internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
         internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;
         internal TemporalColorView temporalColorView;
-        internal ulong meshViewKey;
 
         internal const int GameUnseenFramesToRecycle = 8;
         internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)
@@ -55,39 +72,108 @@ namespace InfinityTech.Rendering.Pipeline
             return cameraType != CameraType.SceneView && frameCount - lastSeenFrame > GameUnseenFramesToRecycle;
         }
 
-        internal static bool ShouldForceHistoryReset(bool newlyCreated, int lastSeenFrame, int frameCount, CameraType cameraType)
+        // Scene views repaint sparsely; only a game camera that missed a frame has stale history.
+        internal static bool SkippedFrame(int previousSeenFrame, int frameCount, CameraType cameraType)
         {
-            return newlyCreated || (cameraType != CameraType.SceneView && frameCount - lastSeenFrame > 1);
+            return cameraType != CameraType.SceneView && frameCount - previousSeenFrame > 1;
         }
 
-        public CameraFrameState(int cameraId)
+        // The only writer of the history-reset decision. previousSeenFrame is lastSeenFrame before this render.
+        internal EHistoryReset ResolveHistoryReset(Camera camera, CameraRenderPolicy policy, bool newlyCreated, int previousSeenFrame, int frameCount,
+            in CameraDimensionDescriptor dimensions)
+        {
+            if (!policy.temporal)
+            {
+                return EHistoryReset.NotTemporal;
+            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (PipelineDiagnostics.LocksHistoryReset(camera))
+            {
+                return EHistoryReset.Locked;
+            }
+#endif
+            if (newlyCreated || !cameraUniform.hasCommittedView)
+            {
+                return EHistoryReset.NewCamera;
+            }
+            if (SkippedFrame(previousSeenFrame, frameCount, camera.cameraType))
+            {
+                return EHistoryReset.Unseen;
+            }
+            if (requiresHistoryReset)
+            {
+                return EHistoryReset.RolledBack;
+            }
+            if (math.any(preparedDimensions.displaySize != dimensions.displaySize) || math.any(preparedDimensions.internalSize != dimensions.internalSize)
+                || preparedDimensions.superResolution != dimensions.superResolution)
+            {
+                return EHistoryReset.Dimensions;
+            }
+            return cameraUniform.IsCut(camera) ? EHistoryReset.CameraCut : EHistoryReset.None;
+        }
+
+        // Camera-owned frame transactions, driven in one order.
+        readonly IFrameTransaction[] m_Transactions;
+
+        public CameraFrameState(int cameraId, ResourcePool pool)
         {
             this.cameraId = cameraId;
             cameraUniform = new CameraUniform();
             volumeStack = VolumeManager.instance.CreateStack();
-            historyCache = new HistoryCache();
+            historyCache = new HistoryCache(pool);
             features = new FrameFeatureSet();
-            atmosphereViewCache = new AtmosphereViewCache();
-            combineLutCache = new CombineLutCache();
-            exposureState = new ExposureState { evCompensation = 0.0f };
-            colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
+            atmosphereViewCache = new AtmosphereViewCache(pool);
+            combineLutCache = new CombineLutCache(pool);
+            m_Transactions = new IFrameTransaction[] { historyCache, atmosphereViewCache, combineLutCache };
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
         }
 
+        internal void BeginFrame()
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].BeginFrame();
+            }
+        }
+
+        // This camera threw while recording or executing.
+        internal void CameraFailed(bool queueUncertain)
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].CameraFailed(queueUncertain);
+            }
+            EndFailedFrame();
+        }
+
+        // The frame's submission failed after this camera was prepared.
         internal void RollbackFrame()
         {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].RollbackPending();
+            }
+            EndFailedFrame();
+        }
+
+        void EndFailedFrame()
+        {
             preparedThisRender = false;
-            historyCache.RollbackPending();
             meshMotionHistory.Rollback();
-            atmosphereViewCache.RollbackPending();
-            combineLutCache.RollbackPending();
             executeSucceeded = false;
             requiresHistoryReset = true;
         }
 
-        internal bool subsurfaceEnabled;
+        internal void FlushRetired(ResourceReuseFence fence)
+        {
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].FlushRetired(fence);
+            }
+        }
+
         internal int acceptedSSGIFrameIndex;
 
         internal void CommitFrame()
@@ -100,7 +186,6 @@ namespace InfinityTech.Rendering.Pipeline
             internalCapacity.Commit();
             displayCapacity.Commit();
             meshMotionHistory.Commit();
-            successfulRenderCount++;
             if (features != null && features.IsProduced(EFrameFeature.SSGI))
             {
                 acceptedSSGIFrameIndex = Time.frameCount;
@@ -112,16 +197,23 @@ namespace InfinityTech.Rendering.Pipeline
             acceptedTemporalColorIsSR = features != null && features.IsProduced(EFrameFeature.SuperResolution);
             acceptedTemporalColor = acceptedTemporalColorIsSR || features != null && features.IsProduced(EFrameFeature.TAA);
             preparedThisRender = false;
-            historyCache.CommitFrame();
-            atmosphereViewCache.CommitFrame();
-            combineLutCache.CommitFrame();
+            for (int i = 0; i < m_Transactions.Length; ++i)
+            {
+                m_Transactions[i].CommitFrame();
+            }
             executeSucceeded = false;
             requiresHistoryReset = false;
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(default);
+
+        // fence covers the last frame's GPU use when a state is recycled right after its submission.
+        internal void Dispose(ResourceReuseFence fence)
         {
             meshMotionHistory.Clear();
+            viewUniform.Dispose();
+            shadowUniform.Dispose();
+            lightLoopUniform.Dispose();
             if (volumeStack != null)
             {
                 VolumeManager.instance.DestroyStack(volumeStack);
@@ -130,20 +222,19 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (historyCache != null)
             {
-                historyCache.Release();
-                historyCache.ForceFlushForTeardown();
+                historyCache.Dispose(fence);
                 historyCache = null;
             }
 
             if (atmosphereViewCache != null)
             {
-                atmosphereViewCache.Dispose();
+                atmosphereViewCache.Dispose(fence);
                 atmosphereViewCache = null;
             }
 
             if (combineLutCache != null)
             {
-                combineLutCache.Dispose();
+                combineLutCache.Dispose(fence);
                 combineLutCache = null;
             }
         }

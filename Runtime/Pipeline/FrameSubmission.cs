@@ -20,7 +20,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             using (new PipelineFrameMeasurement.NativeSubmitScope(true)) m_Context.Submit();
             NativeSubmitted = true;
-            RenderFaultValidation.AfterSubmit();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            PipelineDiagnostics.AfterNativeSubmit();
+#endif
         }
     }
 

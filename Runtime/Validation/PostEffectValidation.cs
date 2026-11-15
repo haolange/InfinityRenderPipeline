@@ -71,6 +71,19 @@ namespace InfinityTech.Rendering.Pipeline
             }
             current?.Pump(cameras);
         }
+
+        static readonly Observer s_Observer = new Observer();
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Register() => PipelineDiagnostics.Register(s_Observer);
+
+        sealed class Observer : PipelineFrameObserver
+        {
+            internal override void BeginFrame(List<Camera> cameras) => Tick(cameras);
+        }
     }
 
     internal sealed class PostEffectSession

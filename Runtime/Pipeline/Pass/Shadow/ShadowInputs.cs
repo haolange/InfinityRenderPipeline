@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
@@ -14,15 +15,31 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_LocalShadowMoments = Shader.PropertyToID("SRV_LocalShadowMoments");
         internal static readonly GlobalKeyword CascadeMoments = GlobalKeyword.Create("INFINITY_CASCADE_SHADOW_MOMENTS");
         internal static readonly GlobalKeyword LocalMoments = GlobalKeyword.Create("INFINITY_LOCAL_SHADOW_MOMENTS");
-        internal static readonly int LocalShadowMapSize = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static readonly int ShadowMomentParams = Shader.PropertyToID("_ShadowMomentParams");
-        internal static readonly int ShadowmaskMode = Shader.PropertyToID("_InfinityShadowmaskMode");
-        internal static readonly int ShadowDistance = Shader.PropertyToID("_InfinityShadowDistance");
     }
 
-    // Every shadow resource and constant Shaders/Library/ShadowSampling.hlsl reads. Query once at record time
-    // (QueryShadowInputs), declare the reads on the consuming pass (Read), then bind in the execute function (Bind for
-    // one compute kernel, BindGlobal for raster passes). Moment atlases fall back to a black texture on frames where
+    // The camera's shadow constants as Shaders/Library/ShadowSampling.hlsl reads them, uploaded once per camera before
+    // its graph (ResolveShadowUniform) and bound globally for raster and compute passes.
+    // GPU-RECORD: ShadowUniform Shaders/Library/ShadowSampling.hlsl
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ShadowUniform
+    {
+        public Matrix4x4 cascadeMatrix0, cascadeMatrix1, cascadeMatrix2, cascadeMatrix3;
+        public Vector4 cascadeSphere0, cascadeSphere1, cascadeSphere2, cascadeSphere3;
+        public Vector4 cascadeParameters0, cascadeParameters1, cascadeParameters2, cascadeParameters3;
+        public Vector4 cascadeSplitDistances;
+        public Vector4 cascadeMapSize;
+        public Vector4 localMapSize;
+        public Vector4 filterParameters;
+        public Vector4 momentParameters;
+        public int cascadeCount;
+        public int shadowmaskMode;
+        public float shadowDistance;
+        public int padding;
+    }
+
+    // Every shadow resource Shaders/Library/ShadowSampling.hlsl reads. Query once at record time (QueryShadowInputs),
+    // declare the reads on the consuming pass (Read), then bind in the execute function (Bind for one compute kernel,
+    // BindGlobal for raster passes). The constants are the camera's ShadowUniform. Moment atlases fall back to a black texture on frames where
     // no visible light uses VSM / EVSM; no shader samples them then.
     internal struct ShadowInputs
     {
@@ -34,19 +51,8 @@ namespace InfinityTech.Rendering.Pipeline
         public bool hasLocalMoments;
         public RGBufferHandle localMatrices;
         public RGBufferHandle localSlices;
-        public int cascadeCount;
-        public int shadowmaskMode;
-        public float shadowDistance;
-        public Matrix4x4[] cascadeMatrices;
-        public Vector4[] cascadeSpheres;
-        public Vector4[] cascadeParams;
-        public Vector4 cascadeSplitDistances;
-        public Vector4 cascadeMapSize;
-        public Vector4 localMapSize;
-        public Vector4 filterParams;
-        public Vector4 momentParams;
 
-        public void Read(RGComputePassHandle passRef)
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);
@@ -62,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
             passRef.ReadBuffer(localSlices);
         }
 
-        public void Read(RGRasterPassHandle passRef)
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);
@@ -90,17 +96,6 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowRectBuffer, localSlices);
-            commands.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, cascadeCount);
-            commands.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, cascadeMatrices);
-            commands.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, cascadeSpheres);
-            commands.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeShadowParamsID, cascadeParams);
-            commands.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, cascadeSplitDistances);
-            commands.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeShadowMapSizeID, cascadeMapSize);
-            commands.SetComputeVectorParam(shader, ShadowShaderIDs.LocalShadowMapSize, localMapSize);
-            commands.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.ShadowFilterParamsID, filterParams);
-            commands.SetComputeVectorParam(shader, ShadowShaderIDs.ShadowMomentParams, momentParams);
-            commands.SetComputeIntParam(shader, ShadowShaderIDs.ShadowmaskMode, shadowmaskMode);
-            commands.SetComputeFloatParam(shader, ShadowShaderIDs.ShadowDistance, shadowDistance);
         }
 
         public readonly void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
@@ -115,49 +110,54 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
             commands.SetGlobalBuffer(LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
             commands.SetGlobalBuffer(LightShaderIDs.LocalShadowRectBuffer, localSlices);
-            commands.SetGlobalInt(CascadeShadowPassUtilityData.CascadeCountID, cascadeCount);
-            commands.SetGlobalMatrixArray(CascadeShadowPassUtilityData.CascadeMatricesID, cascadeMatrices);
-            commands.SetGlobalVectorArray(CascadeShadowPassUtilityData.CascadeSpheresID, cascadeSpheres);
-            commands.SetGlobalVectorArray(CascadeShadowPassUtilityData.CascadeShadowParamsID, cascadeParams);
-            commands.SetGlobalVector(CascadeShadowPassUtilityData.CascadeSplitDistancesID, cascadeSplitDistances);
-            commands.SetGlobalVector(CascadeShadowPassUtilityData.CascadeShadowMapSizeID, cascadeMapSize);
-            commands.SetGlobalVector(ShadowShaderIDs.LocalShadowMapSize, localMapSize);
-            commands.SetGlobalVector(CascadeShadowPassUtilityData.ShadowFilterParamsID, filterParams);
-            commands.SetGlobalVector(ShadowShaderIDs.ShadowMomentParams, momentParams);
-            commands.SetGlobalInt(ShadowShaderIDs.ShadowmaskMode, shadowmaskMode);
-            commands.SetGlobalFloat(ShadowShaderIDs.ShadowDistance, shadowDistance);
         }
     }
 
     public partial class InfinityRenderPipeline
     {
-        ShadowInputs QueryShadowInputs(RenderContext renderContext)
+        // The camera's shadow constants, from the allocator the light context built after culling.
+        ShadowUniform ResolveShadowUniform()
         {
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            ShadowFilterSettings filter = pipelineAsset.ResolveShadowFilter();
+            ShadowFilterSettings filter = m_Settings.shadowFilter;
             // The cascade atlas holds 2x2 tiles of cascadeShadowMapResolution.
-            float cascadeSize = pipelineAsset.cascadeShadowMapResolution * 2;
-            float localSize = pipelineAsset.localShadowMapResolution;
-            var inputs = new ShadowInputs
+            float cascadeSize = m_Settings.cascadeShadowMapResolution * 2;
+            float localSize = m_Settings.localShadowMapResolution;
+            Matrix4x4[] matrices = allocator.CascadeMatrices;
+            Vector4[] spheres = allocator.CascadeSpheres;
+            Vector4[] cascades = allocator.CascadeParams;
+            return new ShadowUniform
             {
-                cascadeMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
-                localMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
-                localMatrices = m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
-                localSlices = m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
-                cascadeCount = allocator.CascadeAllocatedCount,
-                cascadeMatrices = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeMatrices),
-                cascadeSpheres = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeSpheres),
-                cascadeParams = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeParams),
+                cascadeMatrix0 = matrices[0], cascadeMatrix1 = matrices[1], cascadeMatrix2 = matrices[2], cascadeMatrix3 = matrices[3],
+                cascadeSphere0 = spheres[0], cascadeSphere1 = spheres[1], cascadeSphere2 = spheres[2], cascadeSphere3 = spheres[3],
+                cascadeParameters0 = cascades[0], cascadeParameters1 = cascades[1], cascadeParameters2 = cascades[2], cascadeParameters3 = cascades[3],
                 cascadeSplitDistances = allocator.CascadeSplitDistances,
                 cascadeMapSize = new Vector4(cascadeSize, cascadeSize, 1 / cascadeSize, 1 / cascadeSize),
                 localMapSize = new Vector4(localSize, localSize, 1 / localSize, 1 / localSize),
-                filterParams = CascadeShadowPassUtilityData.FilterParams(filter),
-                momentParams = ShadowMomentPassUtilityData.SamplingParams(filter),
+                filterParameters = CascadeShadowPassUtilityData.FilterParams(filter),
+                momentParameters = ShadowMomentPassUtilityData.SamplingParams(filter),
+                cascadeCount = allocator.CascadeAllocatedCount,
                 shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
-                shadowDistance = pipelineAsset.shadowDistance,
+                shadowDistance = m_Settings.shadowDistance
             };
-            inputs.hasCascadeMoments = m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out inputs.cascadeMoments);
-            inputs.hasLocalMoments = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out inputs.localMoments);
+        }
+
+        ShadowInputs QueryShadowInputs(in CameraRecordContext context)
+        {
+            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            var inputs = new ShadowInputs
+            {
+                cascadeMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
+                localMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
+                localMatrices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
+                localSlices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
+            };
+            // ComputeShadowMoments builds each atlas exactly when the feature records and the allocator uses moments there.
+            bool moments = context.features.ShouldRecord(EFrameFeature.ShadowMoments);
+            inputs.hasCascadeMoments = moments && allocator.CascadeUsesMoments;
+            inputs.hasLocalMoments = moments && allocator.LocalMomentSliceCount > 0;
+            inputs.cascadeMoments = inputs.hasCascadeMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMoments) : default;
+            inputs.localMoments = inputs.hasLocalMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMoments) : default;
             return inputs;
         }
     }

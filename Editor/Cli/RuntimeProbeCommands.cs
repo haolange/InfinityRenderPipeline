@@ -41,11 +41,11 @@ namespace InfinityTech.Rendering.Editor
     {
         public float endSeconds;
         public int frames;
-        public RuntimeProbeStat frameMs, proxyMs, transformMs, applyMs, frameAllocations, proxyAllocations, frameAllocBytes, proxyAllocBytes;
+        public RuntimeProbeStat frameMs, proxyMs, transformMs, applyMs, frameAllocations, proxyAllocations;
         public long monoUsedBytes, monoHeapBytes, liveSetBytes, totalAllocatedBytes, totalReservedBytes, graphicsDriverBytes;
         public long poolTextureAllocatedBytes, poolTextureIdleBytes, poolTextureRetiredBytes, poolBufferAllocatedBytes, poolBufferIdleBytes, poolBufferRetiredBytes;
         public int gcGen0, gcGen1, gcGen2;
-        public int meshEntities, meshElements, allocatedViewCount;
+        public int meshEntities, meshElements;
         public string actualBackend;
     }
 
@@ -98,6 +98,7 @@ namespace InfinityTech.Rendering.Editor
     // pipeline's counters, so the probe does not inflate the frames it measures.
     internal sealed class RuntimeProbeSession
     {
+        const string ReloadHolder = "infinity_runtime_probe";
         internal readonly RuntimeProbeEvidence evidence;
         readonly RuntimeProbeRequest m_Request;
         readonly Camera m_Camera;
@@ -109,14 +110,14 @@ namespace InfinityTech.Rendering.Editor
         readonly bool m_PreviousRunInBackground;
         readonly bool m_PreviousMeasurement;
         readonly MeshPipeline.EMeshDrawBackendPolicy? m_PreviousBackend;
-        readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations, m_FrameAllocBytes, m_ProxyAllocBytes;
+        readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations;
         readonly double[] m_Scratch;
         int m_Frame, m_WindowSamples, m_WindowIndex;
         double m_WindowsStarted;
-        bool m_Sampling, m_HasPending, m_ReloadLocked;
+        bool m_Sampling, m_HasPending;
         // Proxy sections of frame N are final at frame N's render callback, but the complete Render scope of frame N is final
         // only at frame N+1's callback. Hold frame N's proxy values until then so each sample describes one frame.
-        double m_PendingProxyMs, m_PendingTransformMs, m_PendingApplyMs, m_PendingProxyAllocations, m_PendingProxyAllocBytes;
+        double m_PendingProxyMs, m_PendingTransformMs, m_PendingApplyMs, m_PendingProxyAllocations;
         long m_PendingSequence;
 
         internal bool Finished { get; private set; }
@@ -155,7 +156,6 @@ namespace InfinityTech.Rendering.Editor
             int capacity = Mathf.CeilToInt(longest * 1000.0f) + 16;
             m_FrameMs = new double[capacity]; m_ProxyMs = new double[capacity]; m_TransformMs = new double[capacity];
             m_ApplyMs = new double[capacity]; m_FrameAllocations = new double[capacity]; m_ProxyAllocations = new double[capacity];
-            m_FrameAllocBytes = new double[capacity]; m_ProxyAllocBytes = new double[capacity];
             m_Scratch = new double[capacity];
 
             Directory.CreateDirectory(request.outputDirectory);
@@ -167,7 +167,6 @@ namespace InfinityTech.Rendering.Editor
             {
                 if (!string.IsNullOrEmpty(request.meshBackend))
                     InfinityDebugDisplaySettings.current.mesh.backendOverride = (MeshPipeline.EMeshDrawBackendPolicy)Enum.Parse(typeof(MeshPipeline.EMeshDrawBackendPolicy), request.meshBackend);
-                PipelineFrameMeasurement.ThrowIfAllocationByteCounterMissing();
                 PipelineFrameMeasurement.enabled = true;
                 RuntimeProbeContent.Spawn(request, m_Camera, m_Owned, m_Moving, m_BasePositions, out evidence.translucent);
                 evidence.spawned = request.count;
@@ -176,8 +175,7 @@ namespace InfinityTech.Rendering.Editor
                 EditorApplication.update += OnUpdate;
                 EditorApplication.playModeStateChanged += OnPlayModeChanged;
                 AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
-                EditorApplication.LockReloadAssemblies();
-                m_ReloadLocked = true;
+                ReloadLock.Acquire(ReloadHolder);
                 evidence.status = "Warmup";
             }
             catch (Exception error)
@@ -206,12 +204,10 @@ namespace InfinityTech.Rendering.Editor
                     int i = m_WindowSamples++;
                     m_FrameMs[i] = PipelineFrameMeasurement.frameTicks * ticksToMs;
                     m_FrameAllocations[i] = PipelineFrameMeasurement.frameAllocations;
-                    m_FrameAllocBytes[i] = PipelineFrameMeasurement.frameBytes;
                     m_ProxyMs[i] = m_PendingProxyMs;
                     m_TransformMs[i] = m_PendingTransformMs;
                     m_ApplyMs[i] = m_PendingApplyMs;
                     m_ProxyAllocations[i] = m_PendingProxyAllocations;
-                    m_ProxyAllocBytes[i] = m_PendingProxyAllocBytes;
                     ++SampledFrames;
                 }
                 else m_WindowSamples = m_FrameMs.Length + 1;
@@ -220,7 +216,6 @@ namespace InfinityTech.Rendering.Editor
             m_PendingTransformMs = PipelineFrameMeasurement.transformTicks * ticksToMs;
             m_PendingApplyMs = PipelineFrameMeasurement.applyTicks * ticksToMs;
             m_PendingProxyAllocations = PipelineFrameMeasurement.proxyAllocations;
-            m_PendingProxyAllocBytes = PipelineFrameMeasurement.proxyBytes;
             m_PendingSequence = PipelineFrameMeasurement.sequence;
             m_HasPending = true;
         }
@@ -295,7 +290,6 @@ namespace InfinityTech.Rendering.Editor
                 frames = m_WindowSamples,
                 frameMs = Stat(m_FrameMs), proxyMs = Stat(m_ProxyMs), transformMs = Stat(m_TransformMs), applyMs = Stat(m_ApplyMs),
                 frameAllocations = Stat(m_FrameAllocations), proxyAllocations = Stat(m_ProxyAllocations),
-                frameAllocBytes = Stat(m_FrameAllocBytes), proxyAllocBytes = Stat(m_ProxyAllocBytes),
                 monoUsedBytes = used, monoHeapBytes = heap, liveSetBytes = live,
                 totalAllocatedBytes = Profiler.GetTotalAllocatedMemoryLong(), totalReservedBytes = Profiler.GetTotalReservedMemoryLong(),
                 graphicsDriverBytes = Profiler.GetAllocatedMemoryForGraphicsDriver(),
@@ -308,7 +302,7 @@ namespace InfinityTech.Rendering.Editor
                 gcGen0 = GC.CollectionCount(0), gcGen1 = GC.CollectionCount(1), gcGen2 = GC.CollectionCount(2),
                 actualBackend = InfinityDebugDisplaySettings.current.mesh.actualBackend.ToString(),
             };
-            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements, out window.allocatedViewCount);
+            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements);
             evidence.windows.Add(window);
             m_WindowSamples = 0;
             if (++m_WindowIndex == m_Request.windowsSeconds.Length) Stop("Completed");
@@ -351,7 +345,7 @@ namespace InfinityTech.Rendering.Editor
             InfinityDebugDisplaySettings.current.mesh.backendOverride = m_PreviousBackend;
             PipelineFrameMeasurement.enabled = m_PreviousMeasurement;
             Application.runInBackground = m_PreviousRunInBackground;
-            if (m_ReloadLocked) { EditorApplication.UnlockReloadAssemblies(); m_ReloadLocked = false; }
+            ReloadLock.Release(ReloadHolder);
             evidence.restored = true;
             try { File.WriteAllText(Path.Combine(m_Request.outputDirectory, "probe.json"), JsonUtility.ToJson(evidence, true)); }
             catch (Exception write) { evidence.error += "\nEvidence write: " + write; UnityEngine.Debug.LogException(write); }

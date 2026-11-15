@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -50,7 +51,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void TakeUploads_ReusesTheArray_AndMarksProduced()
         {
-            var atlas = new LightCookieAtlas();
+            var pool = new ResourcePool();
+            var atlas = new LightCookieAtlas(pool);
             Texture2D texture = new Texture2D(4, 4, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
             try
             {
@@ -80,6 +82,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
                 UnityEngine.Object.DestroyImmediate(texture);
             }
         }
@@ -87,7 +90,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void Atlas_UploadsOnce_ReuploadsOnTextureChange_RollsBackOnFailure()
         {
-            var atlas = new LightCookieAtlas();
+            var pool = new ResourcePool();
+            var atlas = new LightCookieAtlas(pool);
             try
             {
                 atlas.Configure(256, 128);
@@ -114,13 +118,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
             }
         }
 
         [Test]
         public void Atlas_EvictsBlocksUnusedThisFrame()
         {
-            var atlas = new LightCookieAtlas();
+            var pool = new ResourcePool();
+            var atlas = new LightCookieAtlas(pool);
             try
             {
                 // A 256 atlas holds four 128 blocks.
@@ -138,6 +144,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 atlas.Dispose();
+                pool.Dispose();
             }
         }
     }

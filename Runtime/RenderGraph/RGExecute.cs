@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
     public partial class RGBuilder
     {
-        void QueueGraphics(RenderContext context, CommandBuffer commands)
+        void QueueGraphics(ScriptableRenderContext context, CommandBuffer commands)
         {
             try
             {
-                context.scriptableRenderContext.ExecuteCommandBuffer(commands);
+                context.ExecuteCommandBuffer(commands);
             }
             catch
             {
@@ -22,11 +22,11 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        void QueueAsync(RenderContext context, CommandBuffer commands)
+        void QueueAsync(ScriptableRenderContext context, CommandBuffer commands)
         {
             try
             {
-                context.scriptableRenderContext.ExecuteCommandBufferAsync(commands, ComputeQueueType.Background);
+                context.ExecuteCommandBufferAsync(commands, ComputeQueueType.Background);
             }
             catch
             {
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        internal void RecoverUnjoinedAsync(RenderContext context, bool forceDrain = false)
+        internal void RecoverUnjoinedAsync(ScriptableRenderContext context, bool forceDrain = false)
         {
             if (!m_UnrecoverableAsyncSubmission && !forceDrain)
             {
@@ -67,26 +67,16 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        static RenderBufferLoadAction FallbackColorLoad(RenderBufferLoadAction action)
+        // A raster pass outside a native render-pass group binds its targets with SetRenderTarget. A clear becomes an
+        // explicit ClearRenderTarget followed by a load, and stores follow the compiled store decision of this graph.
+        static RenderBufferLoadAction TargetColorLoad(RenderBufferLoadAction action)
             => action == RenderBufferLoadAction.Clear ? RenderBufferLoadAction.Load : action;
 
-        RenderBufferStoreAction FallbackColorStore(in RGPassCompileInfo info, int colorIndex)
-        {
-            if (info.pass != null && info.pass.index >= 0 && info.pass.index < m_PassCompileInfos.size
-                && m_PassCompileInfos[info.pass.index].pass == info.pass)
-                return CompiledColorStore(info.pass.index, colorIndex);
-            return info.pass.colorBufferActions[colorIndex].storeAction;
-        }
+        RenderBufferStoreAction TargetColorStore(in RGPassCompileInfo info, int colorIndex) => CompiledColorStore(info.pass.index, colorIndex);
 
-        RenderBufferStoreAction FallbackDepthStore(in RGPassCompileInfo info)
-        {
-            if (info.pass != null && info.pass.index >= 0 && info.pass.index < m_PassCompileInfos.size
-                && m_PassCompileInfos[info.pass.index].pass == info.pass)
-                return CompiledDepthStore(info.pass.index);
-            return info.pass.depthBufferAction.storeAction;
-        }
+        RenderBufferStoreAction TargetDepthStore(in RGPassCompileInfo info) => CompiledDepthStore(info.pass.index);
 
-        void ClearFallbackColors(CommandBuffer commands, IRGPass pass)
+        void ClearTargetColors(CommandBuffer commands, IRGPass pass)
         {
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
@@ -100,10 +90,10 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetRenderTarget(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
         {
             IRGPass pass = passCompileInfo.pass;
-            ClearFallbackColors(graphContext.cmdBuffer, pass);
+            ClearTargetColors(graphContext.cmdBuffer, pass);
             var depthLoad = pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear
                 ? RenderBufferLoadAction.DontCare : pass.depthBufferAction.loadAction;
-            RenderBufferStoreAction depthStore = FallbackDepthStore(passCompileInfo);
+            RenderBufferStoreAction depthStore = TargetDepthStore(passCompileInfo);
             if (!pass.depthBuffer.IsValid() && pass.colorBufferMaxIndex == -1)
             {
                 return;
@@ -121,12 +111,12 @@ namespace InfinityTech.Rendering.RenderGraph
                     if (!pass.colorBuffers[i].IsValid())
                         throw new InvalidOperationException("MRT setup is invalid. Some indices are not used.");
                     colors[i] = m_Resources.GetTexture(pass.colorBuffers[i]);
-                    loads[i] = FallbackColorLoad(pass.colorBufferActions[i].loadAction);
-                    stores[i] = FallbackColorStore(passCompileInfo, i);
+                    loads[i] = TargetColorLoad(pass.colorBufferActions[i].loadAction);
+                    stores[i] = TargetColorStore(passCompileInfo, i);
                 }
                 var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
                 {
-                    flags = GetFallbackDepthFlags(pass.depthBufferAccess)
+                    flags = TargetDepthFlags(pass.depthBufferAccess)
                 };
                 graphContext.cmdBuffer.SetRenderTarget(binding);
             }
@@ -138,11 +128,11 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (pass.colorBufferMaxIndex > -1)
                 {
                     colors[0] = m_Resources.GetTexture(pass.colorBuffers[0]);
-                    loads[0] = FallbackColorLoad(pass.colorBufferActions[0].loadAction);
-                    stores[0] = FallbackColorStore(passCompileInfo, 0);
+                    loads[0] = TargetColorLoad(pass.colorBufferActions[0].loadAction);
+                    stores[0] = TargetColorStore(passCompileInfo, 0);
                     var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
                     {
-                        flags = GetFallbackDepthFlags(pass.depthBufferAccess)
+                        flags = TargetDepthFlags(pass.depthBufferAccess)
                     };
                     graphContext.cmdBuffer.SetRenderTarget(binding);
                 }
@@ -153,7 +143,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     stores[0] = depthStore;
                     var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
                     {
-                        flags = GetFallbackDepthFlags(pass.depthBufferAccess)
+                        flags = TargetDepthFlags(pass.depthBufferAccess)
                     };
                     graphContext.cmdBuffer.SetRenderTarget(binding);
                 }
@@ -162,15 +152,15 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 graphContext.cmdBuffer.SetRenderTarget(
                     m_Resources.GetTexture(pass.colorBuffers[0]),
-                    FallbackColorLoad(pass.colorBufferActions[0].loadAction),
-                    FallbackColorStore(passCompileInfo, 0));
+                    TargetColorLoad(pass.colorBufferActions[0].loadAction),
+                    TargetColorStore(passCompileInfo, 0));
             }
 
             if (pass.depthBuffer.IsValid() && pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear)
-                graphContext.cmdBuffer.ClearRenderTarget(true, false, Color.clear, GraphicsUtility.ClearDepthFar);
+                graphContext.cmdBuffer.ClearRenderTarget(true, false, Color.clear, GraphicsConventions.ClearDepthFar);
         }
 
-        static RenderTargetFlags GetFallbackDepthFlags(EDepthAccess access)
+        static RenderTargetFlags TargetDepthFlags(EDepthAccess access)
         {
             bool readOnly = (access & EDepthAccess.ReadOnly) != 0;
             bool write = (access & EDepthAccess.Write) != 0;
@@ -259,7 +249,7 @@ namespace InfinityTech.Rendering.RenderGraph
         static void ApplyAttachmentClearValues(ref AttachmentDescriptor attachment, Color clearColor)
         {
             attachment.clearColor = clearColor;
-            attachment.clearDepth = GraphicsUtility.ClearDepthFar;
+            attachment.clearDepth = GraphicsConventions.ClearDepthFar;
             attachment.clearStencil = 0;
         }
 
@@ -303,6 +293,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.CreateBufferResource(ref graphContext, buffer, passCompileInfo.enableAsyncCompute);
             foreach (int texture in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
                 m_Resources.CreateTextureResource(ref graphContext, texture, passCompileInfo.enableAsyncCompute);
+            foreach (RGConstantsHandle constants in passCompileInfo.pass.constants)
+                m_Resources.constants.Upload(graphContext.cmdBuffer, m_Resources.ResolveBuffer(constants.buffer).resource, constants);
 
             if (passCompileInfo.pass.passType == EPassType.Raster)
                 BindRasterTarget(ref graphContext, passCompileInfo);
@@ -397,7 +389,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     try
                     {
                         graphicsCommands.WaitOnAsyncGraphicsFence(lastAsyncFence);
-                        QueueGraphics(graphContext.renderContext, graphicsCommands);
+                        QueueGraphics(graphContext.scriptableRenderContext, graphicsCommands);
                     }
                     catch (Exception joinError)
                     {
@@ -453,8 +445,6 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         continue;
                     }
-                    if (!info.pass.hasExecuteAction)
-                        throw new InvalidOperationException($"RenderPass {info.pass.name} was not provided with an execute function.");
                     BeginSamples(info.beginSamples, graphContext.cmdBuffer);
                     bool passScoped = info.pass.customSampler != null;
                     ProfilingScope passScope = passScoped ? new ProfilingScope(graphContext.cmdBuffer, info.pass.customSampler) : default;
@@ -464,7 +454,9 @@ namespace InfinityTech.Rendering.RenderGraph
                         PrePassExecute(ref graphContext, info);
                         info.pass.Execute(ref graphContext);
                         PostPassExecute(ref graphContext, ref info);
-                        RenderFaultValidation.AtPass(ERenderFaultPoint.BeforePassQueue, info.pass.name);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        executionObserver?.PassRecorded(info.pass.name);
+#endif
                     }
                     catch (Exception error)
                     {
@@ -547,19 +539,19 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (!hasQueuedAsync)
                 {
-                    QueueGraphics(graphContext.renderContext, graphicsCommands);
+                    QueueGraphics(graphContext.scriptableRenderContext, graphicsCommands);
                     graphicsCommands.Clear();
                 }
                 try
                 {
-                    QueueAsync(graphContext.renderContext, asyncCommands);
+                    QueueAsync(graphContext.scriptableRenderContext, asyncCommands);
                     lastAsyncFence = completion;
                     hasQueuedAsync = true;
                 }
                 catch
                 {
                     FailSegment(passes);
-                    DrainAsync(graphContext.renderContext, ref lastAsyncFence, ref hasQueuedAsync);
+                    DrainAsync(graphContext.scriptableRenderContext, ref lastAsyncFence, ref hasQueuedAsync);
                     throw;
                 }
             }
@@ -567,7 +559,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 try
                 {
-                    QueueGraphics(graphContext.renderContext, graphicsCommands);
+                    QueueGraphics(graphContext.scriptableRenderContext, graphicsCommands);
                 }
                 catch
                 {
@@ -578,8 +570,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 graphicsCommands.Clear();
             }
 
-            for (int i = 0; i < passes.Count; ++i)
-                RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, m_PassCompileInfos[passes[i]].pass.name);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (executionObserver != null)
+            {
+                for (int i = 0; i < passes.Count; ++i)
+                {
+                    executionObserver.PassQueued(m_PassCompileInfos[passes[i]].pass.name);
+                }
+            }
+#endif
             for (int i = 0; i < passes.Count; ++i)
             {
                 m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueued();
@@ -593,7 +592,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueueFailed();
         }
 
-        void DrainAsync(RenderContext context, ref GraphicsFence lastAsyncFence, ref bool hasQueuedAsync)
+        void DrainAsync(ScriptableRenderContext context, ref GraphicsFence lastAsyncFence, ref bool hasQueuedAsync)
         {
             var drain = CommandBufferPool.Get();
             try

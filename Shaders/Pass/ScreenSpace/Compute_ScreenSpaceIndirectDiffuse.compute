@@ -8,6 +8,7 @@
 #pragma kernel SSGISpatial
 #pragma kernel SSGIUpsample
 #pragma kernel SSGITraceDebug SSGI_DIAGNOSTICS
+#pragma multi_compile_local _ SSGI_AMBIENT_OCCLUSION
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/ScreenSpaceDepth.hlsl"
@@ -23,26 +24,28 @@
 #define SSGI_TILE_SIZE SCREEN_SPACE_TRACE_TILE_SIZE
 #define SSGI_EDGE_FADE 0.05
 
-float4 SSGI_Resolution;
-float4 SSGI_TraceResolution;
-uint SSGI_TraceScale;
-uint SSGI_FrameIndex;
-uint SSGI_PreviousFrameIndex;
-float SSGI_Intensity;
-uint SSGI_HiZSteps;
-uint SSGI_TraceFlags;
-uint SSGI_Samples;
+// The SSGIParameters record SSGIPass writes, bound as one constant buffer.
+cbuffer CBV_SSGIParameters
+{
+    float4 SSGI_Resolution;
+    float4 SSGI_TraceResolution;
+    uint SSGI_TraceScale;
+    uint SSGI_FrameIndex;
+    uint SSGI_PreviousFrameIndex;
+    float SSGI_Intensity;
+    uint SSGI_HiZSteps;
+    uint SSGI_TraceFlags;
+    uint SSGI_Samples;
+    float SSGI_FrameAngle;
+    float SSGI_TemporalWeight;
+    float SSGI_TemporalClampScale;
+    float SSGI_HistoryValid;
+    uint SSGI_Padding0;
+};
+// Per spatial dispatch: 0 = wide, 1 = narrow.
 uint SSGI_SpatialPass;
-uint SSGI_HasAO;
-float SSGI_FrameAngle;
-float SSGI_TemporalWeight;
-float SSGI_TemporalClampScale;
-float SSGI_HistoryValid;
 // xyz = world position, w = 1 for orthographic cameras.
-float4 SSGI_CameraPosition;
-float4 SSGI_CameraForward;
-float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_WorldToView;
-float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_HiZClosestTexture;
@@ -56,7 +59,9 @@ Texture2D<uint2> SRV_HistoryMeta;
 Texture2D<float4> SRV_TraceRadiance;
 Texture2D<float4> SRV_Current;
 Texture2D<float4> SRV_Temporal;
+#if defined(SSGI_AMBIENT_OCCLUSION)
 Texture2D<float> SRV_Occlusion;
+#endif
 Texture2D<float4> SRV_Filtered;
 Texture2D<uint2> SRV_Meta;
 
@@ -105,9 +110,9 @@ void TracePixel(uint2 tracePixel)
         float jitter = GetBNDSequenceSample(tracePixel, SSGI_FrameIndex, (int)(rayIndex * 3 + 2));
         ScreenSpaceHit hit = (ScreenSpaceHit)0;
 #if defined(SSGI_TRACE_LINEAR)
-        bool found = TraceScreenSpaceLinear(surface.positionVS, directionVS, SSGI_HiZSteps * 4, 4, jitter, SSGI_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
+        bool found = TraceScreenSpaceLinear(surface.positionVS, directionVS, SSGI_HiZSteps * 4, 4, jitter, SSGI_TraceFlags, Matrix_FlipYJitterProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
 #else
-        bool found = TraceScreenSpaceHiZ(surface.positionVS, directionVS, SSGI_HiZSteps, jitter, SSGI_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
+        bool found = TraceScreenSpaceHiZ(surface.positionVS, directionVS, SSGI_HiZSteps, jitter, SSGI_TraceFlags, Matrix_FlipYJitterProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
 #endif
 #ifdef SSGI_DIAGNOSTICS
         if (rayIndex == 0)
@@ -117,13 +122,13 @@ void TracePixel(uint2 tracePixel)
 #endif
         if (found)
         {
-            float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
+            float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewFlipYJitterProj);
             float distance = length(hitWS - surface.positionWS);
             uint2 hitPixel = min((uint2)(hit.uv * SSGI_Resolution.xy), (uint2)SSGI_Resolution.xy - 1);
             float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
             float confidence;
             float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, SRV_HitMotionMetadata[hitPixel], 0,
-                Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, confidence);
+                Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, confidence);
             confidence *= GetScreenFadeBord(hit.uv, SSGI_EDGE_FADE) * saturate(-dot(hitNormal, L) * 4);
             radiance += float4(color * (SSGI_Intensity * confidence), confidence);
             hitDistance += distance;
@@ -210,7 +215,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
     float2 uv = (surfacePixel + 0.5) * SSGI_Resolution.zw;
     float2 surfaceUV;
     float expectedDepth;
-    ReprojectSurface(uv, surface.rawDepth, SRV_MotionTexture[surfacePixel].xy, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, surfaceUV, expectedDepth);
+    ReprojectSurface(uv, surface.rawDepth, SRV_MotionTexture[surfacePixel].xy, Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, surfaceUV, expectedDepth);
 
     // Diffuse lighting follows the surface; there is no virtual image to track.
 
@@ -276,11 +281,10 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
     float fView = lerp(0.5, 1.5, saturate(viewZ / 20));
     float fVariance = max(saturate(variance / (variance + 0.02)), 0.05);
     float ao = 1;
-    if (SSGI_HasAO != 0)
-    {
-        uint2 fullPixel = min(TraceToFullPixel(pixel), (uint2)SSGI_Resolution.xy - 1);
-        ao = saturate(SRV_Occlusion[fullPixel].x);
-    }
+#if defined(SSGI_AMBIENT_OCCLUSION)
+    uint2 fullPixel = min(TraceToFullPixel(pixel), (uint2)SSGI_Resolution.xy - 1);
+    ao = saturate(SRV_Occlusion[fullPixel].x);
+#endif
     float fAo = max(ao, 0.25);
     float baseRadius = SSGI_SpatialPass == 0 ? 6.0 : 3.0;
     float radius = baseRadius * fView * fVariance * fAo;
@@ -298,7 +302,7 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
         float r = sqrt((i + 0.5) / 32.0) * radius;
         float theta = i * 2.39996323 + SSGI_FrameAngle;
         float3 targetWS = surface.positionWS + mul(float3(cos(theta), sin(theta), 0), basis) * r;
-        float4 projected = mul(Matrix_Proj, mul(Matrix_WorldToView, float4(targetWS, 1)));
+        float4 projected = mul(Matrix_FlipYJitterProj, mul(Matrix_WorldToView, float4(targetWS, 1)));
         if (projected.w <= 0)
         {
             continue;

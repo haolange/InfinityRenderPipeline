@@ -57,7 +57,7 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            terrainSector?.Initializ();
+            terrainSector?.Initialize();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
             RenderTaskQueue.AddTask((RenderContext renderContext) =>
             {
@@ -76,9 +76,9 @@ namespace InfinityTech.Component
             });
         }
 
-        public void ProcessLOD(in float3 viewOringin, in float4x4 matrix_Proj)
+        public void ProcessLOD(in float3 viewOrigin, in float4x4 projectionMatrix)
         {
-            terrainSector.ProcessLOD(sectionSize, viewOringin, matrix_Proj);
+            terrainSector.ProcessLOD(sectionSize, viewOrigin, projectionMatrix);
         }
 
 #if UNITY_EDITOR

@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -15,7 +14,9 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         public RGObjectPool objectPool;
         internal CommandBuffer cmdBuffer;
-        public RenderContext renderContext;
+        // The graph's own factory: every encoder resolves graph handles through it, never through a global.
+        internal RGResourceFactory resources;
+        public ScriptableRenderContext scriptableRenderContext;
         internal RGRendererListContext rendererLists;
         internal IRGGraphExtension extension;
     }
@@ -95,11 +96,7 @@ namespace InfinityTech.Rendering.RenderGraph
     internal struct RGResourceCompileInfo
     {
         public int refCount;
-        public bool resourceCreated;
         public int lastGraphicsUse, lastComputeUse;
-        public int aliasSlot;
-        public int aliasGroup;
-        public long estimatedBytes;
         public bool cullClosed;
         public List<int> consumers;
         public List<int> producers;
@@ -113,11 +110,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
             producers.Clear();
             consumers.Clear();
-            resourceCreated = false;
             lastGraphicsUse = lastComputeUse = -1;
-            aliasSlot = -1;
-            aliasGroup = -1;
-            estimatedBytes = 0;
             cullClosed = false;
             refCount = 0;
         }
@@ -145,12 +138,10 @@ namespace InfinityTech.Rendering.RenderGraph
             return array;
         }
 
-        internal T[] SnapshotRecordingArray<T>(T[] source)
-        {
-            var destination = GetRecordingArray<T>(source.Length);
-            Array.Copy(source, destination, source.Length);
-            return destination;
-        }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // Set by a diagnostics session; null otherwise.
+        internal static IRGExecutionObserver executionObserver;
+#endif
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
         RGObjectPool m_ObjectPool = new RGObjectPool();
@@ -161,7 +152,7 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly bool m_AsyncComputeSupported;
 
         public RGBuilder(string name, ResourcePool resourcePool = null)
-            : this(name, resourcePool, SystemInfo.supportsAsyncCompute && SystemInfo.supportsGraphicsFence) { }
+            : this(name, resourcePool, SystemInfo.supportsAsyncCompute) { }
 
         // The capability is frozen for this graph. Tests can compile both topologies
         // without submitting unsupported queue work on the host device.
@@ -177,17 +168,24 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 this.m_ResourcesCompileInfos[i] = new DynamicArray<RGResourceCompileInfo>();
             }
+            scoper = new RGScoper(this);
+        }
+
+        // Semantic names of this graph's resources; they live exactly as long as the recorded graph and clear with it.
+        public RGScoper scoper
+        {
+            get;
         }
 
         public void SetTextureCapacity(TextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
 
         /// <summary>
-        /// Record a Unity RendererList descriptor. Does not call ScriptableRenderContext.CreateRendererList.
+        /// Record renderer list parameters. The native list is created after pass culling, only for a consumed list.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRendererListHandle CreateRendererList(in RendererListDesc desc)
+        public RGRendererListHandle CreateRendererList(in RendererListParams parameters)
         {
-            return m_RendererListRecords.Declare(desc);
+            return m_RendererListRecords.Declare(parameters);
         }
 
         /// <summary>
@@ -269,10 +267,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         string GetProducer(in RGResourceHandle handle, out string queue)
         {
-            if (!handle.IsValid())
-            {
-                throw new InvalidOperationException("Capture source handle is invalid.");
-            }
+            m_Resources.RequireLive(handle, "GetProducer");
             for (int i = m_PassList.Count - 1; i >= 0; --i)
             {
                 IRGPass pass = m_PassList[i];
@@ -351,13 +346,14 @@ namespace InfinityTech.Rendering.RenderGraph
                 for (int i = 0; i < count; ++i)
                 {
                     m_Resources.DescribeResource(type, i, out string resourceName, out bool imported, out string description);
-                    ref RGResourceCompileInfo compiled = ref m_ResourcesCompileInfos[type][i];
+                    RGResourceHandle handle = m_Resources.LiveHandle((ERGResourceType)type, i);
+                    TextureDescriptor texture = type == (int)ERGResourceType.Texture ? m_Resources.GetTextureDescriptor(handle) : default;
                     snapshot.resources.Add(new RGResourceSnapshot
                     {
                         type = (ERGResourceType)type, index = i, name = resourceName, imported = imported, description = description,
                         firstUse = -1, lastUse = -1, createPass = -1, releasePass = -1,
-                        aliasSlot = compiled.aliasSlot, aliasGroup = compiled.aliasGroup, estimatedBytes = compiled.estimatedBytes,
-                        memoryless = type == (int)ERGResourceType.Texture && m_Resources.GetTextureDescriptor(new RGResourceHandle(i, ERGResourceType.Texture)).memoryless != RenderTextureMemoryless.None
+                        estimatedBytes = imported ? 0 : type == (int)ERGResourceType.Texture ? texture.EstimateBytes() : m_Resources.GetBufferDescriptor(handle).EstimateBytes(),
+                        memoryless = type == (int)ERGResourceType.Texture && texture.memoryless != RenderTextureMemoryless.None
                     });
                 }
             }
@@ -407,27 +403,21 @@ namespace InfinityTech.Rendering.RenderGraph
                     }
                 }
             }
+            // Peak of the bytes of graph-owned resources live at the same pass; the pool may reuse allocations below it.
             long peak = 0;
-            var physical = new HashSet<long>();
-            for (int i = 0; i < snapshot.resources.Count; ++i)
+            for (int passIndex = 0; passIndex < snapshot.passes.Count; ++passIndex)
             {
-                RGResourceSnapshot resource = snapshot.resources[i];
-                if (resource.imported || resource.firstUse < 0)
+                long live = 0;
+                foreach (RGResourceSnapshot resource in snapshot.resources)
                 {
-                    continue;
+                    if (!resource.imported && resource.firstUse >= 0 && resource.firstUse <= passIndex && passIndex <= resource.lastUse)
+                    {
+                        live += resource.estimatedBytes;
+                    }
                 }
-                if (resource.aliasSlot < 0)
-                {
-                    peak += resource.estimatedBytes;
-                    continue;
-                }
-                long key = ((long)resource.aliasGroup << 32) | (uint)resource.aliasSlot;
-                if (physical.Add(key))
-                {
-                    peak += resource.estimatedBytes;
-                }
+                peak = System.Math.Max(peak, live);
             }
-            snapshot.peakAliasBytes = peak;
+            snapshot.peakLiveBytes = peak;
             return snapshot;
         }
 
@@ -468,31 +458,25 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTransferPassHandle AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGTransferPassHandle<T> AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
             transferPass.Clear();
-            transferPass.name = profilerSampler.name;
+            transferPass.name = PassName(profilerSampler);
             transferPass.customSampler = profilerSampler;
             RegisterPass(transferPass);
-            return new RGTransferPassHandle(transferPass, m_Resources);
+            return new RGTransferPassHandle<T>(transferPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGComputePassHandle AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
-        {
-            return AddComputePass<T>(profilerSampler.name, profilerSampler);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGComputePassHandle AddComputePass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
+        public RGComputePassHandle<T> AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
             computePass.Clear();
-            computePass.name = passName;
+            computePass.name = PassName(profilerSampler);
             computePass.customSampler = profilerSampler;
             RegisterPass(computePass);
-            return new RGComputePassHandle(computePass, m_Resources);
+            return new RGComputePassHandle<T>(computePass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -500,6 +484,10 @@ namespace InfinityTech.Rendering.RenderGraph
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndProfilingSampler(ProfilingSampler sampler) => EndProfileRange(sampler);
+
+        // A pass is named by its profiling sampler. ProfilingSampler.Get returns null in non-development players, which
+        // have no profiler; their passes record and execute the same, without a name.
+        static string PassName(ProfilingSampler sampler) => sampler != null ? sampler.name : null;
 
         void RegisterPass(IRGPass pass)
         {
@@ -509,25 +497,25 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRayTracingPassHandle AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGRayTracingPassHandle<T> AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
             rayTracingPass.Clear();
-            rayTracingPass.name = profilerSampler.name;
+            rayTracingPass.name = PassName(profilerSampler);
             rayTracingPass.customSampler = profilerSampler;
             RegisterPass(rayTracingPass);
-            return new RGRayTracingPassHandle(rayTracingPass, m_Resources);
+            return new RGRayTracingPassHandle<T>(rayTracingPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRasterPassHandle AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGRasterPassHandle<T> AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
             rasterPass.Clear();
-            rasterPass.name = profilerSampler.name;
+            rasterPass.name = PassName(profilerSampler);
             rasterPass.customSampler = profilerSampler;
             RegisterPass(rasterPass);
-            return new RGRasterPassHandle(rasterPass, m_Resources, m_RendererListRecords, extension);
+            return new RGRasterPassHandle<T>(rasterPass, m_Resources, m_RendererListRecords, extension);
         }
 
         /// <summary>
@@ -541,7 +529,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Execute(RenderContext renderContext, CommandBuffer cmdBuffer)
+        public void Execute(ScriptableRenderContext scriptableRenderContext, CommandBuffer cmdBuffer)
         {
             m_QueueSubmissionFailed = false;
             // Keep frame/camera scopes separate from commands that may be abandoned by a failed pass.
@@ -549,8 +537,8 @@ namespace InfinityTech.Rendering.RenderGraph
             graphCommands.SetExecutionFlags(CommandBufferExecutionFlags.None);
             RGContext graphContext = new RGContext
             {
-                cmdBuffer = graphCommands, objectPool = m_ObjectPool,
-                renderContext = renderContext,
+                cmdBuffer = graphCommands, resources = m_Resources, objectPool = m_ObjectPool,
+                scriptableRenderContext = scriptableRenderContext,
                 rendererLists = m_RendererListRecords,
                 extension = extension
             };
@@ -559,7 +547,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 if (cmdBuffer.sizeInBytes != 0)
                 {
-                    QueueGraphics(renderContext, cmdBuffer);
+                    QueueGraphics(scriptableRenderContext, cmdBuffer);
                     cmdBuffer.Clear();
                 }
                 m_Resources.BeginRender();
@@ -570,12 +558,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (m_RendererListRecords.LiveCount > 0)
                 {
-                    if (renderContext == null)
-                    {
-                        throw new InvalidOperationException("CreateRendererList requires ScriptableRenderContext after pass culling.");
-                    }
-
-                    m_RendererListRecords.CreateLive(renderContext.scriptableRenderContext);
+                    m_RendererListRecords.CreateLive(new RGContextRendererListCreator(scriptableRenderContext));
                 }
                 ExecutePass(ref graphContext);
             }
@@ -604,7 +587,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 finally
                 {
-                    m_Resources.EndRender();
                     try
                     {
                         m_ObjectPool.ReleaseAllTempAlloc();
@@ -638,6 +620,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void ClearPass()
         {
             Exception failure = null;
+            scoper.Clear();
             try
             {
                 extension?.Clear();
@@ -733,15 +716,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             finally
             {
+                scoper.Dispose();
                 m_Resources.Dispose();
-                DisposeCompileScratch();
             }
         }
-    }
-
-    struct RGProfilingScopePassData
-    {
-        public ProfilingSampler sampler;
     }
 
     public struct RGProfilingScope : IDisposable

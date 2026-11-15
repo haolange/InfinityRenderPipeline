@@ -8,11 +8,25 @@
 #include "../../Library/Common.hlsl"
 #include "../../Library/ColorUtility.hlsl"
 
-float4 PP_Resolution;
-float PP_BloomThreshold;
-float PP_BloomScatter;
-float PP_ExposureMultiplier;
-float PP_AutoExposure;
+// The BloomParameters record the bloom pass writes, bound as one constant buffer.
+cbuffer CBV_BloomParameters
+{
+    float PP_BloomThreshold;
+    float PP_BloomScatter;
+    float PP_ExposureMultiplier;
+    float PP_AutoExposure;
+};
+
+// The ExposureParameters record the exposure pass writes, bound as one constant buffer.
+cbuffer CBV_ExposureParameters
+{
+    float4 PP_Resolution;
+    float4 PP_ExposureHistogramRange;
+    float PP_ExposureLowPercentile;
+    float PP_ExposureHighPercentile;
+    float PP_ExposureAdapt;
+    int PP_ExposureReset;
+};
 
 Texture2D<float4> SRV_SceneColorTexture;
 Texture2D<float> SRV_ExposureEV;
@@ -26,11 +40,6 @@ float PP_BloomPrefilter;
 RWStructuredBuffer<uint> UAV_ExposureHistogram;
 Texture2D<float> SRV_ExposureHistoryEV;
 RWTexture2D<float> UAV_ExposureEV;
-float4 PP_ExposureHistogramRange;
-float PP_ExposureLowPercentile;
-float PP_ExposureHighPercentile;
-float PP_ExposureAdapt;
-int PP_ExposureReset;
 
 float CurrentExposureMultiplier()
 {

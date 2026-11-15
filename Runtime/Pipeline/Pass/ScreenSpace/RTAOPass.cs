@@ -11,15 +11,12 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class RTAOPassUtilityData
     {
-        internal static string OcclusionTextureName = "RTAOOcclusionTexture";
-        internal static int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
-        internal static int RadiusID = Shader.PropertyToID("RTAO_Radius");
-        internal static int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
-        internal static int InvViewID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
-        internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_NormalTextureID = Shader.PropertyToID("SRV_NormalTexture");
-        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
-        internal static int UAV_OcclusionTextureID = Shader.PropertyToID("UAV_OcclusionTexture");
+        internal static readonly string OcclusionTextureName = "RTAOOcclusionTexture";
+        internal static readonly int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
+        internal static readonly int RadiusID = Shader.PropertyToID("RTAO_Radius");
+        internal static readonly int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
+        // The UnifiedRayTracing shader takes its inputs through the backend's own binding calls, not the global ViewUniform buffer.
+        internal static readonly int InvViewFlipYJitterProjID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
     }
 
     public partial class InfinityRenderPipeline
@@ -41,16 +38,18 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle occlusionTexture;
         }
 
-        void TraceOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void TraceOcclusion(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.RTAO))
+            if (!context.features.ShouldRecord(EFrameFeature.RTAO))
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
                 InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;
+#endif
                 return;
             }
 
-            RayTracingAmbientOcclusion settings = ActiveVolumeStack.GetComponent<RayTracingAmbientOcclusion>();
+            RayTracingAmbientOcclusion settings = context.volumes.rayTracingAmbientOcclusion;
             if (!VolumeComponentActive(settings))
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is marked to produce but the Volume is inactive.");
@@ -58,26 +57,28 @@ namespace InfinityTech.Rendering.Pipeline
 
             InfinityRayTracingEnvironment env = InfinityRayTracingEnvironment.EnsureOwned();
             env.SyncGeometry(renderContext.meshWorld);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
             InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;
+#endif
             if (!env.IsReady || env.InstanceCount == 0 || env.Shader == null || env.Accel == null)
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is active but UnifiedRayTracing accel/shader is not ready: " + InfinityRayTracingEnvironment.lastBlockReason);
             }
 
-            TextureDescriptor occlusionDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
+            TextureDescriptor occlusionDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             occlusionDsc.name = RTAOPassUtilityData.OcclusionTextureName;
             occlusionDsc.dimension = TextureDimension.Tex2D;
             occlusionDsc.colorFormat = GraphicsFormat.R16_SFloat;
             occlusionDsc.enableRandomWrite = true;
             occlusionDsc.filterMode = FilterMode.Bilinear;
             occlusionDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureHandle occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
+            RGTextureHandle occlusion = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
 
-            using (RGRayTracingPassHandle passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
+            using (var passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
-                ref RTAOPassData passData = ref passRef.GetPassData<RTAOPassData>();
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+                ref RTAOPassData passData = ref passRef.GetPassData();
+                passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 RTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;
                 passData.radius = resolved.radius;
@@ -86,14 +87,14 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passRef.SetQueueObserver(env);
                 }
-                passData.invView = m_CameraUniform.matrix_InvViewFlipYJitterProj;
+                passData.invView = context.cameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.shader = env.Shader;
                 passData.accel = env.Accel;
                 passData.buildScratch = env.PrepareBuildScratch();
-                passData.traceScratch = env.PrepareTraceScratch((uint)m_ActiveFrameState.dimensions.internalSize.x, (uint)m_ActiveFrameState.dimensions.internalSize.y);
-                passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                passData.traceScratch = env.PrepareTraceScratch((uint)context.dimensions.internalSize.x, (uint)context.dimensions.internalSize.y);
+                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.normalTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 passData.occlusionTexture = passRef.WriteTexture(occlusion);
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder) =>
@@ -107,16 +108,16 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetUnifiedInt(passData.shader, RTAOPassUtilityData.NumRaysID, passData.numRays);
                     cmdEncoder.SetUnifiedFloat(passData.shader, RTAOPassUtilityData.RadiusID, passData.radius);
                     cmdEncoder.SetUnifiedVector(passData.shader, RTAOPassUtilityData.ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetUnifiedMatrix(passData.shader, RTAOPassUtilityData.InvViewID, passData.invView);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_NormalTextureID, passData.normalTexture);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, RTAOPassUtilityData.UAV_OcclusionTextureID, passData.occlusionTexture);
+                    cmdEncoder.SetUnifiedMatrix(passData.shader, RTAOPassUtilityData.InvViewFlipYJitterProjID, passData.invView);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_NormalTexture, passData.normalTexture);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionTexture);
                     cmdEncoder.DispatchUnified(passData.shader, passData.traceScratch, (uint)passData.resolution.x, (uint)passData.resolution.y, 1u);
                 });
             }
 
-            MarkFeatureProduced(EFrameFeature.RTAO);
+            context.features.MarkProduced(EFrameFeature.RTAO);
         }
     }
 }

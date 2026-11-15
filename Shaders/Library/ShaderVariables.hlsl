@@ -14,33 +14,7 @@ float4 _ScreenParams;
 float4 _ZBufferParams;
 float4 _ProjectionParams;
 
-CBUFFER_START(ViewUnifrom)
-    int FrameIndex;
-    int Prev_FrameIndex;
-    float4 TAAJitter;
-    float4x4 Matrix_WorldToView;
-    float4x4 Matrix_ViewToWorld;
-    float4x4 Matrix_Proj;
-    float4x4 Matrix_InvProj;
-    float4x4 Matrix_JitterProj;
-    float4x4 Matrix_InvJitterProj;
-    float4x4 Matrix_FlipYProj;
-    float4x4 Matrix_InvFlipYProj;
-    float4x4 Matrix_FlipYJitterProj;
-    float4x4 Matrix_InvFlipYJitterProj;
-    float4x4 Matrix_ViewProj;
-    float4x4 Matrix_InvViewProj;
-    float4x4 Matrix_ViewFlipYProj;
-    float4x4 Matrix_InvViewFlipYProj;
-    float4x4 Matrix_ViewJitterProj;
-    float4x4 Matrix_InvViewJitterProj;
-    float4x4 Matrix_ViewFlipYJitterProj;
-    float4x4 Matrix_InvViewFlipYJitterProj;
-    float4x4 Matrix_LastViewProj;
-    float4x4 Matrix_LastViewFlipYProj;
-    float4x4 Matrix_LastViewJitterProj;
-    float4x4 Matrix_LastViewFlipYJitterProj;
-CBUFFER_END
+#include "ViewUniform.hlsl"
 
 CBUFFER_START(UnityPerCamera)
     float4x4 unity_CameraToWorld;

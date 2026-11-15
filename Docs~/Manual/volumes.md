@@ -29,7 +29,7 @@ The reflected color is the accepted unsharpened previous frame. Debug views show
 
 ## Screen-space indirect diffuse
 
-This component has no resolve-sample count and no resolve radius. Those controls belonged to an earlier ray-reuse path and are not read.
+This component has no resolve-sample count and no resolve radius.
 
 1. Trace Samples cosine-distributed rays per half-resolution work pixel, from 1 to 4, and average them. The march is the Hi-Z walk. Trace Behind and Toward Ray use the same meaning as reflections. Each hit samples full-resolution accepted previous color. The work grid is always half resolution and rotates through the 2×2 quad. Intensity Scale is 0 to 10. Low and Medium use 1 ray. High and Ultra use 2.
 2. The first temporal stage reads the trace and the previous wide-stage history, then a world-space filter with a 6 m base radius and no normal weight.

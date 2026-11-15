@@ -6,12 +6,14 @@ using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.Pipeline;
 using Unity.Mathematics;
 using UnityEngine;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Component
 {
     public partial class MeshComponent
     {
         private static readonly HashSet<MeshComponent> s_Registered = new HashSet<MeshComponent>();
+        private static bool s_RoutingSubscribed;
         internal bool transformPending;
 
         internal void CompleteRegistration(uint epoch)
@@ -202,7 +204,7 @@ namespace InfinityTech.Component
 
         public static void NotifyMaterialRoutingChanged(Material material) => MaterialRouteUtility.NotifyRoutingChanged(material);
 
-        internal static void InvalidateMaterialRouting(Material material)
+        static void InvalidateMaterialRouting(Material material)
         {
             foreach (var component in s_Registered)
                 for (int i = 0; i < component.Materials.Length; ++i)
@@ -276,7 +278,7 @@ namespace InfinityTech.Component
                 return;
             }
             float4x4 localToWorld = transform.localToWorldMatrix;
-            m_BoundBox = Geometry.CaculateWorldBound(m_State.localBounds, localToWorld);
+            m_BoundBox = BoundingBox.Transform(m_State.localBounds, localToWorld);
             world.WriteEntityPose(m_State.entity, localToWorld, m_BoundBox);
         }
     }

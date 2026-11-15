@@ -23,10 +23,10 @@ namespace InfinityTech.Rendering.RenderGraph
         Max = 2
     }
 
-    internal struct RGResourceHandle
+    // A graph resource reference. It is valid exactly when its generation is nonzero; the generation must match the live
+    // slot, so a handle from an earlier graph is rejected. Two handles name the same resource when all three fields match.
+    internal struct RGResourceHandle : IEquatable<RGResourceHandle>
     {
-        readonly bool m_IsValid;
-
         public int index
         {
             get;
@@ -44,119 +44,41 @@ namespace InfinityTech.Rendering.RenderGraph
         }
         public int iType { get { return (int)type; } }
 
-        internal RGResourceHandle(int value, ERGResourceType type, ushort generation = 0)
+        internal RGResourceHandle(int value, ERGResourceType type, ushort generation)
         {
             index = value;
             this.type = type;
             this.generation = generation;
-            m_IsValid = true;
         }
 
-        public static implicit operator int(RGResourceHandle resourceRef) => resourceRef.index;
-        public bool IsValid() => m_IsValid;
+        public bool IsValid() => generation != 0;
+        public bool Equals(RGResourceHandle other) => index == other.index && type == other.type && generation == other.generation;
+        public override bool Equals(object obj) => obj is RGResourceHandle other && Equals(other);
+        public override int GetHashCode() => ((int)type << 24) ^ (index << 8) ^ generation;
     }
 
     public struct RGBufferHandle
     {
         internal RGResourceHandle handle;
 
-        internal RGBufferHandle(int handle, ushort generation = 0)
+        internal RGBufferHandle(int handle, ushort generation)
         {
             this.handle = new RGResourceHandle(handle, ERGResourceType.Buffer, generation);
         }
 
-        public static implicit operator ComputeBuffer(RGBufferHandle bufferHandle) => bufferHandle.Resolve().resource
-            ?? throw new InvalidOperationException("The graph buffer is a GraphicsBuffer, not a ComputeBuffer.");
-
-        internal RGBuffer Resolve()
-        {
-            if (!IsValid() || RGResourceFactory.current == null)
-                throw new InvalidOperationException("RGBufferHandle is invalid or the resource factory is not active.");
-            return RGResourceFactory.current.ResolveBuffer(this);
-        }
-
-        internal void BindGlobal(CommandBuffer commands, int nameID)
-        {
-            RGBuffer buffer = Resolve();
-            if (buffer.graphicsResource != null)
-            {
-                commands.SetGlobalBuffer(nameID, buffer.graphicsResource);
-            }
-            else
-            {
-                commands.SetGlobalBuffer(nameID, buffer.resource);
-            }
-        }
-
-        internal void DispatchIndirect(CommandBuffer commands, ComputeShader shader, int kernel, uint argsOffset)
-        {
-            RGBuffer buffer = Resolve();
-            if (buffer.graphicsResource != null)
-            {
-                if ((buffer.graphicsTarget & GraphicsBuffer.Target.IndirectArguments) == 0)
-                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
-                commands.DispatchCompute(shader, kernel, buffer.graphicsResource, argsOffset);
-            }
-            else
-            {
-                if ((buffer.descriptor.type & ComputeBufferType.IndirectArguments) == 0)
-                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
-                commands.DispatchCompute(shader, kernel, buffer.resource, argsOffset);
-            }
-        }
-
-        internal void BindCompute(CommandBuffer commands, ComputeShader shader, int kernel, int nameID)
-        {
-            RGBuffer buffer = Resolve();
-            if (buffer.graphicsResource != null)
-            {
-                commands.SetComputeBufferParam(shader, kernel, nameID, buffer.graphicsResource);
-            }
-            else
-            {
-                commands.SetComputeBufferParam(shader, kernel, nameID, buffer.resource);
-            }
-        }
         public bool IsValid() => handle.IsValid();
     }
 
     public struct RGTextureHandle
     {
-        private static RGTextureHandle s_NullHandle = new RGTextureHandle();
-
-        public static RGTextureHandle nullHandle { get { return s_NullHandle; } }
-
         internal RGResourceHandle handle;
 
-        internal RGTextureHandle(int handle, ushort generation = 0)
+        internal RGTextureHandle(int handle, ushort generation)
         {
             this.handle = new RGResourceHandle(handle, ERGResourceType.Texture, generation);
         }
 
-        public static implicit operator RenderTexture(RGTextureHandle textureHandle) => ResolveRenderTexture(textureHandle);
-        public static implicit operator RenderTargetIdentifier(RGTextureHandle textureHandle) => ResolveRenderTarget(textureHandle);
         public bool IsValid() => handle.IsValid();
-
-        internal static RenderTexture ResolveRenderTexture(in RGTextureHandle textureHandle)
-        {
-            if (!textureHandle.IsValid() || RGResourceFactory.current == null)
-            {
-                throw new InvalidOperationException("RGTextureHandle is invalid or RGResourceFactory is not active.");
-            }
-
-            RTHandle handle = RGResourceFactory.current.GetTexture(textureHandle);
-            if (handle == null || handle.rt == null)
-            {
-                throw new InvalidOperationException("RGTextureHandle resolved to a null texture.");
-            }
-
-            return handle.rt;
-        }
-
-        internal static RenderTargetIdentifier ResolveRenderTarget(in RGTextureHandle textureHandle)
-        {
-            return ResolveRenderTexture(textureHandle);
-        }
     }
 
     internal class IRGResource
@@ -164,7 +86,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public bool imported;
         internal ResourceUsage usage;
         internal bool recordingLease;
-        public int cachedHash;
+        // Acquisition generation of the pooled resource; returned with it so the pool rejects a stale return.
+        internal int poolLease;
         internal ushort generation;
 
         public virtual void Reset()
@@ -172,7 +95,7 @@ namespace InfinityTech.Rendering.RenderGraph
             imported = false;
             usage = null;
             recordingLease = false;
-            cachedHash = -1;
+            poolLease = 0;
         }
 
         public virtual string GetName()
@@ -199,17 +122,8 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    internal class RGBuffer : RGResource<BufferDescriptor, ComputeBuffer>
+    internal class RGBuffer : RGResource<BufferDescriptor, GraphicsBuffer>
     {
-        public GraphicsBuffer graphicsResource;
-        public GraphicsBuffer.Target graphicsTarget;
-
-        public override void Reset()
-        {
-            base.Reset();
-            graphicsResource = null;
-            graphicsTarget = default;
-        }
         public override string GetName()
         {
             return descriptor.name;
@@ -234,33 +148,19 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal class RGResourceFactory
     {
-        static RGResourceFactory m_CurrentRegistry;
-        internal static RGResourceFactory current
-        {
-            get
-            {
-                return m_CurrentRegistry;
-            }
-            set
-            {
-                m_CurrentRegistry = value;
-            }
-        }
-
         readonly ResourcePool m_Pool;
         readonly bool m_OwnsPool;
         internal TextureCapacityContext textureCapacity;
+        internal readonly RGConstantStaging constants = new RGConstantStaging();
         readonly List<TextureHandle> m_RetiredTextures = new List<TextureHandle>();
         readonly List<BufferHandle> m_RetiredBuffers = new List<BufferHandle>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
-        readonly Dictionary<ComputeBuffer, int> m_ImportedBuffers = new Dictionary<ComputeBuffer, int>();
-        readonly Dictionary<GraphicsBuffer, int> m_ImportedGraphicsBuffers = new Dictionary<GraphicsBuffer, int>();
+        readonly Dictionary<GraphicsBuffer, int> m_ImportedBuffers = new Dictionary<GraphicsBuffer, int>();
         readonly Dictionary<RenderTargetIdentifier, int> m_ImportedTextures = new Dictionary<RenderTargetIdentifier, int>();
         RTHandle m_Backbuffer;
         RenderTargetIdentifier m_BackbufferIdentifier;
+        // Slot objects survive Clear with their generation, so a slot reused next frame cannot match a handle from the previous graph.
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
-        // Survives Clear so a slot reused next frame cannot match a handle from the previous graph.
-        readonly List<ushort>[] m_Generations = new List<ushort>[(int)ERGResourceType.Max];
 
         public RGResourceFactory(ResourcePool pool = null)
         {
@@ -269,9 +169,19 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_Resources[i] = new DynamicArray<IRGResource>();
-                m_Generations[i] = new List<ushort>(64);
             }
         }
+
+        // The one checked lookup: every handle-taking accessor resolves through it.
+        IRGResource Resolve(in RGResourceHandle handle, string api)
+        {
+            RequireLive(handle, api);
+            return m_Resources[handle.iType][handle.index];
+        }
+
+        // A handle to the live slot, for compile code that walks resources by index.
+        internal RGResourceHandle LiveHandle(ERGResourceType type, int index)
+            => new RGResourceHandle(index, type, m_Resources[(int)type][index].generation);
 
         internal void RequireLive(in RGResourceHandle handle, string api)
         {
@@ -285,54 +195,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        ushort NextGeneration(int type, int index)
-        {
-            List<ushort> generations = m_Generations[type];
-            while (generations.Count <= index)
-            {
-                generations.Add(0);
-            }
-            ushort generation = (ushort)(generations[index] + 1);
-            if (generation == 0)
-            {
-                generation = 1;
-            }
-            generations[index] = generation;
-            return generation;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ComputeBuffer GetBuffer(in RGBufferHandle bufferHandle)
-        {
-            return ResolveBuffer(bufferHandle).resource
-                ?? throw new InvalidOperationException("Cannot resolve an imported GraphicsBuffer as a ComputeBuffer.");
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RTHandle GetTexture(in RGTextureHandle textureHandle)
         {
-            RequireLive(textureHandle.handle, "RGTextureHandle");
             return GetTextureResource(textureHandle.handle).resource;
-        }
-
-        internal bool TryGetTextureView(RenderTargetIdentifier identifier, out TextureView view)
-        {
-            for (int i = m_Resources[(int)ERGResourceType.Texture].size - 1; i >= 0; --i)
-            {
-                var texture = (RGTexture)m_Resources[(int)ERGResourceType.Texture][i];
-                if (texture.resource == null || texture.descriptor.width <= 0)
-                {
-                    continue;
-                }
-                if (!new RenderTargetIdentifier(texture.resource.rt).Equals(identifier))
-                {
-                    continue;
-                }
-                view = texture.descriptor.view;
-                return true;
-            }
-            view = default;
-            return false;
         }
 
         static void RetainRecording(IRGResource resource, ResourceUsage usage)
@@ -375,13 +241,6 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void BeginRender()
         {
             m_Pool.EnsureRecording();
-            current = this;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void EndRender()
-        {
-            current = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -445,15 +304,24 @@ namespace InfinityTech.Rendering.RenderGraph
 
             outRes = resourceArray[result] as ResType;
             outRes.Reset();
-            outRes.generation = NextGeneration(type, result);
+            // Zero is the invalid generation; wrapping skips it.
+            outRes.generation = outRes.generation == ushort.MaxValue ? (ushort)1 : (ushort)(outRes.generation + 1);
             return result;
+        }
+
+        // The checked texture lookup for encoders: rejects a handle from another graph and a texture with no live resource.
+        internal RGTexture ResolveTexture(in RGTextureHandle textureHandle)
+        {
+            RGTexture texture = GetTextureResource(textureHandle.handle);
+            if (texture.resource == null)
+                throw new InvalidOperationException($"Graph texture '{texture.GetName()}' has no live resource.");
+            return texture;
         }
 
         internal RGBuffer ResolveBuffer(in RGBufferHandle bufferHandle)
         {
-            RequireLive(bufferHandle.handle, "RGBufferHandle");
             RGBuffer buffer = GetBufferResource(bufferHandle.handle);
-            if (buffer.resource == null && buffer.graphicsResource == null)
+            if (buffer.resource == null)
                 throw new InvalidOperationException($"Graph buffer '{buffer.GetName()}' has no live resource.");
             return buffer;
         }
@@ -463,7 +331,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGBufferHandle(index, m_Resources[(int)ERGResourceType.Buffer][index].generation);
         }
 
-        RGTextureHandle TextureHandle(int index)
+        internal RGTextureHandle TextureHandle(int index)
         {
             return new RGTextureHandle(index, m_Resources[(int)ERGResourceType.Texture][index].generation);
         }
@@ -489,15 +357,14 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (buffer == null || !buffer.IsValid())
                 throw new ArgumentException("Cannot import an invalid GraphicsBuffer.", nameof(buffer));
-            if (m_ImportedGraphicsBuffers.TryGetValue(buffer, out int existing))
+            if (m_ImportedBuffers.TryGetValue(buffer, out int existing))
             {
                 return BufferHandle(existing);
             }
             int index = AddNewResource((int)ERGResourceType.Buffer, m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
-            m_ImportedGraphicsBuffers.Add(buffer, index);
-            resource.graphicsResource = buffer;
-            resource.graphicsTarget = buffer.target;
-            resource.descriptor = new BufferDescriptor { name = name, count = buffer.count, stride = buffer.stride };
+            m_ImportedBuffers.Add(buffer, index);
+            resource.resource = buffer;
+            resource.descriptor = new BufferDescriptor(buffer.count, buffer.stride, buffer.target) { name = name };
             resource.imported = true;
             return BufferHandle(index);
         }
@@ -511,24 +378,15 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int GetBufferCount()
-        {
-            return m_Resources[(int)ERGResourceType.Buffer].size;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         RGBuffer GetBufferResource(in RGResourceHandle handle)
         {
-            return m_Resources[(int)ERGResourceType.Buffer][handle] as RGBuffer;
+            return (RGBuffer)Resolve(handle, "RGBufferHandle");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal BufferDescriptor GetBufferDescriptor(in RGResourceHandle handle)
         {
-            RGBuffer buffer = GetBufferResource(handle);
-            if (buffer.graphicsResource != null)
-                throw new InvalidOperationException("Imported GraphicsBuffer targets cannot be cloned as ComputeBuffer descriptors.");
-            return buffer.descriptor;
+            return GetBufferResource(handle).descriptor;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -625,21 +483,15 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int GetTextureCount()
-        {
-            return m_Resources[(int)ERGResourceType.Texture].size;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         RGTexture GetTextureResource(in RGResourceHandle handle)
         {
-            return m_Resources[(int)ERGResourceType.Texture][handle] as RGTexture;
+            return (RGTexture)Resolve(handle, "RGTextureHandle");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TextureDescriptor GetTextureDescriptor(in RGResourceHandle handle)
         {
-            return (m_Resources[(int)ERGResourceType.Texture][handle] as RGTexture).descriptor;
+            return GetTextureResource(handle).descriptor;
         }
 
         internal void SetTextureDescriptor(int index, in TextureDescriptor descriptor)
@@ -655,15 +507,12 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!resource.imported)
             {
                 var desc = resource.descriptor;
-                int hashCode = desc.GetHashCode();
 
-                if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
-
-                resource.resource = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence).buffer;
+                BufferHandle pooled = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooled.buffer;
+                resource.poolLease = pooled.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.BufferUsage(resource.resource));
-                resource.cachedHash = hashCode;
             }
         }
 
@@ -678,8 +527,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 ReleaseRecording(resource);
-                m_Pool.ReleaseBuffer(new BufferHandle(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
-                resource.cachedHash = -1;
+                m_Pool.ReleaseBuffer(new BufferHandle(resource.poolLease, resource.descriptor, resource.resource), reuseFence);
+                resource.poolLease = 0;
                 resource.resource = null;
             }
         }
@@ -692,15 +541,12 @@ namespace InfinityTech.Rendering.RenderGraph
             if (!resource.imported)
             {
                 var desc = resource.descriptor;
-                int hashCode = desc.GetHashCode();
 
-                if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
-
-                resource.resource = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence).texture;
+                TextureHandle pooled = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooled.texture;
+                resource.poolLease = pooled.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.TextureUsage(resource.resource));
-                resource.cachedHash = hashCode;
             }
         }
 
@@ -715,8 +561,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 ReleaseRecording(resource);
-                m_Pool.ReleaseTexture(new TextureHandle(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
-                resource.cachedHash = -1;
+                m_Pool.ReleaseTexture(new TextureHandle(resource.poolLease, resource.descriptor, resource.resource), reuseFence);
+                resource.poolLease = 0;
                 resource.resource = null;
             }
         }
@@ -724,8 +570,8 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
+            constants.Clear();
             m_ImportedBuffers.Clear();
-            m_ImportedGraphicsBuffers.Clear();
             m_ImportedTextures.Clear();
             // A failed graph may never reach compiled last-use releases. Preserve those allocations
             // outside the reusable pool until the enclosing frame has been submitted.
@@ -734,7 +580,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 RGTexture texture = (RGTexture)m_Resources[(int)ERGResourceType.Texture][i];
                 if (!texture.imported && texture.resource != null)
                 {
-                    m_RetiredTextures.Add(new TextureHandle(texture.cachedHash, texture.descriptor, texture.resource));
+                    m_RetiredTextures.Add(new TextureHandle(texture.poolLease, texture.descriptor, texture.resource));
                     texture.resource = null;
                 }
             }
@@ -743,7 +589,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 RGBuffer buffer = (RGBuffer)m_Resources[(int)ERGResourceType.Buffer][i];
                 if (!buffer.imported && buffer.resource != null)
                 {
-                    m_RetiredBuffers.Add(new BufferHandle(buffer.cachedHash, buffer.descriptor, buffer.resource));
+                    m_RetiredBuffers.Add(new BufferHandle(buffer.poolLease, buffer.descriptor, buffer.resource));
                     buffer.resource = null;
                 }
             }
@@ -776,6 +622,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             FlushRetired();
+            constants.Dispose();
             if (m_OwnsPool)
             {
                 m_Pool.Dispose();

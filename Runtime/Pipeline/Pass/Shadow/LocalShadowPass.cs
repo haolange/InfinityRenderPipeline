@@ -13,29 +13,21 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class LocalShadowPassUtilityData
     {
+        internal static readonly int InfinityDepthCopyOffsetID = Shader.PropertyToID("_InfinityDepthCopyOffset");
         // Viewport and Texture.Load use matching integer atlas pixel coordinates.
         internal static Vector4 DepthCopyOffset(Vector4 source, Vector4 destination) =>
             new Vector4(source.x - destination.x, source.y - destination.y, 0, 0);
 
-        internal static string TextureName = "LocalShadowMapTexture";
-        internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
-        internal static int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
-        internal static int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
-        internal static int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
-        internal static readonly int ShadowCasterBiasID = Shader.PropertyToID("_ShadowCasterBias");
-        internal static readonly int ShadowCasterLightID = Shader.PropertyToID("_ShadowCasterLight");
+        internal static readonly string TextureName = "LocalShadowMapTexture";
+        internal static readonly int LocalShadowMatricesID = Shader.PropertyToID("_LocalShadowMatrices");
+        internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
     }
 
     public partial class InfinityRenderPipeline
     {
         struct LocalShadowPassData
         {
-            public int lightCount;
             public int sliceCount;
-            public int shadowMapResolution;
-            public Matrix4x4 cameraViewProj;
-            public Matrix4x4 cameraViewFlipYProj;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
@@ -77,9 +69,9 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults, RGMeshDrawListHandle[] preparedLists)
+        void RasterLocalShadow(in CameraRecordContext context, RGMeshDrawListHandle[] preparedLists)
         {
-            int shadowMapResolution = pipelineAsset.localShadowMapResolution;
+            int shadowMapResolution = m_Settings.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);
@@ -93,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureHandle shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
 
             // Same tile size as ShadowAllocator.Allocate, so a cached tile copies 1:1 into the frame atlas.
             int tileResolution = math.max(1, shadowMapResolution / 4);
@@ -118,7 +110,6 @@ namespace InfinityTech.Rendering.Pipeline
                 cacheSlots[i] = -1;
             }
 
-            int lightCount = 0;
             int lastRecord = -1;
             int frame = Time.frameCount;
             long production = 0;
@@ -132,11 +123,10 @@ namespace InfinityTech.Rendering.Pipeline
                 if (local.recordIndex != lastRecord)
                 {
                     lastRecord = local.recordIndex;
-                    lightCount++;
                     production = m_LocalShadowCache.NextProduction();
-                    Light groupLight = cullingResults.visibleLights[local.visibleLightIndex].light;
+                    Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
                     cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
-                        MeshView.SceneCullingMaskFor(camera), local.isSpot ? 1 : 6, frame);
+                        CameraSceneCulling.Mask(context.camera), local.isSpot ? 1 : 6, frame);
                 }
 
                 if (!local.valid)
@@ -145,16 +135,17 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 int lightIdx = local.visibleLightIndex;
-                VisibleLight visibleLight = cullingResults.visibleLights[lightIdx];
+                VisibleLight visibleLight = context.cullingResults.visibleLights[lightIdx];
                 Light shadowLight = visibleLight.light;
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
 
-                if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
+                InfinityAdditionalLightData ext = renderContext.lightContext.AdditionalData(lightIdx);
+                if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
-                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
+                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, CameraSceneCulling.Mask(context.camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && cacheRender[slice])
@@ -170,37 +161,29 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                if (preparedLists != null && slice < preparedLists.Length && preparedLists[slice].IsValid)
-                    sliceMeshDrawLists[slice] = preparedLists[slice];
-                else
-                {
-                    sliceMeshDrawLists[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(LocalShadowView(visibleLight, local, camera), InfinityPassIDs.RasterShadowPass));
-                    m_RGBuilder.PrepareMeshDrawList(sliceMeshDrawLists[slice]);
-                }
+                // A cached-sampling slice whose tile re-renders has no list from CreateLocalMeshLists; it gets one here.
+                sliceMeshDrawLists[slice] = preparedLists[slice].IsValid ? preparedLists[slice]
+                    : CreateMeshList(CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass);
 
-                if (!cullingResults.GetShadowCasterBounds(lightIdx, out _))
+                if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {
                     continue;
                 }
-                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
+                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(context.cullingResults, lightIdx);
                 shadowDrawingSettings.useRenderingLayerMaskTest = true;
                 shadowDrawingSettings.splitIndex = local.face;
                 shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
                 sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 
-            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
+            using (var passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref LocalShadowPassData passData = ref passRef.GetPassData<LocalShadowPassData>();
+                ref LocalShadowPassData passData = ref passRef.GetPassData();
                 {
-                    passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
-                    passData.shadowMapResolution = shadowMapResolution;
-                    passData.cameraViewProj = m_CameraUniform.matrix_ViewProj;
-                    passData.cameraViewFlipYProj = m_CameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
@@ -221,13 +204,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalInt(LocalShadowPassUtilityData.LocalShadowCountID, passData.lightCount);
-                    cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.LocalShadowMapSizeID, new Vector4(
-                        passData.shadowMapResolution,
-                        passData.shadowMapResolution,
-                        1.0f / passData.shadowMapResolution,
-                        1.0f / passData.shadowMapResolution));
-
                     for (int slice = 0; slice < passData.sliceCount; ++slice)
                     {
                         bool hasDraws = passData.meshDrawLists[slice].IsValid;
@@ -243,9 +219,6 @@ namespace InfinityTech.Rendering.Pipeline
                             passData.meshDrawLists[slice], passData.rendererLists[slice]);
                         cmdEncoder.EndSample(faceMarker);
                     }
-
-                    cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);
-                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.cameraViewFlipYProj);
                 });
             }
 
@@ -257,10 +230,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
             cmdEncoder.SetGlobalDepthBias(0, 0);
-            cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterBiasID, casterBias);
-            cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterLightID, casterLight);
-            cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, shadowMatrix);
-            cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, shadowMatrix);
+            cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterBias, casterBias);
+            cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterLight, casterLight);
+            cmdEncoder.SetGlobalMatrix(PassShaderIDs.ShadowCasterViewProj, shadowMatrix);
             if (draws.IsValid)
             {
                 cmdEncoder.SubmitMeshDrawList(draws);
@@ -295,21 +267,19 @@ namespace InfinityTech.Rendering.Pipeline
                     loadCount++;
                 }
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.lastCachedShadowTiles = saveCount + loadCount;
             InfinityDebugDisplaySettings.current.lighting.lastCachedShadowRenders = saveCount;
+#endif
             if (saveCount + loadCount == 0)
             {
                 return;
             }
 
             RGTextureHandle cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
-            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterCopyShadowDepthTile");
-            if (shaderPass < 0)
-            {
-                throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
-            }
+            int shaderPass = blitPasses.copyShadowDepthTile;
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var keys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(saveCount);
@@ -343,7 +313,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCopyShadowDepthTiles)))
             {
                 pass.SetDepthStencilAttachment(destination, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                ref var data = ref pass.GetPassData<CopyCachedLocalShadowPassData>();
+                ref var data = ref pass.GetPassData();
                 data.source = pass.ReadTexture(source);
                 data.shaderPass = shaderPass;
                 data.count = count;
@@ -357,12 +327,12 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 pass.SetExecuteFunc((in CopyCachedLocalShadowPassData data, in RGRasterEncoder commands) =>
                 {
-                    commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
+                    commands.SetGlobalTexture(PassShaderIDs.InfinitySourceDepth, data.source);
                     for (int i = 0; i < data.count; ++i)
                     {
                         Vector4 rect = data.destinationRects[i];
                         commands.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
-                        commands.SetGlobalVector(Shader.PropertyToID("_InfinityDepthCopyOffset"),
+                        commands.SetGlobalVector(LocalShadowPassUtilityData.InfinityDepthCopyOffsetID,
                             LocalShadowPassUtilityData.DepthCopyOffset(data.sourceRects[i], rect));
                         commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
                     }

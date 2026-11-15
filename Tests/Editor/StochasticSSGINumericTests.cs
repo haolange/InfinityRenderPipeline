@@ -156,6 +156,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_RayHit, m_TraceRadiance, m_HitDistance;
             readonly Texture2D m_Depth, m_HiZ, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
             readonly RenderTexture m_HistoryMeta;
+            readonly UniformBinding<ViewUniform> m_View;
 
             public Vector2Int TileCount { get; }
             public int TracePixels => m_Trace.x * m_Trace.y;
@@ -208,16 +209,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetFloat("SSGI_TemporalWeight", 0.93f);
                 s.SetFloat("SSGI_TemporalClampScale", 1.25f);
                 s.SetFloat("SSGI_HistoryValid", 0);
-                s.SetVector("SSGI_CameraPosition", Vector4.zero);
-                s.SetVector("SSGI_CameraForward", new Vector4(0, 0, -1, 0));
-                s.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
-                s.SetMatrix("Matrix_Proj", projection);
-                s.SetMatrix("Matrix_InvProj", projection.inverse);
-                s.SetMatrix("Matrix_InvViewProj", projection.inverse);
-                s.SetMatrix("Matrix_WorldToView", Matrix4x4.identity);
-                s.SetMatrix("Matrix_HistoryViewProj", projection);
-                s.SetMatrix("Matrix_MotionViewProj", projection);
-                s.SetMatrix("Matrix_LastMotionViewProj", projection);
+                m_View = new UniformBinding<ViewUniform>(new ViewUniform
+                {
+                    matrix_FlipYJitterProj = projection,
+                    matrix_InvFlipYJitterProj = projection.inverse,
+                    matrix_InvViewFlipYJitterProj = projection.inverse,
+                    matrix_WorldToView = Matrix4x4.identity,
+                    matrix_ViewToWorld = Matrix4x4.identity,
+                    matrix_LastViewFlipYJitterProj = projection,
+                    matrix_ViewFlipYProj = projection,
+                    matrix_LastViewFlipYProj = projection,
+                    view_DepthParameters = new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0)
+                });
             }
 
             public void CheckSparseList(int phase)
@@ -309,11 +312,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int kernel = m_Shader.FindKernel("SSGISpatial");
                 BindSurface(kernel);
                 m_Shader.SetInt("SSGI_SpatialPass", 0);
-                m_Shader.SetInt("SSGI_HasAO", 0);
                 m_Shader.SetFloat("SSGI_FrameAngle", 0);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Trace.x, m_Trace.y, input, false));
                 m_Shader.SetTexture(kernel, "SRV_Meta", meta);
-                m_Shader.SetTexture(kernel, "SRV_Occlusion", m_Depth);
                 m_Shader.SetTexture(kernel, "UAV_Output", output);
                 DispatchTrace(kernel);
                 return Read(output, 4);
@@ -428,6 +429,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
+                m_View.Dispose();
                 foreach (GraphicsBuffer buffer in m_Buffers) buffer.Release();
                 foreach (UnityEngine.Object obj in m_Objects)
                 {

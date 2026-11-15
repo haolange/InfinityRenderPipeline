@@ -2,6 +2,7 @@
 #pragma kernel VolumetricCloudCS
 #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LIGHT_COOKIES
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/Lighting.hlsl"
@@ -11,26 +12,28 @@
 #include "../../Library/AtmosphereCommon.hlsl"
 #include "../../Library/CloudShell.hlsl"
 
-float4 VolCloud_Resolution;
-float VolCloud_CloudLayerBottom;
-float VolCloud_CloudLayerThickness;
-float VolCloud_DensityMultiplier;
-float VolCloud_ShapeFactor;
-float VolCloud_ErosionFactor;
-float VolCloud_Anisotropy;
-float VolCloud_SilverIntensity;
-float VolCloud_SilverSpread;
-float VolCloud_AmbientIntensity;
-int VolCloud_NumPrimarySteps;
-int VolCloud_NumLightSteps;
-float VolCloud_TemporalWeight;
-int VolCloud_FrameIndex;
-float VolCloud_PlanetRadius;
-float VolCloud_AtmosphereHeight;
-float4x4 Matrix_WorldToView;
-
-float4x4 Matrix_InvViewProj;
-float3 _WorldSpaceCameraPos;
+// The VolumetricCloudParameters record VolumetricCloudPass writes, bound as one constant buffer.
+cbuffer CBV_VolumetricCloudParameters
+{
+    float4 VolCloud_Resolution;
+    float VolCloud_CloudLayerBottom;
+    float VolCloud_CloudLayerThickness;
+    float VolCloud_DensityMultiplier;
+    float VolCloud_ShapeFactor;
+    float VolCloud_ErosionFactor;
+    float VolCloud_Anisotropy;
+    float VolCloud_SilverIntensity;
+    float VolCloud_SilverSpread;
+    float VolCloud_AmbientIntensity;
+    int VolCloud_NumPrimarySteps;
+    int VolCloud_NumLightSteps;
+    float VolCloud_TemporalWeight;
+    int VolCloud_FrameIndex;
+    float VolCloud_PlanetRadius;
+    float VolCloud_AtmosphereHeight;
+    int VolCloud_Padding0;
+};
+#include "../../Library/ViewUniform.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float4> SRV_TransmittanceLUT;
@@ -190,9 +193,9 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
     float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
 
     float3 ndcPos = GetNDCPos(screenUV, 0.5);
-    float4 worldPosH = mul(Matrix_InvViewProj, float4(ndcPos, 1.0));
+    float4 worldPosH = mul(Matrix_InvViewFlipYJitterProj, float4(ndcPos, 1.0));
     float3 worldPos = worldPosH.xyz / worldPosH.w;
-    float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
+    float3 rayDir = normalize(worldPos - ViewPositionWS());
 
     float rawDepth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,screenUV,0);
 #if UNITY_REVERSED_Z
@@ -200,9 +203,9 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
 #else
     const bool reversedZ = false;
 #endif
-    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewProj,
-        _WorldSpaceCameraPos, rayDir, reversedZ);
-    float4 segments = CloudRaySegments(_WorldSpaceCameraPos, rayDir, VolCloud_PlanetRadius,
+    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewFlipYJitterProj,
+        ViewPositionWS(), rayDir, reversedZ);
+    float4 segments = CloudRaySegments(ViewPositionWS(), rayDir, VolCloud_PlanetRadius,
         GetCloudLayerBottom(), VolCloud_CloudLayerThickness, sceneDist);
     float totalLength = (segments.y - segments.x) + (segments.w - segments.z);
     if (totalLength <= 0)
@@ -222,7 +225,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
             break;
 
         float t = CloudRayDistance(segments, (i + jitter) * stepSize);
-        float3 samplePos = _WorldSpaceCameraPos + rayDir * t;
+        float3 samplePos = ViewPositionWS() + rayDir * t;
         float normalizedHeight = GetNormalizedHeight(samplePos);
         if (normalizedHeight < 0 || normalizedHeight > 1)
             continue;

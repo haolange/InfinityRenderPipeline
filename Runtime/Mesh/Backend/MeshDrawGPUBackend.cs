@@ -1,67 +1,74 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    /// <summary>Graph handles of the entity columns a culling dispatch reads.</summary>
+    /// <summary>Graph handles of the entity columns a draw-list producer reads.</summary>
     internal struct MeshCullInputs
     {
         public RGBufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
-        public int entityCount;
+    }
+
+    /// <summary>
+    /// The occluder a producer tests against: a furthest-depth pyramid, the view-projection it was built with, and, for a
+    /// history occluder, the current and previous transform versions that decide which entities did not move.
+    /// </summary>
+    internal struct MeshOccluderInputs
+    {
+        public RGTextureHandle furthest;
+        public Matrix4x4 viewProjection;
+        public Vector4 extent;
+        public int mipCount;
+        public bool history;
+        public RGBufferHandle currentTransforms, currentGenerations, previousTransforms, previousGenerations;
+        public int currentCount, previousCount;
     }
 
     /// <summary>
     /// Per-draw-list GPU buffers. The object is an empty CPU shell between uses; the buffers belong to the resource pool
-    /// and are rented once, before recording, at the draw list's capacity.
+    /// and are rented once, when the list is created, at its capacity.
     /// </summary>
     internal sealed class MeshGPUDrawPayload
     {
-        internal BufferHandle commandMeta, indirectArgs, instanceToEntity, instanceFade;
-        internal ResourceReuseFence metaWait, argsWait, instancesWait, fadeWait;
+        internal BufferHandle indirectArgs, instanceToEntity, instanceFade, cullingContext;
+        internal ResourceReuseFence argsWait, instancesWait, fadeWait, contextWait;
         internal int commandCapacity, instanceCapacity;
+        internal readonly MeshCullingContext[] contextStaging = new MeshCullingContext[1];
 
         internal void WaitForReuse(CommandBuffer commands)
         {
-            metaWait.Wait(commands, false);
             argsWait.Wait(commands, false);
             instancesWait.Wait(commands, false);
             fadeWait.Wait(commands, false);
+            contextWait.Wait(commands, false);
         }
     }
 
     /// <summary>
-    /// GPU indirect drawing: per draw list, one compute producer initializes arguments and compacts visible members of the
-    /// candidate table into per-command stable and fading instance ranges; the raster consumer
-    /// issues one <c>DrawMeshInstancedIndirect</c> per live command and range. There is no batching and no CPU fallback.
+    /// GPU indirect drawing: per draw list, one compute producer initializes arguments and appends the visible members of
+    /// the candidate table to per-command stable and fading instance ranges, testing each against the list's culling
+    /// context (and occluder) itself; the raster consumer issues one <c>DrawMeshInstancedIndirect</c> per live command and
+    /// range. There is no batching and no CPU fallback.
     /// </summary>
     internal sealed class MeshDrawGPUBackend : IDisposable
     {
-        static readonly int ID_EntityCount = Shader.PropertyToID("_EntityCount");
-        static readonly int ID_FrustumPlanes = Shader.PropertyToID("_FrustumPlanes");
         static readonly int ID_EntityBoundsCenter = Shader.PropertyToID("_EntityBoundsCenter");
         static readonly int ID_EntityBoundsExtent = Shader.PropertyToID("_EntityBoundsExtent");
         static readonly int ID_EntityFlags = Shader.PropertyToID("_EntityFlags");
         static readonly int ID_EntityLayerMask = Shader.PropertyToID("_EntityLayerMask");
         static readonly int ID_EntitySceneCullingMask = Shader.PropertyToID("_EntitySceneCullingMask");
         static readonly int ID_EntityRenderingLayer = Shader.PropertyToID("_EntityRenderingLayer");
-        static readonly int ID_ViewLayerMask = Shader.PropertyToID("_ViewLayerMask");
-        static readonly int ID_ViewSceneCullingMaskLow = Shader.PropertyToID("_ViewSceneCullingMaskLow");
-        static readonly int ID_ViewSceneCullingMaskHigh = Shader.PropertyToID("_ViewSceneCullingMaskHigh");
-        static readonly int ID_ViewRenderingLayerMask = Shader.PropertyToID("_ViewRenderingLayerMask");
-        static readonly int ID_FilterRenderingLayers = Shader.PropertyToID("_FilterRenderingLayers");
-        static readonly int ID_Visibility = Shader.PropertyToID("_Visibility");
-        static readonly int ID_VisibilityBase = Shader.PropertyToID("_VisibilityBase");
-        static readonly int ID_ViewCount = Shader.PropertyToID("_ViewCount");
-        static readonly int ID_EntityStride = Shader.PropertyToID("_EntityStride");
-        static readonly int ID_FrustumViews = Shader.PropertyToID("_FrustumViews");
+        static readonly int ID_EntityLodChains = Shader.PropertyToID("_EntityLodChains");
+        static readonly int ID_CullingContext = Shader.PropertyToID("_CullingContext");
         static readonly int ID_CommandCount = Shader.PropertyToID("_CommandCount");
         static readonly int ID_CandidateCount = Shader.PropertyToID("_CandidateCount");
         static readonly int ID_CommandMeta = Shader.PropertyToID("_CommandMeta");
@@ -70,22 +77,29 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly int ID_IndirectArgs = Shader.PropertyToID("_IndirectArgs");
         static readonly int ID_InstanceFade = Shader.PropertyToID("_InstanceFade");
         static readonly int ID_DitherLod = Shader.PropertyToID("_DitherLod");
-        static readonly int ID_EntityLodChains = Shader.PropertyToID("_EntityLodChains");
-        static readonly int ID_LodOrigin = Shader.PropertyToID("_LodOrigin");
-        static readonly int ID_LodScale = Shader.PropertyToID("_LodScale");
-        static readonly int ID_LodBias = Shader.PropertyToID("_LodBias");
-        static readonly int ID_LodOrthographic = Shader.PropertyToID("_LodOrthographic");
+        static readonly int ID_DrawnCandidates = Shader.PropertyToID("_DrawnCandidates");
+        static readonly int ID_Furthest = Shader.PropertyToID("_MeshCullFurthest");
+        static readonly int ID_Projection = Shader.PropertyToID("_MeshCullProjection");
+        static readonly int ID_Extent = Shader.PropertyToID("_MeshCullFullExtent");
+        static readonly int ID_MipCount = Shader.PropertyToID("_MeshCullMipCount");
+        static readonly int ID_CurrentCount = Shader.PropertyToID("_MeshCullCurrentCount");
+        static readonly int ID_PreviousCount = Shader.PropertyToID("_MeshCullPreviousCount");
+        static readonly int ID_CurrentTransforms = Shader.PropertyToID("_MeshCullCurrentTransforms");
+        static readonly int ID_PreviousTransforms = Shader.PropertyToID("_MeshCullPreviousTransforms");
+        static readonly int ID_CurrentGenerations = Shader.PropertyToID("_MeshCullCurrentGenerations");
+        static readonly int ID_PreviousGenerations = Shader.PropertyToID("_MeshCullPreviousGenerations");
         static readonly GlobalKeyword s_LodDither = GlobalKeyword.Create("INFINITY_LOD_DITHER");
+        static readonly int s_ContextStride = Marshal.SizeOf<MeshCullingContext>();
         const int k_ArgsStride = 5;
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly int m_CullKernel = -1, m_InitializeArgsKernel = -1, m_CompactKernel = -1;
+        readonly ComputeKernel m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel, m_BuildRemainderKernel;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUDrawPayload> m_FreePayloads = new Stack<MeshGPUDrawPayload>(8);
         readonly List<MeshGPUDrawPayload> m_Retired = new List<MeshGPUDrawPayload>(8);
 
-        /// <summary>Device capability only; the backend additionally needs its compute shader.</summary>
+        /// <summary>Device capability; the compute shader and its kernels are required on every backend.</summary>
         public static bool DeviceSupportsIndirect => SystemInfo.supportsComputeShaders && SystemInfo.supportsInstancing;
 
         public bool isSupported
@@ -98,89 +112,30 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_Pool = pool;
             m_Shader = shader;
-            if (shader == null || !DeviceSupportsIndirect)
+            const string field = "GlobalSettings RuntimeShaders.meshDrawPipelineCS";
+            m_InitializeArgsKernel = ComputeKernel.Resolve(shader, field, "InitializeIndirectArgs");
+            m_BuildKernel = ComputeKernel.Resolve(shader, field, "BuildDrawList");
+            m_BuildOccludedKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListOccluded");
+            m_BuildOccludedHistoryKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListOccludedHistory");
+            m_BuildRemainderKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListRemainder");
+            // The shader is required on every backend; a missing kernel is a broken install, not a device limit.
+            foreach (ComputeKernel kernel in new[] { m_InitializeArgsKernel, m_BuildKernel, m_BuildOccludedKernel, m_BuildOccludedHistoryKernel, m_BuildRemainderKernel })
             {
-                return;
+                if (!kernel.isValid)
+                {
+                    throw new InvalidOperationException("Mesh drawing requires every Compute_MeshDrawPipeline kernel: " + kernel.missingReason);
+                }
             }
-            m_CullKernel = Find(shader, "CullFrustum");
-            m_InitializeArgsKernel = Find(shader, "InitializeIndirectArgs");
-            m_CompactKernel = Find(shader, "Compact");
-            isSupported = m_CullKernel >= 0 && m_InitializeArgsKernel >= 0 && m_CompactKernel >= 0;
+            isSupported = DeviceSupportsIndirect;
         }
-
-        static int Find(ComputeShader shader, string kernel) => shader.HasKernel(kernel) ? shader.FindKernel(kernel) : -1;
 
         void RequireSupported()
         {
             if (!isSupported)
             {
-                throw new InvalidOperationException("GPU indirect mesh drawing requires Compute_MeshDrawPipeline with its culling and compaction kernels.");
+                throw new InvalidOperationException("GPU indirect mesh drawing requires a device with compute shaders and instancing.");
             }
         }
-
-        internal int FindKernel(string kernel)
-        {
-            RequireSupported();
-            int index = Find(m_Shader, kernel);
-            if (index < 0)
-            {
-                throw new InvalidOperationException($"Compute_MeshDrawPipeline has no kernel '{kernel}'.");
-            }
-            return index;
-        }
-
-        #region Culling
-        internal void BindCullInputs<TCommands>(TCommands commands, int kernel, in MeshView view, Vector4[] frustumPlanes,
-            in MeshCullInputs inputs, RGBufferHandle visibility) where TCommands : struct, IComputeCommands
-        {
-            commands.SetComputeVectorArrayParam(m_Shader, ID_FrustumPlanes, frustumPlanes);
-            BindCullBounds(commands, kernel, view, inputs);
-            commands.SetComputeIntParam(m_Shader, ID_ViewLayerMask, view.layerMask);
-            commands.SetComputeIntParam(m_Shader, ID_ViewSceneCullingMaskLow, unchecked((int)view.sceneCullingMask));
-            commands.SetComputeIntParam(m_Shader, ID_ViewSceneCullingMaskHigh, unchecked((int)(view.sceneCullingMask >> 32)));
-            commands.SetComputeIntParam(m_Shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
-            commands.SetComputeIntParam(m_Shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityFlags, inputs.flags);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityLayerMask, inputs.layerMask);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityRenderingLayer, inputs.renderingLayers);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_Visibility, visibility);
-        }
-
-        /// <summary>Bounds and LOD inputs every culling kernel reads; the packed visibility carries the selected level.</summary>
-        internal void BindCullBounds<TCommands>(TCommands commands, int kernel, in MeshView view, in MeshCullInputs inputs) where TCommands : struct, IComputeCommands
-        {
-            MeshLODProjection lod = view.lodProjection;
-            commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenter);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsExtent, inputs.boundsExtent);
-            commands.SetComputeBufferParam(m_Shader, kernel, ID_EntityLodChains, inputs.lodChains);
-            commands.SetComputeVectorParam(m_Shader, ID_LodOrigin, new Vector4(lod.origin.x, lod.origin.y, lod.origin.z, 0));
-            commands.SetComputeFloatParam(m_Shader, ID_LodScale, lod.scale);
-            commands.SetComputeFloatParam(m_Shader, ID_LodBias, lod.bias);
-            commands.SetComputeIntParam(m_Shader, ID_LodOrthographic, lod.orthographic ? 1 : 0);
-        }
-
-        internal void DispatchCullFrustumBatch<TCommands>(TCommands commands, in MeshCullInputs inputs, int viewCount, int stride,
-            ComputeBuffer viewTable, RGBufferHandle visibility, MeshWorldStats stats) where TCommands : struct, IComputeCommands
-        {
-            RequireSupported();
-            commands.SetComputeIntParam(m_Shader, ID_EntityCount, inputs.entityCount);
-            commands.SetComputeIntParam(m_Shader, ID_ViewCount, viewCount);
-            commands.SetComputeIntParam(m_Shader, ID_EntityStride, stride);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_FrustumViews, viewTable);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsCenter, inputs.boundsCenter);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityBoundsExtent, inputs.boundsExtent);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLodChains, inputs.lodChains);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityFlags, inputs.flags);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityLayerMask, inputs.layerMask);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_EntityRenderingLayer, inputs.renderingLayers);
-            commands.SetComputeBufferParam(m_Shader, m_CullKernel, ID_Visibility, visibility);
-            commands.DispatchCompute(m_Shader, m_CullKernel, math.max(1, (inputs.entityCount + 63) / 64), math.max(1, viewCount), 1);
-            stats.gpuCullDispatches++;
-        }
-        #endregion
 
         #region Draw lists
         /// <summary>Capacity for every command's stable and fading range: two argument records per command, two instances per member.</summary>
@@ -192,10 +147,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshGPUDrawPayload payload = m_FreePayloads.Count > 0 ? m_FreePayloads.Pop() : new MeshGPUDrawPayload();
             try
             {
-                payload.commandMeta = m_Pool.GetBuffer(new BufferDescriptor(commands * MeshPassCache.MetaStride, sizeof(uint)) { name = "MeshDrawCommandMeta" }, true, false, out payload.metaWait);
-                payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
+                payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
                 payload.instanceToEntity = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(uint)) { name = "MeshInstanceToEntity" }, true, false, out payload.instancesWait);
                 payload.instanceFade = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(float)) { name = "MeshInstanceFade" }, true, false, out payload.fadeWait);
+                payload.cullingContext = m_Pool.GetBuffer(new BufferDescriptor(1, s_ContextStride) { name = "MeshCullingContext" }, true, false, out payload.contextWait);
             }
             catch
             {
@@ -208,61 +163,84 @@ namespace InfinityTech.Rendering.MeshPipeline
             return payload;
         }
 
-        internal void Upload(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount)
+        /// <summary>
+        /// The list's producer: uploads the culling context, initializes both argument records of
+        /// every command slot, then appends every passing candidate. <paramref name="occluder"/> is read only when
+        /// <paramref name="occluded"/>; a history occluder writes the drawn table and a remainder list reads it.
+        /// </summary>
+        internal void Produce(in RGComputeEncoder encoder, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
+            in MeshCullingContext context, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder, RGBufferHandle drawn,
+            bool remainder, MeshWorldStats stats)
         {
+            RequireSupported();
             if (commandCount > payload.commandCapacity)
             {
                 throw new InvalidOperationException("A GPU draw list outgrew its record-time command capacity.");
             }
+            CommandBuffer commands = encoder.m_Core.commands;
             payload.WaitForReuse(commands);
-            NativeArray<uint> meta = cache.GetCommandMeta();
-            if (commandCount > 0)
+            payload.contextStaging[0] = context;
+            commands.SetBufferData(payload.cullingContext.buffer, payload.contextStaging, 0, 0, 1);
+
+            int initialize = m_InitializeArgsKernel.index;
+            int dither = cache.desc.ditherLODTransitions ? 1 : 0;
+            encoder.BeginSample(MeshDrawProfiling.initializeIndirectArgs);
+            encoder.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
+            encoder.SetComputeBufferParam(m_Shader, initialize, ID_CommandMeta, cache.commandMetaBuffer.buffer);
+            encoder.SetComputeBufferParam(m_Shader, initialize, ID_IndirectArgs, payload.indirectArgs.buffer);
+            encoder.DispatchCompute(m_Shader, initialize, math.max(1, (commandCount + 63) / 64), 1, 1);
+            encoder.EndSample(MeshDrawProfiling.initializeIndirectArgs);
+            stats.drawListKernelDispatches++;
+
+            ComputeKernel build = !occluded ? m_BuildKernel : occluder.history ? m_BuildOccludedHistoryKernel
+                : remainder ? m_BuildRemainderKernel : m_BuildOccludedKernel;
+            int kernel = build.index;
+            encoder.BeginSample(MeshDrawProfiling.buildDrawList);
+            encoder.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
+            encoder.SetComputeIntParam(m_Shader, ID_DitherLod, dither);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CullingContext, payload.cullingContext.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenter);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsExtent, inputs.boundsExtent);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLodChains, inputs.lodChains);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityFlags, inputs.flags);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLayerMask, inputs.layerMask);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityRenderingLayer, inputs.renderingLayers);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CandidateTable, cache.candidateBuffer.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CommandMeta, cache.commandMetaBuffer.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_IndirectArgs, payload.indirectArgs.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceToEntity, payload.instanceToEntity.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceFade, payload.instanceFade.buffer);
+            if (occluded)
             {
-                commands.SetBufferData(payload.commandMeta.buffer, meta, 0, 0, commandCount * MeshPassCache.MetaStride);
+                if (occluder.history || remainder)
+                {
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_DrawnCandidates, drawn);
+                }
+                encoder.SetComputeTextureParam(m_Shader, kernel, ID_Furthest, occluder.furthest);
+                encoder.SetComputeMatrixParam(m_Shader, ID_Projection, occluder.viewProjection);
+                encoder.SetComputeVectorParam(m_Shader, ID_Extent, occluder.extent);
+                encoder.SetComputeIntParam(m_Shader, ID_MipCount, occluder.mipCount);
+                if (occluder.history)
+                {
+                    encoder.SetComputeIntParam(m_Shader, ID_CurrentCount, occluder.currentCount);
+                    encoder.SetComputeIntParam(m_Shader, ID_PreviousCount, occluder.previousCount);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentTransforms, occluder.currentTransforms);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentGenerations, occluder.currentGenerations);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousTransforms, occluder.previousTransforms);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousGenerations, occluder.previousGenerations);
+                }
             }
-        }
-
-        internal void InitializeIndirectArgs(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, MeshWorldStats stats)
-        {
-            RequireSupported();
-            commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
-            commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_InitializeArgsKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.DispatchCompute(m_Shader, m_InitializeArgsKernel, math.max(1, (commandCount + 63) / 64), 1, 1);
-            stats.compactKernelDispatches++;
-        }
-
-        internal void CompactInstances(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
-        {
-            RequireSupported();
-            commands.SetComputeIntParam(m_Shader, ID_VisibilityBase, visibilityBase);
-            commands.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
-            commands.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
-            commands.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CandidateTable, cache.candidateBuffer.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_Visibility, visibility);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_CommandMeta, payload.commandMeta.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceToEntity, payload.instanceToEntity.buffer);
-            commands.SetComputeBufferParam(m_Shader, m_CompactKernel, ID_InstanceFade, payload.instanceFade.buffer);
-            commands.DispatchCompute(m_Shader, m_CompactKernel, math.max(1, (candidateCount + 63) / 64), 1, 1);
-            stats.compactKernelDispatches++;
-            stats.compactDispatches++;
-        }
-
-        internal void Compact(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            ComputeBuffer visibility, int visibilityBase, MeshWorldStats stats)
-        {
-            InitializeIndirectArgs(commands, payload, cache, commandCount, stats);
-            CompactInstances(commands, payload, cache, commandCount, candidateCount, visibility, visibilityBase, stats);
+            encoder.DispatchCompute(m_Shader, kernel, math.max(1, build.GroupsX(candidateCount)), 1, 1);
+            encoder.EndSample(MeshDrawProfiling.buildDrawList);
+            stats.drawListKernelDispatches++;
+            stats.drawListProductions++;
         }
 
         internal void SubmitMeshDrawList(CommandBuffer commands, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount,
-            in MeshWorldGPUTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
+            in MeshWorldGPUTables tables, in MeshMotionBinding motion)
         {
-            ProfilingSampler marker = CachedSampler.Get(MeshDrawProfiling.Draw(viewKind, true));
+            ProfilingSampler marker = MeshDrawProfiling.DrawSampler(cache.desc, true);
             marker.Begin(commands);
             bool dithering = false;
             try
@@ -270,10 +248,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 NativeArray<uint> meta = cache.GetCommandMeta();
                 NativeArray<int> order = cache.GetCommandOrder();
                 m_Properties.Clear();
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.InstanceFade, payload.instanceFade.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, payload.instanceFade.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 NativeArray<MeshDrawCommand> records = cache.commands;
                 bool anyFading = false;
@@ -317,7 +295,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 cache.ReportMissing(command);
                 return;
             }
-            m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, (int)meta[command * MeshPassCache.MetaStride + 3 + range]);
+            m_Properties.SetInt(MeshShaderIDs.InstanceOffset, (int)meta[command * MeshPassCache.MetaStride + 3 + range]);
             commands.DrawMeshInstancedIndirect(binding.mesh, binding.submesh, binding.material, binding.passIndex,
                 payload.indirectArgs.buffer, (command * 2 + range) * k_ArgsStride * sizeof(uint), m_Properties);
         }
@@ -332,10 +310,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         void ReleaseBuffers(MeshGPUDrawPayload payload, ResourceReuseFence reuseFence)
         {
-            if (payload.commandMeta.buffer != null)
-            {
-                m_Pool.ReleaseBuffer(payload.commandMeta, reuseFence);
-            }
             if (payload.indirectArgs.buffer != null)
             {
                 m_Pool.ReleaseBuffer(payload.indirectArgs, reuseFence);
@@ -348,8 +322,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_Pool.ReleaseBuffer(payload.instanceFade, reuseFence);
             }
-            payload.commandMeta = payload.indirectArgs = payload.instanceToEntity = payload.instanceFade = default;
-            payload.metaWait = payload.argsWait = payload.instancesWait = payload.fadeWait = default;
+            if (payload.cullingContext.buffer != null)
+            {
+                m_Pool.ReleaseBuffer(payload.cullingContext, reuseFence);
+            }
+            payload.indirectArgs = payload.instanceToEntity = payload.instanceFade = payload.cullingContext = default;
+            payload.argsWait = payload.instancesWait = payload.fadeWait = payload.contextWait = default;
             payload.commandCapacity = payload.instanceCapacity = 0;
         }
 

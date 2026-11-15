@@ -1,4 +1,5 @@
 using UnityEngine;
+using InfinityTech.Core;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.LightPipeline;
@@ -16,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ReflectionProbeFilterPassData
         {
-            public ComputeShader shader;
+            public ComputeKernel filterCubeToArray;
             public ProbeCubeUpload[] uploads;
             public int uploadCount;
             public int resolution;
@@ -33,24 +34,24 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the probe atlas when probes reach this camera's screen, GGX-filters the cubes that are new, changed or
         // realtime (once per frame across cameras), and builds the probe tile masks of the clustered list.
-        void ComputeReflectionProbes(RenderContext renderContext)
+        void ComputeReflectionProbes(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.ReflectionProbes))
+            if (!context.features.ShouldRecord(EFrameFeature.ReflectionProbes))
             {
                 return;
             }
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
+            context.features.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
-            LightContext context = renderContext.lightContext;
+            LightContext lightContext = renderContext.lightContext;
             RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
             if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
-                using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
+                using (var passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
-                    ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData<ReflectionProbeFilterPassData>();
-                    passData.shader = shaders.cubeFilterShader;
+                    ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData();
+                    passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
@@ -72,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
                             // Intensity and HDR decode stay in the record (params.x), so a changed intensity needs no refilter.
                             for (int mip = 0; mip < passData.mipCount; ++mip)
                             {
-                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.shader, upload.source, 1.0f, passData.atlas,
+                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.filterCubeToArray, upload.source, 1.0f, passData.atlas,
                                     passData.resolution, mip, CubeFilterUtilityData.MipRoughness(mip, passData.mipCount), upload.slot * 6,
                                     ReflectionProbePassUtilityData.FilterSampleCount);
                             }
@@ -82,8 +83,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RecordTileMaskPass(LightShaderIDs.ProbeTileRectBuffer, InfinityShaderIDs.ProbeTileMaskBuffer, ReflectionProbePassUtilityData.ProbeTileMaskBufferName,
-                context.ReflectionProbeCount, context.ProbeTileWordCount, context.TileCount, CustomSamplerId.ComputeProbeTileMask);
-            MarkFeatureProduced(EFrameFeature.ReflectionProbes);
+                lightContext.ReflectionProbeCount, lightContext.ProbeTileWordCount, lightContext.TileCount, CustomSamplerId.ComputeProbeTileMask);
+            context.features.MarkProduced(EFrameFeature.ReflectionProbes);
         }
     }
 }

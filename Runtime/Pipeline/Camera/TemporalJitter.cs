@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 
@@ -26,6 +26,14 @@ namespace InfinityTech.Rendering.Pipeline
 
     internal static class TemporalJitter
     {
+        // Clip-space offset of the jittered projection in UV units, measured at the view axis.
+        internal static Vector2 ProjectionJitterUV(Matrix4x4 jittered, Matrix4x4 unjittered)
+        {
+            Vector4 point = new Vector4(0, 0, -1, 1);
+            Vector4 a = jittered * point, b = unjittered * point;
+            return new Vector2(a.x / a.w - b.x / b.w, a.y / a.w - b.y / b.w) * 0.5f;
+        }
+
         public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, int2 renderSize, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float near = camera.nearClipPlane;

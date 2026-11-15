@@ -1,31 +1,24 @@
 using UnityEngine;
-using UnityEngine.Rendering;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
+    // Registry of the shader properties that sample a graph texture through its logical view. The registry only answers
+    // "is this property a texture-view property"; the value always comes from the bound graph texture's descriptor.
     internal static partial class TextureViewBindings
     {
-        static Vector4 Resolve(RenderTargetIdentifier texture)
-            => RGResourceFactory.current != null && RGResourceFactory.current.TryGetTextureView(texture, out var view) ? view.shaderValue : Vector4.zero;
-        internal static void Global(CommandBuffer commands, int name, RenderTargetIdentifier texture)
+        internal static bool TryGetViewID(int nameID, out int viewID) => s_ViewIDs.TryGetValue(nameID, out viewID);
+
+        // The logical view seen through one mip: size and capacity halve per level and never drop below one texel.
+        internal static Vector4 MipView(in TextureView view, int mip)
         {
-            if (s_ViewIDs.TryGetValue(name, out int viewID))
+            Vector4 value = view.shaderValue;
+            if (mip <= 0)
             {
-                commands.SetGlobalVector(viewID, Resolve(texture));
+                return value;
             }
-        }
-        internal static void Compute(CommandBuffer commands, ComputeShader shader, int name, RenderTargetIdentifier texture, int mip = 0)
-        {
-            if (s_ViewIDs.TryGetValue(name, out int viewID))
-            {
-                Vector4 view = Resolve(texture);
-                if (view.x > 0 && mip > 0)
-                {
-                    float scale = Mathf.Pow(2, mip);
-                    view = new Vector4(Mathf.Max(1, Mathf.Floor(view.x / scale)), Mathf.Max(1, Mathf.Floor(view.y / scale)), Mathf.Max(1, Mathf.Floor(view.z / scale)), Mathf.Max(1, Mathf.Floor(view.w / scale)));
-                }
-                commands.SetComputeVectorParam(shader, viewID, view);
-            }
+            float scale = Mathf.Pow(2, mip);
+            return new Vector4(Mathf.Max(1, Mathf.Floor(value.x / scale)), Mathf.Max(1, Mathf.Floor(value.y / scale)), Mathf.Max(1, Mathf.Floor(value.z / scale)), Mathf.Max(1, Mathf.Floor(value.w / scale)));
         }
     }
 }

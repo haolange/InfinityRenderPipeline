@@ -16,12 +16,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class MeshTransformVersionGpuTests
     {
-        static IEnumerator Produce(MeshWorld world, ResourcePool pool, ComputeShader shader)
+        static IEnumerator Produce(MeshWorld world, ResourcePool pool)
         {
             var graph = new RGBuilder("TransformVersionContract", pool);
             // The render context owns its own mesh world; keep its allocations out of the pool under test.
-            var contextPool = new ResourcePool();
-            world.transformVersions.Record(graph, world.transformVersions.current, shader, new HashSet<MeshTransformVersion>(), externallyObserved: true);
+            world.transformVersions.Record(graph, world.transformVersions.current, new HashSet<MeshTransformVersion>(), externallyObserved: true);
             bool executed = false;
             Exception failure = null;
             Action<ScriptableRenderContext, List<Camera>> render = (context, cameras) =>
@@ -30,8 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using (var state = new RenderContext(contextPool, shader) { scriptableRenderContext = context })
-                    using (var commands = new CommandBuffer()) graph.Execute(state, commands);
+                    using (var commands = new CommandBuffer()) graph.Execute(context, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
                         var tail = new ResourceReuseFence { hasGraphics = true };
@@ -68,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                RenderPipelineManager.beginContextRendering -= render; graph.Dispose(); contextPool.Dispose();
+                RenderPipelineManager.beginContextRendering -= render; graph.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }
@@ -80,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
         static Vector4 Previous(ComputeShader shader, MeshMotionBinding binding, int index)
         {
-            using (var output = new ComputeBuffer(1, 16))
+            using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16))
             {
                 int kernel = shader.FindKernel("ReadPrevious");
                 var previous = binding.previous ?? binding.current;
@@ -103,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (build == null) Assert.Ignore("Compute_MeshDrawPipeline is not available.");
             Assert.IsNotNull(sample);
             var pool = new ResourcePool(); var world = new MeshWorld(pool, build);
-            var a = new MeshViewMotionHistory(); var b = new MeshViewMotionHistory();
+            var a = new MeshMotionHistory(); var b = new MeshMotionHistory();
             try
             {
                 MeshEntityId id, last = default;
@@ -115,7 +113,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 world.UpdateResidency(); var first = world.transformVersions.current;
                 Assert.AreEqual(Vector4.zero, Previous(sample, a.Prepare(first), (int)id.Index)); a.Rollback();
-                yield return Produce(world, pool, build);
+                yield return Produce(world, pool);
                 a.Prepare(first); a.Commit(); b.Prepare(first); b.Commit();
                 Assert.AreSame(a.accepted, b.accepted);
                 long uploaded = world.transformVersions.uploadedBytes;
@@ -124,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(1, world.transformVersions.productionCount);
                 Move(world, id, 2); Move(world, last, 130); world.UpdateResidency(); var second = world.transformVersions.current;
                 Assert.AreEqual(65, second.changeCount, "Only the two changed pages should be uploaded.");
-                yield return Produce(world, pool, build);
+                yield return Produce(world, pool);
                 Assert.AreEqual(0, ReadMatrix(first, (int)id.Index).c3.x);
                 Assert.AreEqual(2, ReadMatrix(second, (int)id.Index).c3.x);
                 Assert.AreEqual(64, ReadMatrix(second, 64).c3.x, "Unchanged middle page must survive GPU version copy.");
@@ -138,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using (var update = world.BeginUpdate()) { reused = MeshTestUtility.CreateEntity(update, new float3(100, 0, 0)); update.Commit(); }
                 Assert.AreEqual(id.Index, reused.Index); Assert.AreNotEqual(id.Generation, reused.Generation);
                 world.UpdateResidency(); var third = world.transformVersions.current;
-                yield return Produce(world, pool, build);
+                yield return Produce(world, pool);
                 Assert.AreEqual(100, ReadMatrix(third, (int)reused.Index).c3.x);
                 Assert.AreEqual(Vector4.zero, Previous(sample, a.Prepare(third), (int)reused.Index));
                 Assert.AreEqual(Vector4.zero, Previous(sample, a.Prepare(third), third.count));

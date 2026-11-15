@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -6,6 +7,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal readonly struct MeshPassDesc : IEquatable<MeshPassDesc>
     {
         public readonly string lightMode;
+        /// <summary>The short name of the pass in profiler markers (Depth, GBuffer, Shadow, ...).</summary>
+        public readonly string token;
+        // The interned id of lightMode: per-frame lookups compare ids, never names (ShaderTagId.name allocates a string).
+        public readonly ShaderTagId passTag;
         public readonly int queueMin;
         public readonly int queueMax;
         public readonly EMeshEntityFlags requireEntityFlags;
@@ -16,11 +21,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>This pass records on the CPU backend.</summary>
         public readonly bool cpuBackend;
 
-        public MeshPassDesc(string lightMode, int queueMin, int queueMax,
+        public MeshPassDesc(string lightMode, string token, int queueMin, int queueMax,
             EMeshEntityFlags requireEntityFlags = EMeshEntityFlags.None, bool requirePreviousTransforms = false,
             EMeshSortKey sortKey = EMeshSortKey.State, bool cpuBackend = false)
         {
             this.lightMode = lightMode;
+            this.token = token;
+            passTag = new ShaderTagId(lightMode);
             this.queueMin = queueMin;
             this.queueMax = queueMax;
             this.requireEntityFlags = requireEntityFlags;

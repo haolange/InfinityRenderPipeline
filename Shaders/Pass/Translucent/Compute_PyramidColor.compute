@@ -144,8 +144,16 @@ void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, u
 
 #pragma kernel TemporalColorMip
 Texture2D<float> _TemporalSurfaceDepth;
-int _TemporalSourceValid, _TemporalMipFirst, _TemporalSourceMip;
-float _TemporalFarDepth;
+// The TemporalColorMipParameters record ComputeTemporalColorPyramid writes, bound as one constant buffer.
+cbuffer CBV_TemporalColorMipParameters
+{
+    int _TemporalSourceValid;
+    float _TemporalFarDepth;
+    int TemporalColorMipPadding0;
+    int TemporalColorMipPadding1;
+};
+// Per mip dispatch.
+int _TemporalMipFirst, _TemporalSourceMip;
 
 [numthreads(8,8,1)]
 void TemporalColorMip(uint3 id : SV_DispatchThreadID)

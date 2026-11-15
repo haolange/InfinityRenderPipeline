@@ -3,6 +3,7 @@ using UnityEngine;
 using InfinityTech.Component;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
@@ -71,12 +72,11 @@ namespace InfinityTech.Rendering.Editor
             return material;
         }
 
-        internal static void ReadMeshState(InfinityRenderPipeline pipeline, out int entities, out int elements, out int allocatedViewCount)
+        internal static void ReadMeshState(InfinityRenderPipeline pipeline, out int entities, out int elements)
         {
             MeshWorld world = pipeline.renderContext.meshWorld;
             entities = world.entityCount;
             elements = world.elementCount;
-            allocatedViewCount = world.allocatedGpuViewCount;
         }
     }
 }

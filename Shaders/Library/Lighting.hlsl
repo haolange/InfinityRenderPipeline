@@ -2,13 +2,8 @@
 #define _LightingInclude
 
 #include "Lighting/LightRecord.hlsl"
+#include "Lighting/LightLoopUniform.hlsl"
 
-// First g_DirectionalLightCount records are directional; the remaining g_LocalLightCount are local, sorted by view
-// depth. Light-list indices are absolute record indices.
-int g_DirectionalLightCount;
-int g_LocalLightCount;
-int g_SunRecordIndex;
-int g_LocalShadowSliceCount;
 StructuredBuffer<LightRecord> g_LightRecordBuffer;
 
 #include "Lighting/LightLoop.hlsl"

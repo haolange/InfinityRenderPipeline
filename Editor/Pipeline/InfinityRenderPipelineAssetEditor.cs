@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_SRPBatch;
         SerializedProperty m_GPUInstance;
         SerializedProperty m_MeshBackendPolicy;
-        SerializedProperty m_DynamicBatch;
         SerializedProperty m_QualityVolumeProfile;
         SerializedProperty m_AtmosphericalProfile;
         SerializedProperty m_DiffusionProfiles;
@@ -63,7 +62,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_SRPBatch = serializedObject.FindProperty("enableSRPBatch");
             m_GPUInstance = serializedObject.FindProperty("enableInstanceBatch");
             m_MeshBackendPolicy = serializedObject.FindProperty("meshBackendPolicy");
-            m_DynamicBatch = serializedObject.FindProperty("enableDynamicBatch");
             m_QualityVolumeProfile = serializedObject.FindProperty("m_QualityVolumeProfile");
             m_AtmosphericalProfile = serializedObject.FindProperty("atmosphericalProfile");
             m_DiffusionProfiles = serializedObject.FindProperty("diffusionProfiles");
@@ -126,17 +124,9 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 }
                 if (GUILayout.Button("Copy Preset To Custom"))
                 {
-                    foreach (Object asset in targets)
-                    {
-                        if (asset is InfinityRenderPipelineAsset pipelineAsset)
-                        {
-                            Undo.RecordObject(pipelineAsset, "Copy Shadow Filter Preset");
-                            pipelineAsset.customShadowFilter = preset;
-                            pipelineAsset.shadowFilterQuality = EQualityLevel.Custom;
-                            EditorUtility.SetDirty(pipelineAsset);
-                        }
-                    }
-                    serializedObject.Update();
+                    m_CustomShadowFilter.boxedValue = preset;
+                    m_ShadowFilterQuality.intValue = (int)EQualityLevel.Custom;
+                    serializedObject.ApplyModifiedProperties();
                 }
             }
             --EditorGUI.indentLevel;
@@ -165,7 +155,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batcher"));
                 EditorGUILayout.PropertyField(m_MeshBackendPolicy);
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instancing"));
-                EditorGUILayout.PropertyField(m_DynamicBatch, new GUIContent("Dynamic Batcher"));
                 EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("Refresh Renderer Proxy"));
                 EditorGUILayout.PropertyField(m_RayTrace, new GUIContent("Unified Ray Tracing"));
             }
@@ -175,13 +164,11 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             {
                 EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"));
                 EditorGUILayout.PropertyField(m_DiffusionProfiles, new GUIContent("Diffusion Profiles"), true);
-                InfinityRenderPipelineAsset asset = target as InfinityRenderPipelineAsset;
-                if (asset != null && asset.diffusionProfiles != null)
+                if (!m_DiffusionProfiles.hasMultipleDifferentValues)
                 {
-                    for (int i = 0; i < asset.diffusionProfiles.Length; ++i)
+                    for (int i = 0; i < m_DiffusionProfiles.arraySize; ++i)
                     {
-                        DiffusionProfile profile = asset.diffusionProfiles[i];
-                        if (profile == null)
+                        if (m_DiffusionProfiles.GetArrayElementAtIndex(i).objectReferenceValue == null)
                             EditorGUILayout.HelpBox("Diffusion profile slot " + i + " is empty.", MessageType.Warning);
                     }
                 }

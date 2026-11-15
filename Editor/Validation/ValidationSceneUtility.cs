@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using InfinityTech.Component;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
@@ -41,7 +42,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         {
             LivenessMarker marker = LivenessMarkerUtility.EnsureInScene(camera);
             Material material = LivenessMarkerUtility.ApplyLitMaterial(marker.gameObject, new Color(0.85f, 0.15f, 0.05f, 1));
-            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(material);
+            MaterialRouteUtility.ApplyPassState(material);
             return marker;
         }
     }

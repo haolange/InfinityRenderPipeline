@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Component
@@ -7,7 +7,7 @@ namespace InfinityTech.Component
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
     [AddComponentMenu("InfinityRenderer/Decal Component")]
-    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "decals.md")]
+    [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "decals.md")]
     public class DecalComponent : MonoBehaviour
     {
         public int drawOrder;

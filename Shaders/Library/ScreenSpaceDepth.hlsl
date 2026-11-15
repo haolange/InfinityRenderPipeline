@@ -1,8 +1,7 @@
 #ifndef INFINITY_SCREEN_SPACE_DEPTH
 #define INFINITY_SCREEN_SPACE_DEPTH
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-// Near, far, orthographic, reversed Z. Bound explicitly for each camera/pass.
-float4 ScreenSpaceDepthParams;
+#include "ViewUniform.hlsl"
 bool ScreenSpaceIsFarDepth(float depth)
 {
 #if UNITY_REVERSED_Z
@@ -13,15 +12,15 @@ bool ScreenSpaceIsFarDepth(float depth)
 }
 float ScreenSpaceLinearEyeDepth(float rawDepth)
 {
-    float near = ScreenSpaceDepthParams.x, far = ScreenSpaceDepthParams.y;
+    float near = View_DepthParameters.x, far = View_DepthParameters.y;
     float eyeDepth = 0;
-    if (ScreenSpaceDepthParams.z != 0)
+    if (ViewIsOrthographic())
     {
-        eyeDepth = lerp(near, far, ScreenSpaceDepthParams.w != 0 ? 1 - rawDepth : rawDepth);
+        eyeDepth = lerp(near, far, View_DepthParameters.w != 0 ? 1 - rawDepth : rawDepth);
     }
     else
     {
-        float denominator = ScreenSpaceDepthParams.w != 0 ? near + rawDepth * (far - near) : far - rawDepth * (far - near);
+        float denominator = View_DepthParameters.w != 0 ? near + rawDepth * (far - near) : far - rawDepth * (far - near);
         eyeDepth = near * far / max(denominator, 1e-8);
     }
     return eyeDepth;
@@ -37,6 +36,6 @@ float ScreenSpaceNormalWeight(float3 center, float3 neighbor, float exponent)
 }
 float3 ScreenSpaceViewDirection(float3 positionVS)
 {
-    return ScreenSpaceDepthParams.z != 0 ? float3(0, 0, 1) : normalize(-positionVS);
+    return ViewIsOrthographic() ? float3(0, 0, 1) : normalize(-positionVS);
 }
 #endif

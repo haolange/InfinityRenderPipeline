@@ -1,0 +1,21 @@
+{
+    "name": "Unity.RenderPipelines.Infinity.Validation",
+    "rootNamespace": "",
+    "references": [
+        "Unity.RenderPipelines.Infinity.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.Mathematics",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_EDITOR || DEVELOPMENT_BUILD"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,4 +1,4 @@
-namespace InfinityTech.Rendering.Pipeline
+namespace InfinityTech.Core
 {
     // Base of the package manual (Docs~/Manual) for [HelpURL] on assets and components.
     public static class InfinityDocumentation

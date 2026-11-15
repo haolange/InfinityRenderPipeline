@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEditor;
 using InfinityTech.Component;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Component.Editor;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -110,6 +111,44 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [Test]
+        public void PlayerBuild_FreezesTheShapeOfEverySceneLight()
+        {
+            Light bare = NewLight(LightType.Rectangle, out GameObject bareObject);
+            Light sun = NewLight(LightType.Directional, out GameObject sunObject);
+            try
+            {
+                bare.areaSize = new Vector2(3, 1);
+                bare.shadows = LightShadows.Hard;
+                sun.shadowAngle = 2.5f;
+                var sunData = sunObject.AddComponent<InfinityAdditionalLightData>();
+                var serialized = new SerializedObject(sunData);
+                serialized.FindProperty("m_ShapeAuthored").boolValue = false;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                sunData.shadowFilter = EShadowFilter.PCSS;
+                Assert.IsFalse(sunData.shapeAuthored);
+
+                LightShapeBuildProcessor.Freeze(new[] { bareObject, sunObject });
+
+                var bareData = bareObject.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(bareData, "A light without the component gets one in the built scene.");
+                Assert.IsTrue(bareData.shapeAuthored);
+                Assert.AreEqual(3.0f, bareData.shape.sourceWidth, 1e-5f);
+                Assert.AreEqual(1.0f, bareData.shape.sourceHeight, 1e-5f);
+                Assert.AreEqual(0.0f, bareData.maxDrawDistance, "No distance fade, like a light without the component.");
+                Assert.AreEqual(EShadowFilter.Hard, bareData.shadowFilter);
+                Assert.IsTrue(sunData.shapeAuthored);
+                Assert.AreEqual(2.5f, sunData.shape.sourceAngle, 1e-5f);
+                Assert.AreEqual(EShadowFilter.PCSS, sunData.shadowFilter, "Freezing keeps the light's shadow filter.");
+                Assert.AreEqual(LightType.Rectangle, bare.type, "Freezing never writes the native light.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bareObject);
+                Object.DestroyImmediate(sunObject);
+            }
+        }
+
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
         [TestCase(LightmapBakeType.Baked)]
@@ -196,7 +235,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
-        public void LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
+        public void NativeDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
         {
             Light light = NewLight(LightType.Disc, out GameObject go);
             try
@@ -235,7 +274,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight()
+        public void InspectorAdoption_UndoRedoRestoresNativeShapeWithoutChangingNativeLight()
         {
             var originalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
             bool originalDirty = originalScene.isDirty;

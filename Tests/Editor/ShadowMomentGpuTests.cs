@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             try
             {
-                using (var output = new ComputeBuffer(CaseCount, 16))
+                using (var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, CaseCount, 16))
                 {
                     int kernel = shader.FindKernel("MomentVisibility");
                     shader.SetBuffer(kernel, "Results", output);

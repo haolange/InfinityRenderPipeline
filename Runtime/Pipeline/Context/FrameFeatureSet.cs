@@ -121,16 +121,20 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        // TAA is a required producer only for temporal cameras that do not use super resolution.
-        public void EnsureRequiredProducers(bool requiresTemporalAntiAliasing)
+        // The required producers, plus the camera's temporal resolve when it has one.
+        internal void EnsureRequiredProducers(ETemporalResolve temporalResolve)
         {
-            EnsureProduced(EFrameFeature.Depth);
-            EnsureProduced(EFrameFeature.GBuffer);
-            EnsureProduced(EFrameFeature.DeferredShading);
-            EnsureProduced(EFrameFeature.Display);
-            if (requiresTemporalAntiAliasing)
+            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
+            {
+                EnsureProduced(feature);
+            }
+            if (temporalResolve == ETemporalResolve.TAA)
             {
                 EnsureProduced(EFrameFeature.TAA);
+            }
+            else if (temporalResolve == ETemporalResolve.SuperResolution)
+            {
+                EnsureProduced(EFrameFeature.SuperResolution);
             }
         }
 

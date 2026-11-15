@@ -12,3 +12,7 @@ The pipeline does not migrate or rewrite assets when the Editor loads them.
 Create lights from GameObject > Light > Infinity and scene objects from GameObject > Rendering > Infinity. Create assets from Assets > Create > Rendering > Infinity and Shader Graphs from Assets > Create > Shader Graph > Infinity. Convert Built-in, URP and HDRP materials with Window > Infinity > Material Conversion Wizard. The wizard lists those source shaders by name.
 
 Mesh content, native renderers, lights and the frame order are specified in the [architecture](../../ARCHITECTURE.md). Authoring for mesh instances is in [Mesh content](mesh.md).
+
+## Player builds
+
+Do not preload a `ShaderVariantCollection` whose entries use the Scriptable Render Pipeline pass type (Project Settings > Graphics > Preloaded Shaders). Such an entry names every Infinity pass of the shader, and on Metal `ShaderVariantCollection.WarmUp` creates their pipeline states with one color attachment: each multiple-render-target pass (GBuffer, Forward, translucent) then logs `Failed to get shader entry point 'xlatMtlMain'` with `duplicated indices pair (<0, 0>)`, and the variants it warms are not the ones a frame draws. Warm shaders for Metal, Vulkan and DirectX 12 with a `GraphicsStateCollection` traced from a Development player.

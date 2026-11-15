@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
@@ -7,20 +9,44 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_LightTileParameters Shaders/Pass/Lighting/Compute_LightTileMask.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LightTileParameters
+    {
+        public Vector4 tileCount;
+        public uint itemCount;
+        public uint wordCount;
+        public uint padding0;
+        public uint padding1;
+    }
+
     internal static class LightTileMaskPassUtilityData
     {
-        internal const string KernelName = "BuildTileMask";
+        internal static readonly int CBV_LightTileParametersID = Shader.PropertyToID("CBV_LightTileParameters");
         internal const string MaskBufferName = "LightTileMasks";
-        internal static readonly int LightTile_LocalCountID = Shader.PropertyToID("LightTile_LocalCount");
-        internal static readonly int LightTile_WordCountID = Shader.PropertyToID("LightTile_WordCount");
-        internal static readonly int LightTile_TileCountID = Shader.PropertyToID("LightTile_TileCount");
         internal static readonly int UAV_LightTileMasksID = Shader.PropertyToID("UAV_LightTileMasks");
     }
 
-    // Inputs of the shared light loop (Shaders/Library/Lighting/LightLoop.hlsl), the light cookies
+    // The camera's light-loop constants as Shaders/Library/Lighting/LightLoopUniform.hlsl reads them, uploaded once per
+    // camera before its graph (ResolveLightLoopUniform) and bound globally for raster and compute passes.
+    // GPU-RECORD: LightLoopUniform Shaders/Library/Lighting/LightLoopUniform.hlsl
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LightLoopUniform
+    {
+        public Vector4 tileParameters;
+        public Vector4 zBinParameters;
+        public Vector4 probeTileParameters;
+        public int directionalCount;
+        public int localCount;
+        public int sunRecordIndex;
+        public int probeCount;
+    }
+
+    // Resources of the shared light loop (Shaders/Library/Lighting/LightLoop.hlsl), the light cookies
     // (Lighting/LightCookie.hlsl) and the reflection probes (Lighting/ReflectionProbes.hlsl). Query once at record time,
-    // declare the reads with Read, then bind. Without cookies this frame the cookie atlas binds a white texture; no
-    // record references it then.
+    // declare the reads with Read, then bind. Each atlas is declared by its shader only under its keyword
+    // (INFINITY_LIGHT_COOKIES, INFINITY_REFLECTION_PROBES), set from hasCookieAtlas / hasProbeAtlas, and is bound only
+    // when present; without it no record references a cookie and the probe count is 0.
     internal struct LightLoopInputs
     {
         public RGBufferHandle zBins;
@@ -33,30 +59,8 @@ namespace InfinityTech.Rendering.Pipeline
         public RGBufferHandle probeTileMasks;
         public RGTextureHandle probeAtlas;
         public bool hasProbeAtlas;
-        public int probeCount;
-        public Vector4 probeTileParams;
-        public Vector4 tileParams;
-        public Vector4 zBinParams;
-        public int directionalCount;
-        public int localCount;
-        public int sunRecordIndex;
 
-        // Bound for SRV_ReflectionProbeAtlas when no probe is in use (shaders never read it then).
-        static Texture2DArray s_EmptyProbeAtlas;
-        static RenderTargetIdentifier EmptyProbeAtlas
-        {
-            get
-            {
-                if (s_EmptyProbeAtlas == null)
-                {
-                    s_EmptyProbeAtlas = new Texture2DArray(1, 1, 6, TextureFormat.RGBAHalf, false, true) { name = "EmptyReflectionProbeAtlas", hideFlags = HideFlags.HideAndDontSave };
-                    s_EmptyProbeAtlas.Apply(false, true);
-                }
-                return s_EmptyProbeAtlas;
-            }
-        }
-
-        public void Read(RGComputePassHandle passRef)
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -74,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void Read(RGRasterPassHandle passRef)
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -94,40 +98,42 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
+            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
+            commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probes);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasks);
-            commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, hasProbeAtlas ? (RenderTargetIdentifier)probeAtlas : EmptyProbeAtlas);
-            commands.SetComputeIntParam(shader, LightShaderIDs.ReflectionProbeCount, probeCount);
-            commands.SetComputeVectorParam(shader, LightShaderIDs.ProbeTileParams, probeTileParams);
+            if (hasProbeAtlas)
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+            }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookies);
-            commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
+            if (hasCookieAtlas)
+            {
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, cookieAtlas);
+            }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasks);
-            commands.SetComputeVectorParam(shader, LightShaderIDs.LightTileParams, tileParams);
-            commands.SetComputeVectorParam(shader, LightShaderIDs.LightZBinParams, zBinParams);
-            commands.SetComputeIntParam(shader, LightShaderIDs.DirectionalLightCount, directionalCount);
-            commands.SetComputeIntParam(shader, LightShaderIDs.LocalLightCount, localCount);
-            commands.SetComputeIntParam(shader, LightShaderIDs.SunRecordIndex, sunRecordIndex);
         }
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
+            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
+            commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
             commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probes);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBins);
             commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasks);
-            commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, hasProbeAtlas ? (RenderTargetIdentifier)probeAtlas : EmptyProbeAtlas);
-            commands.SetGlobalInt(LightShaderIDs.ReflectionProbeCount, probeCount);
-            commands.SetGlobalVector(LightShaderIDs.ProbeTileParams, probeTileParams);
+            if (hasProbeAtlas)
+            {
+                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+            }
             commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookies);
-            commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
+            if (hasCookieAtlas)
+            {
+                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, cookieAtlas);
+            }
             commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBins);
             commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasks);
-            commands.SetGlobalVector(LightShaderIDs.LightTileParams, tileParams);
-            commands.SetGlobalVector(LightShaderIDs.LightZBinParams, zBinParams);
-            commands.SetGlobalInt(LightShaderIDs.DirectionalLightCount, directionalCount);
-            commands.SetGlobalInt(LightShaderIDs.LocalLightCount, localCount);
-            commands.SetGlobalInt(LightShaderIDs.SunRecordIndex, sunRecordIndex);
         }
     }
 
@@ -135,99 +141,115 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct LightTileMaskPassData
         {
-            public int localCount;
+            public RGConstantsHandle parameters;
             public int wordCount;
             public int2 tileCount;
-            public ComputeShader shader;
+            public ComputeKernel kernel;
             public RGBufferHandle tileRects;
             public RGBufferHandle tileMasks;
         }
 
-        // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
-        // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        LightLoopInputs QueryLightLoop(RenderContext renderContext)
+        // The camera's light-loop constants, from the light context built after culling. Probes count only when the
+        // reflection probe feature records a probe list this frame.
+        LightLoopUniform ResolveLightLoopUniform(FrameFeatureSet features)
         {
-            LightContext context = renderContext.lightContext;
-            bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
-            bool hasProbeAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
-            bool hasProbeList = hasProbeAtlas && context.ReflectionProbeCount > 0;
-            return new LightLoopInputs
+            LightContext lightContext = renderContext.lightContext;
+            bool hasProbeList = features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
+            return new LightLoopUniform
             {
-                probes = m_RGScoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
-                probeZBins = m_RGScoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
-                probeTileMasks = hasProbeList
-                    ? m_RGScoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
-                    : m_RGScoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
-                probeAtlas = probeAtlas,
-                hasProbeAtlas = hasProbeAtlas,
-                probeCount = hasProbeList ? context.ReflectionProbeCount : 0,
-                probeTileParams = context.ProbeTileParams,
-                cookies = m_RGScoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
-                cookieAtlas = cookieAtlas,
-                hasCookieAtlas = hasCookieAtlas,
-                zBins = m_RGScoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
-                tileMasks = context.HasLocalLightList()
-                    ? m_RGScoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
-                    : m_RGScoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
-                tileParams = context.TileParams,
-                zBinParams = context.ZBinParams,
-                directionalCount = context.DirectionalLightCount,
-                localCount = context.LocalLightCount,
-                sunRecordIndex = context.SunRecordIndex,
+                tileParameters = lightContext.TileParams,
+                zBinParameters = lightContext.ZBinParams,
+                probeTileParameters = lightContext.ProbeTileParams,
+                directionalCount = lightContext.DirectionalLightCount,
+                localCount = lightContext.LocalLightCount,
+                sunRecordIndex = lightContext.SunRecordIndex,
+                probeCount = hasProbeList ? lightContext.ReflectionProbeCount : 0
             };
         }
 
-        void ComputeLightTileMask(RenderContext renderContext, Camera camera)
+        // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
+        // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
+        LightLoopInputs QueryLightLoop(in CameraRecordContext context)
         {
-            LightContext context = renderContext?.lightContext;
-            if (context == null || !context.HasLocalLightList())
+            LightContext lightContext = renderContext.lightContext;
+            bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
+            bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
+            RGTextureHandle cookieAtlas = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
+            RGTextureHandle probeAtlas = hasProbeAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
+            bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
+            return new LightLoopInputs
+            {
+                probes = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
+                probeZBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
+                probeTileMasks = hasProbeList
+                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
+                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+                probeAtlas = probeAtlas,
+                hasProbeAtlas = hasProbeAtlas,
+                cookies = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
+                cookieAtlas = cookieAtlas,
+                hasCookieAtlas = hasCookieAtlas,
+                zBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
+                tileMasks = lightContext.HasLocalLightList()
+                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
+                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+            };
+        }
+
+        void ComputeLightTileMask(in CameraRecordContext context)
+        {
+            LightContext lightContext = renderContext.lightContext;
+            if (!lightContext.HasLocalLightList())
             {
                 return;
             }
 
             // Visible local lights make the list a required producer: a blocked feature fails at record time.
-            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.LocalLightList);
+            context.features.ThrowIfCannotProduce(EFrameFeature.LocalLightList);
 
             RecordTileMaskPass(LightShaderIDs.LightTileRectBuffer, InfinityShaderIDs.LightTileMaskBuffer, LightTileMaskPassUtilityData.MaskBufferName,
-                context.LocalLightCount, context.TileWordCount, context.TileCount, CustomSamplerId.ComputeLightTileMask);
-            MarkFeatureProduced(EFrameFeature.LocalLightList);
+                lightContext.LocalLightCount, lightContext.TileWordCount, lightContext.TileCount, CustomSamplerId.ComputeLightTileMask);
+            context.features.MarkProduced(EFrameFeature.LocalLightList);
         }
 
         // Builds tile bitmasks (tiles x words) from per-item tile rectangles: local lights, and reflection probes as the
         // second index space of the clustered list.
         void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
         {
-            RGBufferHandle tileMasks = m_RGScoper.CreateBuffer(masksKey, new BufferDescriptor
+            RGBufferHandle tileMasks = m_RGBuilder.scoper.CreateBuffer(masksKey, new BufferDescriptor
             {
                 name = masksName,
                 count = math.max(1, tileCount.x * tileCount.y * wordCount),
                 stride = sizeof(uint),
-                type = ComputeBufferType.Structured
+                target = GraphicsBuffer.Target.Structured
             });
 
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
+            using (var passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
             {
-                ref LightTileMaskPassData passData = ref passRef.GetPassData<LightTileMaskPassData>();
-                passData.localCount = itemCount;
+                ref LightTileMaskPassData passData = ref passRef.GetPassData();
+                passData.parameters = passRef.WriteConstants(new LightTileParameters
+                {
+                    tileCount = new Vector4(tileCount.x, tileCount.y, 0, 0),
+                    itemCount = (uint)itemCount,
+                    wordCount = (uint)wordCount
+                });
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;
-                passData.shader = shaders.lightTileMaskShader;
-                passData.tileRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(rectsKey));
+                passData.kernel = kernels.lightTileMask;
+                passData.tileRects = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(rectsKey));
                 passData.tileMasks = passRef.WriteBuffer(tileMasks);
 
                 passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    ComputeShader shader = passData.shader;
-                    int kernel = shader.FindKernel(LightTileMaskPassUtilityData.KernelName);
+                    ComputeKernel kernel = passData.kernel;
+                    ComputeShader shader = kernel.shader;
                     int total = passData.tileCount.x * passData.tileCount.y * passData.wordCount;
-                    cmdEncoder.SetComputeIntParam(shader, LightTileMaskPassUtilityData.LightTile_LocalCountID, passData.localCount);
-                    cmdEncoder.SetComputeIntParam(shader, LightTileMaskPassUtilityData.LightTile_WordCountID, passData.wordCount);
-                    cmdEncoder.SetComputeVectorParam(shader, LightTileMaskPassUtilityData.LightTile_TileCountID, new Vector4(passData.tileCount.x, passData.tileCount.y, 0, 0));
-                    cmdEncoder.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileRects, passData.tileRects);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasks);
-                    cmdEncoder.DispatchCompute(shader, kernel, (total + 63) / 64, 1, 1);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, LightTileMaskPassUtilityData.CBV_LightTileParametersID, passData.parameters);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightTileRects, passData.tileRects);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasks);
+                    cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(total), 1, 1);
                 });
             }
         }

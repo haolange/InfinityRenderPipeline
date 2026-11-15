@@ -622,9 +622,7 @@ VaryingsLean ShadowPassVertex(AttributesLean v)
     float3 positionWS = TransformObjectToWorld(v.position.xyz);
     float3 normalWS = TransformObjectToWorldNormal(v.normalOS);
 
-    // Shadow passes set Matrix_ViewFlipYProj to the shadow matrix (see CascadeShadowPassUtilityData).
-    positionWS = OffsetShadowCaster(positionWS, normalWS);
-    float4 clipPos = mul(Matrix_ViewFlipYProj, float4(positionWS, 1.0));
+    float4 clipPos = ShadowCasterClipPosition(positionWS, normalWS);
 
 #if UNITY_REVERSED_Z
     clipPos.z = min(clipPos.z, clipPos.w * UNITY_NEAR_CLIP_VALUE);

@@ -38,8 +38,18 @@ namespace InfinityTech.Rendering.RenderGraph
         void OnQueueFailed();
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // Graph-wide diagnostics hook: told when each pass has recorded its commands and when its segment was queued.
+    internal interface IRGExecutionObserver
+    {
+        void PassRecorded(string passName);
+        void PassQueued(string passName);
+    }
+#endif
+
     internal abstract class IRGPass
     {
+        internal abstract bool hasExecuteAction { get; }
         public int index;
         public string name;
         public ProfilingSampler customSampler;
@@ -102,14 +112,14 @@ namespace InfinityTech.Rendering.RenderGraph
             protected set;
         }
 
-        internal virtual bool hasExecuteAction => false;
-
         public List<RGResourceHandle>[] resourceReadLists;
         public List<RGResourceHandle>[] resourceWriteLists;
         public List<RGResourceHandle>[] temporalResourceList;
         public List<RGResourceHandle> sampledResources;
         // Extension-defined ids a pass consumes (mesh draw-list indices). The core only stores and clears them.
         internal readonly List<int> extensionUses = new List<int>(4);
+        // Constants the graph uploads into this pass's own constant buffers when the pass begins.
+        internal readonly List<RGConstantsHandle> constants = new List<RGConstantsHandle>(2);
         public List<RGRendererListHandle> usedRendererLists;
 
         public IRGPass()
@@ -198,6 +208,7 @@ namespace InfinityTech.Rendering.RenderGraph
             customSampler = null;
             queueObserver = null;
             importedWritesAreSideEffects = true;
+            constants.Clear();
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();
@@ -241,7 +252,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGTransferEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGTransferEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -265,7 +276,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGComputeEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGComputeEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -289,7 +300,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGRaytracingEncoder(graphContext.cmdBuffer));
+            ExecuteAction(in passData, new RGRaytracingEncoder(graphContext.cmdBuffer, graphContext.resources));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -313,7 +324,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.rendererLists, graphContext.extension));
+            ExecuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.resources, graphContext.rendererLists, graphContext.extension));
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -346,10 +357,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    // One declaration implementation for every pass kind. The public handles only keep the execute-delegate type.
+    // One declaration implementation for every pass kind; the typed handles forward to it.
     static class RGPassDeclaration
     {
-
         public static RGTextureHandle ReadTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
             RGPassGuard.RequireTexture(factory, input, RGPassGuard.ReadTexture);
@@ -385,7 +395,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < pass.sampledResources.Count; ++i)
             {
                 RGResourceHandle existing = pass.sampledResources[i];
-                if (existing.index == handle.index && existing.type == handle.type && existing.generation == handle.generation)
+                if (existing.Equals(handle))
                     return;
             }
             pass.sampledResources.Add(handle);
@@ -404,17 +414,25 @@ namespace InfinityTech.Rendering.RenderGraph
             pass.AddTemporalResource(result.handle);
             return result;
         }
+
+        public static RGConstantsHandle WriteConstants<T>(IRGPass pass, RGResourceFactory factory, in T constants) where T : unmanaged
+        {
+            int offset = factory.constants.Write(constants, out int units);
+            var descriptor = new BufferDescriptor(units, RGConstantStaging.Unit, GraphicsBuffer.Target.Constant) { name = RGConstantsName<T>.value };
+            var handle = new RGConstantsHandle(CreatePassLocalBuffer(pass, factory, descriptor), offset, units);
+            pass.constants.Add(handle);
+            return handle;
+        }
     }
 
-    public struct RGTransferPassHandle : IDisposable
+    // One recorded transfer pass; the pass-data type is fixed when the pass is added.
+    public struct RGTransferPassHandle<TData> : IDisposable where TData : struct
     {
-        bool m_Disposed;
-        IRGPass m_Pass;
+        readonly RGTransferPass<TData> m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGTransferPassHandle(IRGPass pass, RGResourceFactory resources)
+        internal RGTransferPassHandle(RGTransferPass<TData> pass, RGResourceFactory resources)
         {
-            m_Disposed = false;
             m_Pass = pass;
             m_Resources = resources;
         }
@@ -429,23 +447,24 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
         public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
-        public ref T GetPassData<T>() where T : struct => ref ((RGTransferPass<T>)m_Pass).passData;
-        public void SetExecuteFunc<T>(RGTransferPassExecuteAction<T> execute) where T : struct => ((RGTransferPass<T>)m_Pass).ExecuteAction = execute;
+        public ref TData GetPassData() => ref m_Pass.passData;
+        public void SetExecuteFunc(RGTransferPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
+
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            m_Disposed = true;
         }
     }
 
-    public struct RGComputePassHandle : IDisposable
+    // One recorded compute pass; the pass-data type is fixed when the pass is added.
+    public struct RGComputePassHandle<TData> : IDisposable where TData : struct
     {
-        bool m_Disposed;
-        IRGPass m_Pass;
+        readonly RGComputePass<TData> m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGComputePassHandle(IRGPass pass, RGResourceFactory resources)
+        internal RGComputePassHandle(RGComputePass<TData> pass, RGResourceFactory resources)
         {
-            m_Disposed = false;
             m_Pass = pass;
             m_Resources = resources;
         }
@@ -460,24 +479,27 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
         public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
         public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        /// <summary>Records constants this pass binds as a constant buffer; the graph uploads them when the pass begins.</summary>
+        public RGConstantsHandle WriteConstants<T>(in T constants) where T : unmanaged => RGPassDeclaration.WriteConstants(m_Pass, m_Resources, constants);
 
-        public ref T GetPassData<T>() where T : struct => ref ((RGComputePass<T>)m_Pass).passData;
-        public void SetExecuteFunc<T>(RGComputePassExecuteAction<T> execute) where T : struct => ((RGComputePass<T>)m_Pass).ExecuteAction = execute;
+        public ref TData GetPassData() => ref m_Pass.passData;
+        public void SetExecuteFunc(RGComputePassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
+
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            m_Disposed = true;
         }
     }
 
-    public struct RGRayTracingPassHandle : IDisposable
+    // One recorded raytracing pass; the pass-data type is fixed when the pass is added.
+    public struct RGRayTracingPassHandle<TData> : IDisposable where TData : struct
     {
-        bool m_Disposed;
-        IRGPass m_Pass;
+        readonly RGRayTracingPass<TData> m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGRayTracingPassHandle(IRGPass pass, RGResourceFactory resources)
+        internal RGRayTracingPassHandle(RGRayTracingPass<TData> pass, RGResourceFactory resources)
         {
-            m_Disposed = false;
             m_Pass = pass;
             m_Resources = resources;
         }
@@ -491,25 +513,26 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
         public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
-        public ref T GetPassData<T>() where T : struct => ref ((RGRayTracingPass<T>)m_Pass).passData;
-        public void SetExecuteFunc<T>(RGRayTracingPassExecuteAction<T> execute) where T : struct => ((RGRayTracingPass<T>)m_Pass).ExecuteAction = execute;
+        public ref TData GetPassData() => ref m_Pass.passData;
+        public void SetExecuteFunc(RGRayTracingPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
+
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            m_Disposed = true;
         }
     }
 
-    public struct RGRasterPassHandle : IDisposable
+    // One recorded raster pass; the pass-data type is fixed when the pass is added.
+    public struct RGRasterPassHandle<TData> : IDisposable where TData : struct
     {
-        bool m_Disposed;
-        IRGPass m_Pass;
+        readonly RGRasterPass<TData> m_Pass;
         RGResourceFactory m_Resources;
         RGRendererListContext m_RendererLists;
         IRGGraphExtension m_Extension;
 
-        internal RGRasterPassHandle(IRGPass pass, RGResourceFactory resources, RGRendererListContext rendererLists, IRGGraphExtension extension)
+        internal RGRasterPassHandle(RGRasterPass<TData> pass, RGResourceFactory resources, RGRendererListContext rendererLists, IRGGraphExtension extension)
         {
-            m_Disposed = false;
             m_Pass = pass;
             m_Resources = resources;
             m_RendererLists = rendererLists;
@@ -546,19 +569,19 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public RGRendererListHandle UseRendererList(in RGRendererListHandle list)
         {
-            if (m_RendererLists != null && m_RendererLists.IsLive(list))
-            {
-                m_Pass.usedRendererLists.Add(list);
-                return list;
-            }
-            return RGRendererListHandle.Invalid;
+            if (!m_RendererLists.IsLive(list))
+                throw new InvalidOperationException($"'{m_Pass.name}' uses a renderer list from another graph or an earlier frame.");
+            m_Pass.usedRendererLists.Add(list);
+            return list;
         }
 
-        public ref T GetPassData<T>() where T : struct => ref ((RGRasterPass<T>)m_Pass).passData;
-        public void SetExecuteFunc<T>(RGRasterPassExecuteAction<T> execute) where T : struct => ((RGRasterPass<T>)m_Pass).ExecuteAction = execute;
+        public ref TData GetPassData() => ref m_Pass.passData;
+        public void SetExecuteFunc(RGRasterPassExecuteAction<TData> execute) => m_Pass.ExecuteAction = execute;
+
+        // Ends the recording scope. The missing-execute check runs at compile, so an exception thrown while recording is
+        // never replaced by a second one raised during unwinding.
         public void Dispose()
         {
-            m_Disposed = true;
         }
     }
 }

@@ -11,15 +11,15 @@ namespace InfinityTech.Rendering.Tests
 {
     public class MeshDrawProfilingTests
     {
-        [TestCase(EMeshViewKind.Main, "RenderLoop")]
-        [TestCase(EMeshViewKind.SceneView, "RenderLoop")]
-        [TestCase(EMeshViewKind.Preview, "RenderLoop")]
-        [TestCase(EMeshViewKind.CascadeShadow, "Shadows")]
-        [TestCase(EMeshViewKind.LocalShadow, "Shadows")]
-        public void ViewDomain_SelectsDrawNames(EMeshViewKind kind, string domain)
+        [Test]
+        public void PassDomain_SelectsDrawNames()
         {
-            Assert.AreEqual(domain + ".DrawMeshDirect", MeshDrawProfiling.Draw(kind, false));
-            Assert.AreEqual(domain + ".DrawMeshIndirect", MeshDrawProfiling.Draw(kind, true));
+            foreach (MeshPassDesc pass in MeshPassTable.all)
+            {
+                string domain = pass.lightMode == "RasterShadowPass" ? "Shadows" : "RenderLoop";
+                Assert.AreEqual(domain + ".DrawMeshDirect", MeshDrawProfiling.DrawSampler(pass, false).name, pass.lightMode);
+                Assert.AreEqual(domain + ".DrawMeshIndirect", MeshDrawProfiling.DrawSampler(pass, true).name, pass.lightMode);
+            }
         }
 
         [Test]
@@ -28,12 +28,9 @@ namespace InfinityTech.Rendering.Tests
             var timings = new InfinityDebugDisplaySettingsTimings();
             try
             {
-                Assert.AreEqual(3, MeshDrawProfiling.passes.Count);
-                CollectionAssert.AreEquivalent(new[] { "ComputeMeshCulling", "ComputeMeshCompaction", "UploadMeshData" },
-                    MeshDrawProfiling.passes.Select(s => s.name));
-                CollectionAssert.AreEquivalent(new[] { MeshDrawProfiling.culling, MeshDrawProfiling.compaction, MeshDrawProfiling.upload },
-                    MeshDrawProfiling.passes);
-                Assert.AreEqual(3, MeshDrawProfiling.passes.Distinct().Count());
+                CollectionAssert.AreEquivalent(new[] { "ComputeMeshDrawList", "UploadMeshData" }, MeshDrawProfiling.passes.Select(s => s.name));
+                CollectionAssert.AreEquivalent(new[] { MeshDrawProfiling.production, MeshDrawProfiling.upload }, MeshDrawProfiling.passes);
+                Assert.AreEqual(2, MeshDrawProfiling.passes.Distinct().Count());
                 timings.recordPassTimings = true;
                 Assert.IsTrue(timings.recordPassTimings);
             }
@@ -42,11 +39,11 @@ namespace InfinityTech.Rendering.Tests
         }
 
         [Test]
-        public void Preparation_IsNotWrappedInTheConsumerSampler()
+        public void Production_IsNotWrappedInTheConsumerSampler()
         {
             string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/Mesh/Graph/MeshGraphExtension.cs");
-            int start = source.IndexOf("void PrepareMeshDrawList", StringComparison.Ordinal);
-            int end = source.IndexOf("RGBufferHandle[] RecordPreparation", StringComparison.Ordinal);
+            int start = source.IndexOf("internal RGMeshDrawListHandle Create(", StringComparison.Ordinal);
+            int end = source.IndexOf("internal void UseDrawList", StringComparison.Ordinal);
             Assert.GreaterOrEqual(start, 0);
             Assert.Greater(end, start);
             string method = source.Substring(start, end - start);
@@ -55,22 +52,13 @@ namespace InfinityTech.Rendering.Tests
         }
 
         [Test]
-        public void ConsumerNames_FollowTheViewAndPass()
+        public void ConsumerNames_FollowThePass()
         {
-            MeshView depth = MeshTestUtility.CameraView(1);
-            depth.visibilityPhase = EMeshVisibilityPhase.Prediction;
-            Assert.AreEqual("DepthPrediction", MeshDrawProfiling.Consumer(depth, "RasterDepthPass"));
-            depth.visibilityPhase = EMeshVisibilityPhase.Recovered;
-            Assert.AreEqual("DepthRecovery", MeshDrawProfiling.Consumer(depth, "RasterDepthPass"));
-            depth.visibilityPhase = EMeshVisibilityPhase.Final;
-            Assert.AreEqual("GBuffer", MeshDrawProfiling.Consumer(depth, "RasterGBufferPass"));
-            MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 1, depth.CopyPlanes(), depth.viewPosition, ~0,
-                (uint)ERenderingLayer.Everything, 2, ulong.MaxValue, MeshTestUtility.Lod);
-            Assert.AreEqual("CascadeShadow.Slice2", MeshDrawProfiling.Consumer(shadow, "RasterShadowPass"));
-            Assert.AreEqual("DepthAndShadows", MeshDrawProfiling.FrustumGroup(true, true));
-            Assert.AreEqual("Shadows", MeshDrawProfiling.FrustumGroup(false, true));
-            Assert.AreEqual("Depth", MeshDrawProfiling.FrustumGroup(true, false));
-            Assert.AreEqual("Slice2", MeshDrawProfiling.Slice(EMeshViewKind.CascadeShadow, 2));
+            Assert.AreEqual("Depth", MeshDrawProfiling.PassSampler(MeshPassTable.Depth).name);
+            Assert.AreEqual("GBuffer", MeshDrawProfiling.PassSampler(MeshPassTable.GBuffer).name);
+            Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler(MeshPassTable.Shadow).name);
+            Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler(MeshPassTable.TranslucentT1).name);
+            Assert.AreEqual("Slice2", MeshDrawProfiling.SliceSampler(2).name);
         }
 
         [Test]
@@ -78,8 +66,8 @@ namespace InfinityTech.Rendering.Tests
         {
             string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/RenderGraph/RGEncoder.cs");
             Assert.IsFalse(source.Contains("RasterRendererList"));
-            Assert.IsTrue(source.Contains("m_CommandBuffer.DrawRendererList(rendererList);"));
-            Assert.IsTrue(source.Contains("m_RendererLists?.Submit(m_CommandBuffer, rendererList);"));
+            Assert.IsTrue(source.Contains("m_Core.commands.DrawRendererList(rendererList);"));
+            Assert.IsTrue(source.Contains(".Submit(m_Core.commands, rendererList);"));
         }
     }
 }

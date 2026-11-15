@@ -94,8 +94,7 @@
 
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				WorldPos.xyz = OffsetShadowCaster(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
-                Out.vertex = mul(Matrix_ViewFlipYProj, WorldPos);
+				Out.vertex = ShadowCasterClipPosition(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
 				return Out;
 			}
 
@@ -156,8 +155,7 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				WorldPos.xyz = OffsetShadowCaster(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
-                Out.vertex = mul(Matrix_ViewFlipYProj, WorldPos);
+				Out.vertex = ShadowCasterClipPosition(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
 				return Out;
 			}
 
@@ -369,6 +367,8 @@
             #pragma multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW
             #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
             #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
+            #pragma multi_compile _ INFINITY_LIGHT_COOKIES
+            #pragma multi_compile _ INFINITY_REFLECTION_PROBES
 #if defined(INFINITY_FORWARD_AO)
             Texture2D<float> SRV_ForwardOcclusion;
 #endif

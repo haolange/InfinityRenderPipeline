@@ -31,20 +31,268 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
-    def test_custom_apv_has_no_instance_lighting_binding(self):
-        self.write('Shaders/Surface/InfinityLit-Instanced.shader', 'SampleAdaptiveProbeVolume(positionWS);')
+    def test_pass_uploading_parameters_one_by_one_fails(self):
+        per_dispatch = ''.join(f'cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
+        self.write('Runtime/Pipeline/Pass/A.cs', per_dispatch + 'cmd.SetComputeConstantBufferParam(shader, CBV, parameters);')
+        self.write('Runtime/RenderGraph/RGEncoder.cs', per_dispatch * 2)
         out = []
-        static_check.check_unity_boundary(str(self.repo), out)
+        static_check.check_scalar_uploads(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParams(shader, ID_Weights, weights);')
+        static_check.check_scalar_uploads(str(self.repo), out)
+        self.assertEqual(['scalarupload'], [o[1] for o in out])
+
+    def test_resource_path_names_an_existing_file(self):
+        self.write('Runtime/Textures/Noise.png', '')
+        self.write('Runtime/Resources.cs', '[ResourcePath("Runtime/Textures/Noise.png")] Texture2D noise;')
+        out = []
+        static_check.check_respath(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Resources.cs', '[ResourcePath("Runtime/Textures/Missing.png")] Texture2D noise;')
+        static_check.check_respath(str(self.repo), out)
+        self.assertEqual(['respath'], [o[1] for o in out])
+
+    def test_shader_graph_strings_resolve(self):
+        self.write('Runtime/Pipeline/PipelineIDs.cs', 'static readonly ShaderTagId g = new ShaderTagId("RasterGBufferPass");')
+        self.write('Editor/ShaderGraph/InfinityPasses.cs', 'const string kGBuffer = "RasterGBufferPass";')
+        self.write('Editor/ShaderGraph/Includes/Lit.hlsl', '')
+        self.write('Editor/ShaderGraph/Target.cs', 'const string kIncludePath = "x"; var a = kIncludePath + "Lit.hlsl";')
+        out = []
+        static_check.check_sgstrings(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/ShaderGraph/Target.cs', 'var b = "Packages/com.infinity.render-pipeline/Editor/ShaderGraph/Includes/Gone.hlsl";')
+        static_check.check_sgstrings(str(self.repo), out)
+        self.assertEqual(['sgstrings'], [o[1] for o in out])
+
+    def test_compatibility_residue_fails_and_unity_concept_names_pass(self):
+        self.write('Runtime/A.cs', 'enum ELightProbeSystem { LegacyLightProbes }\n// legacy comment\nvar s = "Legacy Shaders/Diffuse";')
+        out = []
+        static_check.check_legacy_residue(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/B.cs', '[System.Obsolete] class LegacyConverter { void MigrateOld() {} }')
+        static_check.check_legacy_residue(str(self.repo), out)
+        self.assertEqual({'legacyresidue'}, {o[1] for o in out})
+        self.assertEqual(3, len(out))
+
+    def test_unreferenced_runtime_type_fails(self):
+        self.write('Runtime/A.cs', 'struct Used { } struct Orphan { public Orphan(int x) { } } class Host { Used used; }')
+        self.write('Runtime/Terrain/T.cs', 'struct TerrainDraft { }')
+        self.write('Runtime/C.cs', 'class Marker : MonoBehaviour { } static class Ext { public static void Go(this Used u) { } }')
+        out = []
+        static_check.check_unused_types(str(self.repo), out)
+        self.assertEqual(['Runtime/A.cs: type Host has no reference outside its declaration',
+                          'Runtime/A.cs: type Orphan has no reference outside its declaration'], sorted(o[2] for o in out))
+
+    def test_assembly_consumer_needs_internals_and_validation_stays_diagnostic(self):
+        self.write('Runtime/R.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Runtime", "references": []}')
+        self.write('Runtime/AssemblyInfo.cs', '[assembly: InternalsVisibleTo("Unity.RenderPipelines.Infinity.Validation")]')
+        self.write('Runtime/Validation/V.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Validation", "references": ["Unity.RenderPipelines.Infinity.Runtime"], "defineConstraints": ["UNITY_EDITOR || DEVELOPMENT_BUILD"]}')
+        out = []
+        static_check.check_assemblies(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Editor/E.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Editor", "references": ["Unity.RenderPipelines.Infinity.Runtime"]}')
+        self.write('Runtime/Validation/V.asmdef', '{"name": "Unity.RenderPipelines.Infinity.Validation", "references": ["Unity.RenderPipelines.Infinity.Runtime"]}')
+        static_check.check_assemblies(str(self.repo), out)
+        self.assertEqual(2, len(out))
+        self.assertEqual({'assemblies'}, {o[1] for o in out})
+
+    def test_diagnostics_outside_their_build_guard_fail(self):
+        self.write('Runtime/Pass.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nRenderCaptureService.Tick();\n#else\nint x;\n#endif\n')
+        self.write('Runtime/Validation/V.cs', 'RenderCaptureService.Tick();')
+        out = []
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pass.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nint x;\n#else\nRenderCaptureService.Tick();\n#endif\nPipelineDiagnostics.EndFrame(r);\n')
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual(['Runtime/Pass.cs:4: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD',
+                          'Runtime/Pass.cs:6: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'], [o[2] for o in out])
+
+    def test_debug_views_and_debugger_state_stay_diagnostic(self):
+        self.write('Runtime/Pass.cs', 'int shaderField = shaders.debugViewShader;\n#if UNITY_EDITOR || DEVELOPMENT_BUILD\n'
+                   'bool run = context.debugView != EDebugView.None;\nInfinityDebugDisplaySettings.current.mesh.entityCount = 1;\n#endif\n')
+        out = []
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pass.cs', 'bool run = context.debugView != EDebugView.None;\nk = kernels.ssrDebug;\n'
+                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\n')
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual(3, len(out))
+
+    def test_table_kernel_must_exist_in_its_own_shader(self):
+        self.write('Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs',
+                   '[ResourcePath("Shaders/A.compute")]\n        public ComputeShader aShader;\n'
+                   '[ResourcePath("Shaders/B.compute")]\n        public ComputeShader bShader;')
+        self.write('Shaders/A.compute', '#pragma kernel KernelA\n')
+        self.write('Shaders/B.compute', '#pragma kernel KernelB\n')
+        self.write('Runtime/T.cs', 'a = ComputeKernel.Resolve(shaders.aShader, Source + nameof(X.aShader), "KernelA");\n'
+                                   'm = ComputeKernel.Resolve(shader, field, "KernelB");')
+        out = []
+        static_check.check_kernels(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/U.cs', 'b = ComputeKernel.Resolve(shaders.aShader, Source + nameof(X.aShader), "KernelB");')
+        static_check.check_kernels(str(self.repo), out)
+        self.assertEqual(['Runtime/U.cs: kernel "KernelB" is not declared by shaders.aShader'], [o[2] for o in out])
+
+    def test_mutable_static_id_fails_and_readonly_passes(self):
+        self.write('Runtime/A.cs', 'static readonly int ID_A = Shader.PropertyToID("A");\n'
+                                   'internal static readonly ShaderTagId Tag = new ShaderTagId("T");\nconst string Name = "N";')
+        out = []
+        static_check.check_static_ids(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/B.cs', 'internal static int SRV_DepthID = Shader.PropertyToID("SRV_Depth");\n'
+                                   'static ProfilingSampler s_Sampler = new ProfilingSampler("S");')
+        static_check.check_static_ids(str(self.repo), out)
+        self.assertEqual(['SRV_DepthID', 's_Sampler'], sorted(o[2].split(': ')[1].split(' ')[0] for o in out))
+
+    def test_hot_path_lookup_fails_and_table_initializers_pass(self):
+        self.write('Runtime/Pipeline/Pass/A.cs', 'static class AData {\n    static readonly int ID_A = Shader.PropertyToID("A");\n'
+                                                 '    static readonly int[] s_B = { Shader.PropertyToID("B0"), Shader.PropertyToID("B1") };\n}\n'
+                                                 'void Record() { Bind(AData.ID_A); } // FindKernel("x") in a comment')
+        self.write('Runtime/Pipeline/Pass/D.cs', '#if UNITY_EDITOR || DEVELOPMENT_BUILD\nvoid Capture(string n) { int id = Shader.PropertyToID("Capture_" + n); }\n#endif')
+        out = []
+        static_check.check_hot_path_lookups(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/M.cs', 'void Execute() {\n    int k = shader.FindKernel("Cull");\n    int id = Shader.PropertyToID("X");\n'
+                                        '    var w = new LocalKeyword(shader, "W");\n}')
+        static_check.check_hot_path_lookups(str(self.repo), out)
+        self.assertEqual(['Runtime/Mesh/M.cs:2', 'Runtime/Mesh/M.cs:3', 'Runtime/Mesh/M.cs:4'], sorted(o[2].split(': ')[0] for o in out))
+
+    def test_physical_allocation_only_in_resource_pool(self):
+        self.write('Runtime/GPUResource/ResourcePool.cs', 'var t = RTHandles.Alloc(w, h, 1); var b = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, 4);')
+        self.write('Runtime/RenderGraph/R.cs', 'm_Backbuffer = RTHandles.Alloc(backBuffer, "Backbuffer");')
+        out = []
+        static_check.check_physical_alloc(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/GPUResource/HistoryCache.cs', 'slot.committed = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, 4);\nvar t = RTHandles.Alloc(w, h, 1, depth);')
+        static_check.check_physical_alloc(str(self.repo), out)
+        self.assertEqual(['Runtime/GPUResource/HistoryCache.cs:1', 'Runtime/GPUResource/HistoryCache.cs:2'], sorted(o[2].split(': ')[0] for o in out))
+
+    def test_rg_api_rejects_string_and_params_overloads(self):
+        self.write('Runtime/RenderGraph/RGEncoder.cs', 'public void SetComputeIntParam(ComputeShader shader, int nameID, int value) { }\n'
+                                                    'public void DispatchRays(RayTracingShader shader, string rayGenName, uint w) { }')
+        out = []
+        static_check.check_rg_api(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/RenderGraph/RGCommands.cs', 'void SetGlobalFloat(string name, float value);\nvoid SetGlobalVectors(params Vector4[] values);')
+        static_check.check_rg_api(str(self.repo), out)
+        self.assertEqual(['Runtime/RenderGraph/RGCommands.cs:1', 'Runtime/RenderGraph/RGCommands.cs:2'], sorted(o[2].split(': ')[0] for o in out))
+
+    def test_gpu_record_matches_a_cbuffer_and_rejects_a_reordered_one(self):
+        self.write('Shaders/V.hlsl', 'cbuffer View\n{\n    float4x4 A;\n    float4 B;\n};\n')
+        self.write('Runtime/V.cs', '// GPU-RECORD: View Shaders/V.hlsl\ninternal struct View\n{\n    public Matrix4x4 a;\n    public Vector4 b;\n}\n')
+        out = []
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/V.hlsl', 'cbuffer View\n{\n    float4 B;\n    float4x4 A;\n};\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+
+    def test_cbuffer_record_requires_matching_offsets_and_whole_registers(self):
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4 A;\n    float2 B;\n    float2 C;\n    uint D;\n    float E, F, G;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector4 a;\n    public Vector2 b;\n'
+                   '    public Vector2 c;\n    public uint d;\n    public float e, f, g;\n}\n')
+        out = []
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        # A float3 after a float2 starts the next register in HLSL but not in C#.
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float2 A;\n    float3 B;\n    float C;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector2 a;\n    public Vector3 b;\n    public float c;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+        # A float4x4 or float4 array is its elements in order; a scalar array pads every element to a register.
+        out = []
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4x4 M[2];\n    float4 S[2];\n    float4 D;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Matrix4x4 m0, m1;\n'
+                   '    public Vector4 s0, s1;\n    public Vector4 d;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float W[4];\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public float w0, w1, w2, w3;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+        # A record that does not fill its last register uploads fewer bytes than the cbuffer reads.
+        out = []
+        self.write('Shaders/P.hlsl', 'cbuffer Pass\n{\n    float4 A;\n    float B;\n};\n')
+        self.write('Runtime/P.cs', '// GPU-RECORD: Pass Shaders/P.hlsl\ninternal struct Pass\n{\n    public Vector4 a;\n    public float b;\n}\n')
+        static_check.check_records(str(self.repo), out)
+        self.assertEqual(['records'], [o[1] for o in out])
+
+    def test_iterator_ref_local_fails_and_a_ref_local_in_a_helper_passes(self):
+        self.write('Tests/Editor/T.cs', 'class T\n{\n    static void Record(RGBuilder graph)\n    {\n        ref var data = ref pass.GetPassData();\n    }\n'
+                   '    public IEnumerator Run()\n    {\n        Record(graph);\n        yield return null;\n    }\n}\n')
+        out = []
+        static_check.check_iterator_ref_locals(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Tests/Editor/T.cs', 'class T\n{\n    public IEnumerator Run()\n    {\n        ref var data = ref pass.GetPassData();\n'
+                   '        yield return null;\n    }\n}\n')
+        static_check.check_iterator_ref_locals(str(self.repo), out)
+        self.assertEqual(['Tests/Editor/T.cs:5'], [o[2].split(': ')[0] for o in out])
+
+    def test_cbuffer_member_id_fails_and_a_loose_global_of_the_same_name_passes(self):
+        self.write('Shaders/P.compute', 'cbuffer CBV_PassParameters\n{\n    float4 Resolution;\n    float Intensity;\n};\n')
+        self.write('Shaders/R.hlsl', 'float Intensity;\n')
+        self.write('Runtime/P.cs', 'static readonly int IntensityID = Shader.PropertyToID("Intensity");\n')
+        out = []
+        static_check.check_cbuffer_member_ids(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/P.cs', 'static readonly int IntensityID = Shader.PropertyToID("Intensity");\n'
+                   'static readonly int ResolutionID = Shader.PropertyToID("Resolution");\n')
+        static_check.check_cbuffer_member_ids(str(self.repo), out)
+        self.assertEqual(['Runtime/P.cs:2'], [o[2].split(': ')[0] for o in out])
+
+    def test_silent_fallback_rejects_a_builtin_stand_in_and_allows_the_listed_debug_draw(self):
+        self.write('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'volume.RenderDebug(camera, options, Texture2D.whiteTexture);\n')
+        out = []
+        static_check.check_silent_fallback(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/Pass/A.cs', '// Texture2D.blackTexture in a comment is fine\n'
+                   'commands.SetComputeTextureParam(shader, kernel, id, Texture2D.blackTexture);\n')
+        static_check.check_silent_fallback(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Pass/A.cs:2'], [o[2].split(': ')[0] for o in out])
+
+    def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
+        self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
+                   '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'
+                   '        void ComputeHiZ(in CameraRecordContext context, int mip)\n        {\n        }\n}\n')
+        out = []
+        static_check.check_redundant_parameters(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/Pass/A.cs', 'public partial class InfinityRenderPipeline\n{\n'
+                   '        void RasterDepth(RenderContext renderContext, in CameraRecordContext context)\n        {\n        }\n}\n')
+        static_check.check_redundant_parameters(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Pass/A.cs:3'], [o[2].split(': ')[0] for o in out])
+
+    def test_agents_over_limit_fails_and_at_limit_passes(self):
+        self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
+        out = []
+        static_check.check_agents_size(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('AGENTS.md', 'a' * (static_check.AGENTS_LIMIT + 1))
+        static_check.check_agents_size(str(self.repo), out)
+        self.assertEqual(['agentsize'], [o[1] for o in out])
+
+    def test_sentence_in_both_documents_fails(self):
+        shared = 'History lives only in the history cache, and every reader imports the accepted version of it.'
+        self.write('AGENTS.md', 'Principles. ' + shared + ' More text.')
+        self.write('ARCHITECTURE.md', 'Implementation. Short one. ' + shared)
+        out = []
+        static_check.check_doc_facts(str(self.repo), out)
+        self.assertEqual(['docfacts'], [o[1] for o in out])
+        self.write('ARCHITECTURE.md', 'Implementation only, with a different sentence that is long enough to count here.')
+        out = []
+        static_check.check_doc_facts(str(self.repo), out)
         self.assertEqual([], out)
 
-    def test_render_graph_must_not_reference_mesh_pipeline(self):
+    def test_lower_layer_naming_an_upper_layer_fails(self):
         self.write('Runtime/RenderGraph/RGBuilder.cs', 'using InfinityTech.Rendering.MeshPipeline;\nclass RGBuilder {}')
-        self.write('Runtime/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nclass RGPass {}')
+        self.write('Runtime/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nusing InfinityTech.Rendering.GPUResource;\nclass RGPass {}')
         self.write('Runtime/RenderGraph/RGCompile.cs', 'namespace InfinityTech.Rendering.RenderGraph { class C { MeshPipeline.MeshView view; } }')
+        self.write('Runtime/Core/A.cs', 'namespace InfinityTech.Rendering.Pipeline { class A {} }')
+        self.write('Runtime/Pipeline/P.cs', 'using InfinityTech.Rendering.RenderGraph;')
         out = []
-        static_check.check_graph_dependency(str(self.repo), out)
-        self.assertEqual(['RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
-        self.assertTrue(all(o[1] == 'graphdependency' for o in out))
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual(['A.cs', 'RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
+        self.assertTrue(all(o[1] == 'layering' for o in out))
 
     def test_mesh_bindings_are_a_closed_set(self):
         self.write('Shaders/Library/GPUScene.hlsl', 'uint InstanceOffset;\nStructuredBuffer<uint> InstanceToEntity;\n')
@@ -60,13 +308,25 @@ class StaticCheckTests(unittest.TestCase):
         self.assertIn('_Renamed', messages[0])
         self.assertIn('_Unbound', messages[1])
 
+    def test_mesh_mechanism_names_no_pipeline_concept(self):
+        self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { void BeginCamera(Camera camera) { } }')
+        self.write('Runtime/Mesh/View/MeshCullingContext.cs', '// A camera adapts into this context.\nstruct MeshCullingContext { }')
+        out = []
+        static_check.check_mesh_mechanism(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/Pass/MeshPassCache.cs', 'class MeshPassCache { Camera camera; }')
+        self.write('Runtime/Mesh/Backend/Gpu.cs', 'class Gpu { int id = InfinityShaderIDs.DepthBuffer; }')
+        static_check.check_mesh_mechanism(str(self.repo), out)
+        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera'],
+                         sorted(o[2] for o in out))
+
     def test_mesh_submit_only_draws(self):
         root = 'Runtime/Mesh/'
         self.write(root + 'Backend/MeshDrawCPUBackend.cs',
-                   'class A { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
+                   'class A { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, false); c.SetBufferData(b, d); } }')
         self.write(root + 'Backend/MeshDrawGPUBackend.cs',
-                   'class B { internal void SubmitMeshDrawList(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
-        self.write(root + 'Graph/MeshGraphExtension.cs', 'InsertDrawListPreparation MeshDrawProfiling.upload MeshDrawProfiling.compaction')
+                   'class B { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
+        self.write(root + 'Graph/MeshGraphExtension.cs', 'RecordProducer MeshDrawProfiling.upload MeshDrawProfiling.production')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)
         self.assertEqual(1, len(out))

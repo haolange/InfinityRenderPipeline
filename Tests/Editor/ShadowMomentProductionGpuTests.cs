@@ -171,7 +171,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             ComputeShader producer = null, consumer = null;
             Texture2D depth = null;
             RenderTexture moments = null, temporary = null;
-            ComputeBuffer output = null;
+            GraphicsBuffer output = null;
             try
             {
                 producer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         raw[y * 128 + x] = SystemInfo.usesReversedZBuffer ? 1 - d : d;
                     }
                 depth.SetPixelData(raw, 0); depth.Apply(false);
-                moments = Target(); temporary = Target(); output = new ComputeBuffer(64, 16);
+                moments = Target(); temporary = Target(); output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 64, 16);
                 producer.SetVector("_MomentSliceRect", new Vector4(0, 0, 64, 64));
                 producer.SetVector("_MomentDepthParams", new Vector4(.1f, 1, .01f, 1));
                 int from = producer.FindKernel("MomentFromDepth"), horizontal = producer.FindKernel("MomentBlurH"), vertical = producer.FindKernel("MomentBlurV");
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             ComputeShader producer = null, consumer = null;
             Texture2D depth = null;
             RenderTexture moments = null;
-            ComputeBuffer results = null;
+            GraphicsBuffer results = null;
             try
             {
                 producer = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
@@ -261,7 +261,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int fromDepth = producer.FindKernel("MomentFromDepth");
                 producer.SetTexture(fromDepth, "SRV_ShadowDepth", depth);
                 producer.SetTexture(fromDepth, "UAV_Moments", moments); producer.Dispatch(fromDepth, 1, 1, 1);
-                results = new ComputeBuffer(1, 16);
+                results = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16);
                 int visibility = consumer.FindKernel("StoredMomentVisibility");
                 consumer.SetTexture(visibility, "StoredMoments", moments);
                 consumer.SetBuffer(visibility, "Results", results); consumer.SetInt("StoredMode", mode);

@@ -25,36 +25,32 @@ namespace InfinityTech.Rendering.GPUResource
 
     public struct BufferDescriptor : IEquatable<BufferDescriptor>
     {
+        // Format estimate of the allocation size, the one estimate the pool and the graph report.
+        public long EstimateBytes() => (long)count * stride;
+
         public string name;
 
         public int count;
         public int stride;
-        public ComputeBufferType type;
+        public GraphicsBuffer.Target target;
 
-        public BufferDescriptor(int count, int stride) : this()
+        public BufferDescriptor(int count, int stride, GraphicsBuffer.Target target = GraphicsBuffer.Target.Structured) : this()
         {
-            this.count = count;
-            this.stride = stride;
-            type = ComputeBufferType.Default;
-        }
-
-        public BufferDescriptor(int count, int stride, ComputeBufferType type) : this()
-        {
-            this.type = type;
+            this.target = target;
             this.count = count;
             this.stride = stride;
         }
 
-        public bool Equals(BufferDescriptor target)
+        public bool Equals(BufferDescriptor other)
         {
-            return count == target.count
-                && stride == target.stride
-                && type == target.type;
+            return count == other.count
+                && stride == other.stride
+                && target == other.target;
         }
 
-        public override bool Equals(object target)
+        public override bool Equals(object obj)
         {
-            return target is BufferDescriptor other && Equals(other);
+            return obj is BufferDescriptor other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -62,7 +58,7 @@ namespace InfinityTech.Rendering.GPUResource
             int hashCode = 17;
             hashCode = hashCode * 23 + count;
             hashCode = hashCode * 23 + stride;
-            hashCode = hashCode * 23 + (int)type;
+            hashCode = hashCode * 23 + (int)target;
             return hashCode;
         }
     }
@@ -70,6 +66,25 @@ namespace InfinityTech.Rendering.GPUResource
     [Serializable]
     public struct TextureDescriptor : IEquatable<TextureDescriptor>
     {
+        // Format estimate of the physical allocation including mips, slices and MSAA samples; not driver residency.
+        public long EstimateBytes()
+        {
+            long bytes = 0;
+            var format = colorFormat != GraphicsFormat.None ? colorFormat : GraphicsFormat.D32_SFloat;
+            int width = physicalWidth, height = physicalHeight;
+            do
+            {
+                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, slices) * Math.Max(1, (int)msaaSamples);
+                if (!useMipMap || (width == 1 && height == 1))
+                {
+                    break;
+                }
+                width = Math.Max(1, width / 2);
+                height = Math.Max(1, height / 2);
+            } while (true);
+            return bytes;
+        }
+
         public string name;
 
         public int width;
@@ -102,13 +117,22 @@ namespace InfinityTech.Rendering.GPUResource
         public bool isShadowMap;
         public int anisoLevel;
         public float mipMapBias;
-        public bool enableMSAA;
         public bool bindTextureMS;
         public EMSAASamples msaaSamples;
         // Pool identity includes this so a memoryless allocation is never reused as an ordinary texture.
         public RenderTextureMemoryless memoryless;
-        public bool clearBuffer;
         public Color clearColor;
+
+        // The shape every compute and sampling target starts from: 2D, clamp addressing, bilinear filtering, random write,
+        // no depth or MSAA. A feature changes only what differs (mips, filter, dimension, write access).
+        public static TextureDescriptor Create2D(string name, int width, int height, GraphicsFormat format, ETextureSizingDomain domain, int divisor = 1)
+        {
+            return new TextureDescriptor(width, height, domain, divisor)
+            {
+                name = name, dimension = TextureDimension.Tex2D, colorFormat = format, enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp
+            };
+        }
 
         public TextureDescriptor(int width, int height, ETextureSizingDomain domain, int divisor = 1) : this(width, height)
         { sizingDomain = domain; viewDivisor = divisor; }
@@ -120,9 +144,7 @@ namespace InfinityTech.Rendering.GPUResource
             slices = 1;
 
             clearColor = Color.black;
-            enableMSAA = false;
             bindTextureMS = false;
-            clearBuffer = false;
             isShadowMap = false;
             enableRandomWrite = false;
 
@@ -138,9 +160,7 @@ namespace InfinityTech.Rendering.GPUResource
             slices = SliceOrDepth;
 
             clearColor = Color.black;
-            enableMSAA = false;
             bindTextureMS = false;
-            clearBuffer = false;
             isShadowMap = false;
             enableRandomWrite = false;
 
@@ -205,31 +225,34 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct BufferHandle
+    // One acquisition of a pooled buffer. lease is the acquisition generation; returning a handle from an older
+    // acquisition of the same buffer is rejected.
+    public readonly struct BufferHandle
     {
-        internal int handle;
-        internal BufferDescriptor descriptor;
-        public ComputeBuffer buffer;
+        internal readonly int lease;
+        internal readonly BufferDescriptor descriptor;
+        public readonly GraphicsBuffer buffer;
 
-        public BufferHandle(in int handle, in BufferDescriptor descriptor, ComputeBuffer buffer)
+        internal BufferHandle(int lease, in BufferDescriptor descriptor, GraphicsBuffer buffer)
         {
-            this.handle = handle;
+            this.lease = lease;
             this.descriptor = descriptor;
             this.buffer = buffer;
         }
 
-        public static implicit operator ComputeBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
+        public static implicit operator GraphicsBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
     }
 
-    public struct TextureHandle
+    // One acquisition of a pooled texture; lease works as for BufferHandle.
+    public readonly struct TextureHandle
     {
-        internal int handle;
-        internal TextureDescriptor descriptor;
-        public RTHandle texture;
+        internal readonly int lease;
+        internal readonly TextureDescriptor descriptor;
+        public readonly RTHandle texture;
 
-        internal TextureHandle(in int handle, in TextureDescriptor descriptor, RTHandle texture)
+        internal TextureHandle(int lease, in TextureDescriptor descriptor, RTHandle texture)
         {
-            this.handle = handle;
+            this.lease = lease;
             this.descriptor = descriptor;
             this.texture = texture;
         }
@@ -266,7 +289,6 @@ namespace InfinityTech.Rendering.GPUResource
             public TDescriptor descriptor;
             public TResource resource;
             public long lastUse, bytes;
-            internal ResourceReuseFence reuseFence;
             internal ResourceUsage usage;
         }
         struct RetiredEntry
@@ -323,9 +345,6 @@ namespace InfinityTech.Rendering.GPUResource
             estimatedAllocatedBytes += EstimateBytes(descriptor);
             estimatedPeakBytes = Math.Max(estimatedPeakBytes, estimatedAllocatedBytes);
         }
-        public bool Pull(in int hashCode, in TDescriptor descriptor, out TResource resource)
-            => Pull(hashCode, descriptor, false, false, 0, out resource, out _);
-
         internal bool Pull(in int hashCode, in TDescriptor descriptor, bool commandUse, bool asyncCompute, int recordingEpoch,
             out TResource resource, out ResourceReuseFence reuseFence)
         {
@@ -338,27 +357,16 @@ namespace InfinityTech.Rendering.GPUResource
                         continue;
                     }
                     reuseFence = default;
-                    if (entry.usage != null)
+                    if (commandUse)
                     {
-                        if (commandUse)
-                        {
-                            if (!entry.usage.CanAcquireCommands(asyncCompute, recordingEpoch, out reuseFence))
-                            {
-                                continue;
-                            }
-                        }
-                        else if (!entry.usage.CanWriteCpu)
+                        if (!entry.usage.CanAcquireCommands(asyncCompute, recordingEpoch, out reuseFence))
                         {
                             continue;
                         }
                     }
-                    else
+                    else if (!entry.usage.CanWriteCpu)
                     {
-                        if (!commandUse && !entry.reuseFence.passed)
-                        {
-                            continue;
-                        }
-                        reuseFence = entry.reuseFence;
+                        continue;
                     }
                     resource = entry.resource;
                     list.RemoveAt(i);
@@ -375,17 +383,14 @@ namespace InfinityTech.Rendering.GPUResource
             reuseFence = default;
             return false;
         }
-        public void Push(in int hash, in TDescriptor descriptor, TResource resource)
-            => Push(hash, descriptor, resource, default);
-
-        internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceReuseFence reuseFence, ResourceUsage usage = null)
+        internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceUsage usage)
         {
             if (!m_ResourcePool.TryGetValue(hash, out var list))
             {
                 m_ResourcePool.Add(hash, list = m_EmptyBuckets.Count > 0 ? m_EmptyBuckets.Pop() : new List<Entry>());
             }
             long bytes = EstimateBytes(descriptor);
-            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, reuseFence = reuseFence, usage = usage });
+            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, usage = usage });
             estimatedIdleBytes += bytes;
         }
         public void AfterSubmit(long watermark, GraphicsFence fence)
@@ -400,7 +405,7 @@ namespace InfinityTech.Rendering.GPUResource
                 Entry entry = m_Retired[i].entry;
                 // A retirement fence is not authority to discard recording references
                 // or another unresolved submission tracked by the physical owner.
-                if (entry.usage != null && !entry.usage.CanWriteCpu)
+                if (!entry.usage.CanWriteCpu)
                 {
                     continue;
                 }
@@ -421,7 +426,7 @@ namespace InfinityTech.Rendering.GPUResource
                         {
                             continue;
                         }
-                        if (candidate.usage != null && !candidate.usage.CanAcquireCommands(false, int.MinValue, out _))
+                        if (!candidate.usage.CanAcquireCommands(false, int.MinValue, out _))
                         {
                             continue;
                         }
@@ -460,7 +465,7 @@ namespace InfinityTech.Rendering.GPUResource
                 for (int i = entries.Count - 1; i >= 0; --i)
                 {
                     Entry entry = entries[i];
-                    if (entry.usage != null ? !entry.usage.CanWriteCpu : !entry.reuseFence.passed)
+                    if (!entry.usage.CanWriteCpu)
                     {
                         continue;
                     }
@@ -481,7 +486,7 @@ namespace InfinityTech.Rendering.GPUResource
             for (int i = m_Retired.Count - 1; i >= 0; --i)
             {
                 var retired = m_Retired[i];
-                if (!retired.fence.passed || retired.entry.usage != null && !retired.entry.usage.CanWriteCpu)
+                if (!retired.fence.passed || !retired.entry.usage.CanWriteCpu)
                 {
                     continue;
                 }
@@ -498,30 +503,14 @@ namespace InfinityTech.Rendering.GPUResource
                 throw new InvalidOperationException("Resource cache destruction requires completed GPU uses and no recording references. Dispose its owning ResourcePool to defer destruction.");
         }
     }
-    public sealed class BufferCache : GPUResourceCache<ComputeBuffer, BufferDescriptor>
+    public sealed class BufferCache : GPUResourceCache<GraphicsBuffer, BufferDescriptor>
     {
-        protected override void ReleaseInternalResource(ComputeBuffer resource) => resource.Release();
-        protected override long EstimateBytes(in BufferDescriptor descriptor) => (long)descriptor.count * descriptor.stride;
+        protected override void ReleaseInternalResource(GraphicsBuffer resource) => resource.Release();
+        protected override long EstimateBytes(in BufferDescriptor descriptor) => descriptor.EstimateBytes();
     }
     public sealed class TextureCache : GPUResourceCache<RTHandle, TextureDescriptor>
     {
         protected override void ReleaseInternalResource(RTHandle resource) => resource.Release();
-        protected override long EstimateBytes(in TextureDescriptor descriptor)
-        {
-            long bytes = 0;
-            var format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat : GraphicsFormat.D32_SFloat;
-            int width = descriptor.physicalWidth, height = descriptor.physicalHeight;
-            do
-            {
-                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, descriptor.slices) * Math.Max(1, (int)descriptor.msaaSamples);
-                if (!descriptor.useMipMap || (width == 1 && height == 1))
-                {
-                    break;
-                }
-                width = Math.Max(1, width / 2);
-                height = Math.Max(1, height / 2);
-            } while (true);
-            return bytes;
-        }
+        protected override long EstimateBytes(in TextureDescriptor descriptor) => descriptor.EstimateBytes();
     }
 }

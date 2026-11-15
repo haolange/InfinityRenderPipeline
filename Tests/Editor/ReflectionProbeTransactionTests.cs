@@ -1,12 +1,14 @@
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ReflectionProbeTransactionTests
     {
         Cubemap m_Texture;
+        ResourcePool m_Pool;
         ReflectionProbeAtlas m_Atlas;
         const ulong TextureId = 17;
         static ProbeCubeKey Key => new ProbeCubeKey(7, TextureId);
@@ -15,7 +17,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SetUp()
         {
             m_Texture = new Cubemap(16, TextureFormat.RGBAHalf, true);
-            m_Atlas = new ReflectionProbeAtlas();
+            m_Pool = new ResourcePool();
+            m_Atlas = new ReflectionProbeAtlas(m_Pool);
             m_Atlas.Configure(32, 2);
             m_Atlas.BeginFrame();
         }
@@ -24,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void TearDown()
         {
             try { m_Atlas.Dispose(); }
-            finally { Object.DestroyImmediate(m_Texture); }
+            finally { m_Pool.Dispose(); Object.DestroyImmediate(m_Texture); }
         }
 
         int Acquire(uint version, int frame = 1, bool realtime = false)

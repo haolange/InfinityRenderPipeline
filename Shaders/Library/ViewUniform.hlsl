@@ -1,0 +1,49 @@
+#ifndef INFINITY_VIEW_UNIFORM
+#define INFINITY_VIEW_UNIFORM
+
+// One camera's view constants. CameraUniform uploads the matching ViewUniform record into the camera's own constant
+// buffer once per camera per frame and binds it globally, so raster and compute shaders read the same values. Every
+// name states its variant: FlipY is the projection for addressing textures by pixel (compute and full-screen passes),
+// Jitter includes this frame's TAA offset, Last is the previous committed frame. ShaderVariables.hlsl maps
+// UNITY_MATRIX_P, _I_P, _VP and _I_VP onto Matrix_Proj, Matrix_InvProj, Matrix_ViewJitterProj and Matrix_InvViewJitterProj.
+cbuffer ViewUniform
+{
+    float4x4 Matrix_WorldToView;
+    float4x4 Matrix_ViewToWorld;
+    float4x4 Matrix_Proj;
+    float4x4 Matrix_InvProj;
+    float4x4 Matrix_FlipYProj;
+    float4x4 Matrix_FlipYJitterProj;
+    float4x4 Matrix_InvFlipYJitterProj;
+    float4x4 Matrix_ViewJitterProj;
+    float4x4 Matrix_InvViewJitterProj;
+    float4x4 Matrix_ViewFlipYProj;
+    float4x4 Matrix_InvViewFlipYProj;
+    float4x4 Matrix_ViewFlipYJitterProj;
+    float4x4 Matrix_InvViewFlipYJitterProj;
+    float4x4 Matrix_LastViewFlipYProj;
+    float4x4 Matrix_LastViewFlipYJitterProj;
+    // Near, far, orthographic (1 or 0), reversed Z (1 or 0).
+    float4 View_DepthParameters;
+    // TAA offsets in sampled framebuffer UV: this frame in xy, the previous committed frame in zw.
+    float4 View_JitterUV;
+};
+
+// Camera facts the matrices already hold; they are read from there, not stored a second time.
+float3 ViewPositionWS()
+{
+    return float3(Matrix_ViewToWorld._m03, Matrix_ViewToWorld._m13, Matrix_ViewToWorld._m23);
+}
+
+// View space looks down -Z.
+float3 ViewForwardWS()
+{
+    return -float3(Matrix_ViewToWorld._m02, Matrix_ViewToWorld._m12, Matrix_ViewToWorld._m22);
+}
+
+bool ViewIsOrthographic()
+{
+    return View_DepthParameters.z != 0;
+}
+
+#endif

@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             try
             {
-                using var source = new ComputeBuffer(inputs.Length, 16);
-                using var output = new ComputeBuffer(inputs.Length, 16);
+                using var source = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16);
+                using var output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, inputs.Length, 16);
                 source.SetData(inputs);
                 output.SetData(new Vector4[inputs.Length]);
                 int kernel = shader.FindKernel(kernelName);
@@ -43,8 +43,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void DepthConversion_PreservesPerspectiveAndOrthographicBranches(bool orthographic, bool reversed)
         {
             var inputs = new[] { Vector4.zero, new Vector4(.25f, 0, 0, 0), new Vector4(.5f, 0, 0, 0), Vector4.one };
-            Vector4[] results = Run("DepthContract", inputs, (shader, _) =>
-                shader.SetVector("ScreenSpaceDepthParams", new Vector4(.1f, 100, orthographic ? 1 : 0, reversed ? 1 : 0)));
+            using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, orthographic ? 1 : 0, reversed ? 1 : 0) });
+            Vector4[] results = Run("DepthContract", inputs, (_, _) => { });
             for (int i = 0; i < inputs.Length; i++)
             {
                 double raw = inputs[i].x;
@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (rejectedMatrix == 3) previousMotion.m33 = -1;
             Vector4 result = Run("ReprojectionContract", new[] { new Vector4(.2f, .7f, .4f, 0) }, (shader, _) =>
             {
-                shader.SetMatrix("Matrix_InvViewProj", Matrix4x4.identity);
+                shader.SetMatrix("ContractInvViewProj", Matrix4x4.identity);
                 shader.SetMatrix("ContractPreviousVP", previous);
                 shader.SetMatrix("ContractCurrentMotionVP", currentMotion);
                 shader.SetMatrix("ContractPreviousMotionVP", previousMotion);
@@ -130,14 +130,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 flags.SetPixels(new[] { Color.clear, new Color((6 << 4) / 255f, 0, 0, 0), new Color((4 << 4) / 255f, 0, 0, 0) });
                 normals.SetPixels(new[] { new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0) });
                 depth.Apply(); flags.Apply(); normals.Apply();
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform
+                {
+                    matrix_InvFlipYJitterProj = Matrix4x4.identity,
+                    matrix_InvViewFlipYJitterProj = Matrix4x4.identity
+                });
                 Vector4[] results = Run("SurfaceContract", new Vector4[3], (shader, kernel) =>
                 {
                     shader.SetTexture(kernel, "SRV_DepthTexture", depth);
                     shader.SetTexture(kernel, "SRV_GBufferC", flags);
                     shader.SetTexture(kernel, "SRV_GBufferB", normals);
                     shader.SetVector("SSGI_Resolution", new Vector4(3, 1, 1f / 3, 1));
-                    shader.SetMatrix("Matrix_InvProj", Matrix4x4.identity);
-                    shader.SetMatrix("Matrix_InvViewProj", Matrix4x4.identity);
                 });
                 Assert.AreEqual(new Vector4(far, 0, 0, 0), results[0]);
                 Assert.AreEqual(new Vector4(.4f, 0, 0, 0), results[1]);
@@ -168,6 +171,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 pyramid.Apply(false, false);
                 var surfacePixels = new Color[16 * 8]; Array.Fill(surfacePixels, new Color(rawDepth, 0, 0, 0));
                 surface.SetPixels(surfacePixels); surface.Apply(false, false);
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform { view_DepthParameters = new Vector4(.1f, 100, 1, reversed ? 1 : 0) });
                 Vector4[] results = Run("TraceContract", new[] { Vector4.zero, Vector4.one }, (shader, kernel) =>
                 {
                     Matrix4x4 projection = Matrix4x4.identity;
@@ -177,7 +181,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetTexture(kernel, "ContractSurfaceDepth", surface);
                     shader.SetVector("ContractOrigin", new Vector4(-.6f, 0, reversed ? -.8f : -.2f, 0));
                     shader.SetVector("ContractDirection", new Vector4(.8f, 0, reversed ? .6f : -.6f, 0));
-                    shader.SetVector("ScreenSpaceDepthParams", new Vector4(.1f, 100, 1, reversed ? 1 : 0));
                 });
                 foreach (Vector4 result in results)
                 {

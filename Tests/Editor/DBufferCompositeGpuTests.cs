@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             static readonly HashSet<CompositeGpuFixture> s_Retained = new HashSet<CompositeGpuFixture>();
             ComputeShader m_Shader;
-            ComputeBuffer m_Output;
+            GraphicsBuffer m_Output;
             Texture2D m_A, m_B, m_C;
             bool m_Pending, m_SubmissionAttempted, m_DisposeRequested, m_Released;
             string m_Error;
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.IsNotNull(source);
                     m_Shader = Object.Instantiate(source);
                     m_A = Texture(a); m_B = Texture(b); m_C = Texture(c);
-                    m_Output = new ComputeBuffer(a.Length * 2, 16);
+                    m_Output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, a.Length * 2, 16);
                 }
                 catch { Dispose(); throw; }
             }

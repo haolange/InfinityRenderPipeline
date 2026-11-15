@@ -19,16 +19,28 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Screen-space reflection reconstruction stores hit-color mean and deviation. Temporal mixes surface motion and hit-point reprojection with `exp2(-10 * luma(dist))` and clamps to mean ± deviation. The old à-trous pass is a bilateral cleanup that runs only where that variance, smoothed with hysteresis 0.5, is high. Indirect diffuse traces inside the 8×8 binning group. Its denoise is two temporal-then-world-space stages, 6 m without normals and then 3 m with `saturate(dot)`, and each stage history is the combiner mix.
 - Screen-space reflection and indirect diffuse trace 1 to 4 rays per work pixel (`Samples`). Reflection resolve still reuses neighboring primary rays. Indirect diffuse always traces at half resolution, filters with a screen bilateral before temporal accumulation, and always upsamples. Its history is the temporal result. Reflection classify clears skipped tiles, and one indirect dispatch covers both marches. Each remaining dispatch has its own profiler marker.
 - Screen-space reflection and indirect diffuse no longer take a world-space maximum distance. Rays end at the near plane, the far plane or the screen edge. Hi-Z walks closest and furthest depth. Rough reflection tiles use a 2D march plus binary search. Trace-behind and toward-camera are one uniform flag. Indirect diffuse samples full-resolution previous color, keeps LDS compaction, and can select the 2D march with `SSGI_TRACE_LINEAR`. Intensity Scale reaches 10. The environment BRDF in the composite is the same approximation deferred shading uses.
+- Per-pass parameters are GPU-RECORD constant buffers. A compute pass writes one record at record time (`WriteConstants`, returning an `RGConstantsHandle`) and binds it as a pass-local graph resource. Camera, shadow and light-loop constants are per-camera global uniforms written once per camera: `ViewUniform` (matrices, depth parameters, TAA jitter), `ShadowUniform` and `LightLoopUniform`. Compute shaders derive camera position, forward and projection kind from `ViewUniform`; passes no longer upload camera matrices, camera vectors, depth parameters (`ScreenSpaceDepthParams`) or jitter, and shadow passes no longer set shadow scalars as globals.
+- Per-camera flow is `PrepareCamera`, `CullCamera`, `RecordCamera`. Passes read per-camera inputs through `CameraRecordContext` and Volume components from one `VolumeSnapshot` taken per camera; the atmosphere parameters are resolved and validated once per camera. The pipeline reads the asset's settings once at construction, so asset values written at run time no longer take effect: `InfinityRenderPipelineAsset` fields are private serialized fields (names unchanged) and the `renderScale` and `qualityVolumeProfile` setters are removed.
+- Image history has one store and one validity rule (`HistoryCache.Read`). Temporal resolve and history reset have one writer each. Frame transactions of the seven owners register once and complete in one order.
+- Light records read the culled transform, final color (linear color, temperature, intensity), range and spot angle from `VisibleLight`; only inner angle, shadow strength, shadow type and baking output come from the `Light`. Additional light data is resolved once per frame from the registry; adding or removing the component takes effect the next frame.
+- Light cookie and reflection probe atlases compile under `INFINITY_LIGHT_COOKIES` and `INFINITY_REFLECTION_PROBES`, and SSGI ambient occlusion under `SSGI_AMBIENT_OCCLUSION`. The atlas or occlusion texture is bound only when the camera produced it; there are no stand-in textures.
+- A camera without a directional light has no sun: the atmosphere's sun radiance is zero, so sky and sky irradiance are black instead of lit by a white stand-in sun.
+- Optional pass inputs follow the camera's feature set, and a missing producer raises at record time through `QueryTexture` instead of skipping silently. Scene color is a role key, so post processing and debug view no longer probe three producers.
+- Every buffer in the pool and render graph is a `GraphicsBuffer`; the `ComputeBuffer` path and bare-buffer overloads on `IComputeCommands` are removed.
+- Diagnostics exist only in Editor and Development builds: capture (`ECaptureBuffer` flags parsed once per request, capture kernels in the `InfinityRenderPipelineCaptureShaders` Global Settings container) Debug View, a table from `EDebugView` to kernel and input keys, the Rendering Debugger panels, counters and pass timings, the mesh backend override and the SSR, SSGI and TAA debug kernels. A release player carries none of them. The Render Pipeline Wizard's Global settings Fix adds the missing capture container to an existing Global Settings asset.
+- Local profiling of the render path reports no managed allocation per frame: mesh pass lookup compares interned `ShaderTagId` values.
 - Inactive RTAO no longer initializes or rebuilds URT geometry while Mesh transforms move; the existing request/capability gates remain authoritative.
 - Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
-- Mesh drawing pipeline. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. The world owns nine pass caches from construction. Passes record with `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList` through a render-graph extension, and the render graph no longer depends on the mesh pipeline. GPU frustum culling of one camera render is one dispatch. A view with an occlusion Final list reads that list. Occlusion is recorded only when the previous Hi-Z history is valid.
-- Mesh preparation uses `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`. Those producers are not wrapped in the raster pass name.
-- Public mesh recording is `MeshDrawListDesc` (`MeshView`, `ShaderTagId`) then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`. GPU records use the same name in C# and HLSL. `BoundingBox`, `MinMaxBox`, `PlaneEquation`, `RenderTaskQueue` and `LightSourceShape` are the names that would otherwise collide.
+- Mesh drawing pipeline. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. The world owns nine pass caches from construction. Passes record with `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList` through a render-graph extension, and the render graph no longer depends on the mesh pipeline.
+- Mesh draw lists produce their own visibility. A list takes a `MeshCullingContext` (a GPU record: planes, layer, scene and rendering-layer masks, LOD projection; equal fields are the identity) and tests each entity for mask, LOD, frustum and occlusion inside its own producer: one compute producer (`ComputeMeshDrawList`) per GPU list, or one generic Burst gather job per CPU list. No visibility result outlives its list, and the per-view visibility caches, frustum batches and separate culling and compaction dispatches are gone.
+- A culling context has one occluder slot; the latest registration wins. A temporal camera with a valid Hi-Z history registers the previous pyramid, draws depth, registers this frame's early pyramid and records the remainder depth list. Later lists of the same context and pass draw only the remainder, so an instance draws at most once per context and pass. Occlusion is skipped without a valid history.
+- Mesh preparation is `ComputeMeshDrawList` (GPU) or `UploadMeshData` (CPU) per draw list. Those producers are not wrapped in the raster pass name.
+- Public mesh recording is `MeshDrawListDesc` (`MeshCullingContext`, `ShaderTagId`) then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`. GPU records use the same name in C# and HLSL. `BoundingBox`, `MinMaxBox`, `PlaneEquation`, `RenderTaskQueue` and `LightSourceShape` are the names that would otherwise collide.
 - CPU direct gathers, sorts (State, FrontToBack with saturated key segments, BackToFront) and merges in Burst jobs and issues one instanced draw per run. GPU indirect runs one compute producer per draw list and issues one indirect draw per command and range in state order. Command batching and the CPU overflow fallback are removed.
 - Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
 - Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
-- Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Each view selects levels in the same CPU job or GPU kernel as culling; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
-- `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data; see [Upgrade 0.4 to 0.5](Docs~/Manual/upgrade-0.4-to-0.5.md).
+- Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Each draw list selects levels in the same CPU job or GPU kernel as its visibility test; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
+- `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data.
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
 - SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
 - HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
@@ -42,10 +54,9 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Closed the current InfinityExample Metal warnings in Cookie channel selection, VSM/EVSM moments, cloud intersections/integration, probe lighting, receiver gradients, GTAO channel/pow domains and terrain matrix macros. Updated the LUT debug pragma and explicit cascade atlas indexing.
 - Deferred shading uses 8x8 workgroups with record-time kernel/thread-group metadata; light-cluster tiles stay 16x16. Added odd-extent AO/contact combinations, production Cookie channel and degenerate receiver-gradient GPU coverage. No GPU performance claim accompanies this diagnostic change.
 - Metal shader helpers use explicitly defined result/output paths for screen-space surfaces, reprojection, depth, texture views, lighting, shadows and atmosphere, removing cross-compiler uninitialized-output diagnostics without changing rendering formulas.
-- Mesh draw profiling uses RenderLoop.* / Shadows.*; preparation shares ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData across views; RendererList wrapper scopes are removed, with native batching and shadow region labels preserved.
+- Mesh draw profiling uses RenderLoop.* / Shadows.*; each draw list has its own producer marker; RendererList wrapper scopes are removed, with native batching and shadow region labels preserved.
 - Screen framebuffer textures separate logical view extents from retained physical capacity; shared graph/resource pools evict aged idle allocations above retention watermarks.
 - TAA accumulates and sharpens in one tiled dispatch, writing unsharpened pending history directly.
-- Each live draw list has one upload producer and, for GPU indirect, one compute producer; raster scopes contain draws only.
 - Raster post-combine can write the camera target directly; linear consumers retain an explicitly owned intermediate. Hardware-sRGB SDR UI can blend after direct output.
 - ReactiveMask initialization uses the first transparent color attachment clear instead of a compute dispatch; non-TAA variants omit the MRT output.
 - Editor depth upsampling is consumer-driven; cached shadow atlas copies use the canonical raster tile-copy path.
@@ -99,8 +110,8 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   GGX-filtered into one cube-array atlas (RP Asset Reflection Probe Resolution, Max Reflection Probes) by
   `Compute_CubeFilter.compute`, which the sky prefilter now uses as well.
 - SSGI rebuilt on the stochastic SSR core: tile classification (trace / skip) with indirect dispatch, half-resolution
-  cosine-distributed rays traced with the Hi-Z walk, ray-reuse resolve with filtered importance sampling, temporal
-  accumulation with per-pixel history age and an optional a-trous pass; Quality presets on the Volume. Missed rays
+  cosine-distributed rays traced with the Hi-Z walk, temporal accumulation with per-pixel history age and a
+  world-space spatial filter; Quality presets on the Volume. Missed rays
   keep the baked, probe or sky indirect diffuse. SSR and SSGI share `ScreenSpaceTraceTiles.hlsl`.
 - Shader Graph target "Infinity" with Lit, Unlit and Decal materials: Lit graphs render through every InfinityLit pass
   (Deferred / Forward routes, translucent T0–T2, shadows, motion, lightmaps, probes, APV, decals, Meta) with Unreal-style
@@ -267,8 +278,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Offline validation ignores hidden macOS metadata before parsing assets and ignores commented-out LightMode tags.
   Historical replay can report individually reviewed, SHA-bound missing evidence links as warnings; changed sources
   and unlisted broken links still fail. Real orphan metadata, duplicate GUIDs and unknown live LightModes still fail.
-- Shadow casters projected with the camera matrix: caster shaders read `Matrix_ViewFlipYProj`, which the shadow passes
-  never replaced (they only set `Matrix_ViewProj`). Both are now set to the shadow matrix and restored afterwards.
+- Shadow casters project with `_ShadowCasterViewProj`, set per cascade or local face; they no longer read camera matrices, so the shadow passes do not overwrite and restore them.
 - The InfinityLit Meta pass assigned to a read-only global (`unity_OneOverOutputBoost`).
 - Forward lighting ignored contact shadows, and `g_SunRecordIndex` was never bound for Deferred, Forward and the
   volumetrics (only the contact pass set it).
@@ -281,6 +291,10 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   its own term.
 - RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
 - Reflection probe captures and preview cameras rendered the active Rendering Debugger view (a baked probe kept it).
+- A release player recorded no frame: `ProfilingSampler.Get` returns null outside development builds, and adding a render-graph pass read the sampler's name, so the first recorded pass of each camera threw. Passes now take their name from the sampler only when it exists, and a null sampler opens and closes no profiling scope.
+- Release player scripts did not compile: light shape code read `Light.areaSize`, `Light.shadowAngle` and `Light.lightmapBakeType`, which exist only in the Editor. A player now writes only `type` and `shapeRadius`, and a player build freezes each scene light's Editor-derived shape into its `InfinityAdditionalLightData` (`LightShapeBuildProcessor`), so scene lights render the same in the Editor and the player.
+- Ground-truth ambient occlusion produced zero in the pipeline, and deferred indirect lighting was multiplied by that zero. Its parameters are now one bound record (`OcclusionParameters`) and GTAO produces occlusion. Which step of the earlier per-member parameter path lost the values was not isolated.
+- The atmosphere caches were reused after a change they depend on: the aerial-perspective volume after a camera turned in place or changed field of view, and every atmosphere table after the sun's illuminance changed or the sun was removed. The view key now includes the view direction and projection, and both keys include the sun illuminance.
 
 ### Changed
 - Source layout: render passes live in `Runtime/Pipeline/Pass/<domain>/` and Volume components in
@@ -302,9 +316,13 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
 - The z-binning compute (`Compute_ZBinningLightList`), the ZBin overflow counter and its capture path
   (`includeZBinOverflow`, counter readback).
+- Asset field `enableDynamicBatch` and its Inspector toggle: Unity 6000.6 removed dynamic batching from `DrawingSettings`. The old key in an asset's YAML is ignored until the asset is saved.
+- `MeshView` and its visibility products (`EMeshViewKind`, `EMeshVisibilityPhase`, per-view visibility cache, frustum batches, culling and compaction dispatches); `MeshCullingContext` replaces them.
+- Shader properties and C# uploads for camera matrices, camera position vectors, `ScreenSpaceDepthParams`, per-pass jitter, `_ShadowDistance` and `_LocalShadowCount`; the SR_Jitter and SR_FrameIndex constants nothing read.
+- Stand-in textures for absent optional inputs (white cookie atlas, empty probe atlas, depth as ambient occlusion).
 - Screen Space Indirect Diffuse parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
   `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; the SSGI moments and depth-normal
-  histories; capture stages `SSGIRadiance` and `SSGISpatial` (now `SSGIRayHit`, `SSGIResolved`).
+  histories; capture stages `SSGIRadiance` and `SSGISpatial` (now `SSGIRayHit`, `SSGITraceRadiance`, `SSGITemporal`).
 
 ## [0.4.0] - 2026-09-11
 

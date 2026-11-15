@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using UnityEngine;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -7,39 +9,46 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    // GPU-RECORD: CBV_HalfResParameters Shaders/Pass/Geometry/Compute_HalfResDownsample.compute
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct HalfResParameters
+    {
+        public Vector4 fullResolution;
+        public Vector4 halfResolution;
+    }
+
     internal static class HalfResDownsamplePassUtilityData
     {
-        internal static string DepthTextureName = "HalfResDepthTexture";
-        internal static string NormalTextureName = "HalfResNormalTexture";
-        internal static int SRV_FullResDepthID = Shader.PropertyToID("SRV_FullResDepthTexture");
-        internal static int SRV_FullResNormalID = Shader.PropertyToID("SRV_FullResNormalTexture");
-        internal static int UAV_HalfResDepthID = Shader.PropertyToID("UAV_HalfResDepthTexture");
-        internal static int UAV_HalfResNormalID = Shader.PropertyToID("UAV_HalfResNormalTexture");
-        internal static int HalfRes_FullResolutionID = Shader.PropertyToID("HalfRes_FullResolution");
-        internal static int HalfRes_HalfResolutionID = Shader.PropertyToID("HalfRes_HalfResolution");
+        internal static readonly int CBV_HalfResParametersID = Shader.PropertyToID("CBV_HalfResParameters");
+        internal static readonly string DepthTextureName = "HalfResDepthTexture";
+        internal static readonly string NormalTextureName = "HalfResNormalTexture";
+        internal static readonly int SRV_FullResDepthID = Shader.PropertyToID("SRV_FullResDepthTexture");
+        internal static readonly int SRV_FullResNormalID = Shader.PropertyToID("SRV_FullResNormalTexture");
+        internal static readonly int UAV_HalfResDepthID = Shader.PropertyToID("UAV_HalfResDepthTexture");
+        internal static readonly int UAV_HalfResNormalID = Shader.PropertyToID("UAV_HalfResNormalTexture");
     }
 
     public partial class InfinityRenderPipeline
     {
         struct HalfResDownsamplePassData
         {
-            public int2 fullResolution;
             public int2 halfResolution;
-            public ComputeShader halfResShader;
+            public RGConstantsHandle parameters;
+            public ComputeKernel halfRes;
             public RGTextureHandle depthTexture;
             public RGTextureHandle normalTexture;
             public RGTextureHandle halfResDepthTexture;
             public RGTextureHandle halfResNormalTexture;
         }
 
-        void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
+        void ComputeHalfResDownsample(in CameraRecordContext context)
         {
-            if (!ShouldRecordFeature(EFrameFeature.HalfResDownsample))
+            if (!context.features.ShouldRecord(EFrameFeature.HalfResDownsample))
             {
                 return;
             }
 
-            var sourceDescriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+            var sourceDescriptor = m_RGBuilder.GetTextureDescriptor(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
             int fullWidth = sourceDescriptor.width;
             int fullHeight = sourceDescriptor.height;
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
@@ -50,33 +59,35 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResDepthDsc.name = HalfResDownsamplePassUtilityData.DepthTextureName;
                 halfResDepthDsc.dimension = TextureDimension.Tex2D;
                 halfResDepthDsc.colorFormat = GraphicsFormat.R32_SFloat;
-                halfResDepthDsc.depthBufferBits = EDepthBits.None;
                 halfResDepthDsc.enableRandomWrite = true;
             }
-            RGTextureHandle halfResDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
+            RGTextureHandle halfResDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
 
             TextureDescriptor halfResNormalDsc = new TextureDescriptor(halfWidth, halfHeight, ETextureSizingDomain.Internal, 2);
             {
                 halfResNormalDsc.name = HalfResDownsamplePassUtilityData.NormalTextureName;
                 halfResNormalDsc.dimension = TextureDimension.Tex2D;
                 halfResNormalDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                halfResNormalDsc.depthBufferBits = EDepthBits.None;
                 halfResNormalDsc.enableRandomWrite = true;
             }
-            RGTextureHandle halfResNormalTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
+            RGTextureHandle halfResNormalTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
 
-            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             //Add HalfResDownsamplePass
-            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
+            using (var passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
             {
                 //Setup Phase
-                ref HalfResDownsamplePassData passData = ref passRef.GetPassData<HalfResDownsamplePassData>();
-                passData.fullResolution = new int2(fullWidth, fullHeight);
+                ref HalfResDownsamplePassData passData = ref passRef.GetPassData();
+                passData.parameters = passRef.WriteConstants(new HalfResParameters
+                {
+                    fullResolution = new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight),
+                    halfResolution = new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight)
+                });
                 passData.halfResolution = new int2(halfWidth, halfHeight);
-                passData.halfResShader = shaders.halfResDownsampleShader;
+                passData.halfRes = kernels.halfResDownsample;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.normalTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.halfResDepthTexture = passRef.WriteTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.WriteTexture(halfResNormalTexture);
 
@@ -85,16 +96,15 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in HalfResDownsamplePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.SRV_FullResDepthID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.SRV_FullResNormalID, passData.normalTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResDepthID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResNormalID, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeVectorParam(passData.halfResShader, HalfResDownsamplePassUtilityData.HalfRes_FullResolutionID, new Vector4(passData.fullResolution.x, passData.fullResolution.y, 1.0f / passData.fullResolution.x, 1.0f / passData.fullResolution.y));
-                    cmdEncoder.SetComputeVectorParam(passData.halfResShader, HalfResDownsamplePassUtilityData.HalfRes_HalfResolutionID, new Vector4(passData.halfResolution.x, passData.halfResolution.y, 1.0f / passData.halfResolution.x, 1.0f / passData.halfResolution.y));
-                    cmdEncoder.DispatchCompute(passData.halfResShader, 0, Mathf.CeilToInt(passData.halfResolution.x / 8.0f), Mathf.CeilToInt(passData.halfResolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeConstantBufferParam(passData.halfRes.shader, HalfResDownsamplePassUtilityData.CBV_HalfResParametersID, passData.parameters);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.SRV_FullResDepthID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.SRV_FullResNormalID, passData.normalTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.UAV_HalfResDepthID, passData.halfResDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.halfRes.shader, passData.halfRes.index, HalfResDownsamplePassUtilityData.UAV_HalfResNormalID, passData.halfResNormalTexture);
+                    cmdEncoder.DispatchCompute(passData.halfRes.shader, passData.halfRes.index, passData.halfRes.GroupsX(passData.halfResolution.x), passData.halfRes.GroupsY(passData.halfResolution.y), 1);
                 });
             }
-            MarkFeatureProduced(EFrameFeature.HalfResDownsample);
+            context.features.MarkProduced(EFrameFeature.HalfResDownsample);
         }
     }
 }

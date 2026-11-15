@@ -5,24 +5,24 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public class TerrainElementCollector
     {
-        public NativeArray<TerrainElement> terrainBatchs;
+        public NativeArray<TerrainElement> terrainBatches;
 
         public TerrainElementCollector() 
         { 
 
         }
 
-        public void Initializ(in int Length)
+        public void Initialize(in int Length)
         {
-            if (!terrainBatchs.IsCreated)
+            if (!terrainBatches.IsCreated)
             {
-                terrainBatchs = new NativeArray<TerrainElement>(Length, Allocator.TempJob);
+                terrainBatches = new NativeArray<TerrainElement>(Length, Allocator.TempJob);
             }
         }
 
         public void GetMeshBatch(in NativeArray<TerrainSection> terrainSections)
         {
-            if (!terrainBatchs.IsCreated)
+            if (!terrainBatches.IsCreated)
             {
                 return;
             }
@@ -37,15 +37,15 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 terrainBatch.pivotPos = terrainSection.pivotPos;
                 terrainBatch.boundBox = terrainSection.boundBox;
                 terrainBatch.fractionLOD = terrainSection.fractionLOD;
-                terrainBatchs[i] = terrainBatch;
+                terrainBatches[i] = terrainBatch;
             }
         }
 
         public void Release()
         {
-            if (terrainBatchs.IsCreated)
+            if (terrainBatches.IsCreated)
             {
-                terrainBatchs.Dispose();
+                terrainBatches.Dispose();
             }
         }
     }

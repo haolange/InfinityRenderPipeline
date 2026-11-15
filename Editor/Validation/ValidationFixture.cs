@@ -10,6 +10,7 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Component;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
