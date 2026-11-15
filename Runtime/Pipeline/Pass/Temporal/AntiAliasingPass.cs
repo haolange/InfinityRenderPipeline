@@ -29,8 +29,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_ReactiveMaskTextureID = Shader.PropertyToID("SRV_ReactiveMaskTexture");
         internal static readonly int UAV_AccumulateColorTextureID = Shader.PropertyToID("UAV_AccumulateColorTexture");
         internal static readonly int UAV_SharpenedColorTextureID = Shader.PropertyToID("UAV_SharpenedColorTexture");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal static readonly int UAV_TAADiagnosticsID = Shader.PropertyToID("UAV_TAADiagnostics");
         internal static readonly int UAV_TAAReprojectionID = Shader.PropertyToID("UAV_TAAReprojection");
+#endif
         internal static readonly int UAV_TemporalDepthTextureID = Shader.PropertyToID("UAV_TemporalDepthTexture");
         internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
         internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
@@ -40,13 +42,14 @@ namespace InfinityTech.Rendering.Pipeline
         struct AntiAliasingPassData
         {
             public RGConstantsHandle parameters;
-            public bool diagnostics;
             public int kernel;
             public int2 groups;
             public ComputeShader shader;
             public RGTextureHandle input, motion, metadata, reactive, historyColor, historyDepth;
-            public RGTextureHandle accumulation, temporalDepth, sharpened, confidence, reprojection;
+            public RGTextureHandle accumulation, temporalDepth, sharpened;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            public bool diagnostics;
+            public RGTextureHandle confidence, reprojection;
             public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
 #endif
         }
@@ -85,10 +88,11 @@ namespace InfinityTech.Rendering.Pipeline
             var sharpened = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
             m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
             var input = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            bool diagnostics = context.debugView != EDebugView.None;
+            ComputeKernel temporalKernel = kernels.temporalAntiAliasing;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            diagnostics |= RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence;
-#endif
+            // A debug view or a confidence capture reads the diagnostics kernel's extra outputs.
+            bool diagnostics = context.debugView != EDebugView.None
+                || (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
             RGTextureHandle confidence = default, reprojection = default;
             if (diagnostics)
             {
@@ -97,11 +101,12 @@ namespace InfinityTech.Rendering.Pipeline
                 confidence = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
                 descriptor.name = "TAAReprojection";
                 reprojection = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
+                temporalKernel = kernels.temporalAntiAliasingDebug;
             }
+#endif
             using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 ref var data = ref pass.GetPassData();
-                ComputeKernel temporalKernel = diagnostics ? kernels.temporalAntiAliasingDebug : kernels.temporalAntiAliasing;
                 data.shader = temporalKernel.shader;
                 data.kernel = temporalKernel.index;
                 data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
@@ -110,7 +115,6 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(width, height, 1f / width, 1f / height),
                     resetBlend = colorRead.valid && depthRead.valid ? 1 : 0,
                 });
-                data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
                 data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 data.metadata = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
@@ -120,12 +124,13 @@ namespace InfinityTech.Rendering.Pipeline
                 data.accumulation = pass.WriteTexture(accumulation);
                 data.sharpened = pass.WriteTexture(sharpened);
                 data.temporalDepth = pass.WriteTexture(temporalDepth);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                data.diagnostics = diagnostics;
                 if (diagnostics)
                 {
                     data.confidence = pass.WriteTexture(confidence);
                     data.reprojection = pass.WriteTexture(reprojection);
                 }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 data.inputSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAInput, input);
                 data.historyColorSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryColor, historyColor);
                 data.historyDepthSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryDepth, historyDepth);
@@ -149,11 +154,13 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_AccumulateColorTextureID, data.accumulation);
                     commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TemporalDepthTextureID, data.temporalDepth);
                     commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_SharpenedColorTextureID, data.sharpened);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (data.diagnostics)
                     {
                         commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAADiagnosticsID, data.confidence);
                         commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAAReprojectionID, data.reprojection);
                     }
+#endif
                     commands.DispatchCompute(shader, kernel, data.groups.x, data.groups.y, 1);
                 });
             }

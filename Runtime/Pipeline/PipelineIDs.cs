@@ -56,7 +56,9 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeBloom,
         RasterPostCombine,
         ComputeExposure,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         ComputeDebugView,
+#endif
         RasterWireOverlay,
         RasterGizmos,
         RasterUIOverlay,

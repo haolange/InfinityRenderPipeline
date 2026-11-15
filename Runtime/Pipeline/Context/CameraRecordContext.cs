@@ -17,7 +17,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly EHistoryReset historyReset;
         internal readonly ETemporalResolve temporalResolve;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly EDebugView debugView;
+#endif
         internal readonly OutputTransformDecision outputDecision;
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
@@ -27,8 +29,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal CameraSetup(Camera camera, CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
             in CameraDimensionDescriptor dimensions, EHistoryReset historyReset, ETemporalResolve temporalResolve, bool postProcessingEnabled,
-            bool sceneLightingEnabled, EDebugView debugView, in OutputTransformDecision outputDecision, in VolumeSnapshot volumes,
-            in AtmosphereParameter atmosphere, in FeatureSupportContext featureSupport)
+            bool sceneLightingEnabled,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            EDebugView debugView,
+#endif
+            in OutputTransformDecision outputDecision, in VolumeSnapshot volumes, in AtmosphereParameter atmosphere,
+            in FeatureSupportContext featureSupport)
         {
             this.camera = camera;
             this.state = state;
@@ -39,7 +45,9 @@ namespace InfinityTech.Rendering.Pipeline
             this.temporalResolve = temporalResolve;
             this.postProcessingEnabled = postProcessingEnabled;
             this.sceneLightingEnabled = sceneLightingEnabled;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             this.debugView = debugView;
+#endif
             this.outputDecision = outputDecision;
             this.volumes = volumes;
             this.atmosphere = atmosphere;
@@ -74,7 +82,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly EHistoryReset historyReset;
         internal readonly ETemporalResolve temporalResolve;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly EDebugView debugView;
+#endif
         internal readonly OutputTransformDecision outputDecision;
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
@@ -97,7 +107,9 @@ namespace InfinityTech.Rendering.Pipeline
             temporalResolve = setup.temporalResolve;
             postProcessingEnabled = setup.postProcessingEnabled;
             sceneLightingEnabled = setup.sceneLightingEnabled;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             debugView = setup.debugView;
+#endif
             outputDecision = setup.outputDecision;
             volumes = setup.volumes;
             atmosphere = setup.atmosphere;

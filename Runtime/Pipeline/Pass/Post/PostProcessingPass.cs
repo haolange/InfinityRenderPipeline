@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (plan.linearIntermediate)
                 {
                     // Only writers need an independent texture; a read-only capture can alias the source.
-                    if (context.debugView == EDebugView.None && (plan.editorDepth || plan.uiOverlay))
+                    if (!plan.debugOutput && (plan.editorDepth || plan.uiOverlay))
                     {
                         var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
                         descriptor.name = "PostProcessTexture";

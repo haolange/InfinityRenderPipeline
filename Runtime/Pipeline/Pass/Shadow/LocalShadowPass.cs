@@ -267,8 +267,10 @@ namespace InfinityTech.Rendering.Pipeline
                     loadCount++;
                 }
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.lastCachedShadowTiles = saveCount + loadCount;
             InfinityDebugDisplaySettings.current.lighting.lastCachedShadowRenders = saveCount;
+#endif
             if (saveCount + loadCount == 0)
             {
                 return;

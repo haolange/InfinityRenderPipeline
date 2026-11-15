@@ -42,8 +42,10 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!context.features.ShouldRecord(EFrameFeature.RTAO))
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
                 InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;
+#endif
                 return;
             }
 
@@ -55,8 +57,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             InfinityRayTracingEnvironment env = InfinityRayTracingEnvironment.EnsureOwned();
             env.SyncGeometry(renderContext.meshWorld);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
             InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;
+#endif
             if (!env.IsReady || env.InstanceCount == 0 || env.Shader == null || env.Accel == null)
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is active but UnifiedRayTracing accel/shader is not ready: " + InfinityRayTracingEnvironment.lastBlockReason);

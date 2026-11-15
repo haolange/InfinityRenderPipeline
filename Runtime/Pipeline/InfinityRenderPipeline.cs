@@ -253,7 +253,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_InstalledQualityProfile = asset.qualityVolumeProfile;
                 VolumeManager.instance.Initialize(resources.defaultVolumeProfile, m_InstalledQualityProfile);
                 m_OwnsVolumeManager = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.EnsureRegistered();
+#endif
 
                 m_UpdateInit = true;
                 m_ResourcePool = new ResourcePool();
@@ -502,7 +504,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
                 policy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera), !CoreUtils.IsSceneLightingDisabled(camera),
-                InfinityDebugDisplaySettings.current.ResolveDebugView(camera), ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                InfinityDebugDisplaySettings.current.ResolveDebugView(camera),
+#endif
+                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             PipelineDiagnostics.BeforeCamera(setup);
 #endif
@@ -603,12 +608,14 @@ namespace InfinityTech.Rendering.Pipeline
                     lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
                         cullingResults, Time.frameCount);
                     ConfigureContentFeatures(setup);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                     lightingDebug.lastDirectionalCount = lightContext.DirectionalLightCount;
                     lightingDebug.lastLocalCount = lightContext.LocalLightCount;
                     lightingDebug.lastReflectionProbeCount = lightContext.ReflectionProbeCount;
                     lightingDebug.lastUnsupportedShapeCount = lightContext.UnsupportedShapeCount;
                     lightingDebug.lastDistanceCulledCount = lightContext.DistanceCulledCount;
+#endif
 
                     scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                     cmdBuffer.Clear();
@@ -746,14 +753,17 @@ namespace InfinityTech.Rendering.Pipeline
         void BeginMeshCamera(Camera camera, EMeshDrawBackendPolicy assetPolicy)
         {
             MeshWorld world = renderContext.meshWorld;
+            EMeshDrawBackendPolicy requestedBackend = assetPolicy;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettingsMesh debug = InfinityDebugDisplaySettings.current.mesh;
             EMeshDrawBackendPolicy? diagnosticOverride = null;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (PipelineDiagnostics.TryOverrideBackend(camera, out EMeshDrawBackendPolicy diagnosticBackend))
                 diagnosticOverride = diagnosticBackend;
+            requestedBackend = ResolveMeshBackend(diagnosticOverride, debug.backendOverride, assetPolicy);
 #endif
-            world.requestedBackend = ResolveMeshBackend(diagnosticOverride, debug.backendOverride, assetPolicy);
+            world.requestedBackend = requestedBackend;
             world.BeginCamera(camera);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             debug.requestedBackend = world.requestedBackend;
             debug.actualBackend = world.SelectBackend(MeshPassTable.Depth);
             debug.backendReason = world.requestedBackend == EMeshDrawBackendPolicy.CPUDirect ? "Requested CPU Direct"
@@ -762,14 +772,17 @@ namespace InfinityTech.Rendering.Pipeline
             debug.elementCount = world.elementCount;
             debug.passCacheCount = world.stats.passCacheCount;
             debug.commandCount = world.stats.commandCount;
+#endif
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         /// <summary>A diagnostics override wins, then the Rendering Debugger, then the asset.</summary>
         internal static EMeshDrawBackendPolicy ResolveMeshBackend(EMeshDrawBackendPolicy? diagnosticOverride, EMeshDrawBackendPolicy? debugOverride,
             EMeshDrawBackendPolicy assetPolicy)
         {
             return diagnosticOverride ?? debugOverride ?? assetPolicy;
         }
+#endif
 
         internal static void CompleteFrameTransaction(IFrameTransaction[] shared, Dictionary<int, CameraFrameState> states, bool submitted)
         {
@@ -1223,9 +1236,11 @@ namespace InfinityTech.Rendering.Pipeline
                 rayTracedOcclusionReason = rtaoReason,
             };
             FeatureRegistry.Resolve(features, support);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.rendering.lastFeatures = features;
             InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
             InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
+#endif
             return support;
         }
 

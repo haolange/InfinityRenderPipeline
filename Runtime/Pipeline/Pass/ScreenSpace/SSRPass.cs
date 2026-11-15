@@ -57,7 +57,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilingSampler SSRResolveSampler = new ProfilingSampler("SSR_Resolve");
         internal static readonly ProfilingSampler SSRTemporalSampler = new ProfilingSampler("SSR_Temporal");
         internal static readonly ProfilingSampler SSRBilateralSampler = new ProfilingSampler("SSR_Bilateral");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal static readonly ProfilingSampler SSRDebugSampler = new ProfilingSampler("SSR_Debug");
+#endif
         // Tile classes; also the order of the argument triplets and of the tile list segments.
         internal const int ClassHiZ = 0;
         internal const int ClassLinear = 1;
@@ -76,7 +78,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_SamplesID = Shader.PropertyToID("UAV_Samples");
         internal static readonly int SRV_SamplesID = Shader.PropertyToID("SRV_Samples");
         internal static readonly int UAV_ResolvedID = Shader.PropertyToID("UAV_Resolved");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal static readonly int UAV_DebugID = Shader.PropertyToID("UAV_Debug");
+#endif
 
         internal const string RayHitName = "SSRRayHit";
         internal const string ResolvedName = "SSRResolved";
@@ -84,12 +88,15 @@ namespace InfinityTech.Rendering.Pipeline
         internal const string TemporalName = "SSRTemporal";
         internal const string MetaName = "SSRMeta";
         internal const string OutputName = "SSRTexture";
-        internal const string DebugName = "SSRDebug";
         internal const string HistoryRadianceName = "HistorySSRRadiance";
         internal const string HistoryMetaName = "HistorySSRMeta";
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        internal const string DebugName = "SSRDebug";
+
         internal static bool IsDebugView(EDebugView view) =>
             view == EDebugView.SSRTileClass || view == EDebugView.SSRRayHit || view == EDebugView.SSRConfidence || view == EDebugView.SSRHistoryAge;
+#endif
 
         internal static TextureDescriptor CreateDescriptor(int width, int height, string name, GraphicsFormat format, FilterMode filter, int divisor = 1)
         {
@@ -111,8 +118,6 @@ namespace InfinityTech.Rendering.Pipeline
             public int resolveKernel;
             public int temporalKernel;
             public int bilateralKernel;
-            public int debugKernel;
-            public int2 debugGroups;
             public int2 resolveGroups;
             public ComputeShader ssrShader;
             public Texture2D rankingTile;
@@ -144,9 +149,13 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle meta;
             public RGTextureHandle output;
             public RGTextureHandle filtered;
-            public RGTextureHandle debug;
             public bool runSpatial;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            public RGTextureHandle debug;
             public bool runDebug;
+            public int debugKernel;
+            public int2 debugGroups;
+#endif
         }
 
         void ComputeScreenSpaceReflection(in CameraRecordContext context)
@@ -165,8 +174,12 @@ namespace InfinityTech.Rendering.Pipeline
             const int divisor = 1;
             int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
             int maxTiles = tileCount.x * tileCount.y;
-            EDebugView debugView = context.debugView;
-            bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
+            // The debug kernel reads SSR_DebugMode only; a release build writes 0.
+            int debugMode = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            debugMode = (int)context.debugView;
+            bool runDebug = SSRPassUtilityData.IsDebugView(context.debugView);
+#endif
             bool runSpatial = settings.spatialPasses > 0;
 
             RGTextureHandle rayHit = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
@@ -196,12 +209,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle output = filtered;
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, output);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             RGTextureHandle debug = default;
             if (runDebug)
             {
                 debug = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRDebugBuffer,
                     SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.DebugName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point));
             }
+#endif
 
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
@@ -244,7 +259,7 @@ namespace InfinityTech.Rendering.Pipeline
                     temporalWeight = settings.temporalWeight,
                     temporalClampScale = settings.temporalClampScale,
                     historyValid = historyValid ? 1 : 0,
-                    debugMode = (int)debugView
+                    debugMode = debugMode
                 });
                 passData.tileCount = tileCount;
                 passData.ssrShader = shaders.ssrShader;
@@ -254,9 +269,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.resolveKernel = kernels.ssrResolve.index;
                 passData.temporalKernel = kernels.ssrTemporal.index;
                 passData.bilateralKernel = kernels.ssrBilateral.index;
-                passData.debugKernel = kernels.ssrDebug.index;
                 passData.resolveGroups = new int2(kernels.ssrResolve.GroupsX(width), kernels.ssrResolve.GroupsY(height));
-                passData.debugGroups = new int2(kernels.ssrDebug.GroupsX(width), kernels.ssrDebug.GroupsY(height));
                 passData.rankingTile = textures.blueNoiseRankingTile;
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
@@ -300,8 +313,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.runSpatial = runSpatial;
                 passData.filtered = runSpatial ? passRef.WriteTexture(filtered) : passData.temporal;
                 passData.output = passData.filtered;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.runDebug = runDebug;
                 passData.debug = runDebug ? passRef.WriteTexture(debug) : default;
+                passData.debugKernel = kernels.ssrDebug.index;
+                passData.debugGroups = new int2(kernels.ssrDebug.GroupsX(width), kernels.ssrDebug.GroupsY(height));
+#endif
 
                 passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
@@ -374,10 +391,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.DispatchCompute(shader, bilateral, groupsX, groupsY, 1);
                         cmdEncoder.EndSample(SSRPassUtilityData.SSRBilateralSampler);
                     }
-
-
-
-
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (passData.runDebug)
                     {
                         cmdEncoder.BeginSample(SSRPassUtilityData.SSRDebugSampler);
@@ -390,6 +404,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.DispatchCompute(shader, debugKernel, passData.debugGroups.x, passData.debugGroups.y, 1);
                         cmdEncoder.EndSample(SSRPassUtilityData.SSRDebugSampler);
                     }
+#endif
                 });
             }
 

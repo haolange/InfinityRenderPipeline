@@ -739,7 +739,9 @@ def check_assemblies(repo, out):
 DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession|RenderCaptureRequest|NativeDisplayProbe|RawCaptureStatistics|'
                                 r'PipelineDiagnostics|PipelineFrameObserver|PipelineFrameResult|IRGExecutionObserver|executionObserver|'
                                 r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
-                                r'RecordDeferredLightingCapture|captureSession|displayProbe)\b')
+                                r'RecordDeferredLightingCapture|captureSession|displayProbe|'
+                                r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
+                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend)\b')
 DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
 
 

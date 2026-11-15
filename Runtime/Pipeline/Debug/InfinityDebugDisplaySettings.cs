@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using InfinityTech.Rendering.MeshPipeline;
 using System;
 using System.Collections.Generic;
@@ -226,3 +227,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 }
+#endif

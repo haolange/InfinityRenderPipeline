@@ -161,14 +161,15 @@ namespace InfinityTech.Rendering.Pipeline
                 break;
             }
 #endif
-            bool linearCapture = false;
+            bool debugOutput = false, linearCapture = false;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            debugOutput = context.debugView != EDebugView.None;
             var capture = RenderCaptureService.current;
             linearCapture = capture != null && !capture.Finished && capture.request.Matches(context.camera) &&
                 capture.Captures(ECaptureBuffer.DisplayColor | ECaptureBuffer.PostProcess);
 #endif
             var plan = new OutputPlan(context.camera.cameraType == CameraType.Game && context.camera.targetTexture == null,
-                context.outputDecision.policy, context.debugView != EDebugView.None, linearCapture, wire, gizmos);
+                context.outputDecision.policy, debugOutput, linearCapture, wire, gizmos);
             RGTextureHandle target = ImportCameraOutput(context);
             RasterPostProcessing(context, plan, target);
             if (plan.linearIntermediate)

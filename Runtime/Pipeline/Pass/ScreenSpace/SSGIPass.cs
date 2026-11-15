@@ -62,7 +62,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGConstantsHandle parameters;
             public int2 tileCount;
             public int traceKernel;
-            public int traceDebugKernel;
             public int temporalKernel;
             public int spatialKernel;
             public int upsampleKernel;
@@ -89,6 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public RGTextureHandle rayHit;
             public bool captureRayHit;
+            public int traceDebugKernel;
             public CaptureStageSnapshot traceSnapshot;
 #endif
             public RGTextureHandle traceRadiance;
@@ -180,7 +180,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileCount = tileCount;
                 passData.ssgiShader = shaders.ssgiShader;
                 passData.traceKernel = kernels.ssgiTrace.index;
-                passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
                 passData.temporalKernel = kernels.ssgiTemporal.index;
                 passData.spatialKernel = kernels.ssgiSpatial.index;
                 passData.upsampleKernel = kernels.ssgiUpsample.index;
@@ -204,6 +203,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.occlusion = hasAO ? passRef.ReadTexture(occlusion) : default;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
+                passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
                 passData.rayHit = captureRayHit ? passRef.WriteTexture(rayHit) : default;
                 passData.traceSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.SSGITraceRadiance, traceRadiance);
 #endif

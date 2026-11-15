@@ -107,6 +107,17 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/Pass.cs:4: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD',
                           'Runtime/Pass.cs:6: diagnostics outside #if UNITY_EDITOR || DEVELOPMENT_BUILD'], [o[2] for o in out])
 
+    def test_debug_views_and_debugger_state_stay_diagnostic(self):
+        self.write('Runtime/Pass.cs', 'int shaderField = shaders.debugViewShader;\n#if UNITY_EDITOR || DEVELOPMENT_BUILD\n'
+                   'bool run = context.debugView != EDebugView.None;\nInfinityDebugDisplaySettings.current.mesh.entityCount = 1;\n#endif\n')
+        out = []
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pass.cs', 'bool run = context.debugView != EDebugView.None;\nk = kernels.ssrDebug;\n'
+                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\n')
+        static_check.check_diagnostics(str(self.repo), out)
+        self.assertEqual(3, len(out))
+
     def test_table_kernel_must_exist_in_its_own_shader(self):
         self.write('Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs',
                    '[ResourcePath("Shaders/A.compute")]\n        public ComputeShader aShader;\n'

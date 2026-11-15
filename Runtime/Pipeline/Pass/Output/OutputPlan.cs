@@ -9,15 +9,18 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly bool uiOverlay;
         internal readonly bool wireOverlay;
         internal readonly bool gizmos;
+        // A diagnostics pass (debug view) writes the output from the linear intermediate; false in release builds.
+        internal readonly bool debugOutput;
         internal bool editorDepth => wireOverlay || gizmos;
 
-        internal OutputPlan(bool uiOverlay, EOutputEncodePolicy policy, bool debugView,
+        internal OutputPlan(bool uiOverlay, EOutputEncodePolicy policy, bool debugOutput,
             bool linearCapture, bool wireOverlay, bool gizmos)
         {
             this.uiOverlay = uiOverlay;
             this.wireOverlay = wireOverlay;
             this.gizmos = gizmos;
-            linearIntermediate = debugView || linearCapture || wireOverlay || gizmos ||
+            this.debugOutput = debugOutput;
+            linearIntermediate = debugOutput || linearCapture || wireOverlay || gizmos ||
                 (uiOverlay && policy != EOutputEncodePolicy.HardwareSRGB);
         }
 

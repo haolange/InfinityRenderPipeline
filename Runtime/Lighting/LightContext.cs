@@ -104,8 +104,10 @@ namespace InfinityTech.Rendering.LightPipeline
 
         int m_DirectionalCount;
         int m_LocalCount;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         int m_UnsupportedShapeCount;
         int m_DistanceCulledCount;
+#endif
         int m_OffscreenCount;
         int m_SunRecordIndex;
         int m_ContactLightCount;
@@ -209,11 +211,13 @@ namespace InfinityTech.Rendering.LightPipeline
         // The sun record traces contact shadows.
         internal bool SunHasContactShadow => m_SunRecordIndex >= 0 && m_SunRecordIndex < m_Records.Length
             && (m_Records[m_SunRecordIndex].flags & LightRecordFlags.EnableContactShadow) != 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Visible lights skipped because their shape is invalid (for example a zero-area rect) or their native type is
-        // unknown; they are counted, never substituted.
+        // unknown; the Rendering Debugger counts them, nothing substitutes them.
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
         // Local lights culled this camera by their Maximum Distance.
         internal int DistanceCulledCount => m_DistanceCulledCount;
+#endif
         // Local lights Unity reported visible whose bounds project outside the screen.
         internal int OffscreenCount => m_OffscreenCount;
         internal int SunRecordIndex => m_SunRecordIndex;
@@ -263,8 +267,10 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalCandidates.Clear();
             m_DirectionalCount = 0;
             m_LocalCount = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             m_UnsupportedShapeCount = 0;
             m_DistanceCulledCount = 0;
+#endif
             m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
             m_ContactLightCount = 0;
@@ -331,7 +337,9 @@ namespace InfinityTech.Rendering.LightPipeline
 
                 if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     m_UnsupportedShapeCount++;
+#endif
                     continue;
                 }
 
@@ -340,6 +348,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
                 if (!LightRecordPack.TryPack(visible, light, ext, shape, i, cameraPosition, out LightRecord record))
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (LightShapeUtility.IsValid(shape))
                     {
                         m_DistanceCulledCount++;
@@ -348,6 +357,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     {
                         m_UnsupportedShapeCount++;
                     }
+#endif
                     continue;
                 }
 

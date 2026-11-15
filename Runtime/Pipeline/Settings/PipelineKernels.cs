@@ -41,20 +41,26 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ComputeKernel ssrResolve;
         internal readonly ComputeKernel ssrTemporal;
         internal readonly ComputeKernel ssrBilateral;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly ComputeKernel ssrDebug;
+#endif
 
         internal readonly ComputeKernel ssgiTrace;
         internal readonly ComputeKernel ssgiTemporal;
         internal readonly ComputeKernel ssgiSpatial;
         internal readonly ComputeKernel ssgiUpsample;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly ComputeKernel ssgiTraceDebug;
+#endif
 
         internal readonly ComputeKernel screenSpaceComposite;
         internal readonly ComputeKernel colorPyramid;
         internal readonly ComputeKernel temporalColorMip;
 
         internal readonly ComputeKernel temporalAntiAliasing;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly ComputeKernel temporalAntiAliasingDebug;
+#endif
         internal readonly ComputeKernel superResolution;
 
         internal readonly ComputeKernel transmittanceLUT;
@@ -138,14 +144,18 @@ namespace InfinityTech.Rendering.Pipeline
             ssrResolve = ComputeKernel.Resolve(shaders.ssrShader, ssr, "SSRResolve");
             ssrTemporal = ComputeKernel.Resolve(shaders.ssrShader, ssr, "SSRTemporal");
             ssrBilateral = ComputeKernel.Resolve(shaders.ssrShader, ssr, "SSRBilateral");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             ssrDebug = ComputeKernel.Resolve(shaders.ssrShader, ssr, "SSRDebug");
+#endif
 
             const string ssgi = Source + nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader);
             ssgiTrace = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGITrace");
             ssgiTemporal = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGITemporal");
             ssgiSpatial = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGISpatial");
             ssgiUpsample = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGIUpsample");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             ssgiTraceDebug = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGITraceDebug");
+#endif
 
             screenSpaceComposite = ComputeKernel.Resolve(shaders.screenSpaceCompositeShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.screenSpaceCompositeShader), "ScreenSpaceComposite");
             const string colorPyramidField = Source + nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader);
@@ -154,7 +164,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             const string taa = Source + nameof(InfinityRenderPipelineRuntimeShaders.taaShader);
             temporalAntiAliasing = ComputeKernel.Resolve(shaders.taaShader, taa, "Main");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             temporalAntiAliasingDebug = ComputeKernel.Resolve(shaders.taaShader, taa, "MainDebug");
+#endif
             superResolution = ComputeKernel.Resolve(shaders.superResolutionShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.superResolutionShader), "SuperResolutionCS");
 
             const string atmosphere = Source + nameof(InfinityRenderPipelineRuntimeShaders.atmosphericLUTShader);

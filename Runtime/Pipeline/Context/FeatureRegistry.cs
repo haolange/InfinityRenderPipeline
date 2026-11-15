@@ -121,7 +121,13 @@ namespace InfinityTech.Rendering.Pipeline
                 id = EFrameFeature.SSR,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
-                kernels = k => new[] { k.ssrClearArgs, k.ssrClassify, k.ssrTrace, k.ssrResolve, k.ssrTemporal, k.ssrBilateral, k.ssrDebug, k.screenSpaceComposite },
+                kernels = k => new[]
+                {
+                    k.ssrClearArgs, k.ssrClassify, k.ssrTrace, k.ssrResolve, k.ssrTemporal, k.ssrBilateral, k.screenSpaceComposite,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    k.ssrDebug,
+#endif
+                },
                 textures = BlueNoiseSupport
             });
             Add(new FeatureDescriptor
@@ -129,14 +135,26 @@ namespace InfinityTech.Rendering.Pipeline
                 id = EFrameFeature.SSGI,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
-                kernels = k => new[] { k.ssgiTrace, k.ssgiTemporal, k.ssgiSpatial, k.ssgiUpsample, k.ssgiTraceDebug, k.screenSpaceComposite },
+                kernels = k => new[]
+                {
+                    k.ssgiTrace, k.ssgiTemporal, k.ssgiSpatial, k.ssgiUpsample, k.screenSpaceComposite,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    k.ssgiTraceDebug,
+#endif
+                },
                 textures = BlueNoiseSupport
             });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.TAA,
                 requiresTemporal = true,
-                kernels = k => new[] { k.temporalAntiAliasing, k.temporalAntiAliasingDebug }
+                kernels = k => new[]
+                {
+                    k.temporalAntiAliasing,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    k.temporalAntiAliasingDebug,
+#endif
+                }
             });
             Add(new FeatureDescriptor
             {
