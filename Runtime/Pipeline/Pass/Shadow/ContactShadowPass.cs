@@ -50,14 +50,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ContactShadowPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int2 resolution;
             public LightLoopInputs lightLoop;
-            public RGBufferHandle lightRecordBuffer;
+            public RGBufferHandle lightRecordBufferHandle;
             public ComputeKernel kernel;
-            public RGTextureHandle depthTexture;
-            public RGTextureHandle sunTexture;
-            public RGTextureHandle maskTexture;
+            public RGTextureHandle depthTextureHandle;
+            public RGTextureHandle sunTextureHandle;
+            public RGTextureHandle maskTextureHandle;
         }
 
         // Requested in the content phase: the Volume is active and the sun or a local light has Contact Shadows on.
@@ -81,17 +81,17 @@ namespace InfinityTech.Rendering.Pipeline
                 depthBufferBits = EDepthBits.None,
                 enableRandomWrite = true
             };
-            RGTextureHandle sunTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
+            RGTextureHandle sunTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
             TextureDescriptor maskDsc = sunDsc;
             maskDsc.name = ContactShadowPassUtilityData.MaskTextureName;
             maskDsc.colorFormat = GraphicsFormat.R32_UInt;
-            RGTextureHandle maskTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
+            RGTextureHandle maskTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
 
-            using (var passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
             {
-                ref ContactShadowPassData passData = ref passRef.GetPassData();
+                RGComputePassHandle<ContactShadowPassData> passHandle = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow));
+                ref ContactShadowPassData passData = ref passHandle.GetPassData();
                 passData.resolution = new int2(width, height);
-                passData.parameters = passRef.WriteConstants(new ContactShadowParameters
+                passData.parametersHandle = passHandle.WriteConstants(new ContactShadowParameters
                 {
                     resolution = new Vector4(width, height, 1.0f / width, 1.0f / height),
                     depthParams = ContactShadowPassUtilityData.DepthParams(context.camera),
@@ -104,26 +104,26 @@ namespace InfinityTech.Rendering.Pipeline
                     fadeDistance = settings.fadeDistance
                 });
                 LightLoopInputs lightLoop = QueryLightLoop(context);
-                lightLoop.Read(passRef);
+                lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
-                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.kernel = kernels.contactShadow;
-                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.sunTexture = passRef.WriteTexture(sunTexture);
-                passData.maskTexture = passRef.WriteTexture(maskTexture);
+                passData.depthTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.sunTextureHandle = passHandle.WriteTexture(sunTextureHandle);
+                passData.maskTextureHandle = passHandle.WriteTexture(maskTextureHandle);
 
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeKernel kernel = passData.kernel;
                     ComputeShader shader = kernel.shader;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, ContactShadowPassUtilityData.CBV_ContactShadowParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, ContactShadowPassUtilityData.CBV_ContactShadowParametersID, passData.parametersHandle);
                     passData.lightLoop.Bind(cmdEncoder, shader, kernel.index);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowSunID, passData.sunTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowMaskID, passData.maskTexture);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightRecordBuffer, passData.lightRecordBufferHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowSunID, passData.sunTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel.index, ContactShadowPassUtilityData.UAV_ContactShadowMaskID, passData.maskTextureHandle);
                     cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(passData.resolution.x), kernel.GroupsY(passData.resolution.y), 1);
                 });
             }

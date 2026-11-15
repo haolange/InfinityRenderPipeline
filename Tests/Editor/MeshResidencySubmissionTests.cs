@@ -16,21 +16,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class MeshResidencySubmissionTests
     {
-        struct CopyData { public ComputeShader shader; public int kernel; public RGBufferHandle input, output; }
+        struct CopyData { public ComputeShader shader; public int kernel; public RGBufferHandle inputHandle, outputHandle; }
         struct FailureData { }
-        static void Copy(RGBuilder graph, ComputeShader shader, BufferHandle input, GraphicsBuffer output)
+        static void Copy(RGBuilder graph, ComputeShader shader, BufferHandle inputHandle, GraphicsBuffer output)
         {
-            using (var pass = graph.AddComputePass<CopyData>(new ProfilingSampler("SubmissionCopy")))
             {
-                ref var data = ref pass.GetPassData();
-                data.shader = shader; data.kernel = shader.FindKernel("Copy");
-                data.input = pass.ReadBuffer(graph.ImportBuffer(input));
-                data.output = pass.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, 4), output)));
-                pass.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands) =>
+                RGComputePassHandle<CopyData> passHandle = graph.AddComputePass<CopyData>(new ProfilingSampler("SubmissionCopy"));
+                ref CopyData passData = ref passHandle.GetPassData();
+                passData.shader = shader; passData.kernel = shader.FindKernel("Copy");
+                passData.inputHandle = passHandle.ReadBuffer(graph.ImportBuffer(inputHandle));
+                passData.outputHandle = passHandle.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, 4), output)));
+                passHandle.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands) =>
                 {
                     commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Count"), 1);
-                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
-                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.output);
+                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.inputHandle);
+                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.outputHandle);
                     commands.DispatchCompute(d.shader, d.kernel, 1, 1, 1);
                 });
             }
@@ -120,16 +120,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             MeshEntityId entity;
             using (var update = world.BeginUpdate()) { entity = Create(update); update.Commit(); }
             world.UpdateResidency();
-            var original = world.gpu.flags;
+            var original = world.gpu.flagsHandle;
             Copy(first, shader, original, firstResult);
             pool.EnsureRecording();
             int firstEpoch = pool.recordingEpoch;
             Assert.IsFalse(pool.CanWriteBuffer(original), "Recording, before Execute, must already prohibit CPU writes.");
             if (fail)
-                using (var pass = first.AddComputePass<FailureData>(new ProfilingSampler("InjectedFailureAfterCopy")))
                 {
-                    pass.EnablePassCulling(false);
-                    pass.SetExecuteFunc((in FailureData data, in RGComputeEncoder commands) =>
+                    RGComputePassHandle<FailureData> passHandle = first.AddComputePass<FailureData>(new ProfilingSampler("InjectedFailureAfterCopy"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetExecuteFunc((in FailureData data, in RGComputeEncoder commands) =>
                         throw new InvalidOperationException("Expected submission fixture failure."));
                 }
             bool executed = false;
@@ -153,16 +153,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         update.Commit();
                     }
                     world.UpdateResidency();
-                    Assert.AreNotSame(original.buffer, world.gpu.flags.buffer, "Dirty or expanded tables require a separate CPU-writable version.");
+                    Assert.AreNotSame(original.buffer, world.gpu.flagsHandle.buffer, "Dirty or expanded tables require a separate CPU-writable version.");
                     Assert.IsFalse(pool.BufferUsage(original.buffer).CanWriteCpu, "Returning the old table without an explicit fence must preserve its queued use.");
                     var probe = pool.GetBuffer(original.descriptor);
                     Assert.AreNotSame(original.buffer, probe.buffer, "The no-fence return path must not become a CPU acquisition.");
                     probe.buffer.SetData(new uint[probe.descriptor.count]);
                     pool.ReleaseBuffer(probe);
-                    Copy(second, shader, world.gpu.flags, secondResult);
+                    Copy(second, shader, world.gpu.flagsHandle, secondResult);
                     if (delayExecute) first.Execute(context, commands);
                     second.Execute(context, commands);
-                    Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flags));
+                    Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flagsHandle));
                     var tail = new ResourceReuseFence { hasGraphics = true };
                     tail.graphics = commands.CreateAsyncGraphicsFence();
                     var completion = commands.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
@@ -174,7 +174,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     pool.AfterSubmit(completion, tail);
                     bool completedImmediately = completion.passed;
                     TestContext.WriteLine("Completion observed immediately after Submit: " + completedImmediately);
-                    if (!completedImmediately) Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flags));
+                    if (!completedImmediately) Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flagsHandle));
                 }
                 catch (Exception error) { failure = error; }
             };

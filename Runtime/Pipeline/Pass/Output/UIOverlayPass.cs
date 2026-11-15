@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Rect viewport;
         }
 
-        void RasterUIOverlay(in CameraRecordContext context, RGTextureHandle displayColor, bool finalTarget)
+        void RasterUIOverlay(in CameraRecordContext context, RGTextureHandle displayColorHandle, bool finalTarget)
         {
             if (context.camera.cameraType != CameraType.Game || context.camera.targetTexture != null)
             {
@@ -22,18 +22,18 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RendererList overlay = renderContext.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);
-            using (var passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.EnableNativeRenderPass(false);
-                passRef.SetColorAttachment(displayColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                RGRasterPassHandle<UIOverlayPassData> passHandle = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay));
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableNativeRenderPass(false);
+                passHandle.SetColorAttachment(displayColorHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
-                ref UIOverlayPassData passData = ref passRef.GetPassData();
+                ref UIOverlayPassData passData = ref passHandle.GetPassData();
                 passData.rendererList = overlay;
                 var size = context.dimensions.displaySize;
                 passData.viewport = finalTarget ? context.dimensions.outputViewport : new Rect(0, 0, size.x, size.y);
                 passData.screenParams = new Vector4(size.x, size.y, 1f + 1f / size.x, 1f + 1f / size.y);
-                passRef.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetViewport(passData.viewport);
                     cmdEncoder.SetGlobalVector(PassShaderIDs.ScreenParams, passData.screenParams);

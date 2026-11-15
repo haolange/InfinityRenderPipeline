@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int uploadCount;
             public int resolution;
             public int mipCount;
-            public RGTextureHandle atlas;
+            public RGTextureHandle atlasHandle;
         }
 
         sealed class ReflectionProbeProduction : IRGPassQueueObserver
@@ -43,23 +43,23 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
             LightContext lightContext = renderContext.lightContext;
-            RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlasHandle);
 
             if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
-                using (var passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
-                    ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData();
+                    RGComputePassHandle<ReflectionProbeFilterPassData> passHandle = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes));
+                    ref ReflectionProbeFilterPassData passData = ref passHandle.GetPassData();
                     passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
                     passData.mipCount = m_ReflectionProbeAtlas.MipCount;
-                    passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.EnablePassCulling(false);
-                    passRef.SetQueueObserver(m_ReflectionProbeProduction);
-                    passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
+                    passData.atlasHandle = passHandle.WriteTexture(atlasHandle);
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetQueueObserver(m_ReflectionProbeProduction);
+                    passHandle.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
                         int count = passData.uploadCount;
                         ProbeCubeUpload[] recorded = passData.uploads;
@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
                             // Intensity and HDR decode stay in the record (params.x), so a changed intensity needs no refilter.
                             for (int mip = 0; mip < passData.mipCount; ++mip)
                             {
-                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.filterCubeToArray, upload.source, 1.0f, passData.atlas,
+                                CubeFilterUtilityData.FilterCubeToArray(cmdEncoder, passData.filterCubeToArray, upload.source, 1.0f, passData.atlasHandle,
                                     passData.resolution, mip, CubeFilterUtilityData.MipRoughness(mip, passData.mipCount), upload.slot * 6,
                                     ReflectionProbePassUtilityData.FilterSampleCount);
                             }

@@ -166,12 +166,12 @@ namespace InfinityTech.Rendering.LightPipeline
         // The persistent atlas. A newly allocated texture holds no valid tile.
         public TextureHandle GetAtlas()
         {
-            TextureHandle atlas = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
+            TextureHandle atlasHandle = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
             if (created)
             {
                 InvalidateAll();
             }
-            return atlas;
+            return atlasHandle;
         }
 
         // Finds or allocates the tile of key. Returns -1 when no slot is free (the caller renders it every frame);

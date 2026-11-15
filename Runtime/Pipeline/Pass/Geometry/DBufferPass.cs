@@ -17,8 +17,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DBufferPassData
         {
-            public RGRendererListHandle rendererList;
-            public RGTextureHandle depthTexture;
+            public RGRendererListHandle rendererListHandle;
+            public RGTextureHandle depthTextureHandle;
         }
 
         void RasterDBuffer(in CameraRecordContext context)
@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_SRGB;
                 dBufferADsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferA = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
+            RGTextureHandle dBufferAHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
             TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 dBufferBDsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferB = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
+            RGTextureHandle dBufferBHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
             TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -56,31 +56,31 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 dBufferCDsc.clearColor = Color.clear;
             }
-            RGTextureHandle dBufferC = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
+            RGTextureHandle dBufferCHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
 
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDBufferPass,
+            RGRendererListHandle dBufferRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDBufferPass,
                 new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, m_Settings.enableInstanceBatch));
 
-            using (var passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(dBufferB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(dBufferC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                RGRasterPassHandle<DBufferPassData> passHandle = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(dBufferAHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(dBufferBHandle, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(dBufferCHandle, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref DBufferPassData passData = ref passRef.GetPassData();
+                ref DBufferPassData passData = ref passHandle.GetPassData();
                 {
-                    passData.rendererList = passRef.UseRendererList(dBufferRendererList);
-                    passData.depthTexture = depthTexture;
+                    passData.rendererListHandle = passHandle.UseRendererList(dBufferRendererListHandle);
+                    passData.depthTextureHandle = depthTextureHandle;
                 }
 
-                passRef.SetExecuteFunc((in DBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in DBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTexture);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
 

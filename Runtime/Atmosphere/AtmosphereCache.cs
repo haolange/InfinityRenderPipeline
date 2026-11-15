@@ -36,8 +36,8 @@ namespace InfinityTech.Rendering.Pipeline
             in AtmosphereParameter key,
             in TextureDescriptor transmittanceDescriptor,
             in TextureDescriptor multiScatterDescriptor,
-            out TextureHandle transmittance,
-            out TextureHandle multiScatter,
+            out TextureHandle transmittanceHandle,
+            out TextureHandle multiScatterHandle,
             out bool hit)
         {
             bool committedHit = m_HasShared && m_SharedKey.Equals(key);
@@ -52,13 +52,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (committedHit && !pendingHit)
             {
-                transmittance = m_History.GetTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceDescriptor);
-                multiScatter = m_History.GetTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatterDescriptor);
+                transmittanceHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceDescriptor);
+                multiScatterHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatterDescriptor);
                 return;
             }
 
-            transmittance = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceDescriptor);
-            multiScatter = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatterDescriptor);
+            transmittanceHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceDescriptor);
+            multiScatterHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatterDescriptor);
             if (!pendingHit)
             {
                 m_PendingSharedKey = key;
@@ -77,9 +77,9 @@ namespace InfinityTech.Rendering.Pipeline
             in TextureDescriptor cubemapDescriptor,
             in TextureDescriptor prefilterDescriptor,
             in BufferDescriptor shDescriptor,
-            out TextureHandle cubemap,
-            out TextureHandle prefilter,
-            out BufferHandle shCoefficients,
+            out TextureHandle cubemapHandle,
+            out TextureHandle prefilterHandle,
+            out BufferHandle shCoefficientsHandle,
             out bool hit)
         {
             bool committedHit = m_HasIBL && m_IBLKey.Equals(key);
@@ -95,15 +95,15 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (committedHit && !pendingHit)
             {
-                cubemap = m_History.GetTexture(InfinityShaderIDs.AtmosphereCubemap, cubemapDescriptor);
-                prefilter = m_History.GetTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, prefilterDescriptor);
-                shCoefficients = m_History.GetBuffer(InfinityShaderIDs.AtmosphereSkySH, shDescriptor);
+                cubemapHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereCubemap, cubemapDescriptor);
+                prefilterHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, prefilterDescriptor);
+                shCoefficientsHandle = m_History.GetBuffer(InfinityShaderIDs.AtmosphereSkySH, shDescriptor);
                 return;
             }
 
-            cubemap = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereCubemap, cubemapDescriptor);
-            prefilter = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, prefilterDescriptor);
-            shCoefficients = m_History.GetWriteBuffer(InfinityShaderIDs.AtmosphereSkySH, shDescriptor);
+            cubemapHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereCubemap, cubemapDescriptor);
+            prefilterHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, prefilterDescriptor);
+            shCoefficientsHandle = m_History.GetWriteBuffer(InfinityShaderIDs.AtmosphereSkySH, shDescriptor);
             if (!pendingHit)
             {
                 m_PendingIBLKey = key;
@@ -197,9 +197,9 @@ namespace InfinityTech.Rendering.Pipeline
             in TextureDescriptor skyViewDescriptor,
             in TextureDescriptor aerialDescriptor,
             in BufferDescriptor sunDescriptor,
-            out TextureHandle skyView,
-            out TextureHandle aerial,
-            out BufferHandle sunBuffer,
+            out TextureHandle skyViewHandle,
+            out TextureHandle aerialHandle,
+            out BufferHandle sunBufferHandle,
             out bool hit)
         {
             bool committedHit = m_HasKey && m_Key.Equals(key);
@@ -208,15 +208,15 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (committedHit && !pendingHit)
             {
-                skyView = m_History.GetTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewDescriptor);
-                aerial = m_History.GetTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialDescriptor);
-                sunBuffer = m_History.GetBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunDescriptor);
+                skyViewHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewDescriptor);
+                aerialHandle = m_History.GetTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialDescriptor);
+                sunBufferHandle = m_History.GetBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunDescriptor);
                 return;
             }
 
-            skyView = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewDescriptor);
-            aerial = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialDescriptor);
-            sunBuffer = m_History.GetWriteBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunDescriptor);
+            skyViewHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewDescriptor);
+            aerialHandle = m_History.GetWriteTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialDescriptor);
+            sunBufferHandle = m_History.GetWriteBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunDescriptor);
             if (!pendingHit)
             {
                 m_PendingKey = key;

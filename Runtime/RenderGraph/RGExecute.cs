@@ -80,10 +80,10 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
-                if (!pass.colorBuffers[i].IsValid() || pass.colorBufferActions[i].loadAction != RenderBufferLoadAction.Clear)
+                if (!pass.colorBuffersHandle[i].IsValid() || pass.colorBufferActions[i].loadAction != RenderBufferLoadAction.Clear)
                     continue;
-                commands.SetRenderTarget(m_Resources.GetTexture(pass.colorBuffers[i]), RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-                commands.ClearRenderTarget(false, true, GetTextureDescriptor(pass.colorBuffers[i]).clearColor);
+                commands.SetRenderTarget(m_Resources.GetTexture(pass.colorBuffersHandle[i]), RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                commands.ClearRenderTarget(false, true, GetTextureDescriptor(pass.colorBuffersHandle[i]).clearColor);
             }
         }
 
@@ -94,43 +94,43 @@ namespace InfinityTech.Rendering.RenderGraph
             var depthLoad = pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear
                 ? RenderBufferLoadAction.DontCare : pass.depthBufferAction.loadAction;
             RenderBufferStoreAction depthStore = TargetDepthStore(passCompileInfo);
-            if (!pass.depthBuffer.IsValid() && pass.colorBufferMaxIndex == -1)
+            if (!pass.depthBufferHandle.IsValid() && pass.colorBufferMaxIndex == -1)
             {
                 return;
             }
 
             if (pass.colorBufferMaxIndex > 0)
             {
-                if (!pass.depthBuffer.IsValid())
+                if (!pass.depthBufferHandle.IsValid())
                     throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
                 RenderTargetIdentifier[] colors = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
                 RenderBufferLoadAction[] loads = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(pass.colorBufferMaxIndex + 1);
                 RenderBufferStoreAction[] stores = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(pass.colorBufferMaxIndex + 1);
                 for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                 {
-                    if (!pass.colorBuffers[i].IsValid())
+                    if (!pass.colorBuffersHandle[i].IsValid())
                         throw new InvalidOperationException("MRT setup is invalid. Some indices are not used.");
-                    colors[i] = m_Resources.GetTexture(pass.colorBuffers[i]);
+                    colors[i] = m_Resources.GetTexture(pass.colorBuffersHandle[i]);
                     loads[i] = TargetColorLoad(pass.colorBufferActions[i].loadAction);
                     stores[i] = TargetColorStore(passCompileInfo, i);
                 }
-                var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
+                var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBufferHandle), depthLoad, depthStore)
                 {
                     flags = TargetDepthFlags(pass.depthBufferAccess)
                 };
                 graphContext.cmdBuffer.SetRenderTarget(binding);
             }
-            else if (pass.depthBuffer.IsValid())
+            else if (pass.depthBufferHandle.IsValid())
             {
                 var colors = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(1);
                 var loads = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(1);
                 var stores = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(1);
                 if (pass.colorBufferMaxIndex > -1)
                 {
-                    colors[0] = m_Resources.GetTexture(pass.colorBuffers[0]);
+                    colors[0] = m_Resources.GetTexture(pass.colorBuffersHandle[0]);
                     loads[0] = TargetColorLoad(pass.colorBufferActions[0].loadAction);
                     stores[0] = TargetColorStore(passCompileInfo, 0);
-                    var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
+                    var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBufferHandle), depthLoad, depthStore)
                     {
                         flags = TargetDepthFlags(pass.depthBufferAccess)
                     };
@@ -138,10 +138,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 else
                 {
-                    colors[0] = m_Resources.GetTexture(pass.depthBuffer);
+                    colors[0] = m_Resources.GetTexture(pass.depthBufferHandle);
                     loads[0] = depthLoad;
                     stores[0] = depthStore;
-                    var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBuffer), depthLoad, depthStore)
+                    var binding = new RenderTargetBinding(colors, loads, stores, m_Resources.GetTexture(pass.depthBufferHandle), depthLoad, depthStore)
                     {
                         flags = TargetDepthFlags(pass.depthBufferAccess)
                     };
@@ -151,12 +151,12 @@ namespace InfinityTech.Rendering.RenderGraph
             else
             {
                 graphContext.cmdBuffer.SetRenderTarget(
-                    m_Resources.GetTexture(pass.colorBuffers[0]),
+                    m_Resources.GetTexture(pass.colorBuffersHandle[0]),
                     TargetColorLoad(pass.colorBufferActions[0].loadAction),
                     TargetColorStore(passCompileInfo, 0));
             }
 
-            if (pass.depthBuffer.IsValid() && pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear)
+            if (pass.depthBufferHandle.IsValid() && pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear)
                 graphContext.cmdBuffer.ClearRenderTarget(true, false, Color.clear, GraphicsConventions.ClearDepthFar);
         }
 
@@ -177,7 +177,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 for (int i = 0; i < group.attachments.Count; ++i)
                 {
                     RGGroupAttachment attachment = group.attachments[i];
-                    RenderTexture texture = m_Resources.GetTexture(attachment.texture);
+                    RenderTexture texture = m_Resources.GetTexture(attachment.textureHandle);
                     if (sizeSource == null)
                     {
                         sizeSource = texture;
@@ -188,7 +188,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         storeAction = StoreOfGroupAttachment(group, i),
                         loadStoreTarget = texture
                     };
-                    ApplyAttachmentClearValues(ref descriptor, attachment.depth ? Color.clear : GetTextureDescriptor(attachment.texture).clearColor);
+                    ApplyAttachmentClearValues(ref descriptor, attachment.depth ? Color.clear : GetTextureDescriptor(attachment.textureHandle).clearColor);
                     attachments[i] = descriptor;
                 }
                 for (int s = 0; s < group.subpasses.Count; ++s)
@@ -227,7 +227,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 RGGroupSubpass subpass = group.subpasses[s];
                 IRGPass pass = m_PassCompileInfos[subpass.passIndex].pass;
-                if (depth && pass.depthBuffer.IsValid() && SameResource(pass.depthBuffer, group.attachments[attachmentIndex].texture))
+                if (depth && pass.depthBufferHandle.IsValid() && SameResource(pass.depthBufferHandle, group.attachments[attachmentIndex].textureHandle))
                     lastPass = subpass.passIndex;
                 for (int c = 0; c < subpass.colorCount; ++c)
                 {
@@ -267,16 +267,16 @@ namespace InfinityTech.Rendering.RenderGraph
                     graphContext.cmdBuffer.NextSubPass();
                 }
             }
-            else if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
+            else if (pass.depthBufferHandle.IsValid() || pass.colorBufferMaxIndex != -1)
                 SetRenderTarget(ref graphContext, info);
 
             graphContext.cmdBuffer.DisableScissorRect();
-            RGTextureHandle viewportTarget = pass.colorBufferMaxIndex >= 0 ? pass.colorBuffers[0] : pass.depthBuffer;
-            if (!viewportTarget.IsValid())
+            RGTextureHandle viewportTargetHandle = pass.colorBufferMaxIndex >= 0 ? pass.colorBuffersHandle[0] : pass.depthBufferHandle;
+            if (!viewportTargetHandle.IsValid())
             {
                 return;
             }
-            var descriptor = GetTextureDescriptor(viewportTarget);
+            var descriptor = GetTextureDescriptor(viewportTargetHandle);
             graphContext.cmdBuffer.SetViewport(new Rect(0, 0, descriptor.width, descriptor.height));
         }
 
@@ -293,8 +293,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.CreateBufferResource(ref graphContext, buffer, passCompileInfo.enableAsyncCompute);
             foreach (int texture in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
                 m_Resources.CreateTextureResource(ref graphContext, texture, passCompileInfo.enableAsyncCompute);
-            foreach (RGConstantsHandle constants in passCompileInfo.pass.constants)
-                m_Resources.constants.Upload(graphContext.cmdBuffer, m_Resources.ResolveBuffer(constants.buffer).resource, constants);
+            foreach (RGConstantsHandle constantsHandle in passCompileInfo.pass.constants)
+                m_Resources.constants.Upload(graphContext.cmdBuffer, m_Resources.ResolveBuffer(constantsHandle.bufferHandle).resource, constantsHandle);
 
             if (passCompileInfo.pass.passType == EPassType.Raster)
                 BindRasterTarget(ref graphContext, passCompileInfo);

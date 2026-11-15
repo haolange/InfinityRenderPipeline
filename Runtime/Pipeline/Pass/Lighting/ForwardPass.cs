@@ -21,18 +21,18 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public bool hasSubsurface;
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
-            public RGTextureHandle atmosphereGGX;
-            public RGTextureHandle occlusion;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
+            public RGTextureHandle atmosphereGGXHandle;
+            public RGTextureHandle occlusionHandle;
             public bool hasOcclusion;
             public ShadowInputs shadows;
             public bool hasContactShadow;
-            public RGTextureHandle contactShadowSun, contactShadowMask;
+            public RGTextureHandle contactShadowSunHandle, contactShadowMaskHandle;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
-            public RGBufferHandle atmosphereSH;
-            public RGBufferHandle lightRecords;
+            public RGBufferHandle atmosphereSHHandle;
+            public RGBufferHandle lightRecordsHandle;
             public LightLoopInputs lightLoop;
             public float iblMaxMip;
 
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetKeyword(ForwardPassUtilityData.OcclusionKeyword, hasOcclusion);
                 if (hasOcclusion)
                 {
-                    commands.SetGlobalTexture(ForwardPassUtilityData.SRV_ForwardOcclusionID, occlusion);
+                    commands.SetGlobalTexture(ForwardPassUtilityData.SRV_ForwardOcclusionID, occlusionHandle);
                 }
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
                 commands.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, shadowmask);
@@ -50,77 +50,77 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetKeyword(ForwardPassUtilityData.ContactShadowKeyword, hasContactShadow);
                 if (hasContactShadow)
                 {
-                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSun);
-                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowMaskID, contactShadowMask);
+                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSunHandle);
+                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowMaskID, contactShadowMaskHandle);
                 }
                 commands.SetGlobalInt(PassShaderIDs.InfinityHasProbes, hasProbes);
                 lightLoop.BindGlobal(commands);
-                commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecords);
-                commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGX);
-                commands.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, atmosphereSH);
+                commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecordsHandle);
+                commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGXHandle);
+                commands.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, atmosphereSHHandle);
                 commands.SetGlobalFloat(InfinityShaderIDs.AtmosphereIBLMaxMip, iblMaxMip);
             }
         }
 
-        void RasterForward(in CameraRecordContext context, in RGMeshDrawListHandle forwardMeshDrawList)
+        void RasterForward(in CameraRecordContext context, in RGMeshDrawListHandle forwardMeshDrawListHandle)
         {
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle lightingTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGRendererListHandle forwardRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.OptimizeStateChanges, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, m_Settings.enableInstanceBatch));
 
             //Add ForwardPass
-            using (var passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
             {
+                RGRasterPassHandle<ForwardPassData> passHandle = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward));
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(lightingTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 if (context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
                 {
-                    passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 }
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref ForwardPassData passData = ref passRef.GetPassData();
+                ref ForwardPassData passData = ref passHandle.GetPassData();
                 {
                     passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     ShadowInputs shadows = QueryShadowInputs(context);
-                    shadows.Read(passRef);
+                    shadows.Read(passHandle);
                     passData.shadows = shadows;
                     passData.hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);
                     if (passData.hasContactShadow)
                     {
-                        passData.contactShadowSun = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer));
-                        passData.contactShadowMask = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
+                        passData.contactShadowSunHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer));
+                        passData.contactShadowMaskHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
                     }
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.hasOcclusion = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
                     if (passData.hasOcclusion)
                     {
-                        passData.occlusion = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer));
+                        passData.occlusionHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer));
                     }
-                    passData.meshDrawList = passRef.UseMeshDrawList(forwardMeshDrawList);
-                    passData.rendererList = passRef.UseRendererList(forwardRendererList);
-                    passData.atmosphereGGX = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter));
-                    passData.atmosphereSH = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH));
+                    passData.meshDrawListHandle = passHandle.UseMeshDrawList(forwardMeshDrawListHandle);
+                    passData.rendererListHandle = passHandle.UseRendererList(forwardRendererListHandle);
+                    passData.atmosphereGGXHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter));
+                    passData.atmosphereSHHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH));
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         context.atmosphere.cubemapSize) - 1;
-                    passData.lightRecords = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                    passData.lightRecordsHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                     LightLoopInputs lightLoop = QueryLightLoop(context);
-                    lightLoop.Read(passRef);
+                    lightLoop.Read(passHandle);
                     passData.lightLoop = lightLoop;
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     passData.BindLighting(cmdEncoder);
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
         }

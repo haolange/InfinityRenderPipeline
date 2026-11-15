@@ -33,27 +33,27 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         struct ConstantsPassData
         {
-            public RGConstantsHandle constants;
+            public RGConstantsHandle constantsHandle;
             public ComputeShader shader;
             public int kernel;
-            public RGBufferHandle results;
+            public RGBufferHandle resultsHandle;
         }
 
         // A separate method: an iterator cannot hold the ref local GetPassData returns.
         static void RecordCopyConstants(RGBuilder graph, ComputeShader shader, GraphicsBuffer results)
         {
-            using (var pass = graph.AddComputePass<ConstantsPassData>(new ProfilingSampler("ConstantsContract")))
             {
-                ref var data = ref pass.GetPassData();
-                data.shader = shader;
-                data.kernel = shader.FindKernel("CopyConstants");
-                data.constants = pass.WriteConstants(new ContractConstants { vector = s_Vector, count = 11, scale = 0.5f });
-                data.results = pass.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(2, 16), results)));
-                pass.EnablePassCulling(false);
-                pass.SetExecuteFunc((in ConstantsPassData d, in RGComputeEncoder commands) =>
+                RGComputePassHandle<ConstantsPassData> passHandle = graph.AddComputePass<ConstantsPassData>(new ProfilingSampler("ConstantsContract"));
+                ref ConstantsPassData passData = ref passHandle.GetPassData();
+                passData.shader = shader;
+                passData.kernel = shader.FindKernel("CopyConstants");
+                passData.constantsHandle = passHandle.WriteConstants(new ContractConstants { vector = s_Vector, count = 11, scale = 0.5f });
+                passData.resultsHandle = passHandle.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(2, 16), results)));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetExecuteFunc((in ConstantsPassData d, in RGComputeEncoder commands) =>
                 {
-                    commands.SetComputeConstantBufferParam(d.shader, s_Constants, d.constants);
-                    commands.SetComputeBufferParam(d.shader, d.kernel, s_Results, d.results);
+                    commands.SetComputeConstantBufferParam(d.shader, s_Constants, d.constantsHandle);
+                    commands.SetComputeBufferParam(d.shader, d.kernel, s_Results, d.resultsHandle);
                     commands.DispatchCompute(d.shader, d.kernel, 1, 1, 1);
                 });
             }

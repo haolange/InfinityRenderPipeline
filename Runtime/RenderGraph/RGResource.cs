@@ -52,8 +52,8 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         public bool IsValid() => generation != 0;
-        public bool Equals(RGResourceHandle other) => index == other.index && type == other.type && generation == other.generation;
-        public override bool Equals(object obj) => obj is RGResourceHandle other && Equals(other);
+        public bool Equals(RGResourceHandle otherHandle) => index == otherHandle.index && type == otherHandle.type && generation == otherHandle.generation;
+        public override bool Equals(object obj) => obj is RGResourceHandle otherHandle && Equals(otherHandle);
         public override int GetHashCode() => ((int)type << 24) ^ (index << 8) ^ generation;
     }
 
@@ -336,19 +336,19 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGTextureHandle(index, m_Resources[(int)ERGResourceType.Texture][index].generation);
         }
 
-        internal RGBufferHandle ImportBuffer(in BufferHandle buffer)
+        internal RGBufferHandle ImportBuffer(in BufferHandle bufferHandle)
         {
-            if (buffer.buffer == null || !buffer.buffer.IsValid())
-                throw new ArgumentException("Cannot import an invalid buffer.", nameof(buffer));
-            if (m_ImportedBuffers.TryGetValue(buffer.buffer, out int existing))
+            if (bufferHandle.buffer == null || !bufferHandle.buffer.IsValid())
+                throw new ArgumentException("Cannot import an invalid buffer.", nameof(bufferHandle));
+            if (m_ImportedBuffers.TryGetValue(bufferHandle.buffer, out int existing))
             {
                 return BufferHandle(existing);
             }
             int index = AddNewResource((int)ERGResourceType.Buffer, m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
-            m_ImportedBuffers.Add(buffer.buffer, index);
-            resource.resource = buffer.buffer;
-            RetainRecording(resource, m_Pool.BufferUsage(buffer.buffer));
-            resource.descriptor = buffer.descriptor;
+            m_ImportedBuffers.Add(bufferHandle.buffer, index);
+            resource.resource = bufferHandle.buffer;
+            RetainRecording(resource, m_Pool.BufferUsage(bufferHandle.buffer));
+            resource.descriptor = bufferHandle.descriptor;
             resource.imported = true;
             return BufferHandle(index);
         }
@@ -422,10 +422,10 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal RGTextureHandle ImportTexture(RTHandle rt, in TextureDescriptor descriptor)
         {
-            RGTextureHandle reference = ImportTexture(rt);
-            RGTexture resource = GetTextureResource(reference.handle);
+            RGTextureHandle referenceHandle = ImportTexture(rt);
+            RGTexture resource = GetTextureResource(referenceHandle.handle);
             SetImportedTextureDescriptor(resource, descriptor);
-            return reference;
+            return referenceHandle;
         }
 
         static void SetImportedTextureDescriptor(RGTexture resource, in TextureDescriptor descriptor)
@@ -508,9 +508,9 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 var desc = resource.descriptor;
 
-                BufferHandle pooled = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
-                resource.resource = pooled.buffer;
-                resource.poolLease = pooled.lease;
+                BufferHandle pooledHandle = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooledHandle.buffer;
+                resource.poolLease = pooledHandle.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.BufferUsage(resource.resource));
             }
@@ -542,9 +542,9 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 var desc = resource.descriptor;
 
-                TextureHandle pooled = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
-                resource.resource = pooled.texture;
-                resource.poolLease = pooled.lease;
+                TextureHandle pooledHandle = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence);
+                resource.resource = pooledHandle.texture;
+                resource.poolLease = pooledHandle.lease;
                 reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
                 RetainRecording(resource, m_Pool.TextureUsage(resource.resource));
             }
@@ -605,10 +605,10 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal void FlushRetired(ResourceReuseFence reuseFence = default)
         {
-            foreach (TextureHandle texture in m_RetiredTextures)
-                m_Pool.ReleaseTexture(texture, reuseFence);
-            foreach (BufferHandle buffer in m_RetiredBuffers)
-                m_Pool.ReleaseBuffer(buffer, reuseFence);
+            foreach (TextureHandle textureHandle in m_RetiredTextures)
+                m_Pool.ReleaseTexture(textureHandle, reuseFence);
+            foreach (BufferHandle bufferHandle in m_RetiredBuffers)
+                m_Pool.ReleaseBuffer(bufferHandle, reuseFence);
             m_RetiredTextures.Clear();
             m_RetiredBuffers.Clear();
         }

@@ -198,9 +198,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferHandle ImportBuffer(in BufferHandle buffer)
+        public RGBufferHandle ImportBuffer(in BufferHandle bufferHandle)
         {
-            return m_Resources.ImportBuffer(buffer);
+            return m_Resources.ImportBuffer(bufferHandle);
         }
 
         public RGBufferHandle ImportBuffer(GraphicsBuffer buffer, string name)
@@ -233,9 +233,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureHandle ImportTexture(in TextureHandle texture)
+        public RGTextureHandle ImportTexture(in TextureHandle textureHandle)
         {
-            return m_Resources.ImportTexture(texture.texture, texture.descriptor);
+            return m_Resources.ImportTexture(textureHandle.texture, textureHandle.descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -301,15 +301,15 @@ namespace InfinityTech.Rendering.RenderGraph
                     .Append(info.enableAsyncCompute ? "AsyncCompute" : "Graphics").Append('|').Append(info.culled)
                     .Append('|').Append(info.syncToPassIndex).Append('|').Append(info.syncFromPassIndex).Append('|');
                 foreach (var list in pass.resourceReadLists)
-                    foreach (RGResourceHandle resource in list)
+                    foreach (RGResourceHandle resourceHandle in list)
                     {
-                        text.Append(resource.type).Append(':').Append(resource.index).Append(',');
+                        text.Append(resourceHandle.type).Append(':').Append(resourceHandle.index).Append(',');
                     }
                 text.Append('|');
                 foreach (var list in pass.resourceWriteLists)
-                    foreach (RGResourceHandle resource in list)
+                    foreach (RGResourceHandle resourceHandle in list)
                     {
-                        text.Append(resource.type).Append(':').Append(resource.index).Append(',');
+                        text.Append(resourceHandle.type).Append(':').Append(resourceHandle.index).Append(',');
                     }
                 text.Append('|');
                 for (int type = 0; type < (int)ERGResourceType.Max; type++)

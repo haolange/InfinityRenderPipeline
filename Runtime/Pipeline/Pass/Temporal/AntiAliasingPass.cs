@@ -41,15 +41,15 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct AntiAliasingPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int kernel;
             public int2 groups;
             public ComputeShader shader;
-            public RGTextureHandle input, motion, metadata, reactive, historyColor, historyDepth;
-            public RGTextureHandle accumulation, temporalDepth, sharpened;
+            public RGTextureHandle inputHandle, motionHandle, metadataHandle, reactiveHandle, historyColorHandle, historyDepthHandle;
+            public RGTextureHandle accumulationHandle, temporalDepthHandle, sharpenedHandle;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public bool diagnostics;
-            public RGTextureHandle confidence, reprojection;
+            public RGTextureHandle confidenceHandle, reprojectionHandle;
             public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
 #endif
         }
@@ -76,8 +76,8 @@ namespace InfinityTech.Rendering.Pipeline
             var depthDescriptor = TemporalDepthDescriptor(width, height, "HistoryDepthTexture", true);
             HistoryRead colorRead = context.historyCache.Read(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, context.resetsHistory);
             HistoryRead depthRead = context.historyCache.Read(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, context.resetsHistory);
-            var historyColor = m_RGBuilder.ImportTexture(colorRead.texture);
-            var historyDepth = m_RGBuilder.ImportTexture(depthRead.texture);
+            var historyColor = m_RGBuilder.ImportTexture(colorRead.textureHandle);
+            var historyDepth = m_RGBuilder.ImportTexture(depthRead.textureHandle);
             // One descriptor per history: both sides of the ping-pong pair share it.
             var accumulation = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor));
             var temporalDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor));
@@ -93,75 +93,75 @@ namespace InfinityTech.Rendering.Pipeline
             // A debug view or a confidence capture reads the diagnostics kernel's extra outputs.
             bool diagnostics = context.debugView != EDebugView.None
                 || (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
-            RGTextureHandle confidence = default, reprojection = default;
+            RGTextureHandle confidenceHandle = default, reprojection = default;
             if (diagnostics)
             {
                 var descriptor = TemporalColorDescriptor(width, height, "TAADiagnostics", true);
                 descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
-                confidence = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
+                confidenceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
                 descriptor.name = "TAAReprojection";
                 reprojection = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
                 temporalKernel = kernels.temporalAntiAliasingDebug;
             }
 #endif
-            using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
-                ref var data = ref pass.GetPassData();
-                data.shader = temporalKernel.shader;
-                data.kernel = temporalKernel.index;
-                data.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
-                data.parameters = pass.WriteConstants(new TemporalAntiAliasingParameters
+                RGComputePassHandle<AntiAliasingPassData> passHandle = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing));
+                ref AntiAliasingPassData passData = ref passHandle.GetPassData();
+                passData.shader = temporalKernel.shader;
+                passData.kernel = temporalKernel.index;
+                passData.groups = new int2(temporalKernel.GroupsX(width), temporalKernel.GroupsY(height));
+                passData.parametersHandle = passHandle.WriteConstants(new TemporalAntiAliasingParameters
                 {
                     resolution = new Vector4(width, height, 1f / width, 1f / height),
                     resetBlend = colorRead.valid && depthRead.valid ? 1 : 0,
                 });
-                data.input = pass.ReadTexture(input);
-                data.motion = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
-                data.metadata = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
-                data.reactive = pass.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer));
-                data.historyColor = pass.ReadTexture(historyColor);
-                data.historyDepth = pass.ReadTexture(historyDepth);
-                data.accumulation = pass.WriteTexture(accumulation);
-                data.sharpened = pass.WriteTexture(sharpened);
-                data.temporalDepth = pass.WriteTexture(temporalDepth);
+                passData.inputHandle = passHandle.ReadTexture(input);
+                passData.motionHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
+                passData.metadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                passData.reactiveHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer));
+                passData.historyColorHandle = passHandle.ReadTexture(historyColor);
+                passData.historyDepthHandle = passHandle.ReadTexture(historyDepth);
+                passData.accumulationHandle = passHandle.WriteTexture(accumulation);
+                passData.sharpenedHandle = passHandle.WriteTexture(sharpened);
+                passData.temporalDepthHandle = passHandle.WriteTexture(temporalDepth);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                data.diagnostics = diagnostics;
+                passData.diagnostics = diagnostics;
                 if (diagnostics)
                 {
-                    data.confidence = pass.WriteTexture(confidence);
-                    data.reprojection = pass.WriteTexture(reprojection);
+                    passData.confidenceHandle = passHandle.WriteTexture(confidenceHandle);
+                    passData.reprojectionHandle = passHandle.WriteTexture(reprojection);
                 }
-                data.inputSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAInput, input);
-                data.historyColorSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryColor, historyColor);
-                data.historyDepthSnapshot = PrepareStageSnapshot(pass, ECaptureBuffer.TAAHistoryDepth, historyDepth);
+                passData.inputSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAInput, input);
+                passData.historyColorSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryColor, historyColor);
+                passData.historyDepthSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryDepth, historyDepth);
 #endif
-                pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands) =>
+                passHandle.SetExecuteFunc((in AntiAliasingPassData passData, in RGComputeEncoder commands) =>
                 {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    data.inputSnapshot.Record(commands, data.input);
-                    data.historyColorSnapshot.Record(commands, data.historyColor);
-                    data.historyDepthSnapshot.Record(commands, data.historyDepth);
+                    passData.inputSnapshot.Record(commands, passData.inputHandle);
+                    passData.historyColorSnapshot.Record(commands, passData.historyColorHandle);
+                    passData.historyDepthSnapshot.Record(commands, passData.historyDepthHandle);
 #endif
-                    int kernel = data.kernel;
-                    var shader = data.shader;
-                    commands.SetComputeConstantBufferParam(shader, AntiAliasingUtilityData.CBV_TemporalAntiAliasingParametersID, data.parameters);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_AliasingColorTextureID, data.input);
-                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryColorTexture, data.historyColor);
-                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryDepthTexture, data.historyDepth);
-                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, data.motion);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_MotionMetadataID, data.metadata);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_ReactiveMaskTextureID, data.reactive);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_AccumulateColorTextureID, data.accumulation);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TemporalDepthTextureID, data.temporalDepth);
-                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_SharpenedColorTextureID, data.sharpened);
+                    int kernel = passData.kernel;
+                    var shader = passData.shader;
+                    commands.SetComputeConstantBufferParam(shader, AntiAliasingUtilityData.CBV_TemporalAntiAliasingParametersID, passData.parametersHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_AliasingColorTextureID, passData.inputHandle);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryColorTexture, passData.historyColorHandle);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryDepthTexture, passData.historyDepthHandle);
+                    commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_MotionMetadataID, passData.metadataHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.SRV_ReactiveMaskTextureID, passData.reactiveHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_AccumulateColorTextureID, passData.accumulationHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TemporalDepthTextureID, passData.temporalDepthHandle);
+                    commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_SharpenedColorTextureID, passData.sharpenedHandle);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    if (data.diagnostics)
+                    if (passData.diagnostics)
                     {
-                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAADiagnosticsID, data.confidence);
-                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAAReprojectionID, data.reprojection);
+                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAADiagnosticsID, passData.confidenceHandle);
+                        commands.SetComputeTextureParam(shader, kernel, AntiAliasingUtilityData.UAV_TAAReprojectionID, passData.reprojectionHandle);
                     }
 #endif
-                    commands.DispatchCompute(shader, kernel, data.groups.x, data.groups.y, 1);
+                    commands.DispatchCompute(shader, kernel, passData.groups.x, passData.groups.y, 1);
                 });
             }
             context.features.MarkProduced(EFrameFeature.TAA);

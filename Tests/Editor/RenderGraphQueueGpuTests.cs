@@ -19,34 +19,34 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             internal ComputeShader shader;
             internal int kernel, value;
-            internal RGBufferHandle input, output;
+            internal RGBufferHandle inputHandle, outputHandle;
             internal List<GraphicsBuffer> physical;
             internal RGResourceFactory resources;
         }
 
-        static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle input, RGBufferHandle output,
+        static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle inputHandle, RGBufferHandle outputHandle,
             bool async, int value, List<GraphicsBuffer> physical = null)
         {
-            bool copy = input.IsValid();
-            using (var pass = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite")))
+            bool copy = inputHandle.IsValid();
             {
-                pass.EnableAsyncCompute(async);
-                pass.EnablePassCulling(false);
-                ref Data data = ref pass.GetPassData();
+                RGComputePassHandle<Data> passHandle = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite"));
+                passHandle.EnableAsyncCompute(async);
+                passHandle.EnablePassCulling(false);
+                ref Data data = ref passHandle.GetPassData();
                 data.shader = shader;
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
                 data.value = value;
                 data.physical = physical;
                 data.resources = (RGResourceFactory)typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
-                data.input = copy ? pass.ReadBuffer(input) : default;
-                data.output = pass.WriteBuffer(output);
-                pass.SetExecuteFunc((in Data d, in RGComputeEncoder commands) =>
+                data.inputHandle = copy ? passHandle.ReadBuffer(inputHandle) : default;
+                data.outputHandle = passHandle.WriteBuffer(outputHandle);
+                passHandle.SetExecuteFunc((in Data d, in RGComputeEncoder commands) =>
                 {
-                    d.physical?.Add(d.resources.ResolveBuffer(d.output).resource);
+                    d.physical?.Add(d.resources.ResolveBuffer(d.outputHandle).resource);
                     commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Count"), Count);
                     commands.SetComputeIntParam(d.shader, Shader.PropertyToID("Value"), d.value);
-                    if (d.input.IsValid()) commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
-                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.output);
+                    if (d.inputHandle.IsValid()) commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.inputHandle);
+                    commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Output"), d.outputHandle);
                     commands.DispatchCompute(d.shader, d.kernel, Count / 64, 1, 1);
                 });
             }

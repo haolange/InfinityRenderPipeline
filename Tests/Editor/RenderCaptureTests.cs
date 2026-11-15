@@ -205,12 +205,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var error = new InvalidOperationException("Injected after readback recording, before queue acceptance");
                     try
                     {
-                        using (var pass = graph.AddTransferPass<AbandonedCaptureData>(new ProfilingSampler("AbandonedReadback")))
                         {
-                            pass.EnablePassCulling(false);
-                            pass.SetQueueObserver(staging);
-                            pass.GetPassData() = new AbandonedCaptureData { staging = staging, failure = error };
-                            pass.SetExecuteFunc((in AbandonedCaptureData data, in RGTransferEncoder encoder) =>
+                            RGTransferPassHandle<AbandonedCaptureData> passHandle = graph.AddTransferPass<AbandonedCaptureData>(new ProfilingSampler("AbandonedReadback"));
+                            passHandle.EnablePassCulling(false);
+                            passHandle.SetQueueObserver(staging);
+                            passHandle.GetPassData() = new AbandonedCaptureData { staging = staging, failure = error };
+                            passHandle.SetExecuteFunc((in AbandonedCaptureData data, in RGTransferEncoder encoder) =>
                             {
                                 encoder.RequestAsyncReadback(data.staging.texture, data.staging.Complete);
                                 throw data.failure;

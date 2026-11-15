@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ProducedThisFrame = false;
         }
 
-        public void Resolve(in CombineLutParameterDescriptor key, in TextureDescriptor descriptor, out TextureHandle texture, out bool hit)
+        public void Resolve(in CombineLutParameterDescriptor key, in TextureDescriptor descriptor, out TextureHandle textureHandle, out bool hit)
         {
             bool committedHit = m_HasKey && m_Key.Equals(key);
             bool pendingHit = m_ProducedThisFrame && m_PendingKey.Equals(key);
@@ -32,11 +32,11 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (committedHit && !pendingHit)
             {
-                texture = m_History.GetTexture(InfinityShaderIDs.CombineLookupTexture, descriptor);
+                textureHandle = m_History.GetTexture(InfinityShaderIDs.CombineLookupTexture, descriptor);
                 return;
             }
 
-            texture = m_History.GetWriteTexture(InfinityShaderIDs.CombineLookupTexture, descriptor);
+            textureHandle = m_History.GetWriteTexture(InfinityShaderIDs.CombineLookupTexture, descriptor);
             if (!pendingHit)
             {
                 m_PendingKey = key;

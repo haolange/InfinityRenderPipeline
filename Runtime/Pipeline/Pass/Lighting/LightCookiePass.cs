@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeKernel copy2D, cubeToOctahedral, downsample;
             public CookieUpload[] uploads;
             public int uploadCount;
-            public RGTextureHandle atlas;
+            public RGTextureHandle atlasHandle;
         }
 
         sealed class CookieProduction : IRGPassQueueObserver
@@ -44,23 +44,23 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.LightCookies);
 
-            RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlasHandle);
 
             if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {
-                using (var passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
                 {
-                    ref LightCookiePassData passData = ref passRef.GetPassData();
+                    RGComputePassHandle<LightCookiePassData> passHandle = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies));
+                    ref LightCookiePassData passData = ref passHandle.GetPassData();
                     passData.copy2D = kernels.cookieCopy2D;
                     passData.cubeToOctahedral = kernels.cookieCubeToOctahedral;
                     passData.downsample = kernels.cookieDownsample;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
-                    passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.EnablePassCulling(false);
-                    passRef.SetQueueObserver(m_CookieProduction);
-                    passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
+                    passData.atlasHandle = passHandle.WriteTexture(atlasHandle);
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetQueueObserver(m_CookieProduction);
+                    passHandle.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
                         ComputeShader shader = passData.copy2D.shader;
                         ComputeKernel downsample = passData.downsample;
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
                             cmdEncoder.SetComputeVectorParam(shader, LightCookiePassUtilityData.Cookie_BlockID, new Vector4(upload.position.x, upload.position.y, upload.size, lodBias));
                             cmdEncoder.SetComputeIntParam(shader, LightCookiePassUtilityData.Cookie_ChannelsID, (int)upload.channels);
                             cmdEncoder.SetComputeTextureParam(shader, kernel.index, cube ? LightCookiePassUtilityData.SRV_CookieCubeID : LightCookiePassUtilityData.SRV_CookieSourceID, upload.source, TextureView.Whole(upload.source));
-                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, 0);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlasHandle, 0);
                             cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(upload.size), kernel.GroupsY(upload.size), 1);
 
                             // The block's mips: mip m covers (position >> m, size >> m) down to one texel.
@@ -88,8 +88,8 @@ namespace InfinityTech.Rendering.Pipeline
                             {
                                 int size = upload.size >> mip;
                                 cmdEncoder.SetComputeVectorParam(shader, LightCookiePassUtilityData.Cookie_BlockID, new Vector4(upload.position.x >> mip, upload.position.y >> mip, size, 0));
-                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasSourceID, passData.atlas, mip - 1);
-                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlas, mip);
+                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasSourceID, passData.atlasHandle, mip - 1);
+                                cmdEncoder.SetComputeTextureParam(shader, downsample.index, LightCookiePassUtilityData.UAV_CookieAtlasID, passData.atlasHandle, mip);
                                 cmdEncoder.DispatchCompute(shader, downsample.index, downsample.GroupsX(size), downsample.GroupsY(size), 1);
                             }
                         }

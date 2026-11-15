@@ -141,18 +141,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 MeshGPUDrawPayload next = null;
                 try
                 {
-                    BufferHandle original = payload.indirectArgs;
-                    graph.ImportBuffer(original);
+                    BufferHandle originalHandle = payload.indirectArgsHandle;
+                    graph.ImportBuffer(originalHandle);
                     backend.RetirePayload(payload);
                     payload = null;
                     backend.FlushRetired(default);
                     next = backend.RentPayload(128, 1024);
-                    Assert.IsTrue(original.buffer.IsValid(), "Payload growth must not physically release commands recorded before Submit.");
-                    Assert.AreNotSame(original.buffer, next.indirectArgs.buffer);
+                    Assert.IsTrue(originalHandle.buffer.IsValid(), "Payload growth must not physically release commands recorded before Submit.");
+                    Assert.AreNotSame(originalHandle.buffer, next.indirectArgsHandle.buffer);
                     graph.ClearRecordedGraph();
-                    BufferHandle reused = fixture.pool.GetBuffer(original.descriptor);
-                    Assert.AreSame(original.buffer, reused.buffer, "Cancelled recording releases the original allocation for safe reuse.");
-                    fixture.pool.ReleaseBuffer(reused);
+                    BufferHandle reusedHandle = fixture.pool.GetBuffer(originalHandle.descriptor);
+                    Assert.AreSame(originalHandle.buffer, reusedHandle.buffer, "Cancelled recording releases the original allocation for safe reuse.");
+                    fixture.pool.ReleaseBuffer(reusedHandle);
                 }
                 finally
                 {

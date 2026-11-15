@@ -43,73 +43,73 @@ namespace InfinityTech.Rendering.Pipeline
     // no visible light uses VSM / EVSM; no shader samples them then.
     internal struct ShadowInputs
     {
-        public RGTextureHandle cascadeMap;
-        public RGTextureHandle localMap;
-        public RGTextureHandle cascadeMoments;
-        public RGTextureHandle localMoments;
+        public RGTextureHandle cascadeMapHandle;
+        public RGTextureHandle localMapHandle;
+        public RGTextureHandle cascadeMomentsHandle;
+        public RGTextureHandle localMomentsHandle;
         public bool hasCascadeMoments;
         public bool hasLocalMoments;
-        public RGBufferHandle localMatrices;
-        public RGBufferHandle localSlices;
+        public RGBufferHandle localMatricesHandle;
+        public RGBufferHandle localSlicesHandle;
 
-        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passHandle) where TPassData : struct
         {
-            passRef.ReadTexture(cascadeMap);
-            passRef.ReadTexture(localMap);
+            passHandle.ReadTexture(cascadeMapHandle);
+            passHandle.ReadTexture(localMapHandle);
             if (hasCascadeMoments)
             {
-                passRef.ReadTexture(cascadeMoments);
+                passHandle.ReadTexture(cascadeMomentsHandle);
             }
             if (hasLocalMoments)
             {
-                passRef.ReadTexture(localMoments);
+                passHandle.ReadTexture(localMomentsHandle);
             }
-            passRef.ReadBuffer(localMatrices);
-            passRef.ReadBuffer(localSlices);
+            passHandle.ReadBuffer(localMatricesHandle);
+            passHandle.ReadBuffer(localSlicesHandle);
         }
 
-        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passHandle) where TPassData : struct
         {
-            passRef.ReadTexture(cascadeMap);
-            passRef.ReadTexture(localMap);
+            passHandle.ReadTexture(cascadeMapHandle);
+            passHandle.ReadTexture(localMapHandle);
             if (hasCascadeMoments)
             {
-                passRef.ReadTexture(cascadeMoments);
+                passHandle.ReadTexture(cascadeMomentsHandle);
             }
             if (hasLocalMoments)
             {
-                passRef.ReadTexture(localMoments);
+                passHandle.ReadTexture(localMomentsHandle);
             }
-            passRef.ReadBuffer(localMatrices);
-            passRef.ReadBuffer(localSlices);
+            passHandle.ReadBuffer(localMatricesHandle);
+            passHandle.ReadBuffer(localSlicesHandle);
         }
 
         public readonly void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
             commands.SetKeyword(ShadowShaderIDs.CascadeMoments, hasCascadeMoments);
             commands.SetKeyword(ShadowShaderIDs.LocalMoments, hasLocalMoments);
-            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMap);
-            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMap, localMap);
+            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMapHandle);
+            commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMap, localMapHandle);
             if (hasCascadeMoments)
-                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMoments);
+                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMomentsHandle);
             if (hasLocalMoments)
-                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowRectBuffer, localSlices);
+                commands.SetComputeTextureParam(shader, kernel, ShadowShaderIDs.SRV_LocalShadowMoments, localMomentsHandle);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowMatrixBuffer, localMatricesHandle);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LocalShadowRectBuffer, localSlicesHandle);
         }
 
         public readonly void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
             commands.SetKeyword(ShadowShaderIDs.CascadeMoments, hasCascadeMoments);
             commands.SetKeyword(ShadowShaderIDs.LocalMoments, hasLocalMoments);
-            commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMap);
-            commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMap, localMap);
+            commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMap, cascadeMapHandle);
+            commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMap, localMapHandle);
             if (hasCascadeMoments)
-                commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMoments);
+                commands.SetGlobalTexture(ShadowShaderIDs.SRV_CascadeShadowMoments, cascadeMomentsHandle);
             if (hasLocalMoments)
-                commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMoments, localMoments);
-            commands.SetGlobalBuffer(LightShaderIDs.LocalShadowMatrixBuffer, localMatrices);
-            commands.SetGlobalBuffer(LightShaderIDs.LocalShadowRectBuffer, localSlices);
+                commands.SetGlobalTexture(ShadowShaderIDs.SRV_LocalShadowMoments, localMomentsHandle);
+            commands.SetGlobalBuffer(LightShaderIDs.LocalShadowMatrixBuffer, localMatricesHandle);
+            commands.SetGlobalBuffer(LightShaderIDs.LocalShadowRectBuffer, localSlicesHandle);
         }
     }
 
@@ -147,17 +147,17 @@ namespace InfinityTech.Rendering.Pipeline
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             var inputs = new ShadowInputs
             {
-                cascadeMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
-                localMap = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
-                localMatrices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
-                localSlices = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
+                cascadeMapHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),
+                localMapHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMap),
+                localMatricesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer),
+                localSlicesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer),
             };
             // ComputeShadowMoments builds each atlas exactly when the feature records and the allocator uses moments there.
             bool moments = context.features.ShouldRecord(EFrameFeature.ShadowMoments);
             inputs.hasCascadeMoments = moments && allocator.CascadeUsesMoments;
             inputs.hasLocalMoments = moments && allocator.LocalMomentSliceCount > 0;
-            inputs.cascadeMoments = inputs.hasCascadeMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMoments) : default;
-            inputs.localMoments = inputs.hasLocalMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMoments) : default;
+            inputs.cascadeMomentsHandle = inputs.hasCascadeMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMoments) : default;
+            inputs.localMomentsHandle = inputs.hasLocalMoments ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LocalShadowMoments) : default;
             return inputs;
         }
     }

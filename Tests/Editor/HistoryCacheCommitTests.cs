@@ -45,21 +45,21 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = MakeDescriptor(8, 8, "Accepted");
             var large = MakeDescriptor(17, 13, "Pending");
-            TextureHandle first = m_Cache.GetTexture(11, small, out bool created);
+            TextureHandle firstHandle = m_Cache.GetTexture(11, small, out bool created);
             Assert.IsTrue(created);
-            TextureHandle read = m_Cache.GetTexture(11, large, out bool invalid);
+            TextureHandle readHandle = m_Cache.GetTexture(11, large, out bool invalid);
             Assert.IsTrue(invalid);
-            Assert.AreSame(first.texture, read.texture);
-            Assert.AreEqual(8, read.descriptor.width);
+            Assert.AreSame(firstHandle.texture, readHandle.texture);
+            Assert.AreEqual(8, readHandle.descriptor.width);
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
-            TextureHandle pending = m_Cache.GetWriteTexture(11, large);
+            TextureHandle pendingHandle = m_Cache.GetWriteTexture(11, large);
             m_Cache.MarkProduced(11);
             m_Cache.CommitFrame();
-            Assert.AreSame(pending.texture, m_Cache.GetTexture(11, large).texture);
+            Assert.AreSame(pendingHandle.texture, m_Cache.GetTexture(11, large).texture);
             // The old accepted target becomes the spare; replacing it retires only that spare.
             m_Cache.GetWriteTexture(11, large);
             Assert.AreEqual(1, m_Cache.RetiredQueuedCount);
-            Assert.IsTrue(first.texture.rt.IsCreated());
+            Assert.IsTrue(firstHandle.texture.rt.IsCreated());
             m_Cache.FlushRetired(default);
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
         }
@@ -70,14 +70,14 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             var descriptor = MakeDescriptor(17, 13, "History");
             descriptor.sizingDomain = ETextureSizingDomain.Internal;
             m_Cache.SetTextureCapacity(new TextureCapacityContext(new Unity.Mathematics.int2(64), new Unity.Mathematics.int2(64)));
-            TextureHandle accepted = m_Cache.GetTexture(12, descriptor);
+            TextureHandle acceptedHandle = m_Cache.GetTexture(12, descriptor);
             m_Cache.SetTextureCapacity(new TextureCapacityContext(new Unity.Mathematics.int2(128), new Unity.Mathematics.int2(128)));
-            TextureHandle read = m_Cache.GetTexture(12, descriptor, out bool invalid);
+            TextureHandle readHandle = m_Cache.GetTexture(12, descriptor, out bool invalid);
             Assert.IsFalse(invalid);
-            Assert.AreSame(accepted.texture, read.texture);
-            Assert.AreEqual(64, read.descriptor.physicalWidth);
-            TextureHandle pending = m_Cache.GetWriteTexture(12, descriptor);
-            Assert.AreEqual(128, pending.descriptor.physicalWidth);
+            Assert.AreSame(acceptedHandle.texture, readHandle.texture);
+            Assert.AreEqual(64, readHandle.descriptor.physicalWidth);
+            TextureHandle pendingHandle = m_Cache.GetWriteTexture(12, descriptor);
+            Assert.AreEqual(128, pendingHandle.descriptor.physicalWidth);
             m_Cache.MarkProduced(12);
             m_Cache.CommitFrame();
             Assert.AreEqual(128, m_Cache.GetTexture(12, descriptor).descriptor.physicalWidth);
@@ -88,18 +88,18 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = MakeDescriptor(8, 8, "Committed");
             var large = MakeDescriptor(17, 13, "Pending");
-            TextureHandle original = m_Cache.GetTexture(55, small);
-            TextureHandle readDuringResize = m_Cache.GetTexture(55, large, out bool invalid);
+            TextureHandle originalHandle = m_Cache.GetTexture(55, small);
+            TextureHandle readDuringResizeHandle = m_Cache.GetTexture(55, large, out bool invalid);
             Assert.IsTrue(invalid);
-            Assert.AreSame(original.texture, readDuringResize.texture);
-            Assert.AreEqual(8, readDuringResize.descriptor.width);
-            TextureHandle pending = m_Cache.GetWriteTexture(55, large);
+            Assert.AreSame(originalHandle.texture, readDuringResizeHandle.texture);
+            Assert.AreEqual(8, readDuringResizeHandle.descriptor.width);
+            TextureHandle pendingHandle = m_Cache.GetWriteTexture(55, large);
             m_Cache.MarkProduced(55);
             m_Cache.RollbackPending();
-            Assert.AreSame(original.texture, m_Cache.GetTexture(55, small, out bool recreated).texture);
+            Assert.AreSame(originalHandle.texture, m_Cache.GetTexture(55, small, out bool recreated).texture);
             Assert.IsFalse(recreated);
-            Assert.IsTrue(original.texture.rt.IsCreated());
-            Assert.IsTrue(pending.texture.rt.IsCreated(), "Rollback must retain GPU allocations until retirement.");
+            Assert.IsTrue(originalHandle.texture.rt.IsCreated());
+            Assert.IsTrue(pendingHandle.texture.rt.IsCreated(), "Rollback must retain GPU allocations until retirement.");
             Assert.AreEqual(0, m_Cache.TextureGeneration(55));
         }
 
@@ -108,17 +108,17 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = new BufferDescriptor(1, 16, GraphicsBuffer.Target.Structured);
             var large = new BufferDescriptor(8, 16, GraphicsBuffer.Target.Structured);
-            BufferHandle original = m_Cache.GetBuffer(56, small);
-            BufferHandle pending = m_Cache.GetWriteBuffer(56, large);
+            BufferHandle originalHandle = m_Cache.GetBuffer(56, small);
+            BufferHandle pendingHandle = m_Cache.GetWriteBuffer(56, large);
             m_Cache.MarkProduced(56);
             m_Cache.RollbackPending();
-            Assert.AreSame(original.buffer, m_Cache.GetBuffer(56, small).buffer);
-            Assert.IsTrue(original.buffer.IsValid());
-            Assert.IsTrue(pending.buffer.IsValid());
+            Assert.AreSame(originalHandle.buffer, m_Cache.GetBuffer(56, small).buffer);
+            Assert.IsTrue(originalHandle.buffer.IsValid());
+            Assert.IsTrue(pendingHandle.buffer.IsValid());
             m_Cache.FlushRetired(default);
-            Assert.IsTrue(m_Pool.BufferUsage(pending.buffer).returned, "Flush returns the discarded acquisition to the pool, which owns its lifetime.");
-            Assert.IsFalse(m_Pool.BufferUsage(original.buffer).returned, "Committed history keeps its acquisition.");
-            Assert.IsTrue(original.buffer.IsValid());
+            Assert.IsTrue(m_Pool.BufferUsage(pendingHandle.buffer).returned, "Flush returns the discarded acquisition to the pool, which owns its lifetime.");
+            Assert.IsFalse(m_Pool.BufferUsage(originalHandle.buffer).returned, "Committed history keeps its acquisition.");
+            Assert.IsTrue(originalHandle.buffer.IsValid());
         }
 
         [Test]
@@ -146,16 +146,16 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             const int id = 33;
             TextureDescriptor descriptor = MakeDescriptor(8, 8, "HistorySwap");
 
-            TextureHandle committed = m_Cache.GetTexture(id, descriptor, out _);
-            TextureHandle pending = m_Cache.GetWriteTexture(id, descriptor);
-            Assert.AreNotSame(committed.texture, pending.texture);
+            TextureHandle committedHandle = m_Cache.GetTexture(id, descriptor, out _);
+            TextureHandle pendingHandle = m_Cache.GetWriteTexture(id, descriptor);
+            Assert.AreNotSame(committedHandle.texture, pendingHandle.texture);
 
             m_Cache.MarkProduced(id);
             m_Cache.CommitFrame();
 
-            TextureHandle after = m_Cache.GetTexture(id, descriptor, out bool created);
+            TextureHandle afterHandle = m_Cache.GetTexture(id, descriptor, out bool created);
             Assert.IsFalse(created);
-            Assert.AreSame(pending.texture, after.texture);
+            Assert.AreSame(pendingHandle.texture, afterHandle.texture);
             Assert.AreEqual(1, m_Cache.TextureGeneration(id));
         }
     }

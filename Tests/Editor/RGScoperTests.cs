@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void RegisterTexture_DifferentRefs_Throws()
+        public void RegisterTexture_DifferentHandles_Throws()
         {
             var scoper = new RGScoper(null);
             try
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void RegisterTexture_SameRef_IsAllowed()
+        public void RegisterTexture_SameHandle_IsAllowed()
         {
             var scoper = new RGScoper(null);
             try
@@ -89,9 +89,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 scoper.RegisterTexture(1, new RGTextureHandle(10, 1));
                 scoper.MoveTexture(1, 2);
                 Assert.IsFalse(scoper.TryQueryTexture(1, out _));
-                Assert.IsTrue(scoper.TryQueryTexture(2, out RGTextureHandle moved));
-                Assert.IsTrue(moved.IsValid());
-                Assert.AreEqual(10, moved.handle.index);
+                Assert.IsTrue(scoper.TryQueryTexture(2, out RGTextureHandle movedHandle));
+                Assert.IsTrue(movedHandle.IsValid());
+                Assert.AreEqual(10, movedHandle.handle.index);
             }
             finally
             {

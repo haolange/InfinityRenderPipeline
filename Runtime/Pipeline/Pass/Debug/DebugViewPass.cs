@@ -115,20 +115,20 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DebugViewPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int2 resolution;
             public ComputeKernel kernel;
             public EDebugViewKernel kind;
             public LightLoopInputs lightLoop;
-            public RGTextureHandle depthTexture;
+            public RGTextureHandle depthTextureHandle;
             public ComputeShader debugViewShader;
-            public RGTextureHandle gBufferA;
-            public RGTextureHandle gBufferB;
-            public RGTextureHandle gBufferC;
-            public RGTextureHandle motionTexture;
-            public RGTextureHandle sceneColorTexture;
-            public RGTextureHandle optionalTexture;
-            public RGTextureHandle postProcessTexture;
+            public RGTextureHandle gBufferAHandle;
+            public RGTextureHandle gBufferBHandle;
+            public RGTextureHandle gBufferCHandle;
+            public RGTextureHandle motionTextureHandle;
+            public RGTextureHandle sceneColorTextureHandle;
+            public RGTextureHandle optionalTextureHandle;
+            public RGTextureHandle postProcessTextureHandle;
         }
 
         void ComputeDebugView(in CameraRecordContext context)
@@ -139,14 +139,14 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RGTextureHandle postProcessTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle postProcessTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             // A view whose optional input is not registered, or a probe atlas view with no probe, shows the Missing kernel.
             DebugViewBinding binding = DebugViewPassUtilityData.BindingOf(view);
             EDebugViewKernel kind = binding.kernel;
             int probeCount = renderContext.lightContext.ReflectionProbeCount;
-            RGTextureHandle optionalTexture = default;
+            RGTextureHandle optionalTextureHandle = default;
             if (binding.inputs.Length > 0)
             {
                 bool found = false;
@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     foreach (RGResourceKey input in binding.inputs)
                     {
-                        if (m_RGBuilder.scoper.TryQueryTexture(input, out optionalTexture))
+                        if (m_RGBuilder.scoper.TryQueryTexture(input, out optionalTextureHandle))
                         {
                             found = true;
                             break;
@@ -170,23 +170,23 @@ namespace InfinityTech.Rendering.Pipeline
 
             Vector4 parameters = Vector4.zero;
             InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
-            RGTextureHandle gBufferA = default;
-            RGTextureHandle gBufferB = default;
-            RGTextureHandle gBufferC = default;
-            RGTextureHandle motionTexture = default;
-            RGTextureHandle sceneColorTexture = default;
+            RGTextureHandle gBufferAHandle = default;
+            RGTextureHandle gBufferBHandle = default;
+            RGTextureHandle gBufferCHandle = default;
+            RGTextureHandle motionTextureHandle = default;
+            RGTextureHandle sceneColorTextureHandle = default;
             switch (kind)
             {
                 case EDebugViewKernel.GBuffer:
-                    gBufferA = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
-                    gBufferB = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-                    gBufferC = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
+                    gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+                    gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+                    gBufferCHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
                     break;
                 case EDebugViewKernel.Motion:
-                    motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+                    motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
                     break;
                 case EDebugViewKernel.SceneColor:
-                    sceneColorTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
+                    sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
                     break;
                 case EDebugViewKernel.LightLoop:
                     parameters.y = Mathf.Max(1, lightingDebug.complexityRange);
@@ -197,20 +197,20 @@ namespace InfinityTech.Rendering.Pipeline
                     break;
             }
 
-            var debugDescriptor = m_RGBuilder.GetTextureDescriptor(postProcessTexture);
+            var debugDescriptor = m_RGBuilder.GetTextureDescriptor(postProcessTextureHandle);
             debugDescriptor.name = "DebugDisplayTexture";
             debugDescriptor.colorFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat;
             debugDescriptor.enableRandomWrite = true;
             m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
-            postProcessTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
+            postProcessTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
 
-            using (var passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
-                ref DebugViewPassData passData = ref passRef.GetPassData();
+                RGComputePassHandle<DebugViewPassData> passHandle = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView));
+                ref DebugViewPassData passData = ref passHandle.GetPassData();
                 passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
                 passData.kernel = kernels.debugView[(int)kind];
                 passData.kind = kind;
-                passData.parameters = passRef.WriteConstants(new DebugViewParameters
+                passData.parametersHandle = passHandle.WriteConstants(new DebugViewParameters
                 {
                     resolution = new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y),
                     parameters = parameters,
@@ -221,67 +221,67 @@ namespace InfinityTech.Rendering.Pipeline
                 switch (kind)
                 {
                     case EDebugViewKernel.GBuffer:
-                        passData.gBufferA = passRef.ReadTexture(gBufferA);
-                        passData.gBufferB = passRef.ReadTexture(gBufferB);
-                        passData.gBufferC = passRef.ReadTexture(gBufferC);
+                        passData.gBufferAHandle = passHandle.ReadTexture(gBufferAHandle);
+                        passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
+                        passData.gBufferCHandle = passHandle.ReadTexture(gBufferCHandle);
                         break;
                     case EDebugViewKernel.Motion:
-                        passData.motionTexture = passRef.ReadTexture(motionTexture);
+                        passData.motionTextureHandle = passHandle.ReadTexture(motionTextureHandle);
                         break;
                     case EDebugViewKernel.SceneColor:
-                        passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
+                        passData.sceneColorTextureHandle = passHandle.ReadTexture(sceneColorTextureHandle);
                         break;
                     case EDebugViewKernel.Optional:
                     case EDebugViewKernel.Shadow:
                     case EDebugViewKernel.ProbeAtlas:
-                        passData.optionalTexture = passRef.ReadTexture(optionalTexture);
+                        passData.optionalTextureHandle = passHandle.ReadTexture(optionalTextureHandle);
                         break;
                     case EDebugViewKernel.LightLoop:
                         LightLoopInputs lightLoop = QueryLightLoop(context);
-                        lightLoop.Read(passRef);
+                        lightLoop.Read(passHandle);
                         passData.lightLoop = lightLoop;
-                        passData.depthTexture = passRef.ReadTexture(depthTexture);
+                        passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                         break;
                 }
 
-                passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
+                passData.postProcessTextureHandle = passHandle.WriteTexture(postProcessTextureHandle);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.debugViewShader;
                     int kernel = passData.kernel.index;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, DebugViewPassUtilityData.CBV_DebugViewParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, DebugViewPassUtilityData.CBV_DebugViewParametersID, passData.parametersHandle);
 
                     switch (passData.kind)
                     {
                         case EDebugViewKernel.GBuffer:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferA);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferB);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferC);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferAHandle);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferBHandle);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferCHandle);
                             break;
                         case EDebugViewKernel.Motion:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
                             break;
                         case EDebugViewKernel.SceneColor:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SceneColorTexture, passData.sceneColorTextureHandle);
                             break;
                         case EDebugViewKernel.Optional:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_OptionalTextureID, passData.optionalTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_OptionalTextureID, passData.optionalTextureHandle);
                             break;
                         case EDebugViewKernel.Shadow:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ShadowAtlasTextureID, passData.optionalTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ShadowAtlasTextureID, passData.optionalTextureHandle);
                             break;
                         case EDebugViewKernel.LightLoop:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
                             passData.lightLoop.Bind(cmdEncoder, shader, kernel);
                             break;
                         case EDebugViewKernel.ProbeAtlas:
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ProbeAtlasTextureID, passData.optionalTexture);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ProbeAtlasTextureID, passData.optionalTextureHandle);
                             break;
                     }
 
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTextureHandle);
                     cmdEncoder.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }

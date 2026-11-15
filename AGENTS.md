@@ -4,7 +4,7 @@ This document is normative for `com.infinity.render-pipeline`: principles, desig
 
 ## 1. Model and principles
 
-A program is facts (quantities and orders it must know), their representations (fields, buffers, keys, branches, keywords, strings, copies), readers and writers, and clocks (CPU frame, GPU queue, submission epoch, transaction generation). It is correct when every reader sees the right version of each fact when it reads. Its cost is each representation times its evaluation rate times its unit cost, plus maintenance that grows with representations and their interactions.
+A program is facts (quantities and orders it must know), their representations (fields, buffers, keys, branches, keywords, strings, copies), readers and writers, and clocks (CPU frame, GPU queue, submission epoch, transaction generation). It is correct when every reader sees the right version of each fact when it reads. Its cost is each representation times its evaluation rate times its unit cost, plus maintenance that grows with representations.
 
 Correctness (every path, hot or cold):
 
@@ -24,7 +24,7 @@ Economy (weighted by rate; cold paths may relax it):
 
 Knowledge:
 
-- **P8 Evidence strength.** A claim is as strong as the cheapest check that could falsify it. A lower-level check does not close a higher-level claim: static checks do not prove runtime, compilation does not prove a frame. A silent fallback also destroys the evidence.
+- **P8 Evidence strength.** A claim is as strong as the cheapest check that could falsify it. A lower-level check does not close a higher-level claim: static checks do not prove runtime. A silent fallback also destroys the evidence.
 
 On conflict: P1–P4, then P5–P6, then P7, then local readability. P8 decides what may be claimed.
 
@@ -67,7 +67,7 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
 - A name says what a type holds or does. Do not borrow a type prefix from another engine. On a collision choose a more descriptive name; never add a prefix or a number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
-- A variable keeps its type's head noun and may drop the domain prefix: `MeshCullingContext cullingContext`. No abbreviations. Time words are `previous` and `current`.
+- A variable keeps its type's head noun and may drop the domain prefix (`MeshCullingContext cullingContext`). A Handle type keeps the suffix (`RGTextureHandle depthTextureHandle`). No abbreviations. Time words are `previous` and `current`.
 - Acronyms stay uppercase in type and method names; a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
 - Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only inside an approved migration (§5). Do not add a divergent spelling or an old-name alias.
 - Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Volume components live in `Runtime/Volume/<domain>/`. One primary type per file unless a pass or feature group is clearer together.

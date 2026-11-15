@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void CreateWithoutUse_DoesNotCreateOnSrc()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle unused = context.Declare(default(RendererListParams));
+            RGRendererListHandle unusedHandle = context.Declare(default(RendererListParams));
 
             context.ReleaseUnused();
             var creator = Creator();
@@ -34,15 +34,15 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
             Assert.AreEqual(0, context.CreateCallCount);
             Assert.AreEqual(0, creator.calls[0]);
-            Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unused));
+            Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unusedHandle));
         }
 
         [Test]
         public void UseAndLive_CreatesOnce()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle used = context.Declare(default(RendererListParams));
-            context.MarkLiveConsumer(used.index, 0);
+            RGRendererListHandle usedHandle = context.Declare(default(RendererListParams));
+            context.MarkLiveConsumer(usedHandle.index, 0);
             context.ReleaseUnused();
 
             var creator = Creator();
@@ -50,41 +50,41 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
             Assert.AreEqual(1, context.CreateCallCount);
             Assert.AreEqual(1, creator.calls[0]);
-            Assert.AreEqual(ERGRendererListCompileState.Created, context.GetState(used));
+            Assert.AreEqual(ERGRendererListCompileState.Created, context.GetState(usedHandle));
         }
 
         [Test]
         public void CulledPass_DoesNotCreate()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle unused = context.Declare(default(RendererListParams));
-            RGRendererListHandle used = context.Declare(default(RendererListParams));
-            context.MarkLiveConsumer(used.index, 0);
+            RGRendererListHandle unusedHandle = context.Declare(default(RendererListParams));
+            RGRendererListHandle usedHandle = context.Declare(default(RendererListParams));
+            context.MarkLiveConsumer(usedHandle.index, 0);
             context.ReleaseUnused();
             context.CreateLive(Creator());
 
             Assert.AreEqual(1, context.CreateCallCount);
-            Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unused));
-            Assert.AreEqual(ERGRendererListCompileState.Created, context.GetState(used));
+            Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(unusedHandle));
+            Assert.AreEqual(ERGRendererListCompileState.Created, context.GetState(usedHandle));
         }
 
         [Test]
         public void StaleOrUncreatedList_SubmitThrows()
         {
             var context = new RGRendererListContext();
-            RGRendererListHandle used = context.Declare(default(RendererListParams));
-            context.MarkLiveConsumer(used.index, 0);
+            RGRendererListHandle usedHandle = context.Declare(default(RendererListParams));
+            context.MarkLiveConsumer(usedHandle.index, 0);
             context.ReleaseUnused();
             var commands = new CommandBuffer();
             try
             {
-                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A live list that was never created is not drawn silently.");
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, usedHandle), "A live list that was never created is not drawn silently.");
                 context.CreateLive(Creator());
-                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A created but invalid native list is not drawn silently.");
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, usedHandle), "A created but invalid native list is not drawn silently.");
                 context.ReleaseAll();
-                Assert.IsFalse(context.IsLive(used));
-                Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(used));
-                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, used), "A handle from a released graph is rejected.");
+                Assert.IsFalse(context.IsLive(usedHandle));
+                Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(usedHandle));
+                Assert.Throws<InvalidOperationException>(() => context.Submit(commands, usedHandle), "A handle from a released graph is rejected.");
             }
             finally
             {

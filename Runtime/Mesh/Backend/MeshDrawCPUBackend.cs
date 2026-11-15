@@ -22,29 +22,29 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal MeshDrawCPUBackend(ResourcePool pool) => m_Pool = pool;
 
         /// <summary>Record-time allocation of the instance-to-entity and fade tables, sized by the pass's member count.</summary>
-        internal void AllocateInstances(int memberCount, out BufferHandle instances, out BufferHandle fades)
+        internal void AllocateInstances(int memberCount, out BufferHandle instancesHandle, out BufferHandle fadesHandle)
         {
-            instances = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(uint)) { name = "MeshInstanceToEntity" });
+            instancesHandle = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(uint)) { name = "MeshInstanceToEntity" });
             try
             {
-                fades = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(float)) { name = "MeshInstanceFade" });
+                fadesHandle = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(float)) { name = "MeshInstanceFade" });
             }
             catch
             {
-                m_Pool.ReleaseBuffer(instances);
-                instances = default;
+                m_Pool.ReleaseBuffer(instancesHandle);
+                instancesHandle = default;
                 throw;
             }
         }
 
-        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
+        internal void Upload(CommandBuffer commands, MeshPassCache cache, ref MeshDrawListBuild build, in BufferHandle instancesHandle, in BufferHandle fadesHandle)
         {
             using (cache.completeMarker.Auto())
             {
                 build.job.Complete();
             }
             int count = build.instanceCount;
-            if (count > instances.buffer.count)
+            if (count > instancesHandle.buffer.count)
             {
                 throw new InvalidOperationException("A CPU draw list outgrew its record-time instance capacity.");
             }
@@ -54,12 +54,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             using (cache.uploadMarker.Auto())
             {
-                commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
-                commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
+                commands.SetBufferData(instancesHandle.buffer, build.instanceToEntity, 0, 0, count);
+                commands.SetBufferData(fadesHandle.buffer, build.instanceFade, 0, 0, count);
             }
         }
 
-        internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
+        internal void SubmitMeshDrawList(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instancesHandle, in BufferHandle fadesHandle,
             in MeshWorldGPUTables tables, in MeshMotionBinding motion)
         {
             if (build.draws.Length == 0)
@@ -73,10 +73,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_Properties.Clear();
-                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, instances.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, fades.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, instancesHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, fadesHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matricesHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayersHandle.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 foreach (MeshDrawCall draw in build.draws)
                 {
@@ -106,19 +106,19 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>Logical release when the graph is dropped; the buffer returns to the pool after native submit.</summary>
-        internal void Retire(in BufferHandle instances)
+        internal void Retire(in BufferHandle instancesHandle)
         {
-            if (instances.buffer != null)
+            if (instancesHandle.buffer != null)
             {
-                m_Retired.Add(instances);
+                m_Retired.Add(instancesHandle);
             }
         }
 
         internal void FlushRetired(ResourceReuseFence reuseFence)
         {
-            foreach (BufferHandle buffer in m_Retired)
+            foreach (BufferHandle bufferHandle in m_Retired)
             {
-                m_Pool.ReleaseBuffer(buffer, reuseFence);
+                m_Pool.ReleaseBuffer(bufferHandle, reuseFence);
             }
             m_Retired.Clear();
         }

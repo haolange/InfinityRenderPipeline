@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly Dictionary<ShaderState, int> m_StateRanks = new Dictionary<ShaderState, int>(16);
         readonly Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding> m_Prepared = new Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding>(16);
         int m_ShaderEpoch;
-        BufferHandle m_CandidateBuffer, m_CommandMetaBuffer;
+        BufferHandle m_CandidateBufferHandle, m_CommandMetaBufferHandle;
         int m_CandidateCapacity, m_CommandMetaCapacity;
         uint m_UploadedRevision = uint.MaxValue;
         bool m_Disposed;
@@ -116,8 +116,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal NativeArray<uint2> candidates => m_Candidates.AsArray();
         internal NativeArray<MeshDrawCommand> commands => m_Commands.AsArray();
         internal NativeArray<int> entityMemberCount => m_EntityMemberCount.AsArray();
-        internal BufferHandle candidateBuffer => m_CandidateBuffer;
-        internal BufferHandle commandMetaBuffer => m_CommandMetaBuffer;
+        internal BufferHandle candidateBufferHandle => m_CandidateBufferHandle;
+        internal BufferHandle commandMetaBufferHandle => m_CommandMetaBufferHandle;
 
         internal MeshPassCache(in MeshPassDesc desc)
         {
@@ -498,54 +498,54 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// </summary>
         internal void UploadTables(ResourcePool pool, MeshWorldStats stats)
         {
-            bool stale = m_UploadedRevision != revision || m_CandidateBuffer.buffer == null || m_CandidateCapacity < m_Candidates.Length;
+            bool stale = m_UploadedRevision != revision || m_CandidateBufferHandle.buffer == null || m_CandidateCapacity < m_Candidates.Length;
             if (!stale)
             {
                 return;
             }
-            Ensure(pool, ref m_CandidateBuffer, ref m_CandidateCapacity, math.max(64, m_Candidates.Length), sizeof(uint) * 2, "MeshPassCandidates");
+            Ensure(pool, ref m_CandidateBufferHandle, ref m_CandidateCapacity, math.max(64, m_Candidates.Length), sizeof(uint) * 2, "MeshPassCandidates");
             if (m_Candidates.Length > 0)
             {
-                m_CandidateBuffer.buffer.SetData(m_Candidates.AsArray(), 0, 0, m_Candidates.Length);
+                m_CandidateBufferHandle.buffer.SetData(m_Candidates.AsArray(), 0, 0, m_Candidates.Length);
             }
             NativeArray<uint> meta = GetCommandMeta();
             int metaLength = m_Commands.Length * MetaStride;
-            Ensure(pool, ref m_CommandMetaBuffer, ref m_CommandMetaCapacity, math.max(64 * MetaStride, metaLength), sizeof(uint), "MeshCommandMeta");
+            Ensure(pool, ref m_CommandMetaBufferHandle, ref m_CommandMetaCapacity, math.max(64 * MetaStride, metaLength), sizeof(uint), "MeshCommandMeta");
             if (metaLength > 0)
             {
-                m_CommandMetaBuffer.buffer.SetData(meta, 0, 0, metaLength);
+                m_CommandMetaBufferHandle.buffer.SetData(meta, 0, 0, metaLength);
             }
             stats.uploadedBytes += (long)m_Candidates.Length * sizeof(uint) * 2 + (long)metaLength * sizeof(uint);
             m_UploadedRevision = revision;
         }
 
         // A buffer still read by submitted GPU work is replaced, not written.
-        static void Ensure(ResourcePool pool, ref BufferHandle buffer, ref int capacity, int needed, int stride, string name)
+        static void Ensure(ResourcePool pool, ref BufferHandle bufferHandle, ref int capacity, int needed, int stride, string name)
         {
-            if (buffer.buffer != null && capacity >= needed && pool.CanWriteBuffer(buffer))
+            if (bufferHandle.buffer != null && capacity >= needed && pool.CanWriteBuffer(bufferHandle))
             {
                 return;
             }
-            BufferHandle previous = buffer;
+            BufferHandle previousHandle = bufferHandle;
             capacity = math.max(needed, capacity);
-            buffer = pool.GetBuffer(new BufferDescriptor(capacity, stride) { name = name });
-            if (previous.buffer != null)
+            bufferHandle = pool.GetBuffer(new BufferDescriptor(capacity, stride) { name = name });
+            if (previousHandle.buffer != null)
             {
-                pool.ReleaseBuffer(previous);
+                pool.ReleaseBuffer(previousHandle);
             }
         }
 
         internal void ReleaseGPU(ResourcePool pool)
         {
-            if (m_CandidateBuffer.buffer != null)
+            if (m_CandidateBufferHandle.buffer != null)
             {
-                pool.ReleaseBuffer(m_CandidateBuffer);
+                pool.ReleaseBuffer(m_CandidateBufferHandle);
             }
-            if (m_CommandMetaBuffer.buffer != null)
+            if (m_CommandMetaBufferHandle.buffer != null)
             {
-                pool.ReleaseBuffer(m_CommandMetaBuffer);
+                pool.ReleaseBuffer(m_CommandMetaBufferHandle);
             }
-            m_CandidateBuffer = m_CommandMetaBuffer = default;
+            m_CandidateBufferHandle = m_CommandMetaBufferHandle = default;
             m_CandidateCapacity = m_CommandMetaCapacity = 0;
             m_UploadedRevision = uint.MaxValue;
         }

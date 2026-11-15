@@ -13,15 +13,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         struct PassData { }
 
-        static void Add(RGBuilder graph, string name, RGBufferHandle resource, bool async, bool write, bool live = true)
+        static void Add(RGBuilder graph, string name, RGBufferHandle resourceHandle, bool async, bool write, bool live = true)
         {
-            using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler(name)))
             {
-                pass.EnableAsyncCompute(async);
-                if (live) pass.EnablePassCulling(false);
-                if (write) pass.WriteBuffer(resource); else pass.ReadBuffer(resource);
-                if (!live) pass.WriteBuffer(graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint))));
-                pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler(name));
+                passHandle.EnableAsyncCompute(async);
+                if (live) passHandle.EnablePassCulling(false);
+                if (write) passHandle.WriteBuffer(resourceHandle); else passHandle.ReadBuffer(resourceHandle);
+                if (!live) passHandle.WriteBuffer(graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint))));
+                passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
             }
         }
 
@@ -73,12 +73,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var b = graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, sizeof(uint)) { name = "B" }, physicalB));
                 Add(graph, "ReadA", a, true, false);
                 Add(graph, "ReadB", b, true, false);
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("WriteBoth")))
                 {
-                    pass.EnablePassCulling(false);
-                    pass.WriteBuffer(b);
-                    pass.WriteBuffer(a); // Resource enumeration must not replace a later fence with an earlier one.
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("WriteBoth"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.WriteBuffer(b);
+                    passHandle.WriteBuffer(a); // Resource enumeration must not replace a later fence with an earlier one.
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 Assert.AreEqual("1", Compile(graph)[2].Split('|')[5]);
             }

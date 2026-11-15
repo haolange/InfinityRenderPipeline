@@ -207,8 +207,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             MeshWorldGPU gpu = world.gpu;
             return new MeshEntityColumns
             {
-                center = gpu.boundsCenter.buffer, extent = gpu.boundsExtent.buffer, flags = gpu.flags.buffer, layers = gpu.layerMask.buffer,
-                scenes = gpu.sceneCullingMask.buffer, renderingLayers = gpu.renderingLayers.buffer, lodChains = gpu.lodChains.buffer
+                center = gpu.boundsCenterHandle.buffer, extent = gpu.boundsExtentHandle.buffer, flags = gpu.flagsHandle.buffer, layers = gpu.layerMaskHandle.buffer,
+                scenes = gpu.sceneCullingMaskHandle.buffer, renderingLayers = gpu.renderingLayersHandle.buffer, lodChains = gpu.lodChainsHandle.buffer
             };
         }
     }

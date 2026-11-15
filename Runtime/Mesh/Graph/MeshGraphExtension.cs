@@ -15,15 +15,15 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal readonly struct MeshOccluder
     {
-        internal readonly RGTextureHandle furthest;
+        internal readonly RGTextureHandle furthestHandle;
         internal readonly Matrix4x4 viewProjection;
         internal readonly int2 extent;
         internal readonly int mipCount;
         internal readonly bool history;
 
-        internal MeshOccluder(RGTextureHandle furthest, Matrix4x4 viewProjection, int2 extent, int mipCount, bool history)
+        internal MeshOccluder(RGTextureHandle furthestHandle, Matrix4x4 viewProjection, int2 extent, int mipCount, bool history)
         {
-            this.furthest = furthest;
+            this.furthestHandle = furthestHandle;
             this.viewProjection = viewProjection;
             this.extent = extent;
             this.mipCount = mipCount;
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public MeshCullInputs inputs;
             public bool occluded;
             public MeshOccluderInputs occluder;
-            public RGBufferHandle drawn;
+            public RGBufferHandle drawnHandle;
             public bool remainder;
         }
 
@@ -68,12 +68,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             public MeshCullingContext context;
             public ShaderTagId passTag;
-            public RGBufferHandle drawn;
+            public RGBufferHandle drawnHandle;
             public bool tracked;
         }
 
         static readonly RGComputePassExecuteAction<MeshDrawProducerData> s_Produce = static (in MeshDrawProducerData data, in RGComputeEncoder encoder)
-            => data.lists.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawn, data.remainder);
+            => data.lists.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawnHandle, data.remainder);
         static readonly RGTransferPassExecuteAction<MeshDrawUploadData> s_Upload = static (in MeshDrawUploadData data, in RGTransferEncoder encoder)
             => data.lists.Upload(data.index, encoder.m_Core.commands);
 
@@ -186,40 +186,40 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException($"The remainder of '{desc.lightMode}' needs a newer occluder than the previous frame's pyramid.");
             }
             bool empty = cache.memberCount == 0 || (repeat >= 0 && !remainder);
-            RGMeshDrawListHandle draws = drawLists.Create(context, cache, backend, m_Motion, empty);
-            MeshDrawListRecord record = drawLists.GetRecordCopy(draws.index);
+            RGMeshDrawListHandle drawsHandle = drawLists.Create(context, cache, backend, m_Motion, empty);
+            MeshDrawListRecord record = drawLists.GetRecordCopy(drawsHandle.index);
             // Recording references keep the frozen tables alive for this graph.
             var reads = new MeshDrawListReads
             {
-                matrices = builder.ImportBuffer(record.tables.version.matrices),
-                generations = builder.ImportBuffer(record.tables.version.generations),
-                layers = builder.ImportBuffer(record.tables.renderingLayers)
+                matricesHandle = builder.ImportBuffer(record.tables.version.matricesHandle),
+                generationsHandle = builder.ImportBuffer(record.tables.version.generationsHandle),
+                layersHandle = builder.ImportBuffer(record.tables.renderingLayersHandle)
             };
             MeshTransformVersion previous = record.motion.previous;
             if (previous != null)
             {
-                reads.previousMatrices = builder.ImportBuffer(previous.matrices);
-                reads.previousGenerations = builder.ImportBuffer(previous.generations);
+                reads.previousMatricesHandle = builder.ImportBuffer(previous.matricesHandle);
+                reads.previousGenerationsHandle = builder.ImportBuffer(previous.generationsHandle);
                 reads.hasPrevious = true;
             }
-            drawLists.SetReads(draws.index, reads);
+            drawLists.SetReads(drawsHandle.index, reads);
 
-            RGBufferHandle drawn = default;
+            RGBufferHandle drawnHandle = default;
             if (!empty)
             {
                 record.tables.version.owner.Record(builder, record.tables.version, m_ScheduledVersions);
                 if (gpu)
                 {
-                    drawn = RecordProducer(builder, draws.index, occluded, occluder, remainder ? m_Repeats[repeat].drawn : default, remainder);
+                    drawnHandle = RecordProducer(builder, drawsHandle.index, occluded, occluder, remainder ? m_Repeats[repeat].drawnHandle : default, remainder);
                 }
                 else
                 {
-                    RecordUpload(builder, draws.index);
+                    RecordUpload(builder, drawsHandle.index);
                 }
             }
             if (repeat < 0)
             {
-                m_Repeats.Add(new RepeatEntry { context = context, passTag = desc.passTag, drawn = drawn, tracked = !empty && occluded && occluder.history });
+                m_Repeats.Add(new RepeatEntry { context = context, passTag = desc.passTag, drawnHandle = drawnHandle, tracked = !empty && occluded && occluder.history });
             }
             else if (remainder)
             {
@@ -227,56 +227,56 @@ namespace InfinityTech.Rendering.MeshPipeline
                 entry.tracked = false;
                 m_Repeats[repeat] = entry;
             }
-            return draws;
+            return drawsHandle;
         }
 
-        MeshCullInputs CullInputs<TPassData>(RGBuilder builder, RGComputePassHandle<TPassData> pass) where TPassData : struct
+        MeshCullInputs CullInputs<TPassData>(RGBuilder builder, RGComputePassHandle<TPassData> passHandle) where TPassData : struct
         {
             MeshWorldGPU gpu = world.gpu;
             return new MeshCullInputs
             {
-                boundsCenter = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsCenter)),
-                boundsExtent = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsExtent)),
-                lodChains = pass.ReadBuffer(builder.ImportBuffer(gpu.lodChains)),
-                flags = pass.ReadBuffer(builder.ImportBuffer(gpu.flags)),
-                layerMask = pass.ReadBuffer(builder.ImportBuffer(gpu.layerMask)),
-                sceneCullingMask = pass.ReadBuffer(builder.ImportBuffer(gpu.sceneCullingMask)),
-                renderingLayers = pass.ReadBuffer(builder.ImportBuffer(gpu.renderingLayers))
+                boundsCenterHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.boundsCenterHandle)),
+                boundsExtentHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.boundsExtentHandle)),
+                lodChainsHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.lodChainsHandle)),
+                flagsHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.flagsHandle)),
+                layerMaskHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.layerMaskHandle)),
+                sceneCullingMaskHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.sceneCullingMaskHandle)),
+                renderingLayersHandle = passHandle.ReadBuffer(builder.ImportBuffer(gpu.renderingLayersHandle))
             };
         }
 
         // One compute producer per nonempty GPU list, recorded where the list is created. A history-occluded list returns the
         // drawn table it writes; a remainder list reads the one it is given.
-        RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawn, bool remainder)
+        RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawnHandle, bool remainder)
         {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
             MeshGPUDrawPayload payload = record.payload;
-            RGBufferHandle instances = builder.ImportBuffer(payload.instanceToEntity);
-            RGBufferHandle fades = builder.ImportBuffer(payload.instanceFade);
-            RGBufferHandle args = builder.ImportBuffer(payload.indirectArgs);
-            RGBufferHandle written = occluded && occluder.history
+            RGBufferHandle instancesHandle = builder.ImportBuffer(payload.instanceToEntityHandle);
+            RGBufferHandle fadesHandle = builder.ImportBuffer(payload.instanceFadeHandle);
+            RGBufferHandle argsHandle = builder.ImportBuffer(payload.indirectArgsHandle);
+            RGBufferHandle writtenHandle = occluded && occluder.history
                 ? builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" })
                 : default;
-            using (var pass = builder.AddComputePass<MeshDrawProducerData>(MeshDrawProfiling.production))
             {
-                pass.KeepImportedWritesLocal();
-                ref MeshDrawProducerData data = ref pass.GetPassData();
+                RGComputePassHandle<MeshDrawProducerData> passHandle = builder.AddComputePass<MeshDrawProducerData>(MeshDrawProfiling.production);
+                passHandle.KeepImportedWritesLocal();
+                ref MeshDrawProducerData data = ref passHandle.GetPassData();
                 data = default;
                 data.lists = drawLists;
                 data.index = drawIndex;
-                data.inputs = CullInputs(builder, pass);
-                pass.ReadBuffer(builder.ImportBuffer(record.cache.candidateBuffer));
-                pass.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBuffer));
-                pass.WriteBuffer(builder.ImportBuffer(payload.cullingContext));
-                pass.WriteBuffer(instances);
-                pass.WriteBuffer(fades);
-                pass.WriteBuffer(args);
+                data.inputs = CullInputs(builder, passHandle);
+                passHandle.ReadBuffer(builder.ImportBuffer(record.cache.candidateBufferHandle));
+                passHandle.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBufferHandle));
+                passHandle.WriteBuffer(builder.ImportBuffer(payload.cullingContextHandle));
+                passHandle.WriteBuffer(instancesHandle);
+                passHandle.WriteBuffer(fadesHandle);
+                passHandle.WriteBuffer(argsHandle);
                 data.occluded = occluded;
                 if (occluded)
                 {
                     data.occluder = new MeshOccluderInputs
                     {
-                        furthest = pass.ReadTexture(occluder.furthest),
+                        furthestHandle = passHandle.ReadTexture(occluder.furthestHandle),
                         viewProjection = occluder.viewProjection,
                         extent = new Vector4(occluder.extent.x, occluder.extent.y, 0, 0),
                         mipCount = occluder.mipCount,
@@ -288,71 +288,71 @@ namespace InfinityTech.Rendering.MeshPipeline
                         current.owner.Record(builder, current, m_ScheduledVersions);
                         data.occluder.currentCount = current.count;
                         data.occluder.previousCount = previous.count;
-                        data.occluder.currentTransforms = pass.ReadBuffer(builder.ImportBuffer(current.matrices));
-                        data.occluder.currentGenerations = pass.ReadBuffer(builder.ImportBuffer(current.generations));
-                        data.occluder.previousTransforms = pass.ReadBuffer(builder.ImportBuffer(previous.matrices));
-                        data.occluder.previousGenerations = pass.ReadBuffer(builder.ImportBuffer(previous.generations));
+                        data.occluder.currentTransformsHandle = passHandle.ReadBuffer(builder.ImportBuffer(current.matricesHandle));
+                        data.occluder.currentGenerationsHandle = passHandle.ReadBuffer(builder.ImportBuffer(current.generationsHandle));
+                        data.occluder.previousTransformsHandle = passHandle.ReadBuffer(builder.ImportBuffer(previous.matricesHandle));
+                        data.occluder.previousGenerationsHandle = passHandle.ReadBuffer(builder.ImportBuffer(previous.generationsHandle));
                     }
                     if (occluder.history)
                     {
-                        data.drawn = pass.WriteBuffer(written);
+                        data.drawnHandle = passHandle.WriteBuffer(writtenHandle);
                     }
                     else if (remainder)
                     {
-                        data.drawn = pass.ReadBuffer(remainderDrawn);
+                        data.drawnHandle = passHandle.ReadBuffer(remainderDrawnHandle);
                         data.remainder = true;
                     }
                 }
-                pass.SetExecuteFunc(s_Produce);
+                passHandle.SetExecuteFunc(s_Produce);
             }
-            RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(3);
-            outputs[0] = instances;
-            outputs[1] = fades;
-            outputs[2] = args;
-            drawLists.SetProducerOutputs(drawIndex, outputs);
-            return written;
+            RGBufferHandle[] outputsHandle = builder.GetRecordingArray<RGBufferHandle>(3);
+            outputsHandle[0] = instancesHandle;
+            outputsHandle[1] = fadesHandle;
+            outputsHandle[2] = argsHandle;
+            drawLists.SetProducerOutputs(drawIndex, outputsHandle);
+            return writtenHandle;
         }
 
         // One upload producer per nonempty CPU list; its build job is scheduled at compile when the list is live.
         void RecordUpload(RGBuilder builder, int drawIndex)
         {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
-            RGBufferHandle instances = builder.ImportBuffer(record.cpuInstances);
-            RGBufferHandle fades = builder.ImportBuffer(record.cpuFades);
-            using (var upload = builder.AddTransferPass<MeshDrawUploadData>(MeshDrawProfiling.upload))
+            RGBufferHandle instancesHandle = builder.ImportBuffer(record.cpuInstancesHandle);
+            RGBufferHandle fadesHandle = builder.ImportBuffer(record.cpuFadesHandle);
             {
-                upload.KeepImportedWritesLocal();
-                upload.WriteBuffer(instances);
-                upload.WriteBuffer(fades);
-                ref MeshDrawUploadData data = ref upload.GetPassData();
+                RGTransferPassHandle<MeshDrawUploadData> passHandle = builder.AddTransferPass<MeshDrawUploadData>(MeshDrawProfiling.upload);
+                passHandle.KeepImportedWritesLocal();
+                passHandle.WriteBuffer(instancesHandle);
+                passHandle.WriteBuffer(fadesHandle);
+                ref MeshDrawUploadData data = ref passHandle.GetPassData();
                 data.lists = drawLists;
                 data.index = drawIndex;
-                upload.SetExecuteFunc(s_Upload);
+                passHandle.SetExecuteFunc(s_Upload);
             }
-            RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(2);
-            outputs[0] = instances;
-            outputs[1] = fades;
-            drawLists.SetProducerOutputs(drawIndex, outputs);
+            RGBufferHandle[] outputsHandle = builder.GetRecordingArray<RGBufferHandle>(2);
+            outputsHandle[0] = instancesHandle;
+            outputsHandle[1] = fadesHandle;
+            drawLists.SetProducerOutputs(drawIndex, outputsHandle);
         }
 
         // The pass records the draw-list index; compile reads it back to find live consumers.
-        internal void UseDrawList(IRGPass pass, in RGMeshDrawListHandle draws)
+        internal void UseDrawList(IRGPass pass, in RGMeshDrawListHandle drawsHandle)
         {
-            pass.extensionUses.Add(draws.index);
-            MeshDrawListReads reads = drawLists.GetRecordCopy(draws.index).reads;
-            pass.AddResourceRead(reads.matrices.handle);
-            pass.AddResourceRead(reads.generations.handle);
-            pass.AddResourceRead(reads.layers.handle);
+            pass.extensionUses.Add(drawsHandle.index);
+            MeshDrawListReads reads = drawLists.GetRecordCopy(drawsHandle.index).reads;
+            pass.AddResourceRead(reads.matricesHandle.handle);
+            pass.AddResourceRead(reads.generationsHandle.handle);
+            pass.AddResourceRead(reads.layersHandle.handle);
             if (reads.hasPrevious)
             {
-                pass.AddResourceRead(reads.previousMatrices.handle);
-                pass.AddResourceRead(reads.previousGenerations.handle);
+                pass.AddResourceRead(reads.previousMatricesHandle.handle);
+                pass.AddResourceRead(reads.previousGenerationsHandle.handle);
             }
             // An empty list has no producer.
-            if (reads.producerOutputs != null)
+            if (reads.producerOutputsHandle != null)
             {
-                for (int i = 0; i < reads.producerOutputs.Length; ++i)
-                    pass.AddResourceRead(reads.producerOutputs[i].handle);
+                for (int i = 0; i < reads.producerOutputsHandle.Length; ++i)
+                    pass.AddResourceRead(reads.producerOutputsHandle[i].handle);
             }
         }
     }
@@ -413,27 +413,27 @@ namespace InfinityTech.Rendering.MeshPipeline
             => MeshGraphExtension.Of(builder).RegisterOccluder(context, occluder);
 
         /// <summary>Declares the pass as a consumer. A handle from another builder or an earlier graph fails here.</summary>
-        public static RGMeshDrawListHandle UseMeshDrawList<TPassData>(this RGRasterPassHandle<TPassData> pass, in RGMeshDrawListHandle draws) where TPassData : struct
+        public static RGMeshDrawListHandle UseMeshDrawList<TPassData>(this RGRasterPassHandle<TPassData> passHandle, in RGMeshDrawListHandle drawsHandle) where TPassData : struct
         {
-            if (!(pass.extension is MeshGraphExtension owner))
+            if (!(passHandle.extension is MeshGraphExtension owner))
             {
                 throw new InvalidOperationException("This pass's builder has no MeshWorld.");
             }
-            if (!owner.drawLists.IsLive(draws))
+            if (!owner.drawLists.IsLive(drawsHandle))
             {
                 throw new InvalidOperationException("The draw list belongs to another builder or an earlier graph.");
             }
-            owner.UseDrawList(pass.pass, draws);
-            return draws;
+            owner.UseDrawList(passHandle.pass, drawsHandle);
+            return drawsHandle;
         }
 
-        public static void SubmitMeshDrawList(this in RGRasterEncoder encoder, in RGMeshDrawListHandle draws)
+        public static void SubmitMeshDrawList(this in RGRasterEncoder encoder, in RGMeshDrawListHandle drawsHandle)
         {
             if (!(encoder.m_Extension is MeshGraphExtension owner))
             {
                 throw new InvalidOperationException("This pass's builder has no MeshWorld.");
             }
-            owner.drawLists.SubmitMeshDrawList(encoder.m_Core.commands, draws);
+            owner.drawLists.SubmitMeshDrawList(encoder.m_Core.commands, drawsHandle);
         }
     }
 }

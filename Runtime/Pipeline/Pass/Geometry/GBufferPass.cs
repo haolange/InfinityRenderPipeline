@@ -25,17 +25,17 @@ namespace InfinityTech.Rendering.Pipeline
             public bool bindDBuffer;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
-            public RGTextureHandle dBufferA;
-            public RGTextureHandle dBufferB;
-            public RGTextureHandle dBufferC;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
+            public RGTextureHandle dBufferAHandle;
+            public RGTextureHandle dBufferBHandle;
+            public RGTextureHandle dBufferCHandle;
         }
 
-        void RasterGBuffer(in CameraRecordContext context, in RGMeshDrawListHandle gbufferMeshDrawList)
+        void RasterGBuffer(in CameraRecordContext context, in RGMeshDrawListHandle gbufferMeshDrawListHandle)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.GBuffer);
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor gbufferADsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferADsc.dimension = TextureDimension.Tex2D;
                 gbufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
             }
-            RGTextureHandle gbufferTextureA = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
+            RGTextureHandle gbufferTextureAHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
 
             TextureDescriptor gbufferBDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferBDsc.dimension = TextureDimension.Tex2D;
                 gbufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
             }
-            RGTextureHandle gbufferTextureB = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
+            RGTextureHandle gbufferTextureBHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
 
             TextureDescriptor gbufferCDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferCDsc.dimension = TextureDimension.Tex2D;
                 gbufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
             }
-            RGTextureHandle gbufferTextureC = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
+            RGTextureHandle gbufferTextureCHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
 
             TextureDescriptor lightingDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -68,51 +68,51 @@ namespace InfinityTech.Rendering.Pipeline
                 lightingDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
                 lightingDsc.enableRandomWrite = true;
             }
-            RGTextureHandle lightingTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);
+            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);
 
             bool bindDBuffer = context.features.IsProduced(EFrameFeature.DBuffer);
-            RGTextureHandle dBufferA = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferA) : default;
-            RGTextureHandle dBufferB = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferB) : default;
-            RGTextureHandle dBufferC = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferC) : default;
+            RGTextureHandle dBufferAHandle = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferA) : default;
+            RGTextureHandle dBufferBHandle = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferB) : default;
+            RGTextureHandle dBufferCHandle = bindDBuffer ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferC) : default;
 
-            RGRendererListHandle gbufferRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterGBufferPass,
+            RGRendererListHandle gbufferRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterGBufferPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, m_Settings.enableInstanceBatch));
 
             var bakedDescriptor = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal)
             { name = "BakedDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, clearColor = Color.clear };
-            RGTextureHandle bakedDiffuse = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedDiffuseBuffer, bakedDescriptor);
+            RGTextureHandle bakedDiffuseHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedDiffuseBuffer, bakedDescriptor);
             bakedDescriptor.name = "BakedOcclusion";
             bakedDescriptor.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-            RGTextureHandle bakedOcclusion = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
+            RGTextureHandle bakedOcclusionHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
 
-            using (var passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(gbufferTextureC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(lightingTexture, 3, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(bakedDiffuse, 4, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(bakedOcclusion, 5, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                RGRasterPassHandle<GBufferPassData> passHandle = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(gbufferTextureAHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(gbufferTextureBHandle, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(gbufferTextureCHandle, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(lightingTextureHandle, 3, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(bakedDiffuseHandle, 4, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(bakedOcclusionHandle, 5, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref GBufferPassData passData = ref passRef.GetPassData();
+                ref GBufferPassData passData = ref passHandle.GetPassData();
                 {
                     passData.bindDBuffer = bindDBuffer;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
-                    passData.meshDrawList = passRef.UseMeshDrawList(gbufferMeshDrawList);
-                    passData.rendererList = passRef.UseRendererList(gbufferRendererList);
+                    passData.meshDrawListHandle = passHandle.UseMeshDrawList(gbufferMeshDrawListHandle);
+                    passData.rendererListHandle = passHandle.UseRendererList(gbufferRendererListHandle);
                     if (bindDBuffer)
                     {
-                        passData.dBufferA = passRef.ReadTexture(dBufferA);
-                        passData.dBufferB = passRef.ReadTexture(dBufferB);
-                        passData.dBufferC = passRef.ReadTexture(dBufferC);
+                        passData.dBufferAHandle = passHandle.ReadTexture(dBufferAHandle);
+                        passData.dBufferBHandle = passHandle.ReadTexture(dBufferBHandle);
+                        passData.dBufferCHandle = passHandle.ReadTexture(dBufferCHandle);
                     }
                 }
 
-                passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DBufferKeyword, passData.bindDBuffer);
                     cmdEncoder.SetGlobalInt(PassShaderIDs.InfinityHasProbes, passData.hasProbes);
@@ -120,13 +120,13 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, passData.shadowmask);
                     if (passData.bindDBuffer)
                     {
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferA, passData.dBufferA);
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferB, passData.dBufferB);
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferC, passData.dBufferC);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferA, passData.dBufferAHandle);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferB, passData.dBufferBHandle);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferC, passData.dBufferCHandle);
                     }
 
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
 

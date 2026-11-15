@@ -15,11 +15,11 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DepthPassData
         {
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
         }
 
-        void RasterDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawList)
+        void RasterDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawListHandle)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
             TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
@@ -28,22 +28,22 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDepthPass,
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
+            RGRendererListHandle depthRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDepthPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, m_Settings.enableInstanceBatch));
 
-            using (var passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
             {
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                RGRasterPassHandle<DepthPassData> passHandle = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth));
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref DepthPassData passData = ref passRef.GetPassData();
-                passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
-                passData.rendererList = passRef.UseRendererList(depthRendererList);
+                ref DepthPassData passData = ref passHandle.GetPassData();
+                passData.meshDrawListHandle = passHandle.UseMeshDrawList(depthMeshDrawListHandle);
+                passData.rendererListHandle = passHandle.UseRendererList(depthRendererListHandle);
 
-                passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
 

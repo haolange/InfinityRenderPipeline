@@ -31,9 +31,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public bool enabled;
             public ComputeKernel kernel;
-            public RGTextureHandle texture;
+            public RGTextureHandle textureHandle;
             public int width, height;
-            public void Record(in RGComputeEncoder commands, RGTextureHandle source)
+            public void Record(in RGComputeEncoder commands, RGTextureHandle sourceHandle)
             {
                 if (!enabled)
                 {
@@ -41,13 +41,13 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 ComputeShader shader = kernel.shader;
                 commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(width, height, 0, 0));
-                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.SRV_CaptureID, source);
-                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.UAV_CaptureID, texture);
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.SRV_CaptureID, sourceHandle);
+                commands.SetComputeTextureParam(shader, kernel.index, RenderCapturePassUtilityData.UAV_CaptureID, textureHandle);
                 commands.DispatchCompute(shader, kernel.index, kernel.GroupsX(width), kernel.GroupsY(height), 1);
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> pass, ECaptureBuffer buffer, RGTextureHandle source) where TPassData : struct
+        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> passHandle, ECaptureBuffer buffer, RGTextureHandle sourceHandle) where TPassData : struct
         {
             var session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || !session.Captures(buffer))
@@ -56,16 +56,16 @@ namespace InfinityTech.Rendering.Pipeline
             }
             string semantic = buffer.ToString();
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.texture);
-            var descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            var descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             descriptor.name = "Capture_" + semantic;
             descriptor.enableRandomWrite = true;
             var snapshot = m_RGBuilder.scoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
-            return new CaptureStageSnapshot { enabled = true, kernel = kernel, width = descriptor.width, height = descriptor.height, texture = pass.WriteTexture(snapshot) };
+            return new CaptureStageSnapshot { enabled = true, kernel = kernel, width = descriptor.width, height = descriptor.height, textureHandle = passHandle.WriteTexture(snapshot) };
         }
 
         struct CaptureTransferPassData
         {
-            public RGTextureHandle source, destination;
+            public RGTextureHandle sourceHandle, destinationHandle;
             public RenderCaptureSession.Staging staging;
             public RGBuilder graph;
             public int sourceMip, width, height;
@@ -95,8 +95,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CaptureLightMaskPassData
         {
-            public RGBufferHandle source;
-            public RGTextureHandle destination;
+            public RGBufferHandle sourceHandle;
+            public RGTextureHandle destinationHandle;
             public ComputeKernel kernel;
             public int width, height;
         }
@@ -115,22 +115,22 @@ namespace InfinityTech.Rendering.Pipeline
                 colorFormat = GraphicsFormat.R32G32B32A32_SFloat, enableRandomWrite = true
             };
             var destination = m_RGBuilder.scoper.CreateAndRegisterTexture(id, descriptor);
-            using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
-                ref var data = ref pass.GetPassData();
-                data.source = pass.ReadBuffer(QueryLightLoop(context).tileMasks);
-                data.destination = pass.WriteTexture(destination);
-                data.kernel = kernel;
-                data.width = width;
-                data.height = height;
-                pass.SetExecuteFunc((in CaptureLightMaskPassData data, in RGComputeEncoder commands) =>
+                RGComputePassHandle<CaptureLightMaskPassData> passHandle = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler);
+                ref CaptureLightMaskPassData passData = ref passHandle.GetPassData();
+                passData.sourceHandle = passHandle.ReadBuffer(QueryLightLoop(context).tileMasksHandle);
+                passData.destinationHandle = passHandle.WriteTexture(destination);
+                passData.kernel = kernel;
+                passData.width = width;
+                passData.height = height;
+                passHandle.SetExecuteFunc((in CaptureLightMaskPassData passData, in RGComputeEncoder commands) =>
                 {
-                    ComputeShader shader = data.kernel.shader;
-                    int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureBufferSizeID, new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeBufferParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureUIntID, data.source);
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureUIntBytesID, data.destination);
-                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
+                    ComputeShader shader = passData.kernel.shader;
+                    int kernel = passData.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureBufferSizeID, new Vector4(passData.width, passData.height, 0, 0));
+                    commands.SetComputeBufferParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureUIntID, passData.sourceHandle);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureUIntBytesID, passData.destinationHandle);
+                    commands.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.width), passData.kernel.GroupsY(passData.height), 1);
                 });
             }
             return id;
@@ -331,12 +331,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CaptureDepthPassData
         {
-            public RGTextureHandle source, destination;
+            public RGTextureHandle sourceHandle, destinationHandle;
             public ComputeKernel kernel;
             public int width, height;
         }
 
-        RGTextureHandle ConvertCaptureDepth(RGTextureHandle source, TextureDescriptor descriptor)
+        RGTextureHandle ConvertCaptureDepth(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.depth);
             descriptor.depthBufferBits = EDepthBits.None;
@@ -344,51 +344,51 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.isShadowMap = false;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureDepthValues";
-            RGTextureHandle destination = m_RGBuilder.CreateTexture(descriptor);
-            using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
+            RGTextureHandle destinationHandle = m_RGBuilder.CreateTexture(descriptor);
             {
-                ref var data = ref pass.GetPassData();
-                data.source = pass.ReadTexture(source);
-                data.destination = pass.WriteTexture(destination);
-                data.kernel = kernel;
-                data.width = descriptor.width;
-                data.height = descriptor.height;
-                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
+                RGComputePassHandle<CaptureDepthPassData> passHandle = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler);
+                ref CaptureDepthPassData passData = ref passHandle.GetPassData();
+                passData.sourceHandle = passHandle.ReadTexture(sourceHandle);
+                passData.destinationHandle = passHandle.WriteTexture(destinationHandle);
+                passData.kernel = kernel;
+                passData.width = descriptor.width;
+                passData.height = descriptor.height;
+                passHandle.SetExecuteFunc((in CaptureDepthPassData passData, in RGComputeEncoder commands) =>
                 {
-                    ComputeShader shader = data.kernel.shader;
-                    int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_DepthID, data.source);
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_DepthID, data.destination);
-                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
+                    ComputeShader shader = passData.kernel.shader;
+                    int kernel = passData.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(passData.width, passData.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_DepthID, passData.sourceHandle);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_DepthID, passData.destinationHandle);
+                    commands.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.width), passData.kernel.GroupsY(passData.height), 1);
                 });
             }
-            return destination;
+            return destinationHandle;
         }
 
-        RGTextureHandle ConvertCaptureMetadata(RGTextureHandle source, TextureDescriptor descriptor)
+        RGTextureHandle ConvertCaptureMetadata(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.surfaceMetadata);
             descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureSurfaceValues";
             var destination = m_RGBuilder.CreateTexture(descriptor);
-            using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler))
             {
-                ref var data = ref pass.GetPassData();
-                data.source = pass.ReadTexture(source);
-                data.destination = pass.WriteTexture(destination);
-                data.kernel = kernel;
-                data.width = descriptor.width;
-                data.height = descriptor.height;
-                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
+                RGComputePassHandle<CaptureDepthPassData> passHandle = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler);
+                ref CaptureDepthPassData passData = ref passHandle.GetPassData();
+                passData.sourceHandle = passHandle.ReadTexture(sourceHandle);
+                passData.destinationHandle = passHandle.WriteTexture(destination);
+                passData.kernel = kernel;
+                passData.width = descriptor.width;
+                passData.height = descriptor.height;
+                passHandle.SetExecuteFunc((in CaptureDepthPassData passData, in RGComputeEncoder commands) =>
                 {
-                    ComputeShader shader = data.kernel.shader;
-                    int kernel = data.kernel.index;
-                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(data.width, data.height, 0, 0));
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureMetadataID, data.source);
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureID, data.destination);
-                    commands.DispatchCompute(shader, kernel, data.kernel.GroupsX(data.width), data.kernel.GroupsY(data.height), 1);
+                    ComputeShader shader = passData.kernel.shader;
+                    int kernel = passData.kernel.index;
+                    commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(passData.width, passData.height, 0, 0));
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureMetadataID, passData.sourceHandle);
+                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureID, passData.destinationHandle);
+                    commands.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.width), passData.kernel.GroupsY(passData.height), 1);
                 });
             }
             return destination;
@@ -396,12 +396,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecordCaptureTransfer(in CameraRecordContext context, RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
-            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(shaderId);
-            if (!source.IsValid())
+            RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(shaderId);
+            if (!sourceHandle.IsValid())
             {
                 throw new InvalidOperationException("Capture source producer is missing: " + semantic);
             }
-            var descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            var descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             var sourceDescriptor = descriptor;
             descriptor.width = PyramidMipBatch.MipSize(descriptor.width, sourceMip);
             descriptor.height = PyramidMipBatch.MipSize(descriptor.height, sourceMip);
@@ -410,16 +410,16 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.viewDivisor = 0;
             descriptor.useMipMap = false;
             descriptor.autoGenerateMips = false;
-            string producer = m_RGBuilder.GetTextureProducer(source, out string sourceQueue);
+            string producer = m_RGBuilder.GetTextureProducer(sourceHandle, out string sourceQueue);
             if (descriptor.depthBufferBits != EDepthBits.None)
             {
-                source = ConvertCaptureDepth(source, descriptor);
-                descriptor = m_RGBuilder.GetTextureDescriptor(source);
+                sourceHandle = ConvertCaptureDepth(sourceHandle, descriptor);
+                descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             }
             if (descriptor.colorFormat == GraphicsFormat.R32G32_UInt)
             {
-                source = ConvertCaptureMetadata(source, descriptor);
-                descriptor = m_RGBuilder.GetTextureDescriptor(source);
+                sourceHandle = ConvertCaptureMetadata(sourceHandle, descriptor);
+                descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             }
             RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.resetsHistory);
             staging.evidence.sourceQueue = sourceQueue;
@@ -430,23 +430,23 @@ namespace InfinityTech.Rendering.Pipeline
             }
             staging.evidence.sourceDescriptor = sourceDescriptor;
             staging.evidence.sourceMip = sourceMip;
-            RGTextureHandle destination = m_RGBuilder.ImportTexture(staging.handle);
-            using (var pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
+            RGTextureHandle destinationHandle = m_RGBuilder.ImportTexture(staging.handle);
             {
-                pass.EnablePassCulling(false);
-                ref CaptureTransferPassData data = ref pass.GetPassData();
-                data.source = pass.ReadTexture(source);
-                data.destination = pass.WriteTexture(destination);
+                RGTransferPassHandle<CaptureTransferPassData> passHandle = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler);
+                passHandle.EnablePassCulling(false);
+                ref CaptureTransferPassData data = ref passHandle.GetPassData();
+                data.sourceHandle = passHandle.ReadTexture(sourceHandle);
+                data.destinationHandle = passHandle.WriteTexture(destinationHandle);
                 data.staging = staging;
-                pass.SetQueueObserver(staging);
+                passHandle.SetQueueObserver(staging);
                 data.graph = m_RGBuilder;
                 data.sourceMip = sourceMip;
                 data.width = descriptor.width;
                 data.height = descriptor.height;
-                pass.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands) =>
+                passHandle.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands) =>
                 {
                     parameters.staging.owner.RecordGraph(parameters.graph, Time.frameCount);
-                    commands.CopyTexture(parameters.source, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destination, 0, 0, 0, 0);
+                    commands.CopyTexture(parameters.sourceHandle, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destinationHandle, 0, 0, 0, 0);
                     commands.RequestAsyncReadback(parameters.staging.texture, parameters.staging.Complete);
                 });
             }

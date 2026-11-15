@@ -12,6 +12,7 @@ Checks
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
+  handlename       a variable, parameter or field of a package Handle type keeps Handle in its name
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
   scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
   silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
@@ -261,6 +262,101 @@ def sequential_offsets(types):
         offsets.append(offset)
         offset += components * 4
     return offsets, offset
+
+HANDLE_NAME_TYPES = (
+    'RGTransferPassHandle', 'RGComputePassHandle', 'RGRayTracingPassHandle', 'RGRasterPassHandle',
+    'RGMeshDrawListHandle', 'RGRendererListHandle', 'RGConstantsHandle', 'RGResourceHandle',
+    'RGTextureHandle', 'RGBufferHandle', 'TextureHandle', 'BufferHandle',
+)
+HANDLE_NAME_TYPE = re.compile(r'\b(' + '|'.join(HANDLE_NAME_TYPES) + r')\b')
+HANDLE_NAME_MODIFIER = {'in', 'out', 'ref', 'params', 'where'}
+
+
+def handle_name_ok(name):
+    return name == 'handle' or name.endswith('Handle') or name.endswith('handle')
+
+
+def skip_handle_generic(code, index):
+    while index < len(code) and code[index].isspace():
+        index += 1
+    if index >= len(code) or code[index] != '<':
+        return index
+    depth, cursor = 0, index
+    while cursor < len(code):
+        if code[cursor] in '{;':
+            return index
+        if code[cursor] == '<':
+            depth += 1
+        elif code[cursor] == '>':
+            depth -= 1
+            if depth == 0:
+                return cursor + 1
+        cursor += 1
+    return index
+
+
+def skip_handle_ranks(code, index):
+    """Skip [] ranks. An index expression such as [count] is not a variable declaration."""
+    while True:
+        while index < len(code) and code[index].isspace():
+            index += 1
+        if index >= len(code) or code[index] != '[':
+            return index, False
+        cursor = index + 1
+        while cursor < len(code) and code[cursor].isspace():
+            cursor += 1
+        if cursor < len(code) and code[cursor] == ']':
+            index = cursor + 1
+            continue
+        return index, True
+
+
+def check_handle_names(repo, out):
+    """Package Handle types keep Handle on the variable, parameter or field. Methods and Unity RTHandle do not."""
+    for top in ('Runtime', 'Editor', 'Tests'):
+        base = os.path.join(repo, top)
+        if not os.path.isdir(base):
+            continue
+        for path in all_files(base, {'.cs'}):
+            code = re.sub(r'^[ \t]*#.*$', '', without_comments(read(path)), flags=re.M)
+            rel = os.path.relpath(path, repo).replace('\\', '/')
+            for match in HANDLE_NAME_TYPE.finditer(code):
+                index = skip_handle_generic(code, match.end())
+                index, indexed = skip_handle_ranks(code, index)
+                if indexed:
+                    continue
+                name_match = re.match(r'[A-Za-z_]\w*', code[index:])
+                if not name_match or name_match.group(0) in HANDLE_NAME_MODIFIER:
+                    continue
+                names = [(index, name_match.group(0))]
+                cursor = index + len(name_match.group(0))
+                while True:
+                    comma = cursor
+                    while comma < len(code) and code[comma].isspace():
+                        comma += 1
+                    if comma >= len(code) or code[comma] != ',':
+                        break
+                    comma += 1
+                    while comma < len(code) and code[comma].isspace():
+                        comma += 1
+                    extra = re.match(r'[A-Za-z_]\w*', code[comma:])
+                    if not extra or extra.group(0) in HANDLE_NAME_MODIFIER:
+                        break
+                    after = comma + len(extra.group(0))
+                    following = code[after:].lstrip()
+                    if following[:1].isalpha() or following.startswith(('(', '<', '[')):
+                        break
+                    names.append((comma, extra.group(0)))
+                    cursor = after
+                following = code[names[0][0] + len(names[0][1]):].lstrip()
+                if following.startswith('(') or following.startswith('<'):
+                    continue
+                for start, name in names:
+                    if handle_name_ok(name):
+                        continue
+                    line = code.count('\n', 0, start) + 1
+                    out.append(('ERROR', 'handlename', f'{rel}:{line}: {match.group(1)} {name} does not end with Handle'))
+
 
 ITERATOR_METHOD = re.compile(r'\bIEnumera(?:tor|ble)(?:<[^>]*>)?\s+(\w+)\s*\([^)]*\)\s*\{')
 REF_LOCAL = re.compile(r'\bref\s+(?:readonly\s+)?[\w.<>]+\s+\w+\s*=\s*ref\b')
@@ -905,7 +1001,7 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('handlename', check_handle_names), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),

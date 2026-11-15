@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, CameraFrameState> m_CameraStates;
         private readonly List<int> m_CameraStateRecycleIds = new List<int>(8);
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
-        private BufferHandle m_DiffusionProfileBuffer;
+        private BufferHandle m_DiffusionProfileBufferHandle;
         private DiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
@@ -651,34 +651,34 @@ namespace InfinityTech.Rendering.Pipeline
             MeshMotionBinding meshMotion = context.state.meshMotionHistory.Prepare(renderContext.meshWorld.transformVersions.current);
             m_RGBuilder.SetMeshMotion(meshMotion);
             bool twoStageMesh = RegisterMeshHistoryOccluder(context, meshMotion);
-            RGMeshDrawListHandle depthList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
-            RGMeshDrawListHandle[] cascadeLists = CreateCascadeMeshLists(context);
-            RGMeshDrawListHandle[] localLists = CreateLocalMeshLists(context);
-            RGMeshDrawListHandle recoveryList = default;
+            RGMeshDrawListHandle depthListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
+            RGMeshDrawListHandle[] cascadeListsHandle = CreateCascadeMeshLists(context);
+            RGMeshDrawListHandle[] localListsHandle = CreateLocalMeshLists(context);
+            RGMeshDrawListHandle recoveryListHandle = default;
             if (twoStageMesh)
             {
-                RasterDepth(context, depthList);
+                RasterDepth(context, depthListHandle);
                 RegisterMeshEarlyOccluder(context);
-                recoveryList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
+                recoveryListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterDepthPass);
             }
-            RGMeshDrawListHandle gbufferList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterGBufferPass);
-            RGMeshDrawListHandle motionList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterMotionPass);
-            RGMeshDrawListHandle forwardList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterForwardPass);
-            RGMeshDrawListHandle translucentDepthList = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentDepthPass);
-            RGMeshDrawListHandle translucentT0 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT0Pass);
-            RGMeshDrawListHandle translucentT1 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT1Pass);
-            RGMeshDrawListHandle translucentT2 = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT2Pass);
+            RGMeshDrawListHandle gbufferListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterGBufferPass);
+            RGMeshDrawListHandle motionListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterMotionPass);
+            RGMeshDrawListHandle forwardListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterForwardPass);
+            RGMeshDrawListHandle translucentDepthListHandle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentDepthPass);
+            RGMeshDrawListHandle translucentT0Handle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT0Pass);
+            RGMeshDrawListHandle translucentT1Handle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT1Pass);
+            RGMeshDrawListHandle translucentT2Handle = CreateMeshList(context.mainCulling, InfinityPassIDs.RasterTranslucentT2Pass);
             if (twoStageMesh)
             {
-                RasterDepthRecovery(recoveryList);
+                RasterDepthRecovery(recoveryListHandle);
             }
             else
             {
-                RasterDepth(context, depthList);
+                RasterDepth(context, depthListHandle);
             }
             RasterDBuffer(context);
-            RasterGBuffer(context, gbufferList);
-            RasterMotion(context, motionList);
+            RasterGBuffer(context, gbufferListHandle);
+            RasterMotion(context, motionListHandle);
 
             // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
             ComputeHiZ(context);
@@ -698,8 +698,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             // PHASE 3: shadow raster (longest ROP window).
             CullShadowCasterSplits(context);
-            RasterCascadeShadow(context, cascadeLists);
-            RasterLocalShadow(context, localLists);
+            RasterCascadeShadow(context, cascadeListsHandle);
+            RasterLocalShadow(context, localListsHandle);
             ComputeShadowMoments(context);
 
             // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
@@ -707,7 +707,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             RecordDeferredLightingCapture(context);
 #endif
-            RasterForward(context, forwardList);
+            RasterForward(context, forwardListHandle);
             if (!SystemInfo.supportsAsyncCompute)
             {
                 ComputeScreenSpaceReflection(context);
@@ -725,16 +725,16 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
             // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
-            RasterTranslucentDepth(context, translucentDepthList);
+            RasterTranslucentDepth(context, translucentDepthListHandle);
             ComputeVolumetricCloud(context);
             CopyHistoryVolumetricCloud(context);
             ComputeVolumetricFog(context);
             CopyHistoryVolumetricFog(context);
             ComputeFogComposite(context);
-            RasterTranslucentT0(context, translucentT0);
+            RasterTranslucentT0(context, translucentT0Handle);
             ComputeColorPyramid(context);
-            RasterTranslucentT1(context, translucentT1);
-            RasterTranslucentT2(context, translucentT2);
+            RasterTranslucentT1(context, translucentT1Handle);
+            RasterTranslucentT2(context, translucentT2Handle);
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)
             // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
@@ -1088,8 +1088,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_ReflectionProbeAtlas = null;
             Release(() => renderContext?.Dispose());
             Release(() => m_RGBuilder?.Dispose());
-            if (m_DiffusionProfileBuffer.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBuffer));
-            m_DiffusionProfileBuffer = default;
+            if (m_DiffusionProfileBufferHandle.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBufferHandle));
+            m_DiffusionProfileBufferHandle = default;
             Release(() => m_ResourcePool?.Dispose());
 
             m_CameraSamplers?.Clear();

@@ -217,6 +217,17 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_records(str(self.repo), out)
         self.assertEqual(['records'], [o[1] for o in out])
 
+    def test_handle_name_fails_and_a_handle_suffix_passes(self):
+        self.write('Runtime/A.cs', 'struct A { public RGTextureHandle color; void Read(in RGBufferHandle buffer) { } }\n')
+        out = []
+        static_check.check_handle_names(str(self.repo), out)
+        self.assertEqual(['Runtime/A.cs:1', 'Runtime/A.cs:1'], [o[2].split(': ')[0] for o in out])
+        self.write('Runtime/A.cs', 'struct A { public RGTextureHandle colorHandle; RGComputePassHandle<T> AddComputePass<T>(); '
+                    'void Read(in RGBufferHandle bufferHandle, Vector4[] tileRects) { RGTextureHandle localHandle = colorHandle; } }\n')
+        out = []
+        static_check.check_handle_names(str(self.repo), out)
+        self.assertEqual([], out)
+
     def test_iterator_ref_local_fails_and_a_ref_local_in_a_helper_passes(self):
         self.write('Tests/Editor/T.cs', 'class T\n{\n    static void Record(RGBuilder graph)\n    {\n        ref var data = ref pass.GetPassData();\n    }\n'
                    '    public IEnumerator Run()\n    {\n        Record(graph);\n        yield return null;\n    }\n}\n')

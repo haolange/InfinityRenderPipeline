@@ -49,50 +49,50 @@ namespace InfinityTech.Rendering.Pipeline
     // when present; without it no record references a cookie and the probe count is 0.
     internal struct LightLoopInputs
     {
-        public RGBufferHandle zBins;
-        public RGBufferHandle tileMasks;
-        public RGBufferHandle cookies;
-        public RGTextureHandle cookieAtlas;
+        public RGBufferHandle zBinsHandle;
+        public RGBufferHandle tileMasksHandle;
+        public RGBufferHandle cookiesHandle;
+        public RGTextureHandle cookieAtlasHandle;
         public bool hasCookieAtlas;
-        public RGBufferHandle probes;
-        public RGBufferHandle probeZBins;
-        public RGBufferHandle probeTileMasks;
-        public RGTextureHandle probeAtlas;
+        public RGBufferHandle probesHandle;
+        public RGBufferHandle probeZBinsHandle;
+        public RGBufferHandle probeTileMasksHandle;
+        public RGTextureHandle probeAtlasHandle;
         public bool hasProbeAtlas;
 
-        public void Read<TPassData>(RGComputePassHandle<TPassData> passRef) where TPassData : struct
+        public void Read<TPassData>(RGComputePassHandle<TPassData> passHandle) where TPassData : struct
         {
-            passRef.ReadBuffer(zBins);
-            passRef.ReadBuffer(tileMasks);
-            passRef.ReadBuffer(cookies);
+            passHandle.ReadBuffer(zBinsHandle);
+            passHandle.ReadBuffer(tileMasksHandle);
+            passHandle.ReadBuffer(cookiesHandle);
             if (hasCookieAtlas)
             {
-                passRef.ReadTexture(cookieAtlas);
+                passHandle.ReadTexture(cookieAtlasHandle);
             }
-            passRef.ReadBuffer(probes);
-            passRef.ReadBuffer(probeZBins);
-            passRef.ReadBuffer(probeTileMasks);
+            passHandle.ReadBuffer(probesHandle);
+            passHandle.ReadBuffer(probeZBinsHandle);
+            passHandle.ReadBuffer(probeTileMasksHandle);
             if (hasProbeAtlas)
             {
-                passRef.ReadTexture(probeAtlas);
+                passHandle.ReadTexture(probeAtlasHandle);
             }
         }
 
-        public void Read<TPassData>(RGRasterPassHandle<TPassData> passRef) where TPassData : struct
+        public void Read<TPassData>(RGRasterPassHandle<TPassData> passHandle) where TPassData : struct
         {
-            passRef.ReadBuffer(zBins);
-            passRef.ReadBuffer(tileMasks);
-            passRef.ReadBuffer(cookies);
+            passHandle.ReadBuffer(zBinsHandle);
+            passHandle.ReadBuffer(tileMasksHandle);
+            passHandle.ReadBuffer(cookiesHandle);
             if (hasCookieAtlas)
             {
-                passRef.ReadTexture(cookieAtlas);
+                passHandle.ReadTexture(cookieAtlasHandle);
             }
-            passRef.ReadBuffer(probes);
-            passRef.ReadBuffer(probeZBins);
-            passRef.ReadBuffer(probeTileMasks);
+            passHandle.ReadBuffer(probesHandle);
+            passHandle.ReadBuffer(probeZBinsHandle);
+            passHandle.ReadBuffer(probeTileMasksHandle);
             if (hasProbeAtlas)
             {
-                passRef.ReadTexture(probeAtlas);
+                passHandle.ReadTexture(probeAtlasHandle);
             }
         }
 
@@ -100,40 +100,40 @@ namespace InfinityTech.Rendering.Pipeline
         {
             commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
             commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probes);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBins);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasks);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probesHandle);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBinsHandle);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasksHandle);
             if (hasProbeAtlas)
             {
-                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlasHandle);
             }
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookies);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookiesHandle);
             if (hasCookieAtlas)
             {
-                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, cookieAtlas);
+                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, cookieAtlasHandle);
             }
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBins);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasks);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBinsHandle);
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasksHandle);
         }
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
             commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
             commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
-            commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probes);
-            commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBins);
-            commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasks);
+            commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probesHandle);
+            commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBinsHandle);
+            commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasksHandle);
             if (hasProbeAtlas)
             {
-                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlas);
+                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlasHandle);
             }
-            commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookies);
+            commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookiesHandle);
             if (hasCookieAtlas)
             {
-                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, cookieAtlas);
+                commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, cookieAtlasHandle);
             }
-            commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBins);
-            commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasks);
+            commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBinsHandle);
+            commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasksHandle);
         }
     }
 
@@ -141,12 +141,12 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct LightTileMaskPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int wordCount;
             public int2 tileCount;
             public ComputeKernel kernel;
-            public RGBufferHandle tileRects;
-            public RGBufferHandle tileMasks;
+            public RGBufferHandle tileRectsHandle;
+            public RGBufferHandle tileMasksHandle;
         }
 
         // The camera's light-loop constants, from the light context built after culling. Probes count only when the
@@ -174,23 +174,23 @@ namespace InfinityTech.Rendering.Pipeline
             LightContext lightContext = renderContext.lightContext;
             bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
             bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
-            RGTextureHandle cookieAtlas = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
-            RGTextureHandle probeAtlas = hasProbeAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
+            RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
+            RGTextureHandle probeAtlasHandle = hasProbeAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
             bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {
-                probes = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
-                probeZBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
-                probeTileMasks = hasProbeList
+                probesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
+                probeZBinsHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
+                probeTileMasksHandle = hasProbeList
                     ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
                     : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
-                probeAtlas = probeAtlas,
+                probeAtlasHandle = probeAtlasHandle,
                 hasProbeAtlas = hasProbeAtlas,
-                cookies = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
-                cookieAtlas = cookieAtlas,
+                cookiesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
+                cookieAtlasHandle = cookieAtlasHandle,
                 hasCookieAtlas = hasCookieAtlas,
-                zBins = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
-                tileMasks = lightContext.HasLocalLightList()
+                zBinsHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
+                tileMasksHandle = lightContext.HasLocalLightList()
                     ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
                     : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
             };
@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.Pipeline
         // second index space of the clustered list.
         void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
         {
-            RGBufferHandle tileMasks = m_RGBuilder.scoper.CreateBuffer(masksKey, new BufferDescriptor
+            RGBufferHandle tileMasksHandle = m_RGBuilder.scoper.CreateBuffer(masksKey, new BufferDescriptor
             {
                 name = masksName,
                 count = math.max(1, tileCount.x * tileCount.y * wordCount),
@@ -224,10 +224,10 @@ namespace InfinityTech.Rendering.Pipeline
                 target = GraphicsBuffer.Target.Structured
             });
 
-            using (var passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
             {
-                ref LightTileMaskPassData passData = ref passRef.GetPassData();
-                passData.parameters = passRef.WriteConstants(new LightTileParameters
+                RGComputePassHandle<LightTileMaskPassData> passHandle = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler));
+                ref LightTileMaskPassData passData = ref passHandle.GetPassData();
+                passData.parametersHandle = passHandle.WriteConstants(new LightTileParameters
                 {
                     tileCount = new Vector4(tileCount.x, tileCount.y, 0, 0),
                     itemCount = (uint)itemCount,
@@ -236,19 +236,19 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;
                 passData.kernel = kernels.lightTileMask;
-                passData.tileRects = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(rectsKey));
-                passData.tileMasks = passRef.WriteBuffer(tileMasks);
+                passData.tileRectsHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(rectsKey));
+                passData.tileMasksHandle = passHandle.WriteBuffer(tileMasksHandle);
 
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeKernel kernel = passData.kernel;
                     ComputeShader shader = kernel.shader;
                     int total = passData.tileCount.x * passData.tileCount.y * passData.wordCount;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, LightTileMaskPassUtilityData.CBV_LightTileParametersID, passData.parameters);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightTileRects, passData.tileRects);
-                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasks);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, LightTileMaskPassUtilityData.CBV_LightTileParametersID, passData.parametersHandle);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightShaderIDs.LightTileRects, passData.tileRectsHandle);
+                    cmdEncoder.SetComputeBufferParam(shader, kernel.index, LightTileMaskPassUtilityData.UAV_LightTileMasksID, passData.tileMasksHandle);
                     cmdEncoder.DispatchCompute(shader, kernel.index, kernel.GroupsX(total), 1, 1);
                 });
             }

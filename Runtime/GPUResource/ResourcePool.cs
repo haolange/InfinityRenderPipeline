@@ -118,9 +118,9 @@ namespace InfinityTech.Rendering.GPUResource
             }
             return texture.rt != null && m_TexturePhysicalUses.TryGetValue(texture.rt, out usage) ? usage : null;
         }
-        internal bool CanWriteBuffer(in BufferHandle buffer)
+        internal bool CanWriteBuffer(in BufferHandle bufferHandle)
         {
-            var usage = BufferUsage(buffer.buffer) ?? throw new InvalidOperationException("CPU writes require a buffer owned by this pool.");
+            var usage = BufferUsage(bufferHandle.buffer) ?? throw new InvalidOperationException("CPU writes require a buffer owned by this pool.");
             return !usage.returned && usage.CanWriteCpu;
         }
 

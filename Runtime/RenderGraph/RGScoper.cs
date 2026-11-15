@@ -82,7 +82,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterBuffer(int handle, in RGBufferHandle bufferHandle)
         {
-            if (m_BufferMap.TryGet(handle, out RGBufferHandle existing) && existing.IsValid() && !SameBufferRef(existing, bufferHandle))
+            if (m_BufferMap.TryGet(handle, out RGBufferHandle existingHandle) && existingHandle.IsValid() && !SameBufferHandle(existingHandle, bufferHandle))
             {
                 throw new InvalidOperationException($"RGScoper.RegisterBuffer: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterTexture(int handle, in RGTextureHandle textureHandle)
         {
-            if (m_TextureMap.TryGet(handle, out RGTextureHandle existing) && existing.IsValid() && !SameTextureRef(existing, textureHandle))
+            if (m_TextureMap.TryGet(handle, out RGTextureHandle existingHandle) && existingHandle.IsValid() && !SameTextureHandle(existingHandle, textureHandle))
             {
                 throw new InvalidOperationException($"RGScoper.RegisterTexture: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
@@ -176,14 +176,14 @@ namespace InfinityTech.Rendering.RenderGraph
             m_TextureMap.Dispose();
         }
 
-        static bool SameTextureRef(in RGTextureHandle a, in RGTextureHandle b)
+        static bool SameTextureHandle(in RGTextureHandle aHandle, in RGTextureHandle bHandle)
         {
-            return a.IsValid() && a.handle.Equals(b.handle);
+            return aHandle.IsValid() && aHandle.handle.Equals(bHandle.handle);
         }
 
-        static bool SameBufferRef(in RGBufferHandle a, in RGBufferHandle b)
+        static bool SameBufferHandle(in RGBufferHandle aHandle, in RGBufferHandle bHandle)
         {
-            return a.IsValid() && a.handle.Equals(b.handle);
+            return aHandle.IsValid() && aHandle.handle.Equals(bHandle.handle);
         }
     }
 }

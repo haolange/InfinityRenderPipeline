@@ -23,9 +23,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         struct FailurePassData
         {
             public Observation observation;
-            public RGTextureHandle texture;
+            public RGTextureHandle textureHandle;
         }
-        struct ConsumerPassData { public RGTextureHandle texture; }
+        struct ConsumerPassData { public RGTextureHandle textureHandle; }
 
         [TestCase(RenderBufferLoadAction.Load, true)]
         [TestCase(RenderBufferLoadAction.Clear, false)]
@@ -71,16 +71,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     resource.descriptor = new TextureDescriptor(4, 4) { clearColor = i == 0 ? cleared : Color.clear };
                 }
                 depth.Create(); depthHandle = RTHandles.Alloc(depth);
-                RGTextureHandle depthAttachment = graph.ImportTexture(depthHandle);
+                RGTextureHandle depthAttachmentHandle = graph.ImportTexture(depthHandle);
                 // The target path binds a compiled pass: record it in the graph and compile, as the frame does.
-                using (var pass = graph.AddRasterPass<ConsumerPassData>(new ProfilingSampler("AttachmentClear")))
                 {
+                    RGRasterPassHandle<ConsumerPassData> passHandle = graph.AddRasterPass<ConsumerPassData>(new ProfilingSampler("AttachmentClear"));
                     for (int i = 0; i < attachments.Length; i++)
                     {
-                        pass.SetColorAttachment(attachments[i], i, i == 1 ? RenderBufferLoadAction.Load : RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                        passHandle.SetColorAttachment(attachments[i], i, i == 1 ? RenderBufferLoadAction.Load : RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                     }
-                    pass.SetDepthStencilAttachment(depthAttachment, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                    pass.SetExecuteFunc((in ConsumerPassData data, in RGRasterEncoder encoder) => { });
+                    passHandle.SetDepthStencilAttachment(depthAttachmentHandle, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                    passHandle.SetExecuteFunc((in ConsumerPassData data, in RGRasterEncoder encoder) => { });
                 }
                 typeof(RGBuilder).GetMethod("CompilePass", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(graph, null);
                 var context = new RGContext { cmdBuffer = commands, objectPool = pool };
@@ -128,26 +128,26 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     name = "FailureContractTexture", dimension = TextureDimension.Tex2D,
                     colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = true
                 };
-                RGTextureHandle texture = graph.CreateTexture(descriptor);
-                using (var pass = graph.AddComputePass<FailurePassData>(new ProfilingSampler("FailureContractProducer")))
+                RGTextureHandle textureHandle = graph.CreateTexture(descriptor);
                 {
-                    pass.EnablePassCulling(false);
-                    pass.SetQueueObserver(observed);
-                    pass.EnableAsyncCompute(asyncCompute);
-                    ref FailurePassData data = ref pass.GetPassData();
+                    RGComputePassHandle<FailurePassData> passHandle = graph.AddComputePass<FailurePassData>(new ProfilingSampler("FailureContractProducer"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetQueueObserver(observed);
+                    passHandle.EnableAsyncCompute(asyncCompute);
+                    ref FailurePassData data = ref passHandle.GetPassData();
                     data.observation = observed;
-                    data.texture = pass.WriteTexture(texture);
-                    pass.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands) =>
+                    data.textureHandle = passHandle.WriteTexture(textureHandle);
+                    passHandle.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands) =>
                     {
-                        parameters.observation.allocated = parameters.observation.resources.ResolveTexture(parameters.texture).resource.rt;
+                        parameters.observation.allocated = parameters.observation.resources.ResolveTexture(parameters.textureHandle).resource.rt;
                         InjectFailure(parameters.observation.error);
                     });
                 }
-                using (var pass = graph.AddTransferPass<ConsumerPassData>(new ProfilingSampler("FailureContractConsumer")))
                 {
-                    pass.EnablePassCulling(false);
-                    pass.GetPassData().texture = pass.ReadTexture(texture);
-                    pass.SetExecuteFunc((in ConsumerPassData data, in RGTransferEncoder commands) => { });
+                    RGTransferPassHandle<ConsumerPassData> passHandle = graph.AddTransferPass<ConsumerPassData>(new ProfilingSampler("FailureContractConsumer"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.GetPassData().textureHandle = passHandle.ReadTexture(textureHandle);
+                    passHandle.SetExecuteFunc((in ConsumerPassData data, in RGTransferEncoder commands) => { });
                 }
                 Exception actual = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, frameCommands));
                 Assert.AreSame(observed.error, actual);

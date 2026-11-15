@@ -20,27 +20,27 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct TranslucentDepthPassData
         {
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
         }
 
         struct TranslucentColorPassData
         {
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
             public bool writeReactive;
             public bool bindFog;
             public bool bindAerial;
             public bool bindPyramid;
             public float fogMaxDistance;
             public float aerialDistance;
-            public RGTextureHandle volumetricFog;
-            public RGTextureHandle aerialLut;
-            public RGTextureHandle colorPyramid;
-            public RGTextureHandle translucentDepth;
+            public RGTextureHandle volumetricFogHandle;
+            public RGTextureHandle aerialLutHandle;
+            public RGTextureHandle colorPyramidHandle;
+            public RGTextureHandle translucentDepthHandle;
         }
 
-        void RasterTranslucentDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawList)
+        void RasterTranslucentDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawListHandle)
         {
             TextureDescriptor translucentDepthDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -48,53 +48,53 @@ namespace InfinityTech.Rendering.Pipeline
                 translucentDepthDsc.dimension = TextureDimension.Tex2D;
                 translucentDepthDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureHandle translucentDepthTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
+            RGTextureHandle translucentDepthTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
 
-            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterTranslucentDepthPass,
+            RGRendererListHandle depthRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterTranslucentDepthPass,
                 InfinityRenderQueue.k_RenderQueue_AllTransparent, SortingCriteria.QuantizedFrontToBack, PerObjectData.None, m_Settings.enableInstanceBatch));
 
-            using (var passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                RGRasterPassHandle<TranslucentDepthPassData> passHandle = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetDepthStencilAttachment(translucentDepthTextureHandle, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref TranslucentDepthPassData passData = ref passRef.GetPassData();
-                passData.meshDrawList = passRef.UseMeshDrawList(depthMeshDrawList);
-                passData.rendererList = passRef.UseRendererList(depthRendererList);
+                ref TranslucentDepthPassData passData = ref passHandle.GetPassData();
+                passData.meshDrawListHandle = passHandle.UseMeshDrawList(depthMeshDrawListHandle);
+                passData.rendererListHandle = passHandle.UseRendererList(depthRendererListHandle);
 
-                passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
         }
 
-        void RasterTranslucentT0(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawList)
+        void RasterTranslucentT0(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawListHandle)
         {
-            RasterTranslucentColor(context, meshDrawList, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
+            RasterTranslucentColor(context, meshDrawListHandle, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
-        void RasterTranslucentT1(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawList)
+        void RasterTranslucentT1(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawListHandle)
         {
-            RasterTranslucentColor(context, meshDrawList, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
+            RasterTranslucentColor(context, meshDrawListHandle, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
-        void RasterTranslucentT2(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawList)
+        void RasterTranslucentT2(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawListHandle)
         {
-            RasterTranslucentColor(context, meshDrawList, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
+            RasterTranslucentColor(context, meshDrawListHandle, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }
 
         // MeshComponent content is drawn back to front before the native renderer list in the same pass. The two lists are
         // sorted separately: there is no distance order between MeshComponent and native translucent renderers.
-        void RasterTranslucentColor(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawList, ShaderTagId lightMode, CustomSamplerId samplerId, bool bindFog, bool bindPyramid)
+        void RasterTranslucentColor(in CameraRecordContext context, in RGMeshDrawListHandle meshDrawListHandle, ShaderTagId lightMode, CustomSamplerId samplerId, bool bindFog, bool bindPyramid)
         {
-            RGTextureHandle sceneColor = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool writeReactive = context.features.ShouldRecord(EFrameFeature.TAA);
             bool initializeReactive = false;
-            RGTextureHandle reactiveMask = default;
-            if (writeReactive && !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMask))
+            RGTextureHandle reactiveMaskHandle = default;
+            if (writeReactive && !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMaskHandle))
             {
                 var size = context.dimensions.internalSize;
                 var descriptor = new TextureDescriptor(size.x, size.y, ETextureSizingDomain.Internal)
@@ -103,19 +103,19 @@ namespace InfinityTech.Rendering.Pipeline
                     depthBufferBits = EDepthBits.None, dimension = TextureDimension.Tex2D,
                     clearColor = Color.clear, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
                 };
-                reactiveMask = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, descriptor);
+                reactiveMaskHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, descriptor);
                 initializeReactive = true;
             }
-            RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
             bool hasFog = bindFog && context.features.ShouldRecord(EFrameFeature.VolumetricFog);
             bool hasAerial = bindFog;
             bool hasPyramid = bindPyramid && context.features.ShouldRecord(EFrameFeature.ColorPyramid);
-            RGTextureHandle volumetricFog = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
-            RGTextureHandle aerialLut = hasAerial ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT) : default;
-            RGTextureHandle colorPyramid = hasPyramid ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer) : default;
+            RGTextureHandle volumetricFogHandle = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
+            RGTextureHandle aerialLutHandle = hasAerial ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT) : default;
+            RGTextureHandle colorPyramidHandle = hasPyramid ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer) : default;
             // RasterTranslucentDepth runs before every translucent color pass and always registers its target.
-            RGTextureHandle translucentDepth = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.TranslucentDepthBuffer);
+            RGTextureHandle translucentDepthHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.TranslucentDepthBuffer);
 
             float fogMaxDistance = context.volumes.volumetricFog.MaxDistance.value;
             float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
@@ -126,21 +126,21 @@ namespace InfinityTech.Rendering.Pipeline
                     SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch)
                 : CameraRendererLists.Create(context.cullingResults, context.camera, lightMode, InfinityRenderQueue.k_RenderQueue_AllTransparent,
                     SortingCriteria.CommonTransparent, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch);
-            RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(listParameters);
+            RGRendererListHandle rendererListHandle = m_RGBuilder.CreateRendererList(listParameters);
 
-            using (var passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(sceneColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                RGRasterPassHandle<TranslucentColorPassData> passHandle = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(sceneColorHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 if (writeReactive)
-                    passRef.SetColorAttachment(reactiveMask, 1, initializeReactive ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(motionTexture, writeReactive ? 2 : 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                    passHandle.SetColorAttachment(reactiveMaskHandle, 1, initializeReactive ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(motionTextureHandle, writeReactive ? 2 : 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref TranslucentColorPassData passData = ref passRef.GetPassData();
-                passData.meshDrawList = passRef.UseMeshDrawList(meshDrawList);
-                passData.rendererList = passRef.UseRendererList(rendererList);
+                ref TranslucentColorPassData passData = ref passHandle.GetPassData();
+                passData.meshDrawListHandle = passHandle.UseMeshDrawList(meshDrawListHandle);
+                passData.rendererListHandle = passHandle.UseRendererList(rendererListHandle);
                 passData.writeReactive = writeReactive;
                 passData.bindFog = hasFog;
                 passData.bindAerial = hasAerial;
@@ -149,19 +149,19 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.aerialDistance = aerialDistance;
                 if (hasFog)
                 {
-                    passData.volumetricFog = passRef.ReadTexture(volumetricFog);
+                    passData.volumetricFogHandle = passHandle.ReadTexture(volumetricFogHandle);
                 }
                 if (hasAerial)
                 {
-                    passData.aerialLut = passRef.ReadTexture(aerialLut);
+                    passData.aerialLutHandle = passHandle.ReadTexture(aerialLutHandle);
                 }
                 if (hasPyramid)
                 {
-                    passData.colorPyramid = passRef.ReadTexture(colorPyramid);
+                    passData.colorPyramidHandle = passHandle.ReadTexture(colorPyramidHandle);
                 }
-                passData.translucentDepth = passRef.ReadTexture(translucentDepth);
+                passData.translucentDepthHandle = passHandle.ReadTexture(translucentDepthHandle);
 
-                passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.ReactiveKeyword, passData.writeReactive);
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.VolumetricFogKeyword, passData.bindFog);
@@ -171,19 +171,19 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetGlobalFloat(PassShaderIDs.VolFog_AerialDistance, passData.aerialDistance);
                     if (passData.bindFog)
                     {
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.VolumetricFogBuffer, passData.volumetricFog);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.VolumetricFogBuffer, passData.volumetricFogHandle);
                     }
                     if (passData.bindAerial)
                     {
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, passData.aerialLut);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, passData.aerialLutHandle);
                     }
                     if (passData.bindPyramid)
                     {
-                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.ColorPyramidBuffer, passData.colorPyramid);
+                        cmdEncoder.SetGlobalTexture(InfinityShaderIDs.ColorPyramidBuffer, passData.colorPyramidHandle);
                     }
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepth);
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepthHandle);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
         }

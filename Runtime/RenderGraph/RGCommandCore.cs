@@ -22,12 +22,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         #region Graph resources
-        RenderTargetIdentifier Identify(in RGTextureHandle texture) => resources.ResolveTexture(texture).resource;
+        RenderTargetIdentifier Identify(in RGTextureHandle textureHandle) => resources.ResolveTexture(textureHandle).resource;
 
         // Resolves a graph texture once. Returns true with the logical view to write when the property has a registered view.
-        internal bool ResolveTexture(int nameID, in RGTextureHandle texture, int mip, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view)
+        internal bool ResolveTexture(int nameID, in RGTextureHandle textureHandle, int mip, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view)
         {
-            RGTexture resource = resources.ResolveTexture(texture);
+            RGTexture resource = resources.ResolveTexture(textureHandle);
             identifier = resource.resource;
             if (!TextureViewBindings.TryGetViewID(nameID, out viewID))
             {
@@ -51,9 +51,9 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        internal void SetGlobalTexture(int nameID, in RGTextureHandle texture, RenderTextureSubElement element)
+        internal void SetGlobalTexture(int nameID, in RGTextureHandle textureHandle, RenderTextureSubElement element)
         {
-            if (ResolveTexture(nameID, texture, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
+            if (ResolveTexture(nameID, textureHandle, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
             {
                 commands.SetGlobalVector(viewID, view);
             }
@@ -85,9 +85,9 @@ namespace InfinityTech.Rendering.RenderGraph
             commands.SetComputeTextureParam(shader, kernel, nameID, texture);
         }
 
-        internal void SetComputeTexture(ComputeShader shader, int kernel, int nameID, in RGTextureHandle texture, int mip, RenderTextureSubElement element)
+        internal void SetComputeTexture(ComputeShader shader, int kernel, int nameID, in RGTextureHandle textureHandle, int mip, RenderTextureSubElement element)
         {
-            if (ResolveTexture(nameID, texture, mip, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
+            if (ResolveTexture(nameID, textureHandle, mip, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
             {
                 commands.SetComputeVectorParam(shader, viewID, view);
             }
@@ -100,9 +100,9 @@ namespace InfinityTech.Rendering.RenderGraph
             commands.SetComputeTextureParam(shader, kernel, nameID, texture, mip, element);
         }
 
-        internal void SetRayTracingTexture(RayTracingShader shader, int nameID, in RGTextureHandle texture)
+        internal void SetRayTracingTexture(RayTracingShader shader, int nameID, in RGTextureHandle textureHandle)
         {
-            if (ResolveTexture(nameID, texture, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
+            if (ResolveTexture(nameID, textureHandle, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
             {
                 commands.SetRayTracingVectorParam(shader, viewID, view);
             }
@@ -115,9 +115,9 @@ namespace InfinityTech.Rendering.RenderGraph
             commands.SetRayTracingTextureParam(shader, nameID, texture);
         }
 
-        internal void SetUnifiedTexture(IRayTracingShader shader, int nameID, in RGTextureHandle texture)
+        internal void SetUnifiedTexture(IRayTracingShader shader, int nameID, in RGTextureHandle textureHandle)
         {
-            if (ResolveTexture(nameID, texture, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
+            if (ResolveTexture(nameID, textureHandle, 0, out RenderTargetIdentifier identifier, out int viewID, out Vector4 view))
             {
                 shader.SetVectorParam(commands, viewID, view);
             }
@@ -130,34 +130,34 @@ namespace InfinityTech.Rendering.RenderGraph
             shader.SetTextureParam(commands, nameID, texture);
         }
 
-        internal void SetGlobalBuffer(int nameID, in RGBufferHandle buffer)
-            => commands.SetGlobalBuffer(nameID, resources.ResolveBuffer(buffer).resource);
+        internal void SetGlobalBuffer(int nameID, in RGBufferHandle bufferHandle)
+            => commands.SetGlobalBuffer(nameID, resources.ResolveBuffer(bufferHandle).resource);
 
-        internal void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, in RGBufferHandle buffer)
-            => commands.SetComputeBufferParam(shader, kernel, nameID, resources.ResolveBuffer(buffer).resource);
+        internal void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, in RGBufferHandle bufferHandle)
+            => commands.SetComputeBufferParam(shader, kernel, nameID, resources.ResolveBuffer(bufferHandle).resource);
 
-        internal void SetComputeConstantBufferParam(ComputeShader shader, int nameID, in RGConstantsHandle constants)
-            => commands.SetComputeConstantBufferParam(shader, nameID, resources.ResolveBuffer(constants.buffer).resource, 0, constants.size);
+        internal void SetComputeConstantBufferParam(ComputeShader shader, int nameID, in RGConstantsHandle constantsHandle)
+            => commands.SetComputeConstantBufferParam(shader, nameID, resources.ResolveBuffer(constantsHandle.bufferHandle).resource, 0, constantsHandle.size);
 
-        internal void DispatchComputeIndirect(ComputeShader shader, int kernel, in RGBufferHandle argsBuffer, uint argsOffset)
+        internal void DispatchComputeIndirect(ComputeShader shader, int kernel, in RGBufferHandle argsBufferHandle, uint argsOffset)
         {
-            RGBuffer resource = resources.ResolveBuffer(argsBuffer);
+            RGBuffer resource = resources.ResolveBuffer(argsBufferHandle);
             if ((resource.descriptor.target & GraphicsBuffer.Target.IndirectArguments) == 0)
                 throw new InvalidOperationException($"RG buffer {resource.GetName()} is not an IndirectArguments buffer.");
             commands.DispatchCompute(shader, kernel, resource.resource, argsOffset);
         }
 
-        internal void CopyTexture(in RGTextureHandle src, in RGTextureHandle dst)
-            => commands.CopyTexture(Identify(src), Identify(dst));
+        internal void CopyTexture(in RGTextureHandle srcHandle, in RGTextureHandle dstHandle)
+            => commands.CopyTexture(Identify(srcHandle), Identify(dstHandle));
 
-        internal void CopyTexture(in RGTextureHandle src, int srcElement, in RGTextureHandle dst, int dstElement)
-            => commands.CopyTexture(Identify(src), srcElement, Identify(dst), dstElement);
+        internal void CopyTexture(in RGTextureHandle srcHandle, int srcElement, in RGTextureHandle dstHandle, int dstElement)
+            => commands.CopyTexture(Identify(srcHandle), srcElement, Identify(dstHandle), dstElement);
 
-        internal void CopyTexture(in RGTextureHandle src, int srcElement, int srcMip, in RGTextureHandle dst, int dstElement, int dstMip)
-            => commands.CopyTexture(Identify(src), srcElement, srcMip, Identify(dst), dstElement, dstMip);
+        internal void CopyTexture(in RGTextureHandle srcHandle, int srcElement, int srcMip, in RGTextureHandle dstHandle, int dstElement, int dstMip)
+            => commands.CopyTexture(Identify(srcHandle), srcElement, srcMip, Identify(dstHandle), dstElement, dstMip);
 
-        internal void CopyTexture(in RGTextureHandle src, int srcElement, int srcMip, int srcX, int srcY, int srcWidth, int srcHeight, in RGTextureHandle dst, int dstElement, int dstMip, int dstX, int dstY)
-            => commands.CopyTexture(Identify(src), srcElement, srcMip, srcX, srcY, srcWidth, srcHeight, Identify(dst), dstElement, dstMip, dstX, dstY);
+        internal void CopyTexture(in RGTextureHandle srcHandle, int srcElement, int srcMip, int srcX, int srcY, int srcWidth, int srcHeight, in RGTextureHandle dstHandle, int dstElement, int dstMip, int dstX, int dstY)
+            => commands.CopyTexture(Identify(srcHandle), srcElement, srcMip, srcX, srcY, srcWidth, srcHeight, Identify(dstHandle), dstElement, dstMip, dstX, dstY);
         #endregion Graph resources
 
         #region Global parameters

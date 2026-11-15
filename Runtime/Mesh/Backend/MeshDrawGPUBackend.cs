@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>Graph handles of the entity columns a draw-list producer reads.</summary>
     internal struct MeshCullInputs
     {
-        public RGBufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
+        public RGBufferHandle boundsCenterHandle, boundsExtentHandle, flagsHandle, layerMaskHandle, sceneCullingMaskHandle, renderingLayersHandle, lodChainsHandle;
     }
 
     /// <summary>
@@ -24,12 +24,12 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal struct MeshOccluderInputs
     {
-        public RGTextureHandle furthest;
+        public RGTextureHandle furthestHandle;
         public Matrix4x4 viewProjection;
         public Vector4 extent;
         public int mipCount;
         public bool history;
-        public RGBufferHandle currentTransforms, currentGenerations, previousTransforms, previousGenerations;
+        public RGBufferHandle currentTransformsHandle, currentGenerationsHandle, previousTransformsHandle, previousGenerationsHandle;
         public int currentCount, previousCount;
     }
 
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshGPUDrawPayload
     {
-        internal BufferHandle indirectArgs, instanceToEntity, instanceFade, cullingContext;
+        internal BufferHandle indirectArgsHandle, instanceToEntityHandle, instanceFadeHandle, cullingContextHandle;
         internal ResourceReuseFence argsWait, instancesWait, fadeWait, contextWait;
         internal int commandCapacity, instanceCapacity;
         internal readonly MeshCullingContext[] contextStaging = new MeshCullingContext[1];
@@ -147,10 +147,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshGPUDrawPayload payload = m_FreePayloads.Count > 0 ? m_FreePayloads.Pop() : new MeshGPUDrawPayload();
             try
             {
-                payload.indirectArgs = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
-                payload.instanceToEntity = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(uint)) { name = "MeshInstanceToEntity" }, true, false, out payload.instancesWait);
-                payload.instanceFade = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(float)) { name = "MeshInstanceFade" }, true, false, out payload.fadeWait);
-                payload.cullingContext = m_Pool.GetBuffer(new BufferDescriptor(1, s_ContextStride) { name = "MeshCullingContext" }, true, false, out payload.contextWait);
+                payload.indirectArgsHandle = m_Pool.GetBuffer(new BufferDescriptor(commands * 2 * k_ArgsStride, sizeof(uint), GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured) { name = "MeshDrawIndirectArgs" }, true, false, out payload.argsWait);
+                payload.instanceToEntityHandle = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(uint)) { name = "MeshInstanceToEntity" }, true, false, out payload.instancesWait);
+                payload.instanceFadeHandle = m_Pool.GetBuffer(new BufferDescriptor(instances, sizeof(float)) { name = "MeshInstanceFade" }, true, false, out payload.fadeWait);
+                payload.cullingContextHandle = m_Pool.GetBuffer(new BufferDescriptor(1, s_ContextStride) { name = "MeshCullingContext" }, true, false, out payload.contextWait);
             }
             catch
             {
@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <paramref name="occluded"/>; a history occluder writes the drawn table and a remainder list reads it.
         /// </summary>
         internal void Produce(in RGComputeEncoder encoder, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            in MeshCullingContext context, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder, RGBufferHandle drawn,
+            in MeshCullingContext context, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder, RGBufferHandle drawnHandle,
             bool remainder, MeshWorldStats stats)
         {
             RequireSupported();
@@ -180,14 +180,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer commands = encoder.m_Core.commands;
             payload.WaitForReuse(commands);
             payload.contextStaging[0] = context;
-            commands.SetBufferData(payload.cullingContext.buffer, payload.contextStaging, 0, 0, 1);
+            commands.SetBufferData(payload.cullingContextHandle.buffer, payload.contextStaging, 0, 0, 1);
 
             int initialize = m_InitializeArgsKernel.index;
             int dither = cache.desc.ditherLODTransitions ? 1 : 0;
             encoder.BeginSample(MeshDrawProfiling.initializeIndirectArgs);
             encoder.SetComputeIntParam(m_Shader, ID_CommandCount, commandCount);
-            encoder.SetComputeBufferParam(m_Shader, initialize, ID_CommandMeta, cache.commandMetaBuffer.buffer);
-            encoder.SetComputeBufferParam(m_Shader, initialize, ID_IndirectArgs, payload.indirectArgs.buffer);
+            encoder.SetComputeBufferParam(m_Shader, initialize, ID_CommandMeta, cache.commandMetaBufferHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, initialize, ID_IndirectArgs, payload.indirectArgsHandle.buffer);
             encoder.DispatchCompute(m_Shader, initialize, math.max(1, (commandCount + 63) / 64), 1, 1);
             encoder.EndSample(MeshDrawProfiling.initializeIndirectArgs);
             stats.drawListKernelDispatches++;
@@ -198,26 +198,26 @@ namespace InfinityTech.Rendering.MeshPipeline
             encoder.BeginSample(MeshDrawProfiling.buildDrawList);
             encoder.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             encoder.SetComputeIntParam(m_Shader, ID_DitherLod, dither);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CullingContext, payload.cullingContext.buffer);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenter);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsExtent, inputs.boundsExtent);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLodChains, inputs.lodChains);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityFlags, inputs.flags);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLayerMask, inputs.layerMask);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntitySceneCullingMask, inputs.sceneCullingMask);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityRenderingLayer, inputs.renderingLayers);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CandidateTable, cache.candidateBuffer.buffer);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CommandMeta, cache.commandMetaBuffer.buffer);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_IndirectArgs, payload.indirectArgs.buffer);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceToEntity, payload.instanceToEntity.buffer);
-            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceFade, payload.instanceFade.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CullingContext, payload.cullingContextHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenterHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsExtent, inputs.boundsExtentHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLodChains, inputs.lodChainsHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityFlags, inputs.flagsHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityLayerMask, inputs.layerMaskHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntitySceneCullingMask, inputs.sceneCullingMaskHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityRenderingLayer, inputs.renderingLayersHandle);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CandidateTable, cache.candidateBufferHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_CommandMeta, cache.commandMetaBufferHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_IndirectArgs, payload.indirectArgsHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceToEntity, payload.instanceToEntityHandle.buffer);
+            encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceFade, payload.instanceFadeHandle.buffer);
             if (occluded)
             {
                 if (occluder.history || remainder)
                 {
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_DrawnCandidates, drawn);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_DrawnCandidates, drawnHandle);
                 }
-                encoder.SetComputeTextureParam(m_Shader, kernel, ID_Furthest, occluder.furthest);
+                encoder.SetComputeTextureParam(m_Shader, kernel, ID_Furthest, occluder.furthestHandle);
                 encoder.SetComputeMatrixParam(m_Shader, ID_Projection, occluder.viewProjection);
                 encoder.SetComputeVectorParam(m_Shader, ID_Extent, occluder.extent);
                 encoder.SetComputeIntParam(m_Shader, ID_MipCount, occluder.mipCount);
@@ -225,10 +225,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     encoder.SetComputeIntParam(m_Shader, ID_CurrentCount, occluder.currentCount);
                     encoder.SetComputeIntParam(m_Shader, ID_PreviousCount, occluder.previousCount);
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentTransforms, occluder.currentTransforms);
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentGenerations, occluder.currentGenerations);
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousTransforms, occluder.previousTransforms);
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousGenerations, occluder.previousGenerations);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentTransforms, occluder.currentTransformsHandle);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_CurrentGenerations, occluder.currentGenerationsHandle);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousTransforms, occluder.previousTransformsHandle);
+                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_PreviousGenerations, occluder.previousGenerationsHandle);
                 }
             }
             encoder.DispatchCompute(m_Shader, kernel, math.max(1, build.GroupsX(candidateCount)), 1, 1);
@@ -248,10 +248,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 NativeArray<uint> meta = cache.GetCommandMeta();
                 NativeArray<int> order = cache.GetCommandOrder();
                 m_Properties.Clear();
-                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, payload.instanceFade.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matrices.buffer);
-                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceToEntity, payload.instanceToEntityHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.InstanceFade, payload.instanceFadeHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityTransforms, tables.version.matricesHandle.buffer);
+                m_Properties.SetBuffer(MeshShaderIDs.EntityRenderingLayers, tables.renderingLayersHandle.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
                 NativeArray<MeshDrawCommand> records = cache.commands;
                 bool anyFading = false;
@@ -297,7 +297,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             m_Properties.SetInt(MeshShaderIDs.InstanceOffset, (int)meta[command * MeshPassCache.MetaStride + 3 + range]);
             commands.DrawMeshInstancedIndirect(binding.mesh, binding.submesh, binding.material, binding.passIndex,
-                payload.indirectArgs.buffer, (command * 2 + range) * k_ArgsStride * sizeof(uint), m_Properties);
+                payload.indirectArgsHandle.buffer, (command * 2 + range) * k_ArgsStride * sizeof(uint), m_Properties);
         }
 
         internal void RetirePayload(MeshGPUDrawPayload payload)
@@ -310,23 +310,23 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         void ReleaseBuffers(MeshGPUDrawPayload payload, ResourceReuseFence reuseFence)
         {
-            if (payload.indirectArgs.buffer != null)
+            if (payload.indirectArgsHandle.buffer != null)
             {
-                m_Pool.ReleaseBuffer(payload.indirectArgs, reuseFence);
+                m_Pool.ReleaseBuffer(payload.indirectArgsHandle, reuseFence);
             }
-            if (payload.instanceToEntity.buffer != null)
+            if (payload.instanceToEntityHandle.buffer != null)
             {
-                m_Pool.ReleaseBuffer(payload.instanceToEntity, reuseFence);
+                m_Pool.ReleaseBuffer(payload.instanceToEntityHandle, reuseFence);
             }
-            if (payload.instanceFade.buffer != null)
+            if (payload.instanceFadeHandle.buffer != null)
             {
-                m_Pool.ReleaseBuffer(payload.instanceFade, reuseFence);
+                m_Pool.ReleaseBuffer(payload.instanceFadeHandle, reuseFence);
             }
-            if (payload.cullingContext.buffer != null)
+            if (payload.cullingContextHandle.buffer != null)
             {
-                m_Pool.ReleaseBuffer(payload.cullingContext, reuseFence);
+                m_Pool.ReleaseBuffer(payload.cullingContextHandle, reuseFence);
             }
-            payload.indirectArgs = payload.instanceToEntity = payload.instanceFade = payload.cullingContext = default;
+            payload.indirectArgsHandle = payload.instanceToEntityHandle = payload.instanceFadeHandle = payload.cullingContextHandle = default;
             payload.argsWait = payload.instancesWait = payload.fadeWait = payload.contextWait = default;
             payload.commandCapacity = payload.instanceCapacity = 0;
         }

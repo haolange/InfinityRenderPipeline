@@ -163,8 +163,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public ComputeShader combineLUTShader;
             public ComputeKernel combineLutKernel;
-            public RGTextureHandle combineLookupTexture;
-            public RGConstantsHandle parameters;
+            public RGTextureHandle combineLookupTextureHandle;
+            public RGConstantsHandle parametersHandle;
         }
 
         void ComputeCombineLuts(in CameraRecordContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
@@ -178,8 +178,8 @@ namespace InfinityTech.Rendering.Pipeline
             combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
 
             context.state.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
-            RGTextureHandle combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
+            RGTextureHandle combineLookupTextureHandle = m_RGBuilder.ImportTexture(lutHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTextureHandle);
 
             if (hit)
             {
@@ -187,23 +187,23 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add ColorGradePass
-            using (var passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
             {
+                RGComputePassHandle<CombineLutPassData> passHandle = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts));
                 //Setup Phase
-                ref CombineLutPassData passData = ref passRef.GetPassData();
+                ref CombineLutPassData passData = ref passHandle.GetPassData();
                 passData.combineLUTShader = shaders.combineLUTShader;
                 passData.combineLutKernel = kernels.combineLut;
-                passData.combineLookupTexture = passRef.WriteTexture(combineLookupTexture);
-                passData.parameters = passRef.WriteConstants(combineLutParameterDescriptor);
+                passData.combineLookupTextureHandle = passHandle.WriteTexture(combineLookupTextureHandle);
+                passData.parametersHandle = passHandle.WriteConstants(combineLutParameterDescriptor);
 
                 //Execute Phase
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
 
-                    cmdEncoder.SetComputeConstantBufferParam(passData.combineLUTShader, CombineLutPassUtilityData.CBV_CombineLutParametersID, passData.parameters);
-                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, InfinityShaderIDs.CombineLookupTexture, passData.combineLookupTexture);
+                    cmdEncoder.SetComputeConstantBufferParam(passData.combineLUTShader, CombineLutPassUtilityData.CBV_CombineLutParametersID, passData.parametersHandle);
+                    cmdEncoder.SetComputeTextureParam(passData.combineLUTShader, passData.combineLutKernel.index, InfinityShaderIDs.CombineLookupTexture, passData.combineLookupTextureHandle);
 
                     cmdEncoder.DispatchCompute(passData.combineLUTShader, passData.combineLutKernel.index, passData.combineLutKernel.GroupsX(32), passData.combineLutKernel.GroupsY(32), passData.combineLutKernel.GroupsZ(32));
                 });

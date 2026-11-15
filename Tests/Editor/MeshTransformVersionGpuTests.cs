@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 Assert.IsTrue(executed, "Transform producer did not receive a live rendering context.");
                 if (failure != null) throw failure;
-                var request = AsyncGPUReadback.Request(world.transformVersions.current.matrices.buffer);
+                var request = AsyncGPUReadback.Request(world.transformVersions.current.matricesHandle.buffer);
                 while (!request.done) yield return null;
                 Assert.IsFalse(request.hasError);
                 // All transform production completed before this readback. No pool fence is needed in this fixture.
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             => world.WriteEntityPose(id, float4x4.Translate(new float3(x, 0, 0)), MeshTestUtility.Bound(new float3(x, 0, 0)));
         static float4x4 ReadMatrix(MeshTransformVersion version, int index)
         {
-            var result = new float4x4[1]; version.matrices.buffer.GetData(result, 0, index, 1); return result[0];
+            var result = new float4x4[1]; version.matricesHandle.buffer.GetData(result, 0, index, 1); return result[0];
         }
         static Vector4 Previous(ComputeShader shader, MeshMotionBinding binding, int index)
         {
@@ -82,9 +82,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 int kernel = shader.FindKernel("ReadPrevious");
                 var previous = binding.previous ?? binding.current;
-                shader.SetBuffer(kernel, "PreviousEntityTransforms", previous.matrices.buffer);
-                shader.SetBuffer(kernel, "PreviousEntityGenerations", previous.generations.buffer);
-                shader.SetBuffer(kernel, "EntityGenerations", binding.current.generations.buffer);
+                shader.SetBuffer(kernel, "PreviousEntityTransforms", previous.matricesHandle.buffer);
+                shader.SetBuffer(kernel, "PreviousEntityGenerations", previous.generationsHandle.buffer);
+                shader.SetBuffer(kernel, "EntityGenerations", binding.current.generationsHandle.buffer);
                 shader.SetInt("PreviousEntityValid", binding.previous != null ? 1 : 0);
                 shader.SetInt("PreviousEntityCount", binding.previous != null ? binding.previous.count : 0);
                 shader.SetInt("TestEntityIndex", index); shader.SetBuffer(kernel, "Result", output); shader.Dispatch(kernel, 1, 1, 1);

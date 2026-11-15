@@ -269,7 +269,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 world.UpdateResidency();
                 MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
                 Assert.IsTrue(cache.desc.ditherLODTransitions);
-                Assert.IsNotNull(cache.candidateBuffer.buffer, "Residency uploads the candidate table.");
+                Assert.IsNotNull(cache.candidateBufferHandle.buffer, "Residency uploads the candidate table.");
                 int commandCount = cache.commandHighWater, candidateCount = cache.candidates.Length;
                 Assert.Greater(commandCount, 1);
                 int freeCommand = -1;
@@ -325,7 +325,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
-                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
+                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBufferHandle.buffer);
                     commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
                     BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
@@ -406,7 +406,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
-                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBuffer.buffer);
+                    commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBufferHandle.buffer);
                     commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
                     BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
@@ -435,13 +435,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         static void BindColumns(CommandBuffer commands, ComputeShader shader, int kernel, MeshWorld world)
         {
             MeshWorldGPU gpu = world.gpu;
-            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsCenter", gpu.boundsCenter.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsExtent", gpu.boundsExtent.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntityFlags", gpu.flags.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntityLayerMask", gpu.layerMask.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
-            commands.SetComputeBufferParam(shader, kernel, "_EntityLodChains", gpu.lodChains.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsCenter", gpu.boundsCenterHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityBoundsExtent", gpu.boundsExtentHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityFlags", gpu.flagsHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityLayerMask", gpu.layerMaskHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntitySceneCullingMask", gpu.sceneCullingMaskHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityRenderingLayer", gpu.renderingLayersHandle.buffer);
+            commands.SetComputeBufferParam(shader, kernel, "_EntityLodChains", gpu.lodChainsHandle.buffer);
         }
     }
 }

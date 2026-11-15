@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Registry-only validity. Generation and index are checked by UseMeshDrawList and Draw.</summary>
         public bool IsValid => context != null;
 
-        public static RGMeshDrawListHandle Invalid => default;
+        public static RGMeshDrawListHandle InvalidHandle => default;
     }
 
     internal enum EMeshDrawListState : byte
@@ -43,9 +43,9 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>Graph handles every consumer of a list reads: the frozen tables and the producer's outputs.</summary>
     internal struct MeshDrawListReads
     {
-        public RGBufferHandle matrices, generations, layers, previousMatrices, previousGenerations;
+        public RGBufferHandle matricesHandle, generationsHandle, layersHandle, previousMatricesHandle, previousGenerationsHandle;
         public bool hasPrevious;
-        public RGBufferHandle[] producerOutputs;
+        public RGBufferHandle[] producerOutputsHandle;
     }
 
     internal struct MeshDrawListRecord
@@ -62,8 +62,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshDrawListReads reads;
         // CPU direct
         public MeshDrawListBuild build;
-        public BufferHandle cpuInstances;
-        public BufferHandle cpuFades;
+        public BufferHandle cpuInstancesHandle;
+        public BufferHandle cpuFadesHandle;
         // GPU indirect
         public MeshGPUDrawPayload payload;
         public int commandCount;
@@ -85,8 +85,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int Count => m_Records.Count;
         public int GraphGeneration => m_GraphGeneration;
 
-        public bool IsLive(in RGMeshDrawListHandle draws)
-            => draws.context == this && draws.generation == m_GraphGeneration && draws.index >= 0 && draws.index < m_Records.Count;
+        public bool IsLive(in RGMeshDrawListHandle drawsHandle)
+            => drawsHandle.context == this && drawsHandle.generation == m_GraphGeneration && drawsHandle.index >= 0 && drawsHandle.index < m_Records.Count;
 
         public MeshDrawListRecord GetRecordCopy(int index) => m_Records[index];
 
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException("Draw lists require uploaded MeshWorld residency.");
             }
             bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
-            if (gpu && !empty && (cache.candidateBuffer.buffer == null || cache.commandMetaBuffer.buffer == null))
+            if (gpu && !empty && (cache.candidateBufferHandle.buffer == null || cache.commandMetaBufferHandle.buffer == null))
             {
                 throw new InvalidOperationException($"Mesh pass '{cache.desc.lightMode}' has no uploaded candidate and command tables.");
             }
@@ -132,7 +132,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 else
                 {
-                    m_World.cpuBackend.AllocateInstances(cache.memberCount, out record.cpuInstances, out record.cpuFades);
+                    m_World.cpuBackend.AllocateInstances(cache.memberCount, out record.cpuInstancesHandle, out record.cpuFadesHandle);
                 }
                 m_Records[index] = record;
             }
@@ -146,10 +146,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Records[index] = record;
         }
 
-        internal void SetProducerOutputs(int index, RGBufferHandle[] outputs)
+        internal void SetProducerOutputs(int index, RGBufferHandle[] outputsHandle)
         {
             MeshDrawListRecord record = m_Records[index];
-            record.reads.producerOutputs = outputs;
+            record.reads.producerOutputsHandle = outputsHandle;
             m_Records[index] = record;
         }
 
@@ -225,7 +225,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             consumer.Begin(commands);
             try
             {
-                m_World.cpuBackend.Upload(commands, record.cache, ref record.build, record.cpuInstances, record.cpuFades);
+                m_World.cpuBackend.Upload(commands, record.cache, ref record.build, record.cpuInstancesHandle, record.cpuFadesHandle);
             }
             finally
             {
@@ -235,7 +235,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal void Produce(int index, in RGComputeEncoder encoder, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder,
-            RGBufferHandle drawn, bool remainder)
+            RGBufferHandle drawnHandle, bool remainder)
         {
             MeshDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_World.gpuBackend.Produce(encoder, record.payload, record.cache, record.commandCount, record.candidateCount,
-                    record.cullingContext, inputs, occluded, occluder, drawn, remainder, m_World.stats);
+                    record.cullingContext, inputs, occluded, occluder, drawnHandle, remainder, m_World.stats);
             }
             finally
             {
@@ -252,14 +252,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public void SubmitMeshDrawList(CommandBuffer commands, in RGMeshDrawListHandle draws)
+        public void SubmitMeshDrawList(CommandBuffer commands, in RGMeshDrawListHandle drawsHandle)
         {
             // Draw is only reachable from a live consumer declared with UseMeshDrawList; anything else is a broken pass.
-            if (!IsLive(draws))
+            if (!IsLive(drawsHandle))
             {
                 throw new InvalidOperationException("Draw received a draw list of another builder or an earlier graph.");
             }
-            MeshDrawListRecord record = m_Records[draws.index];
+            MeshDrawListRecord record = m_Records[drawsHandle.index];
             if (record.state != EMeshDrawListState.Scheduled && record.state != EMeshDrawListState.Empty)
             {
                 throw new InvalidOperationException("Draw received a draw list that its pass did not declare with UseMeshDrawList.");
@@ -272,7 +272,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (record.backend == EMeshDrawBackendPolicy.GPUIndirect)
                 m_World.gpuBackend.SubmitMeshDrawList(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion);
             else
-                m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion);
+                m_World.cpuBackend.SubmitMeshDrawList(commands, record.cache, record.build, record.cpuInstancesHandle, record.cpuFadesHandle, record.tables, record.motion);
         }
 
         /// <summary>
@@ -289,8 +289,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     record.build.Dispose();
                     m_World.gpuBackend.RetirePayload(record.payload);
-                    m_World.cpuBackend.Retire(record.cpuInstances);
-                    m_World.cpuBackend.Retire(record.cpuFades);
+                    m_World.cpuBackend.Retire(record.cpuInstancesHandle);
+                    m_World.cpuBackend.Retire(record.cpuFadesHandle);
                     record.tables.version?.Release();
                 }
                 catch (Exception error)

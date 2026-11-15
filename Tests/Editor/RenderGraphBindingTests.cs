@@ -26,20 +26,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     var descriptor = new TextureDescriptor(100, 60) { name = "PaddedDepth", allocationWidth = 128, allocationHeight = 64 };
-                    RGTextureHandle texture = factory.ImportBackbuffer(s_External, descriptor);
+                    RGTextureHandle textureHandle = factory.ImportBackbuffer(s_External, descriptor);
                     var core = new RGCommandCore(commands, factory);
 
-                    Assert.IsTrue(core.ResolveTexture(s_ViewProperty, texture, 0, out _, out int viewID, out Vector4 view));
+                    Assert.IsTrue(core.ResolveTexture(s_ViewProperty, textureHandle, 0, out _, out int viewID, out Vector4 view));
                     Assert.AreEqual(s_ViewCompanion, viewID);
                     Assert.AreEqual(new Vector4(100, 60, 128, 64), view);
 
-                    Assert.IsTrue(core.ResolveTexture(s_ViewProperty, texture, 1, out _, out _, out Vector4 mipView));
+                    Assert.IsTrue(core.ResolveTexture(s_ViewProperty, textureHandle, 1, out _, out _, out Vector4 mipView));
                     Assert.AreEqual(new Vector4(50, 30, 64, 32), mipView, "A mip halves logical size and capacity together.");
 
-                    Assert.IsFalse(core.ResolveTexture(s_PlainProperty, texture, 0, out _, out _, out _), "A property without a view companion publishes no view.");
+                    Assert.IsFalse(core.ResolveTexture(s_PlainProperty, textureHandle, 0, out _, out _, out _), "A property without a view companion publishes no view.");
 
                     var encoder = new RGRasterEncoder(commands, factory);
-                    encoder.SetGlobalTexture(s_ViewProperty, texture);
+                    encoder.SetGlobalTexture(s_ViewProperty, textureHandle);
                     Assert.Greater(commands.sizeInBytes, 0);
                 }
                 finally { factory.Dispose(); }
@@ -54,12 +54,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 try
                 {
-                    RGTextureHandle texture = factory.ImportBackbuffer(s_External, new TextureDescriptor { name = "Unsized" });
+                    RGTextureHandle textureHandle = factory.ImportBackbuffer(s_External, new TextureDescriptor { name = "Unsized" });
                     var encoder = new RGRasterEncoder(commands, factory);
-                    var error = Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_ViewProperty, texture));
+                    var error = Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_ViewProperty, textureHandle));
                     StringAssert.Contains("Unsized", error.Message);
                     Assert.AreEqual(0, commands.sizeInBytes, "A rejected binding records nothing.");
-                    encoder.SetGlobalTexture(s_PlainProperty, texture);
+                    encoder.SetGlobalTexture(s_PlainProperty, textureHandle);
                 }
                 finally { factory.Dispose(); }
             }
@@ -97,11 +97,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 try
                 {
-                    RGTextureHandle texture = factory.ImportBackbuffer(s_External, new TextureDescriptor(4, 4) { name = "Stale" });
+                    RGTextureHandle textureHandle = factory.ImportBackbuffer(s_External, new TextureDescriptor(4, 4) { name = "Stale" });
                     var encoder = new RGRasterEncoder(commands, factory);
                     factory.Clear();
-                    Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_ViewProperty, texture));
-                    Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_PlainProperty, texture));
+                    Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_ViewProperty, textureHandle));
+                    Assert.Throws<InvalidOperationException>(() => encoder.SetGlobalTexture(s_PlainProperty, textureHandle));
                     Assert.AreEqual(0, commands.sizeInBytes);
                 }
                 finally { factory.Dispose(); }

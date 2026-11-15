@@ -10,37 +10,37 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct CopyHistoryScalarPassData
         {
-            public RGTextureHandle source;
-            public RGTextureHandle history;
+            public RGTextureHandle sourceHandle;
+            public RGTextureHandle historyHandle;
         }
 
         void CopyHistoryScalar(in CameraRecordContext context, int sourceId, int historyId, string name)
         {
-            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(sourceId);
-            TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(sourceId);
+            TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             descriptor.name = name;
-            RGTextureHandle history = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(historyId, descriptor));
+            RGTextureHandle historyHandle = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(historyId, descriptor));
             context.historyCache.MarkProduced(historyId);
-            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR)))
             {
-                passRef.ReadTexture(source);
-                passRef.WriteTexture(history);
-                ref CopyHistoryScalarPassData passData = ref passRef.GetPassData();
-                passData.source = source;
-                passData.history = history;
-                passRef.SetExecuteFunc((in CopyHistoryScalarPassData data, in RGTransferEncoder cmdEncoder) =>
+                RGTransferPassHandle<CopyHistoryScalarPassData> passHandle = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR));
+                passHandle.ReadTexture(sourceHandle);
+                passHandle.WriteTexture(historyHandle);
+                ref CopyHistoryScalarPassData passData = ref passHandle.GetPassData();
+                passData.sourceHandle = sourceHandle;
+                passData.historyHandle = historyHandle;
+                passHandle.SetExecuteFunc((in CopyHistoryScalarPassData data, in RGTransferEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.CopyTexture(data.source, data.history);
+                    cmdEncoder.CopyTexture(data.sourceHandle, data.historyHandle);
                 });
             }
         }
 
         struct CopyHistoryRadianceMetaPassData
         {
-            public RGTextureHandle radianceSource;
-            public RGTextureHandle radianceHistory;
-            public RGTextureHandle metaSource;
-            public RGTextureHandle metaHistory;
+            public RGTextureHandle radianceSourceHandle;
+            public RGTextureHandle radianceHistoryHandle;
+            public RGTextureHandle metaSourceHandle;
+            public RGTextureHandle metaHistoryHandle;
         }
 
         // SSR history is the temporal output (before the optional spatial pass, so filtering never feeds back) plus
@@ -69,36 +69,36 @@ namespace InfinityTech.Rendering.Pipeline
         // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
         void CopyHistoryRadianceMeta(in CameraRecordContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
-            RGTextureHandle radianceSource = m_RGBuilder.scoper.QueryTexture(radianceSourceId);
-            RGTextureHandle metaSource = m_RGBuilder.scoper.QueryTexture(metaSourceId);
+            RGTextureHandle radianceSourceHandle = m_RGBuilder.scoper.QueryTexture(radianceSourceId);
+            RGTextureHandle metaSourceHandle = m_RGBuilder.scoper.QueryTexture(metaSourceId);
 
-            TextureDescriptor radianceDsc = m_RGBuilder.GetTextureDescriptor(radianceSource);
+            TextureDescriptor radianceDsc = m_RGBuilder.GetTextureDescriptor(radianceSourceHandle);
             radianceDsc.name = radianceName;
-            TextureDescriptor metaDsc = m_RGBuilder.GetTextureDescriptor(metaSource);
+            TextureDescriptor metaDsc = m_RGBuilder.GetTextureDescriptor(metaSourceHandle);
             metaDsc.name = metaName;
 
-            RGTextureHandle radianceHistory = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
-            RGTextureHandle metaHistory = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(metaHistoryId, metaDsc));
+            RGTextureHandle radianceHistoryHandle = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
+            RGTextureHandle metaHistoryHandle = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(metaHistoryId, metaDsc));
             context.historyCache.MarkProduced(radianceHistoryId);
             context.historyCache.MarkProduced(metaHistoryId);
 
-            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
             {
-                passRef.ReadTexture(radianceSource);
-                passRef.WriteTexture(radianceHistory);
-                passRef.ReadTexture(metaSource);
-                passRef.WriteTexture(metaHistory);
+                RGTransferPassHandle<CopyHistoryRadianceMetaPassData> passHandle = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId));
+                passHandle.ReadTexture(radianceSourceHandle);
+                passHandle.WriteTexture(radianceHistoryHandle);
+                passHandle.ReadTexture(metaSourceHandle);
+                passHandle.WriteTexture(metaHistoryHandle);
 
-                ref CopyHistoryRadianceMetaPassData passData = ref passRef.GetPassData();
-                passData.radianceSource = radianceSource;
-                passData.radianceHistory = radianceHistory;
-                passData.metaSource = metaSource;
-                passData.metaHistory = metaHistory;
+                ref CopyHistoryRadianceMetaPassData passData = ref passHandle.GetPassData();
+                passData.radianceSourceHandle = radianceSourceHandle;
+                passData.radianceHistoryHandle = radianceHistoryHandle;
+                passData.metaSourceHandle = metaSourceHandle;
+                passData.metaHistoryHandle = metaHistoryHandle;
 
-                passRef.SetExecuteFunc((in CopyHistoryRadianceMetaPassData passData, in RGTransferEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in CopyHistoryRadianceMetaPassData passData, in RGTransferEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.CopyTexture(passData.radianceSource, passData.radianceHistory);
-                    cmdEncoder.CopyTexture(passData.metaSource, passData.metaHistory);
+                    cmdEncoder.CopyTexture(passData.radianceSourceHandle, passData.radianceHistoryHandle);
+                    cmdEncoder.CopyTexture(passData.metaSourceHandle, passData.metaHistoryHandle);
                 });
             }
         }

@@ -17,24 +17,24 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ObjectMotionPassData
         {
-            public RGMeshDrawListHandle meshDrawList;
-            public RGRendererListHandle rendererList;
+            public RGMeshDrawListHandle meshDrawListHandle;
+            public RGRendererListHandle rendererListHandle;
         }
 
         struct CameraMotionPassData
         {
-            public RGTextureHandle depthTexture;
+            public RGTextureHandle depthTextureHandle;
             public int shaderPass;
         }
 
-        void RasterMotion(in CameraRecordContext context, in RGMeshDrawListHandle motionMeshDrawList)
+        void RasterMotion(in CameraRecordContext context, in RGMeshDrawListHandle motionMeshDrawListHandle)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
                 return;
             }
 
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor motionTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -42,58 +42,58 @@ namespace InfinityTech.Rendering.Pipeline
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
                 motionTextureDsc.colorFormat = GraphicsFormat.R16G16_SFloat;
             }
-            RGTextureHandle motionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
+            RGTextureHandle motionTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
             motionTextureDsc.name = "MotionMetadata";
             motionTextureDsc.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             motionTextureDsc.clearColor = Color.clear;
-            RGTextureHandle motionMetadata = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
+            RGTextureHandle motionMetadataHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
-            RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
+            RGRendererListHandle motionRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch));
 
             //Add ObjectMotionPass
-            using (var passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
             {
+                RGRasterPassHandle<ObjectMotionPassData> passHandle = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion));
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(motionTextureHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(motionMetadataHandle, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref ObjectMotionPassData passData = ref passRef.GetPassData();
+                ref ObjectMotionPassData passData = ref passHandle.GetPassData();
                 {
-                    passData.meshDrawList = passRef.UseMeshDrawList(motionMeshDrawList);
-                    passData.rendererList = passRef.UseRendererList(motionRendererList);
+                    passData.meshDrawListHandle = passHandle.UseMeshDrawList(motionMeshDrawListHandle);
+                    passData.rendererListHandle = passHandle.UseRendererList(motionRendererListHandle);
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawList);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                    cmdEncoder.SubmitMeshDrawList(passData.meshDrawListHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
 
             //Add CameraMotionPass
-            using (var passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
             {
+                RGRasterPassHandle<CameraMotionPassData> passHandle = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion));
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(motionTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(motionMetadataHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
-                ref CameraMotionPassData passData = ref passRef.GetPassData();
+                ref CameraMotionPassData passData = ref passHandle.GetPassData();
                 {
-                    passData.depthTexture = depthTexture;
+                    passData.depthTextureHandle = depthTextureHandle;
                     passData.shaderPass = blitPasses.cameraMotion;
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTextureHandle);
                     cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
                 });
             }

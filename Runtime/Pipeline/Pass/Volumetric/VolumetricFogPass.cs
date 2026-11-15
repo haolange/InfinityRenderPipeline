@@ -49,20 +49,20 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct VolumetricFogPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int3 froxelResolution;
-            public RGBufferHandle lightRecordBuffer;
+            public RGBufferHandle lightRecordBufferHandle;
             public LightLoopInputs lightLoop;
             public ShadowInputs shadows;
             public ComputeShader volumetricFogShader;
             public ComputeKernel scatterDensityKernel;
             public ComputeKernel integrateKernel;
             public ComputeKernel temporalKernel;
-            public RGTextureHandle depthTexture;
-            public RGTextureHandle volumetricFogTexture;
-            public RGTextureHandle historyTexture;
-            public RGTextureHandle skyViewLUT;
-            public RGTextureHandle aerialPerspectiveLUT;
+            public RGTextureHandle depthTextureHandle;
+            public RGTextureHandle volumetricFogTextureHandle;
+            public RGTextureHandle historyTextureHandle;
+            public RGTextureHandle skyViewLUTHandle;
+            public RGTextureHandle aerialPerspectiveLUTHandle;
         }
 
         static TextureDescriptor CreateVolumetricFogDescriptor(int width, int height, int depthSlices, string name, bool randomWrite)
@@ -96,22 +96,22 @@ namespace InfinityTech.Rendering.Pipeline
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
 
             TextureDescriptor volumetricFogDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.TextureName, true);
-            RGTextureHandle volumetricFogTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
+            RGTextureHandle volumetricFogTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
             HistoryRead historyRead = context.historyCache.Read(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, context.resetsHistory);
-            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyRead.texture);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
+            RGTextureHandle historyTextureHandle = m_RGBuilder.ImportTexture(historyRead.textureHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTextureHandle);
 
-            RGTextureHandle depthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle skyViewLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT);
-            RGTextureHandle aerialPerspectiveLUT = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle skyViewLUTHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT);
+            RGTextureHandle aerialPerspectiveLUTHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT);
             float aerialDistance = context.atmosphere.aerialPerspectiveDistance;
 
-            using (var passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
-                ref VolumetricFogPassData passData = ref passRef.GetPassData();
-                passData.parameters = passRef.WriteConstants(new VolumetricFogParameters
+                RGComputePassHandle<VolumetricFogPassData> passHandle = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog));
+                ref VolumetricFogPassData passData = ref passHandle.GetPassData();
+                passData.parametersHandle = passHandle.WriteConstants(new VolumetricFogParameters
                 {
                     screenSize = new Vector4(width, height, 1.0f / width, 1.0f / height),
                     resolution = new Vector4(froxelWidth, froxelHeight, depthSlices, 0),
@@ -129,48 +129,48 @@ namespace InfinityTech.Rendering.Pipeline
                 });
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
                 LightLoopInputs lightLoop = QueryLightLoop(context);
-                lightLoop.Read(passRef);
+                lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
                 ShadowInputs shadows = QueryShadowInputs(context);
-                shadows.Read(passRef);
+                shadows.Read(passHandle);
                 passData.shadows = shadows;
-                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.volumetricFogShader = shaders.volumetricFogShader;
                 passData.scatterDensityKernel = kernels.fogScatterDensity;
                 passData.integrateKernel = kernels.fogIntegrate;
                 passData.temporalKernel = kernels.fogTemporal;
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.historyTexture = passRef.ReadTexture(historyTexture);
-                passData.volumetricFogTexture = passRef.WriteTexture(volumetricFogTexture);
-                passData.skyViewLUT = passRef.ReadTexture(skyViewLUT);
-                passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
+                passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
+                passData.historyTextureHandle = passHandle.ReadTexture(historyTextureHandle);
+                passData.volumetricFogTextureHandle = passHandle.WriteTexture(volumetricFogTextureHandle);
+                passData.skyViewLUTHandle = passHandle.ReadTexture(skyViewLUTHandle);
+                passData.aerialPerspectiveLUTHandle = passHandle.ReadTexture(aerialPerspectiveLUTHandle);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricFogShader;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, VolumetricFogPassUtilityData.CBV_VolumetricFogParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, VolumetricFogPassUtilityData.CBV_VolumetricFogParametersID, passData.parametersHandle);
 
                     int scatterKernel = passData.scatterDensityKernel.index;
-                    cmdEncoder.SetComputeBufferParam(shader, scatterKernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
+                    cmdEncoder.SetComputeBufferParam(shader, scatterKernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBufferHandle);
                     passData.lightLoop.Bind(cmdEncoder, shader, scatterKernel);
                     passData.shadows.Bind(cmdEncoder, shader, scatterKernel);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_SkyViewLUT, passData.skyViewLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_AerialPerspectiveLUT, passData.aerialPerspectiveLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_SkyViewLUT, passData.skyViewLUTHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, PassShaderIDs.SRV_AerialPerspectiveLUT, passData.aerialPerspectiveLUTHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.scatterDensityKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTextureHandle);
                     cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogScatterSampler);
                     cmdEncoder.DispatchCompute(shader, passData.scatterDensityKernel.index, passData.scatterDensityKernel.GroupsX(passData.froxelResolution.x), passData.scatterDensityKernel.GroupsY(passData.froxelResolution.y), 1);
                     cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogScatterSampler);
 
                     cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogIntegrateSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.integrateKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.integrateKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTextureHandle);
                     cmdEncoder.DispatchCompute(shader, passData.integrateKernel.index, passData.integrateKernel.GroupsX(passData.froxelResolution.x), passData.integrateKernel.GroupsY(passData.froxelResolution.y), 1);
                     cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogIntegrateSampler);
 
                     cmdEncoder.BeginSample(VolumetricFogPassUtilityData.VolFogTemporalSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.SRV_HistoryVolumetricFogID, passData.historyTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.SRV_HistoryVolumetricFogID, passData.historyTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.temporalKernel.index, VolumetricFogPassUtilityData.UAV_VolumetricFogTextureID, passData.volumetricFogTextureHandle);
                     cmdEncoder.DispatchCompute(shader, passData.temporalKernel.index, passData.temporalKernel.GroupsX(passData.froxelResolution.x), passData.temporalKernel.GroupsY(passData.froxelResolution.y), 1);
                     cmdEncoder.EndSample(VolumetricFogPassUtilityData.VolFogTemporalSampler);
                 });
@@ -181,8 +181,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CopyHistoryVolumetricFogPassData
         {
-            public RGTextureHandle source;
-            public RGTextureHandle history;
+            public RGTextureHandle sourceHandle;
+            public RGTextureHandle historyHandle;
         }
 
         void CopyHistoryVolumetricFog(in CameraRecordContext context)
@@ -191,25 +191,25 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
-            RGTextureHandle source = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer);
+            RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer);
 
             var volFog = context.volumes.volumetricFog;
             int froxelWidth = Mathf.CeilToInt(context.dimensions.internalSize.x / 8.0f);
             int froxelHeight = Mathf.CeilToInt(context.dimensions.internalSize.y / 8.0f);
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.Resolve().depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureHandle history = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
+            RGTextureHandle historyHandle = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
             context.historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
 
-            using (var passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
             {
-                passRef.ReadTexture(source);
-                passRef.WriteTexture(history);
-                ref CopyHistoryVolumetricFogPassData passData = ref passRef.GetPassData();
-                passData.source = source;
-                passData.history = history;
-                passRef.SetExecuteFunc((in CopyHistoryVolumetricFogPassData passData, in RGTransferEncoder cmdEncoder) =>
+                RGTransferPassHandle<CopyHistoryVolumetricFogPassData> passHandle = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog));
+                passHandle.ReadTexture(sourceHandle);
+                passHandle.WriteTexture(historyHandle);
+                ref CopyHistoryVolumetricFogPassData passData = ref passHandle.GetPassData();
+                passData.sourceHandle = sourceHandle;
+                passData.historyHandle = historyHandle;
+                passHandle.SetExecuteFunc((in CopyHistoryVolumetricFogPassData passData, in RGTransferEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.CopyTexture(passData.source, passData.history);
+                    cmdEncoder.CopyTexture(passData.sourceHandle, passData.historyHandle);
                 });
             }
         }

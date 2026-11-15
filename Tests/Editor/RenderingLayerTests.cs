@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         static uint ReadLayer(MeshWorld world, MeshEntityId entity)
         {
             var actual = new uint[1];
-            world.gpu.renderingLayers.buffer.GetData(actual, 0, (int)entity.Index, 1);
+            world.gpu.renderingLayersHandle.buffer.GetData(actual, 0, (int)entity.Index, 1);
             return actual[0];
         }
 

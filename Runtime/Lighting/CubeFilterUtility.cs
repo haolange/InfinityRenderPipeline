@@ -18,26 +18,26 @@ namespace InfinityTech.Rendering.Pipeline
         internal static float MipRoughness(int mip, int mipCount) => mipCount > 1 ? mip / (float)(mipCount - 1) : 0.0f;
 
         // The sky: a cube array without mips (pipeline face layout) into the target's slices [baseSlice, baseSlice + 6).
-        internal static void FilterArrayToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, RGTextureHandle source,
-            RGTextureHandle target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
+        internal static void FilterArrayToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, RGTextureHandle sourceHandle,
+            RGTextureHandle targetHandle, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
         {
             ComputeShader shader = kernel.shader;
             commands.SetComputeVectorParam(shader, s_Params, new Vector4(size, mip, roughness, baseSlice));
             commands.SetComputeVectorParam(shader, s_Source, new Vector4(size, 1, 1, samples));
-            commands.SetComputeTextureParam(shader, kernel.index, s_ArraySource, source);
-            commands.SetComputeTextureParam(shader, kernel.index, s_Target, target, mip);
+            commands.SetComputeTextureParam(shader, kernel.index, s_ArraySource, sourceHandle);
+            commands.SetComputeTextureParam(shader, kernel.index, s_Target, targetHandle, mip);
             Dispatch(commands, kernel, size, mip);
         }
 
         // A TextureCube (with its own mips) into the target's slices [baseSlice, baseSlice + 6), scaled by intensity.
         internal static void FilterCubeToArray<TCommands>(in TCommands commands, in ComputeKernel kernel, Texture source, float intensity,
-            RGTextureHandle target, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
+            RGTextureHandle targetHandle, int size, int mip, float roughness, int baseSlice, int samples) where TCommands : struct, IComputeCommands
         {
             ComputeShader shader = kernel.shader;
             commands.SetComputeVectorParam(shader, s_Params, new Vector4(size, mip, roughness, baseSlice));
             commands.SetComputeVectorParam(shader, s_Source, new Vector4(source.width, Mathf.Max(1, source.mipmapCount), intensity, samples));
             commands.SetComputeTextureParam(shader, kernel.index, s_CubeSource, source);
-            commands.SetComputeTextureParam(shader, kernel.index, s_Target, target, mip);
+            commands.SetComputeTextureParam(shader, kernel.index, s_Target, targetHandle, mip);
             Dispatch(commands, kernel, size, mip);
         }
 

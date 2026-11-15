@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct AtmosphericLUTPassData
         {
             public AtmosphereParameter parameter;
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int generateShared;
             public int generateView;
             public int generateIBL;
@@ -116,15 +116,15 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeKernel shProjectKernel;
             public ComputeKernel shReduceKernel;
             public ComputeKernel filterArrayToArrayKernel;
-            public RGTextureHandle transmittanceLUT;
-            public RGTextureHandle multiScatteringLUT;
-            public RGTextureHandle skyViewLUT;
-            public RGTextureHandle aerialPerspectiveLUT;
-            public RGTextureHandle atmosphereCubemap;
-            public RGTextureHandle ggxPrefilter;
-            public RGBufferHandle sunBuffer;
-            public RGBufferHandle shCoefficients;
-            public RGBufferHandle shPartial;
+            public RGTextureHandle transmittanceLUTHandle;
+            public RGTextureHandle multiScatteringLUTHandle;
+            public RGTextureHandle skyViewLUTHandle;
+            public RGTextureHandle aerialPerspectiveLUTHandle;
+            public RGTextureHandle atmosphereCubemapHandle;
+            public RGTextureHandle ggxPrefilterHandle;
+            public RGBufferHandle sunBufferHandle;
+            public RGBufferHandle shCoefficientsHandle;
+            public RGBufferHandle shPartialHandle;
         }
 
         static TextureDescriptor CreateAtmosphereLUTDescriptor(int width, int height, string name)
@@ -222,23 +222,23 @@ namespace InfinityTech.Rendering.Pipeline
             context.state.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
             m_AtmosphereSharedCache.ResolveIBL(iblKey, cubemapDsc, prefilterDsc, shDsc, out TextureHandle cubemapHandle, out TextureHandle prefilterHandle, out BufferHandle shHandle, out bool iblHit);
 
-            RGTextureHandle transmittanceLUT = m_RGBuilder.ImportTexture(transmittanceHandle);
-            RGTextureHandle multiScatteringLUT = m_RGBuilder.ImportTexture(multiScatterHandle);
-            RGTextureHandle skyViewLUT = m_RGBuilder.ImportTexture(skyViewHandle);
-            RGTextureHandle aerialPerspectiveLUT = m_RGBuilder.ImportTexture(aerialHandle);
-            RGTextureHandle atmosphereCubemap = m_RGBuilder.ImportTexture(cubemapHandle);
-            RGTextureHandle ggxPrefilter = m_RGBuilder.ImportTexture(prefilterHandle);
-            RGBufferHandle sunBuffer = m_RGBuilder.ImportBuffer(sunHandle);
-            RGBufferHandle shCoefficients = m_RGBuilder.ImportBuffer(shHandle);
+            RGTextureHandle transmittanceLUTHandle = m_RGBuilder.ImportTexture(transmittanceHandle);
+            RGTextureHandle multiScatteringLUTHandle = m_RGBuilder.ImportTexture(multiScatterHandle);
+            RGTextureHandle skyViewLUTHandle = m_RGBuilder.ImportTexture(skyViewHandle);
+            RGTextureHandle aerialPerspectiveLUTHandle = m_RGBuilder.ImportTexture(aerialHandle);
+            RGTextureHandle atmosphereCubemapHandle = m_RGBuilder.ImportTexture(cubemapHandle);
+            RGTextureHandle ggxPrefilterHandle = m_RGBuilder.ImportTexture(prefilterHandle);
+            RGBufferHandle sunBufferHandle = m_RGBuilder.ImportBuffer(sunHandle);
+            RGBufferHandle shCoefficientsHandle = m_RGBuilder.ImportBuffer(shHandle);
 
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceLUT);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatteringLUT);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewLUT);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialPerspectiveLUT);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereCubemap, atmosphereCubemap);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, ggxPrefilter);
-            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunBuffer);
-            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSkySH, shCoefficients);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceLUTHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatteringLUTHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewLUTHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialPerspectiveLUTHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereCubemap, atmosphereCubemapHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, ggxPrefilterHandle);
+            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunBufferHandle);
+            m_RGBuilder.scoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSkySH, shCoefficientsHandle);
 
             int ggxMipCount = AtmosphericLUTPassUtilityData.GGXMipCount(parameter.cubemapSize);
 
@@ -252,24 +252,24 @@ namespace InfinityTech.Rendering.Pipeline
 
             int groupsX = kernels.atmosphereCubemap.GroupsX(parameter.cubemapSize);
             int shPartialCount = groupsX * groupsX * 6;
-            RGBufferHandle shPartial = default;
+            RGBufferHandle shPartialHandle = default;
             if (generateIBL)
             {
                 BufferDescriptor partialDsc = new BufferDescriptor(Mathf.Max(1, shPartialCount * 9), sizeof(float) * 4, GraphicsBuffer.Target.Structured);
                 partialDsc.name = AtmosphericLUTPassUtilityData.SHPartialName;
-                shPartial = m_RGBuilder.CreateBuffer(partialDsc);
+                shPartialHandle = m_RGBuilder.CreateBuffer(partialDsc);
             }
 
-            using (var passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {
-                passRef.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
+                RGComputePassHandle<AtmosphericLUTPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT));
+                passHandle.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
                     view = context.state.atmosphereViewCache, generateShared = generateShared,
                     generateView = generateView, generateIBL = generateIBL });
-                ref AtmosphericLUTPassData passData = ref passRef.GetPassData();
+                ref AtmosphericLUTPassData passData = ref passHandle.GetPassData();
                 passData.parameter = parameter;
                 AtmosphereConstants constants = CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance);
                 constants.shPartialCount = shPartialCount;
-                passData.parameters = passRef.WriteConstants(constants);
+                passData.parametersHandle = passHandle.WriteConstants(constants);
                 passData.generateShared = generateShared ? 1 : 0;
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;
@@ -287,47 +287,47 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (generateShared)
                 {
-                    passData.transmittanceLUT = passRef.WriteTexture(transmittanceLUT);
-                    passData.multiScatteringLUT = passRef.WriteTexture(multiScatteringLUT);
+                    passData.transmittanceLUTHandle = passHandle.WriteTexture(transmittanceLUTHandle);
+                    passData.multiScatteringLUTHandle = passHandle.WriteTexture(multiScatteringLUTHandle);
                 }
                 else
                 {
-                    passData.transmittanceLUT = passRef.ReadTexture(transmittanceLUT);
-                    passData.multiScatteringLUT = passRef.ReadTexture(multiScatteringLUT);
+                    passData.transmittanceLUTHandle = passHandle.ReadTexture(transmittanceLUTHandle);
+                    passData.multiScatteringLUTHandle = passHandle.ReadTexture(multiScatteringLUTHandle);
                 }
 
                 if (generateView)
                 {
-                    passData.skyViewLUT = passRef.WriteTexture(skyViewLUT);
-                    passData.aerialPerspectiveLUT = passRef.WriteTexture(aerialPerspectiveLUT);
-                    passData.sunBuffer = passRef.WriteBuffer(sunBuffer);
+                    passData.skyViewLUTHandle = passHandle.WriteTexture(skyViewLUTHandle);
+                    passData.aerialPerspectiveLUTHandle = passHandle.WriteTexture(aerialPerspectiveLUTHandle);
+                    passData.sunBufferHandle = passHandle.WriteBuffer(sunBufferHandle);
                 }
 
                 if (generateIBL)
                 {
-                    passData.atmosphereCubemap = passRef.WriteTexture(atmosphereCubemap);
-                    passData.ggxPrefilter = passRef.WriteTexture(ggxPrefilter);
-                    passData.shCoefficients = passRef.WriteBuffer(shCoefficients);
-                    passData.shPartial = passRef.WriteBuffer(shPartial);
+                    passData.atmosphereCubemapHandle = passHandle.WriteTexture(atmosphereCubemapHandle);
+                    passData.ggxPrefilterHandle = passHandle.WriteTexture(ggxPrefilterHandle);
+                    passData.shCoefficientsHandle = passHandle.WriteBuffer(shCoefficientsHandle);
+                    passData.shPartialHandle = passHandle.WriteBuffer(shPartialHandle);
                 }
 
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.atmosphericLUTShader;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, AtmosphericLUTPassUtilityData.CBV_AtmosphereParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, AtmosphericLUTPassUtilityData.CBV_AtmosphereParametersID, passData.parametersHandle);
 
                     if (passData.generateShared != 0)
                     {
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoTransmittanceSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.transmittanceKernel.index, AtmosphericLUTPassUtilityData.UAV_TransmittanceLUTID, passData.transmittanceLUT);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.transmittanceKernel.index, AtmosphericLUTPassUtilityData.UAV_TransmittanceLUTID, passData.transmittanceLUTHandle);
                         cmdEncoder.DispatchCompute(shader, passData.transmittanceKernel.index, passData.transmittanceKernel.GroupsX(passData.parameter.transmittanceLUTWidth), passData.transmittanceKernel.GroupsY(passData.parameter.transmittanceLUTHeight), 1);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoTransmittanceSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoMultiScatterSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.multiScatteringKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.multiScatteringKernel.index, AtmosphericLUTPassUtilityData.UAV_MultiScatteringLUTID, passData.multiScatteringLUT);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.multiScatteringKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.multiScatteringKernel.index, AtmosphericLUTPassUtilityData.UAV_MultiScatteringLUTID, passData.multiScatteringLUTHandle);
                         cmdEncoder.DispatchCompute(shader, passData.multiScatteringKernel.index, passData.multiScatteringKernel.GroupsX(passData.parameter.multiScatteringLUTSize), passData.multiScatteringKernel.GroupsY(passData.parameter.multiScatteringLUTSize), 1);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoMultiScatterSampler);
                     }
@@ -335,22 +335,22 @@ namespace InfinityTech.Rendering.Pipeline
                     if (passData.generateView != 0)
                     {
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoSkyViewSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, AtmosphericLUTPassUtilityData.UAV_SkyViewLUTID, passData.skyViewLUT);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.skyViewKernel.index, AtmosphericLUTPassUtilityData.UAV_SkyViewLUTID, passData.skyViewLUTHandle);
                         cmdEncoder.DispatchCompute(shader, passData.skyViewKernel.index, passData.skyViewKernel.GroupsX(passData.parameter.skyViewLUTWidth), passData.skyViewKernel.GroupsY(passData.parameter.skyViewLUTHeight), 1);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoSkyViewSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoAerialSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, AtmosphericLUTPassUtilityData.UAV_AerialPerspectiveLUTID, passData.aerialPerspectiveLUT);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.aerialPerspectiveKernel.index, AtmosphericLUTPassUtilityData.UAV_AerialPerspectiveLUTID, passData.aerialPerspectiveLUTHandle);
                         cmdEncoder.DispatchCompute(shader, passData.aerialPerspectiveKernel.index, passData.aerialPerspectiveKernel.GroupsX(passData.parameter.aerialPerspectiveSize), passData.aerialPerspectiveKernel.GroupsY(passData.parameter.aerialPerspectiveSize), passData.aerialPerspectiveKernel.GroupsZ(passData.parameter.aerialPerspectiveSize));
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoAerialSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoSunSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.sunBufferKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
-                        cmdEncoder.SetComputeBufferParam(shader, passData.sunBufferKernel.index, AtmosphericLUTPassUtilityData.UAV_SunBufferID, passData.sunBuffer);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.sunBufferKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUTHandle);
+                        cmdEncoder.SetComputeBufferParam(shader, passData.sunBufferKernel.index, AtmosphericLUTPassUtilityData.UAV_SunBufferID, passData.sunBufferHandle);
                         cmdEncoder.DispatchCompute(shader, passData.sunBufferKernel.index, 1, 1, 1);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoSunSampler);
                     }
@@ -359,21 +359,21 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         int cubemapGroups = passData.cubemapKernel.GroupsX(passData.parameter.cubemapSize);
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoCubemapSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUT);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, AtmosphericLUTPassUtilityData.UAV_AtmosphereCubemapID, passData.atmosphereCubemap);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, PassShaderIDs.SRV_TransmittanceLUT, passData.transmittanceLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, AtmosphericLUTPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUTHandle);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.cubemapKernel.index, AtmosphericLUTPassUtilityData.UAV_AtmosphereCubemapID, passData.atmosphereCubemapHandle);
                         cmdEncoder.DispatchCompute(shader, passData.cubemapKernel.index, cubemapGroups, cubemapGroups, 6);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoCubemapSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoSHProjectSampler);
-                        cmdEncoder.SetComputeTextureParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.SRV_AtmosphereCubemapID, passData.atmosphereCubemap);
-                        cmdEncoder.SetComputeBufferParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.UAV_SHPartialID, passData.shPartial);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.SRV_AtmosphereCubemapID, passData.atmosphereCubemapHandle);
+                        cmdEncoder.SetComputeBufferParam(shader, passData.shProjectKernel.index, AtmosphericLUTPassUtilityData.UAV_SHPartialID, passData.shPartialHandle);
                         cmdEncoder.DispatchCompute(shader, passData.shProjectKernel.index, cubemapGroups, cubemapGroups, 6);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoSHProjectSampler);
 
                         cmdEncoder.BeginSample(AtmosphericLUTPassUtilityData.AtmoSHReduceSampler);
-                        cmdEncoder.SetComputeBufferParam(shader, passData.shReduceKernel.index, AtmosphericLUTPassUtilityData.UAV_SHPartialID, passData.shPartial);
-                        cmdEncoder.SetComputeBufferParam(shader, passData.shReduceKernel.index, AtmosphericLUTPassUtilityData.UAV_SHCoefficientsID, passData.shCoefficients);
+                        cmdEncoder.SetComputeBufferParam(shader, passData.shReduceKernel.index, AtmosphericLUTPassUtilityData.UAV_SHPartialID, passData.shPartialHandle);
+                        cmdEncoder.SetComputeBufferParam(shader, passData.shReduceKernel.index, AtmosphericLUTPassUtilityData.UAV_SHCoefficientsID, passData.shCoefficientsHandle);
                         cmdEncoder.DispatchCompute(shader, passData.shReduceKernel.index, 1, 1, 1);
                         cmdEncoder.EndSample(AtmosphericLUTPassUtilityData.AtmoSHReduceSampler);
 
@@ -383,7 +383,7 @@ namespace InfinityTech.Rendering.Pipeline
                             cmdEncoder.BeginSample(ggxMarker);
                             int mipSize = Mathf.Max(1, passData.parameter.cubemapSize >> mip);
                             float roughness = passData.ggxMipCount > 1 ? mip / (float)(passData.ggxMipCount - 1) : 0.0f;
-                            CubeFilterUtilityData.FilterArrayToArray(cmdEncoder, passData.filterArrayToArrayKernel, passData.atmosphereCubemap, passData.ggxPrefilter,
+                            CubeFilterUtilityData.FilterArrayToArray(cmdEncoder, passData.filterArrayToArrayKernel, passData.atmosphereCubemapHandle, passData.ggxPrefilterHandle,
                                 passData.parameter.cubemapSize, mip, roughness, 0, 32);
                             cmdEncoder.EndSample(ggxMarker);
                         }

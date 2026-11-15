@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public bool IsValid => contextId > 0;
 
-        public static RGRendererListHandle Invalid => new RGRendererListHandle(-1, 0, 0);
+        public static RGRendererListHandle InvalidHandle => new RGRendererListHandle(-1, 0, 0);
     }
 
     internal enum ERGRendererListKind : byte
@@ -107,12 +107,12 @@ namespace InfinityTech.Rendering.RenderGraph
             private set;
         }
 
-        public bool IsLive(in RGRendererListHandle list)
+        public bool IsLive(in RGRendererListHandle listHandle)
         {
-            return list.contextId == m_ContextId
-                && list.generation == m_GraphGeneration
-                && list.index >= 0
-                && list.index < m_Records.Count;
+            return listHandle.contextId == m_ContextId
+                && listHandle.generation == m_GraphGeneration
+                && listHandle.index >= 0
+                && listHandle.index < m_Records.Count;
         }
 
         public RGRendererListHandle Declare(in RendererListParams parameters)
@@ -143,14 +143,14 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGRendererListHandle(m_ContextId, index, m_GraphGeneration);
         }
 
-        public ERGRendererListCompileState GetState(in RGRendererListHandle list)
+        public ERGRendererListCompileState GetState(in RGRendererListHandle listHandle)
         {
-            if (!IsLive(list))
+            if (!IsLive(listHandle))
             {
                 return ERGRendererListCompileState.Released;
             }
 
-            return m_Records[list.index].state;
+            return m_Records[listHandle.index].state;
         }
 
         public void ClearConsumers()
@@ -216,16 +216,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         // A consumer draws only a list this graph created for it; anything else is a recording defect.
-        public void Submit(CommandBuffer cmdBuffer, in RGRendererListHandle list)
+        public void Submit(CommandBuffer cmdBuffer, in RGRendererListHandle listHandle)
         {
-            if (!IsLive(list))
+            if (!IsLive(listHandle))
             {
                 throw new System.InvalidOperationException("Renderer list handle belongs to another graph or an earlier frame.");
             }
-            RGRendererListRecord record = m_Records[list.index];
+            RGRendererListRecord record = m_Records[listHandle.index];
             if (record.state != ERGRendererListCompileState.Created || !record.created.isValid)
             {
-                throw new System.InvalidOperationException($"Renderer list {list.index} was not created for this pass (state {record.state}).");
+                throw new System.InvalidOperationException($"Renderer listHandle {listHandle.index} was not created for this pass (state {record.state}).");
             }
             cmdBuffer.DrawRendererList(record.created);
         }

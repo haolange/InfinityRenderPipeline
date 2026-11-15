@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSGIPassData
         {
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int2 tileCount;
             public int traceKernel;
             public int temporalKernel;
@@ -71,34 +71,34 @@ namespace InfinityTech.Rendering.Pipeline
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
             public Texture2D owenScrambledSobol;
-            public RGTextureHandle depthTexture;
-            public RGTextureHandle hiZTexture;
-            public RGTextureHandle hiZFurthestTexture;
-            public RGTextureHandle gBufferB;
-            public RGTextureHandle gBufferC;
+            public RGTextureHandle depthTextureHandle;
+            public RGTextureHandle hiZTextureHandle;
+            public RGTextureHandle hiZFurthestTextureHandle;
+            public RGTextureHandle gBufferBHandle;
+            public RGTextureHandle gBufferCHandle;
             public TemporalColorView temporalColor;
-            public RGTextureHandle motionMetadata;
-            public RGTextureHandle motionTexture;
-            public RGTextureHandle historyRadiance;
-            public RGTextureHandle historyNarrow;
-            public RGTextureHandle historyMeta;
-            public RGTextureHandle occlusion;
+            public RGTextureHandle motionMetadataHandle;
+            public RGTextureHandle motionTextureHandle;
+            public RGTextureHandle historyRadianceHandle;
+            public RGTextureHandle historyNarrowHandle;
+            public RGTextureHandle historyMetaHandle;
+            public RGTextureHandle occlusionHandle;
             public bool hasAO;
             public LocalKeyword occlusionKeyword;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            public RGTextureHandle rayHit;
+            public RGTextureHandle rayHitHandle;
             public bool captureRayHit;
             public int traceDebugKernel;
             public CaptureStageSnapshot traceSnapshot;
 #endif
-            public RGTextureHandle traceRadiance;
-            public RGTextureHandle hitDistance;
-            public RGTextureHandle temporal;
-            public RGTextureHandle temporalNarrow;
-            public RGTextureHandle combinerWide;
-            public RGTextureHandle combinerNarrow;
-            public RGTextureHandle meta;
-            public RGTextureHandle output;
+            public RGTextureHandle traceRadianceHandle;
+            public RGTextureHandle hitDistanceHandle;
+            public RGTextureHandle temporalHandle;
+            public RGTextureHandle temporalNarrowHandle;
+            public RGTextureHandle combinerWideHandle;
+            public RGTextureHandle combinerNarrowHandle;
+            public RGTextureHandle metaHandle;
+            public RGTextureHandle outputHandle;
         }
 
         void ComputeScreenSpaceIndirect(in CameraRecordContext context)
@@ -120,22 +120,22 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var capture = RenderCaptureService.current;
             bool captureRayHit = capture != null && capture.CaptureThisFrame && capture.Captures(ECaptureBuffer.SSGIRayHit);
-            RGTextureHandle rayHit = captureRayHit ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
+            RGTextureHandle rayHitHandle = captureRayHit ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor)) : default;
 #endif
-            RGTextureHandle traceRadiance = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
+            RGTextureHandle traceRadianceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TraceRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle hitDistance = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
+            RGTextureHandle hitDistanceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGIHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
-            RGTextureHandle temporal = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,
+            RGTextureHandle temporalHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle combinerWide = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIFilteredBuffer,
+            RGTextureHandle combinerWideHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIFilteredBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGICombinerWide", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle meta = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIMetaBuffer,
+            RGTextureHandle metaHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.MetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor));
-            RGTextureHandle output = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIBuffer,
+            RGTextureHandle outputHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIBuffer,
                 SSRPassUtilityData.CreateDescriptor(width, height, SSGIPassUtilityData.OutputName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSGIBuffer, output);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSGIBuffer, outputHandle);
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
@@ -144,22 +144,22 @@ namespace InfinityTech.Rendering.Pipeline
             HistoryRead radianceRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, context.resetsHistory);
             HistoryRead narrowRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowDsc, context.resetsHistory);
             HistoryRead metaRead = context.historyCache.Read(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, context.resetsHistory);
-            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(radianceRead.texture);
-            RGTextureHandle historyNarrow = m_RGBuilder.ImportTexture(narrowRead.texture);
-            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(metaRead.texture);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadiance);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrow);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMeta);
+            RGTextureHandle historyRadianceHandle = m_RGBuilder.ImportTexture(radianceRead.textureHandle);
+            RGTextureHandle historyNarrowHandle = m_RGBuilder.ImportTexture(narrowRead.textureHandle);
+            RGTextureHandle historyMetaHandle = m_RGBuilder.ImportTexture(metaRead.textureHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaHandle);
             bool historyValid = context.state.acceptedSSGI && radianceRead.valid && narrowRead.valid && metaRead.valid;
             bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
-            RGTextureHandle occlusion = hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default;
+            RGTextureHandle occlusionHandle = hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default;
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
-            using (var passRef = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect)))
             {
-                ref SSGIPassData passData = ref passRef.GetPassData();
-                passData.parameters = passRef.WriteConstants(new SSGIParameters
+                RGComputePassHandle<SSGIPassData> passHandle = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect));
+                ref SSGIPassData passData = ref passHandle.GetPassData();
+                passData.parametersHandle = passHandle.WriteConstants(new SSGIParameters
                 {
                     resolution = new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y),
                     traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
@@ -189,41 +189,41 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
 
-                passData.depthTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.hiZTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
-                passData.hiZFurthestTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
-                passData.gBufferB = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferC = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = ReadTemporalColorView(passRef, context.state.temporalColorView);
-                passData.motionMetadata = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
-                passData.motionTexture = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
-                passData.historyRadiance = passRef.ReadTexture(historyRadiance);
-                passData.historyNarrow = passRef.ReadTexture(historyNarrow);
-                passData.historyMeta = passRef.ReadTexture(historyMeta);
-                passData.occlusion = hasAO ? passRef.ReadTexture(occlusion) : default;
+                passData.depthTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                passData.hiZTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
+                passData.hiZFurthestTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
+                passData.gBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                passData.gBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                passData.temporalColor = ReadTemporalColorView(passHandle, context.state.temporalColorView);
+                passData.motionMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                passData.motionTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
+                passData.historyRadianceHandle = passHandle.ReadTexture(historyRadianceHandle);
+                passData.historyNarrowHandle = passHandle.ReadTexture(historyNarrowHandle);
+                passData.historyMetaHandle = passHandle.ReadTexture(historyMetaHandle);
+                passData.occlusionHandle = hasAO ? passHandle.ReadTexture(occlusionHandle) : default;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
                 passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
-                passData.rayHit = captureRayHit ? passRef.WriteTexture(rayHit) : default;
-                passData.traceSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.SSGITraceRadiance, traceRadiance);
+                passData.rayHitHandle = captureRayHit ? passHandle.WriteTexture(rayHitHandle) : default;
+                passData.traceSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.SSGITraceRadiance, traceRadianceHandle);
 #endif
-                passData.traceRadiance = passRef.WriteTexture(traceRadiance);
-                passData.hitDistance = passRef.WriteTexture(hitDistance);
-                passData.temporal = passRef.WriteTexture(temporal);
-                passData.temporalNarrow = passRef.CreatePassLocalTexture(SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGITemporalNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-                passData.combinerWide = passRef.WriteTexture(combinerWide);
-                passData.combinerNarrow = passRef.WriteTexture(m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGICombinerNarrowBuffer,
+                passData.traceRadianceHandle = passHandle.WriteTexture(traceRadianceHandle);
+                passData.hitDistanceHandle = passHandle.WriteTexture(hitDistanceHandle);
+                passData.temporalHandle = passHandle.WriteTexture(temporalHandle);
+                passData.temporalNarrowHandle = passHandle.CreatePassLocalTexture(SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGITemporalNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                passData.combinerWideHandle = passHandle.WriteTexture(combinerWideHandle);
+                passData.combinerNarrowHandle = passHandle.WriteTexture(m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGICombinerNarrowBuffer,
                     SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGICombinerNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor)));
-                passData.meta = passRef.WriteTexture(meta);
-                passData.output = passRef.WriteTexture(output);
+                passData.metaHandle = passHandle.WriteTexture(metaHandle);
+                passData.outputHandle = passHandle.WriteTexture(outputHandle);
 
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssgiShader;
                     int2 tileCount = passData.tileCount;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, SSGIPassUtilityData.CBV_SSGIParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, SSGIPassUtilityData.CBV_SSGIParametersID, passData.parametersHandle);
 
                     cmdEncoder.BeginSample(SSGIPassUtilityData.SSGITraceSampler);
                     int trace = passData.traceKernel;
@@ -234,51 +234,51 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 #endif
                     BindSSGISurface(cmdEncoder, shader, trace, passData);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_HiZClosestTexture, passData.hiZTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.SRV_HiZFurthestTextureID, passData.hiZFurthestTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_HiZClosestTexture, passData.hiZTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.SRV_HiZFurthestTextureID, passData.hiZFurthestTextureHandle);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.RankingTileID, passData.rankingTile, TextureView.Whole(passData.rankingTile));
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.ScramblingTileID, passData.scramblingTile, TextureView.Whole(passData.scramblingTile));
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSRPassUtilityData.OwenScrambledSobolID, passData.owenScrambledSobol, TextureView.Whole(passData.owenScrambledSobol));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (passData.captureRayHit)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_RayHit, passData.rayHit);
+                        cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_RayHit, passData.rayHitHandle);
                     }
 #endif
                     BindTemporalColorView(cmdEncoder, shader, trace, passData.temporalColor);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadata);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.UAV_TraceRadianceID, passData.traceRadiance);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_HitDistance, passData.hitDistance);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadataHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.UAV_TraceRadianceID, passData.traceRadianceHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_HitDistance, passData.hitDistanceHandle);
                     cmdEncoder.DispatchCompute(shader, trace, tileCount.x, tileCount.y, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGITraceSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.traceSnapshot.Record(cmdEncoder, passData.traceRadiance);
+                    passData.traceSnapshot.Record(cmdEncoder, passData.traceRadianceHandle);
 #endif
 
                     int groupsX = passData.denoiseGroups.x;
                     int groupsY = passData.denoiseGroups.y;
                     int temporalKernel = passData.temporalKernel;
                     int spatialKernel = passData.spatialKernel;
-                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal1Sampler, passData.traceRadiance, passData.historyRadiance, passData.temporal, passData);
+                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal1Sampler, passData.traceRadianceHandle, passData.historyRadianceHandle, passData.temporalHandle, passData);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGITemporal1Sampler);
-                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialWideSampler, 0, passData.temporal, passData.combinerWide, passData);
+                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialWideSampler, 0, passData.temporalHandle, passData.combinerWideHandle, passData);
                     cmdEncoder.DispatchCompute(shader, spatialKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGISpatialWideSampler);
-                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal2Sampler, passData.combinerWide, passData.historyNarrow, passData.temporalNarrow, passData);
+                    RecordSSGITemporal(cmdEncoder, shader, temporalKernel, SSGIPassUtilityData.SSGITemporal2Sampler, passData.combinerWideHandle, passData.historyNarrowHandle, passData.temporalNarrowHandle, passData);
                     cmdEncoder.DispatchCompute(shader, temporalKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGITemporal2Sampler);
-                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialNarrowSampler, 1, passData.temporalNarrow, passData.combinerNarrow, passData);
+                    RecordSSGISpatial(cmdEncoder, shader, spatialKernel, SSGIPassUtilityData.SSGISpatialNarrowSampler, 1, passData.temporalNarrowHandle, passData.combinerNarrowHandle, passData);
                     cmdEncoder.DispatchCompute(shader, spatialKernel, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGISpatialNarrowSampler);
 
                     cmdEncoder.BeginSample(SSGIPassUtilityData.SSGIUpsampleSampler);
                     int upsample = passData.upsampleKernel;
                     BindSSGISurface(cmdEncoder, shader, upsample, passData);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.SRV_FilteredID, passData.combinerNarrow);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_Meta, passData.meta);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.UAV_Output, passData.output);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.SRV_FilteredID, passData.combinerNarrowHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_Meta, passData.metaHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.UAV_Output, passData.outputHandle);
                     cmdEncoder.DispatchCompute(shader, upsample, passData.upsampleGroups.x, passData.upsampleGroups.y, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGIUpsampleSampler);
 
@@ -291,41 +291,41 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         static void RecordSSGITemporal(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, ProfilingSampler marker,
-            RGTextureHandle current, RGTextureHandle history, RGTextureHandle output, in SSGIPassData passData)
+            RGTextureHandle currentHandle, RGTextureHandle historyHandle, RGTextureHandle outputHandle, in SSGIPassData passData)
         {
             cmdEncoder.BeginSample(marker);
             BindSSGISurface(cmdEncoder, shader, kernel, passData);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadata);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_CurrentID, current);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryRadiance, history);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryMeta, passData.historyMeta);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Temporal, output);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Meta, passData.meta);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadataHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_CurrentID, currentHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryRadiance, historyHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HistoryMeta, passData.historyMetaHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Temporal, outputHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Meta, passData.metaHandle);
         }
 
         static void RecordSSGISpatial(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, ProfilingSampler marker, int pass,
-            RGTextureHandle current, RGTextureHandle output, in SSGIPassData passData)
+            RGTextureHandle currentHandle, RGTextureHandle outputHandle, in SSGIPassData passData)
         {
             cmdEncoder.BeginSample(marker);
             BindSSGISurface(cmdEncoder, shader, kernel, passData);
             cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGI_SpatialPassID, pass);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Temporal, current);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Meta, passData.meta);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Temporal, currentHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_Meta, passData.metaHandle);
             cmdEncoder.SetKeyword(shader, passData.occlusionKeyword, passData.hasAO);
             if (passData.hasAO)
             {
-                cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.occlusion);
+                cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.occlusionHandle);
             }
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Output, output);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Output, outputHandle);
         }
 
         // Depth and GBuffer inputs shared by every kernel that tests or reconstructs the surface.
         static void BindSSGISurface(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, in SSGIPassData passData)
         {
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTexture);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferB, passData.gBufferB);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferC, passData.gBufferC);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferB, passData.gBufferBHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferC, passData.gBufferCHandle);
         }
     }
 }

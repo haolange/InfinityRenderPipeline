@@ -170,12 +170,12 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public TextureHandle GetAtlas()
         {
-            TextureHandle atlas = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
+            TextureHandle atlasHandle = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
             if (created)
             {
                 InvalidateAll();
             }
-            return atlas;
+            return atlasHandle;
         }
 
         // Slot of the probe's cube, queuing a filter pass when it is new, changed or realtime. False when disabled or

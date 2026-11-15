@@ -31,11 +31,11 @@ namespace InfinityTech.Rendering.Pipeline
             public bool[] valid;
             public Vector4[] casterBias;
             public Vector4 casterLight;
-            public RGMeshDrawListHandle[] meshDrawLists;
-            public RGRendererListHandle[] rendererLists;
+            public RGMeshDrawListHandle[] meshDrawListsHandle;
+            public RGRendererListHandle[] rendererListsHandle;
         }
 
-        void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawLists)
+        void RasterCascadeShadow(in CameraRecordContext context, RGMeshDrawListHandle[] cascadeMeshDrawListsHandle)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;
@@ -50,19 +50,19 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureHandle shadowMapTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
 
             int lightIndex = allocator.CascadeVisibleLightIndex;
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
-            RGRendererListHandle[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
+            RGRendererListHandle[] cascadeRendererListsHandle = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
             {
                 CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
-                cascadeRendererLists[cascade] = RGRendererListHandle.Invalid;
+                cascadeRendererListsHandle[cascade] = RGRendererListHandle.InvalidHandle;
             }
 
             if (lightIndex >= 0)
@@ -87,16 +87,16 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowDrawingSettings.useRenderingLayerMaskTest = true;
                     shadowDrawingSettings.splitIndex = slice.cullingSplitIndex;
                     shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
-                    cascadeRendererLists[cascade] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
+                    cascadeRendererListsHandle[cascade] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
                 }
             }
 
-            using (var passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow)))
             {
-                passRef.EnablePassCulling(false);
-                passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                RGRasterPassHandle<CascadeShadowPassData> passHandle = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetDepthStencilAttachment(shadowMapTextureHandle, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
-                ref CascadeShadowPassData passData = ref passRef.GetPassData();
+                ref CascadeShadowPassData passData = ref passHandle.GetPassData();
                 {
                     passData.cascadeCount = cascadeCount;
                     passData.valid = m_RGBuilder.GetRecordingArray<bool>(cascadeCount);
@@ -117,20 +117,20 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.casterLight = -context.cullingResults.visibleLights[lightIndex].light.transform.forward;
                     }
 
-                    passData.meshDrawLists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
-                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
+                    passData.meshDrawListsHandle = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(cascadeCount);
+                    passData.rendererListsHandle = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
                     {
-                        passData.meshDrawLists[cascade] = cascadeMeshDrawLists[cascade].IsValid
-                            ? passRef.UseMeshDrawList(cascadeMeshDrawLists[cascade])
-                            : RGMeshDrawListHandle.Invalid;
-                        passData.rendererLists[cascade] = cascadeRendererLists[cascade].IsValid
-                            ? passRef.UseRendererList(cascadeRendererLists[cascade])
-                            : RGRendererListHandle.Invalid;
+                        passData.meshDrawListsHandle[cascade] = cascadeMeshDrawListsHandle[cascade].IsValid
+                            ? passHandle.UseMeshDrawList(cascadeMeshDrawListsHandle[cascade])
+                            : RGMeshDrawListHandle.InvalidHandle;
+                        passData.rendererListsHandle[cascade] = cascadeRendererListsHandle[cascade].IsValid
+                            ? passHandle.UseRendererList(cascadeRendererListsHandle[cascade])
+                            : RGRendererListHandle.InvalidHandle;
                     }
                 }
 
-                passRef.SetExecuteFunc((in CascadeShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
+                passHandle.SetExecuteFunc((in CascadeShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     int halfRes = passData.shadowMapResolution;
 
@@ -149,14 +149,14 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetGlobalVector(PassShaderIDs.ShadowCasterLight, passData.casterLight);
                         cmdEncoder.SetGlobalMatrix(PassShaderIDs.ShadowCasterViewProj, passData.shadowMatrices[cascade]);
 
-                        if (passData.meshDrawLists != null && cascade < passData.meshDrawLists.Length && passData.meshDrawLists[cascade].IsValid)
+                        if (passData.meshDrawListsHandle != null && cascade < passData.meshDrawListsHandle.Length && passData.meshDrawListsHandle[cascade].IsValid)
                         {
-                            cmdEncoder.SubmitMeshDrawList(passData.meshDrawLists[cascade]);
+                            cmdEncoder.SubmitMeshDrawList(passData.meshDrawListsHandle[cascade]);
                         }
 
-                        if (passData.rendererLists != null && cascade < passData.rendererLists.Length && passData.rendererLists[cascade].IsValid)
+                        if (passData.rendererListsHandle != null && cascade < passData.rendererListsHandle.Length && passData.rendererListsHandle[cascade].IsValid)
                         {
-                            cmdEncoder.DrawRendererList(passData.rendererLists[cascade]);
+                            cmdEncoder.DrawRendererList(passData.rendererListsHandle[cascade]);
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);

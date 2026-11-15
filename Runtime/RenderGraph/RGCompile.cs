@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal struct RGGroupAttachment
     {
-        public RGTextureHandle texture;
+        public RGTextureHandle textureHandle;
         public RenderBufferLoadAction load;
         public RenderBufferStoreAction store;
         public bool depth;
@@ -204,9 +204,9 @@ namespace InfinityTech.Rendering.RenderGraph
                             passInfo.hasSideEffect = true;
                     }
 
-                    foreach (RGResourceHandle temporal in passInfo.pass.temporalResourceList[type])
+                    foreach (RGResourceHandle temporalHandle in passInfo.pass.temporalResourceList[type])
                     {
-                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][temporal.index];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][temporalHandle.index];
                         info.refCount++;
                         info.consumers.Add(passIndex);
                         info.producers.Add(passIndex);
@@ -248,10 +248,10 @@ namespace InfinityTech.Rendering.RenderGraph
                     IRGPass pass = producer.pass;
                     for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                     {
-                        foreach (RGResourceHandle resource in pass.resourceReadLists[type])
-                            CloseRead(type, resource.index);
-                        foreach (RGResourceHandle resource in pass.temporalResourceList[type])
-                            CloseRead(type, resource.index);
+                        foreach (RGResourceHandle resourceHandle in pass.resourceReadLists[type])
+                            CloseRead(type, resourceHandle.index);
+                        foreach (RGResourceHandle resourceHandle in pass.temporalResourceList[type])
+                            CloseRead(type, resourceHandle.index);
                     }
                 }
             }
@@ -361,10 +361,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
                     var resourcesInfo = m_ResourcesCompileInfos[type];
-                    foreach (RGResourceHandle resource in passInfo.pass.resourceReadLists[type])
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource.index], false);
-                    foreach (RGResourceHandle resource in passInfo.pass.resourceWriteLists[type])
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource.index], true);
+                    foreach (RGResourceHandle resourceHandle in passInfo.pass.resourceReadLists[type])
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resourceHandle.index], false);
+                    foreach (RGResourceHandle resourceHandle in passInfo.pass.resourceWriteLists[type])
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resourceHandle.index], true);
                 }
             }
 
@@ -462,33 +462,33 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 for (int i = 0; i < used.Count; ++i)
                 {
-                    RGRendererListHandle list = used[i];
-                    if (m_RendererListRecords.IsLive(list))
-                        m_RendererListRecords.MarkLiveConsumer(list.index, passIndex);
+                    RGRendererListHandle listHandle = used[i];
+                    if (m_RendererListRecords.IsLive(listHandle))
+                        m_RendererListRecords.MarkLiveConsumer(listHandle.index, passIndex);
                 }
             }
             m_RendererListRecords.ReleaseUnused();
         }
 
-        bool TryAttachmentSize(in RGTextureHandle texture, out int width, out int height, out int samples)
+        bool TryAttachmentSize(in RGTextureHandle textureHandle, out int width, out int height, out int samples)
         {
-            TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(texture.handle);
+            TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(textureHandle.handle);
             width = descriptor.physicalWidth;
             height = descriptor.physicalHeight;
             samples = Math.Max(1, (int)descriptor.msaaSamples);
             return width > 0 && height > 0;
         }
 
-        static bool SameResource(in RGTextureHandle a, in RGTextureHandle b)
+        static bool SameResource(in RGTextureHandle aHandle, in RGTextureHandle bHandle)
         {
-            return a.IsValid() && a.handle.Equals(b.handle);
+            return aHandle.IsValid() && aHandle.handle.Equals(bHandle.handle);
         }
 
-        bool Samples(IRGPass pass, in RGTextureHandle texture)
+        bool Samples(IRGPass pass, in RGTextureHandle textureHandle)
         {
             foreach (RGResourceHandle handle in pass.sampledResources)
             {
-                if (handle.Equals(texture.handle))
+                if (handle.Equals(textureHandle.handle))
                     return true;
             }
             return false;
@@ -501,13 +501,13 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 return false;
             }
-            return info.pass.depthBuffer.IsValid() || info.pass.colorBufferMaxIndex >= 0;
+            return info.pass.depthBufferHandle.IsValid() || info.pass.colorBufferMaxIndex >= 0;
         }
 
-        int FindAttachment(RGNativePassGroup group, in RGTextureHandle texture)
+        int FindAttachment(RGNativePassGroup group, in RGTextureHandle textureHandle)
         {
             for (int i = 0; i < group.attachments.Count; ++i)
-                if (SameResource(group.attachments[i].texture, texture))
+                if (SameResource(group.attachments[i].textureHandle, textureHandle))
                 {
                     return i;
                 }
@@ -517,9 +517,9 @@ namespace InfinityTech.Rendering.RenderGraph
         // BeginRenderPass asserts numAttachments <= kMaxSupportedRenderTargets. Depth counts.
         const int kMaxNativePassAttachments = 8;
 
-        bool TryAddAttachment(RGNativePassGroup group, in RGTextureHandle texture, RenderBufferLoadAction load, RenderBufferStoreAction store, bool depth, out int attachmentIndex)
+        bool TryAddAttachment(RGNativePassGroup group, in RGTextureHandle textureHandle, RenderBufferLoadAction load, RenderBufferStoreAction store, bool depth, out int attachmentIndex)
         {
-            attachmentIndex = FindAttachment(group, texture);
+            attachmentIndex = FindAttachment(group, textureHandle);
             if (attachmentIndex >= 0)
             {
                 if (depth && group.depthAttachment != attachmentIndex)
@@ -532,7 +532,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 return false;
             }
-            if (!TryAttachmentSize(texture, out int width, out int height, out int samples))
+            if (!TryAttachmentSize(textureHandle, out int width, out int height, out int samples))
             {
                 return false;
             }
@@ -549,7 +549,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return false;
             }
             attachmentIndex = group.attachments.Count;
-            group.attachments.Add(new RGGroupAttachment { texture = texture, load = load, store = store, depth = depth });
+            group.attachments.Add(new RGGroupAttachment { textureHandle = textureHandle, load = load, store = store, depth = depth });
             if (depth)
             {
                 group.depthAttachment = attachmentIndex;
@@ -570,17 +570,17 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                if (!pass.colorBuffers[i].IsValid())
+                if (!pass.colorBuffersHandle[i].IsValid())
                 {
                     return false;
                 }
             int additional = 0;
-            if (pass.depthBuffer.IsValid() && FindAttachment(group, pass.depthBuffer) < 0)
+            if (pass.depthBufferHandle.IsValid() && FindAttachment(group, pass.depthBufferHandle) < 0)
             {
                 additional++;
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                if (FindAttachment(group, pass.colorBuffers[i]) < 0)
+                if (FindAttachment(group, pass.colorBuffersHandle[i]) < 0)
                 {
                     additional++;
                 }
@@ -589,35 +589,35 @@ namespace InfinityTech.Rendering.RenderGraph
                 return false;
             }
             foreach (RGGroupAttachment attachment in group.attachments)
-                if (Samples(pass, attachment.texture))
+                if (Samples(pass, attachment.textureHandle))
                 {
                     return false;
                 }
-            if (!AttachmentFits(group, pass.depthBuffer, true))
+            if (!AttachmentFits(group, pass.depthBufferHandle, true))
             {
                 return false;
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                if (!AttachmentFits(group, pass.colorBuffers[i], false))
+                if (!AttachmentFits(group, pass.colorBuffersHandle[i], false))
                 {
                     return false;
                 }
-            if (pass.depthBuffer.IsValid())
-                TryAddAttachment(group, pass.depthBuffer, pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction, true, out _);
+            if (pass.depthBufferHandle.IsValid())
+                TryAddAttachment(group, pass.depthBufferHandle, pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction, true, out _);
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                TryAddAttachment(group, pass.colorBuffers[i], pass.colorBufferActions[i].loadAction, pass.colorBufferActions[i].storeAction, false, out _);
+                TryAddAttachment(group, pass.colorBuffersHandle[i], pass.colorBufferActions[i].loadAction, pass.colorBufferActions[i].storeAction, false, out _);
             return true;
         }
 
-        bool AttachmentFits(RGNativePassGroup group, in RGTextureHandle texture, bool depth)
+        bool AttachmentFits(RGNativePassGroup group, in RGTextureHandle textureHandle, bool depth)
         {
-            if (!texture.IsValid())
+            if (!textureHandle.IsValid())
             {
                 return true;
             }
-            if (FindAttachment(group, texture) >= 0)
-                return !depth || group.depthAttachment == FindAttachment(group, texture);
-            if (!TryAttachmentSize(texture, out int width, out int height, out int samples))
+            if (FindAttachment(group, textureHandle) >= 0)
+                return !depth || group.depthAttachment == FindAttachment(group, textureHandle);
+            if (!TryAttachmentSize(textureHandle, out int width, out int height, out int samples))
             {
                 return false;
             }
@@ -640,7 +640,7 @@ namespace InfinityTech.Rendering.RenderGraph
             var subpass = new RGGroupSubpass { passIndex = passIndex, readOnlyDepth = (pass.depthBufferAccess & EDepthAccess.ReadOnly) != 0 && (pass.depthBufferAccess & EDepthAccess.Write) == 0 };
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
-                int attachment = FindAttachment(group, pass.colorBuffers[i]);
+                int attachment = FindAttachment(group, pass.colorBuffersHandle[i]);
                 subpass.SetColor(subpass.colorCount, attachment);
                 subpass.colorCount++;
             }
@@ -728,12 +728,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
         static bool PassUsesTexture(IRGPass pass, int textureIndex)
         {
-            if (pass.depthBuffer.IsValid() && pass.depthBuffer.handle.index == textureIndex)
+            if (pass.depthBufferHandle.IsValid() && pass.depthBufferHandle.handle.index == textureIndex)
             {
                 return true;
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
-                if (pass.colorBuffers[i].IsValid() && pass.colorBuffers[i].handle.index == textureIndex)
+                if (pass.colorBuffersHandle[i].IsValid() && pass.colorBuffersHandle[i].handle.index == textureIndex)
                 {
                     return true;
                 }
@@ -944,11 +944,11 @@ namespace InfinityTech.Rendering.RenderGraph
                 RGNativePassGroup group = m_NativeGroups[groupIndex];
                 foreach (RGGroupAttachment attachment in group.attachments)
                 {
-                    if (!attachment.texture.IsValid() || m_Resources.IsResourceImported(attachment.texture.handle))
+                    if (!attachment.textureHandle.IsValid() || m_Resources.IsResourceImported(attachment.textureHandle.handle))
                     {
                         continue;
                     }
-                    int index = attachment.texture.handle.index;
+                    int index = attachment.textureHandle.handle.index;
                     int type = (int)ERGResourceType.Texture;
                     for (int passIndex = group.firstPass + 1; passIndex <= group.lastPass; ++passIndex)
                     {
@@ -967,24 +967,24 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        RenderBufferStoreAction EffectiveStore(in RGTextureHandle texture, RenderBufferStoreAction declared, int passIndex)
+        RenderBufferStoreAction EffectiveStore(in RGTextureHandle textureHandle, RenderBufferStoreAction declared, int passIndex)
         {
-            if (declared != RenderBufferStoreAction.Store || !texture.IsValid() || m_Resources.IsResourceImported(texture.handle))
+            if (declared != RenderBufferStoreAction.Store || !textureHandle.IsValid() || m_Resources.IsResourceImported(textureHandle.handle))
                 return declared;
-            ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[(int)ERGResourceType.Texture][texture.handle.index];
+            ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[(int)ERGResourceType.Texture][textureHandle.handle.index];
             return LastUse(info) == passIndex ? RenderBufferStoreAction.DontCare : declared;
         }
 
         internal RenderBufferStoreAction CompiledColorStore(int passIndex, int colorIndex)
         {
             IRGPass pass = m_PassCompileInfos[passIndex].pass;
-            return EffectiveStore(pass.colorBuffers[colorIndex], pass.colorBufferActions[colorIndex].storeAction, passIndex);
+            return EffectiveStore(pass.colorBuffersHandle[colorIndex], pass.colorBufferActions[colorIndex].storeAction, passIndex);
         }
 
         internal RenderBufferStoreAction CompiledDepthStore(int passIndex)
         {
             IRGPass pass = m_PassCompileInfos[passIndex].pass;
-            return EffectiveStore(pass.depthBuffer, pass.depthBufferAction.storeAction, passIndex);
+            return EffectiveStore(pass.depthBufferHandle, pass.depthBufferAction.storeAction, passIndex);
         }
 
         void ApplyMemoryless()
@@ -1030,7 +1030,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         attachmentOnly = false;
                         break;
                     }
-                    if (info.pass.depthBuffer.IsValid() && info.pass.depthBuffer.handle.index == index)
+                    if (info.pass.depthBufferHandle.IsValid() && info.pass.depthBufferHandle.handle.index == index)
                     {
                         depth = true;
                     }
@@ -1040,11 +1040,11 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     continue;
                 }
-                RGTextureHandle texture = m_Resources.TextureHandle(index);
+                RGTextureHandle textureHandle = m_Resources.TextureHandle(index);
                 RenderBufferStoreAction declared = depth
                     ? m_PassCompileInfos[lastPass].pass.depthBufferAction.storeAction
                     : StoreOfColor(m_PassCompileInfos[lastPass].pass, index);
-                if (EffectiveStore(texture, declared, lastPass) != RenderBufferStoreAction.DontCare)
+                if (EffectiveStore(textureHandle, declared, lastPass) != RenderBufferStoreAction.DontCare)
                 {
                     continue;
                 }
@@ -1068,7 +1068,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
-                if (pass.colorBuffers[i].IsValid() && pass.colorBuffers[i].handle.index == textureIndex)
+                if (pass.colorBuffersHandle[i].IsValid() && pass.colorBuffersHandle[i].handle.index == textureIndex)
                     return pass.colorBufferActions[i].storeAction;
             }
             return RenderBufferStoreAction.Store;
@@ -1165,12 +1165,12 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
-                    foreach (RGResourceHandle temporal in info.pass.temporalResourceList[type])
+                    foreach (RGResourceHandle temporalHandle in info.pass.temporalResourceList[type])
                     {
-                        int owner = m_PassLocalOwners[type][temporal.index];
+                        int owner = m_PassLocalOwners[type][temporalHandle.index];
                         if (owner >= 0 && owner != passIndex)
-                            throw new InvalidOperationException($"Pass-local resource {m_Resources.GetResourceName(temporal)} is used by '{info.pass.name}' but belongs to '{m_PassCompileInfos[owner].pass.name}'.");
-                        m_PassLocalOwners[type][temporal.index] = passIndex;
+                            throw new InvalidOperationException($"Pass-local resource {m_Resources.GetResourceName(temporalHandle)} is used by '{info.pass.name}' but belongs to '{m_PassCompileInfos[owner].pass.name}'.");
+                        m_PassLocalOwners[type][temporalHandle.index] = passIndex;
                     }
                 }
             }
@@ -1213,23 +1213,23 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void ValidateAttachments(IRGPass pass, int passIndex)
         {
-            if (pass.colorBufferMaxIndex > 0 && !pass.depthBuffer.IsValid())
+            if (pass.colorBufferMaxIndex > 0 && !pass.depthBufferHandle.IsValid())
                 throw new InvalidOperationException($"'{pass.name}' sets multiple color attachments without a depth buffer.");
             int width = 0, height = 0, samples = 0;
             bool sized = false;
-            if (pass.depthBuffer.IsValid())
+            if (pass.depthBufferHandle.IsValid())
             {
-                if (!TryAttachmentSize(pass.depthBuffer, out width, out height, out samples))
+                if (!TryAttachmentSize(pass.depthBufferHandle, out width, out height, out samples))
                     throw new InvalidOperationException($"'{pass.name}' has a depth attachment with no size.");
                 sized = true;
                 if (pass.depthBufferAction.loadAction == RenderBufferLoadAction.Load)
-                    RequireEarlierWrite(pass, passIndex, pass.depthBuffer.handle);
+                    RequireEarlierWrite(pass, passIndex, pass.depthBufferHandle.handle);
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
-                if (!pass.colorBuffers[i].IsValid())
+                if (!pass.colorBuffersHandle[i].IsValid())
                     throw new InvalidOperationException($"'{pass.name}' has a hole in its color attachments at index {i}.");
-                if (!TryAttachmentSize(pass.colorBuffers[i], out int colorWidth, out int colorHeight, out int colorSamples))
+                if (!TryAttachmentSize(pass.colorBuffersHandle[i], out int colorWidth, out int colorHeight, out int colorSamples))
                     throw new InvalidOperationException($"'{pass.name}' color attachment {i} has no size.");
                 if (sized && (colorWidth != width || colorHeight != height || colorSamples != samples))
                     throw new InvalidOperationException($"'{pass.name}' color attachment {i} is {colorWidth}x{colorHeight} x{colorSamples}, which does not match {width}x{height} x{samples}.");
@@ -1238,7 +1238,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 samples = colorSamples;
                 sized = true;
                 if (pass.colorBufferActions[i].loadAction == RenderBufferLoadAction.Load)
-                    RequireEarlierWrite(pass, passIndex, pass.colorBuffers[i].handle);
+                    RequireEarlierWrite(pass, passIndex, pass.colorBuffersHandle[i].handle);
             }
         }
 

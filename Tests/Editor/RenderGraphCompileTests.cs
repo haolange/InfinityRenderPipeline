@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderGraphCompileTests
     {
-        struct PassData { public RGTextureHandle texture; public RGBufferHandle buffer; }
+        struct PassData { public RGTextureHandle textureHandle; public RGBufferHandle bufferHandle; }
 
         static RGBuilder Graph() => new RGBuilder("CompileContract", null, true);
 
@@ -36,18 +36,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGBufferHandle buffer = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "KeptUntilReaderDies" });
-                RGTextureHandle texture = graph.CreateTexture(Color("UnusedTexture"));
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("BufferWriter")))
+                RGBufferHandle bufferHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "KeptUntilReaderDies" });
+                RGTextureHandle textureHandle = graph.CreateTexture(Color("UnusedTexture"));
                 {
-                    pass.WriteBuffer(buffer);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("BufferWriter"));
+                    passHandle.WriteBuffer(bufferHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("Middle")))
                 {
-                    pass.ReadBuffer(buffer);
-                    pass.WriteTexture(texture);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("Middle"));
+                    passHandle.ReadBuffer(bufferHandle);
+                    passHandle.WriteTexture(textureHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 string[] rows = Compile(graph);
                 Assert.AreEqual("True", Row(rows, "BufferWriter")[4]);
@@ -64,14 +64,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 var outer = new ProfilingSampler("Outer");
-                RGBufferHandle buffer = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "WrittenByUnnamedPass" });
+                RGBufferHandle bufferHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "WrittenByUnnamedPass" });
                 graph.BeginProfilingSampler(outer);
                 graph.BeginProfilingSampler(null);
-                using (var pass = graph.AddComputePass<PassData>(null))
                 {
-                    pass.WriteBuffer(buffer);
-                    pass.EnablePassCulling(false);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(null);
+                    passHandle.WriteBuffer(bufferHandle);
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 graph.EndProfilingSampler(null);
                 Assert.Throws<InvalidOperationException>(() => graph.EndProfilingSampler(new ProfilingSampler("Other")),
@@ -89,14 +89,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGTextureHandle stale = graph.CreateTexture(Color("Stale"));
+                RGTextureHandle staleHandle = graph.CreateTexture(Color("Stale"));
                 graph.ClearRecordedGraph();
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("Next")))
                 {
-                    Assert.Throws<InvalidOperationException>(() => pass.ReadTexture(stale));
-                    RGTextureHandle fresh = graph.CreateTexture(Color("Fresh"));
-                    pass.ReadTexture(fresh);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("Next"));
+                    Assert.Throws<InvalidOperationException>(() => passHandle.ReadTexture(staleHandle));
+                    RGTextureHandle freshHandle = graph.CreateTexture(Color("Fresh"));
+                    passHandle.ReadTexture(freshHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
             }
             finally { graph.Dispose(); }
@@ -108,14 +108,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGTextureHandle depth = graph.CreateTexture(new TextureDescriptor(4, 4)
+                RGTextureHandle depthHandle = graph.CreateTexture(new TextureDescriptor(4, 4)
                 {
                     name = "UnwrittenDepth", dimension = TextureDimension.Tex2D, depthBufferBits = EDepthBits.Depth32
                 });
-                using (var pass = graph.AddRasterPass<PassData>(new ProfilingSampler("LoadDepth")))
                 {
-                    pass.SetDepthStencilAttachment(depth, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                    pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                    RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("LoadDepth"));
+                    passHandle.SetDepthStencilAttachment(depthHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                    passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                 }
                 var error = Assert.Throws<System.Reflection.TargetInvocationException>(() => Compile(graph));
                 Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
@@ -130,10 +130,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGTextureHandle first = graph.CreateTexture(Color("ReuseA"));
-                RGTextureHandle second = graph.CreateTexture(Color("ReuseB"));
-                WriteThenRead(graph, "WriteA", "ReadA", first);
-                WriteThenRead(graph, "WriteB", "ReadB", second);
+                RGTextureHandle firstHandle = graph.CreateTexture(Color("ReuseA"));
+                RGTextureHandle secondHandle = graph.CreateTexture(Color("ReuseB"));
+                WriteThenRead(graph, "WriteA", "ReadA", firstHandle);
+                WriteThenRead(graph, "WriteB", "ReadB", secondHandle);
                 Compile(graph);
                 RGGraphSnapshot snapshot = graph.CaptureDebugSnapshot();
                 int readA = snapshot.passes.FindIndex(pass => pass.name == "ReadA");
@@ -153,9 +153,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = new RGBuilder("Merge", null, false);
             try
             {
-                RGTextureHandle color = graph.CreateTexture(Color("MergedColor"));
-                Raster(graph, "DepthLike", color, false);
-                Raster(graph, "Shade", color, false);
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("MergedColor"));
+                Raster(graph, "DepthLike", colorHandle, false);
+                Raster(graph, "Shade", colorHandle, false);
                 Compile(graph);
                 RGGraphSnapshot merged = graph.CaptureDebugSnapshot();
                 Assert.AreEqual(merged.passes[0].mergeGroup, merged.passes[1].mergeGroup);
@@ -168,14 +168,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             graph = new RGBuilder("Split", null, false);
             try
             {
-                RGTextureHandle color = graph.CreateTexture(Color("SampledColor"));
-                Raster(graph, "Write", color, false);
-                using (var pass = graph.AddRasterPass<PassData>(new ProfilingSampler("Sample")))
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("SampledColor"));
+                Raster(graph, "Write", colorHandle, false);
                 {
-                    pass.EnablePassCulling(false);
-                    pass.ReadTexture(color);
-                    pass.SetColorAttachment(color, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                    RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("Sample"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.ReadTexture(colorHandle);
+                    passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                 }
                 Compile(graph);
                 RGGraphSnapshot split = graph.CaptureDebugSnapshot();
@@ -190,28 +190,28 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = new RGBuilder("AttachmentCap", null, false);
             try
             {
-                RGTextureHandle depth = graph.CreateTexture(new TextureDescriptor(4, 4)
+                RGTextureHandle depthHandle = graph.CreateTexture(new TextureDescriptor(4, 4)
                 {
                     name = "Depth", dimension = TextureDimension.Tex2D, depthBufferBits = EDepthBits.Depth32
                 });
                 var colors = new RGTextureHandle[8];
                 for (int i = 0; i < colors.Length; ++i)
                     colors[i] = graph.CreateTexture(Color("Color" + i));
-                using (var pass = graph.AddRasterPass<PassData>(new ProfilingSampler("Depth")))
                 {
-                    pass.EnablePassCulling(false);
-                    pass.SetDepthStencilAttachment(depth, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                    pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                    RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("Depth"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetDepthStencilAttachment(depthHandle, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                    passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                 }
                 for (int i = 0; i < colors.Length; ++i)
                 {
-                    RGTextureHandle color = colors[i];
-                    using (var pass = graph.AddRasterPass<PassData>(new ProfilingSampler("Color" + i)))
+                    RGTextureHandle colorHandle = colors[i];
                     {
-                        pass.EnablePassCulling(false);
-                        pass.SetDepthStencilAttachment(depth, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                        pass.SetColorAttachment(color, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-                        pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                        RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("Color" + i));
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetDepthStencilAttachment(depthHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                        passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                        passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                     }
                 }
                 Compile(graph);
@@ -232,19 +232,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGBufferHandle buffer = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "QueueBuffer" });
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("GraphicsWrite")))
+                RGBufferHandle bufferHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "QueueBuffer" });
                 {
-                    pass.EnablePassCulling(false);
-                    pass.WriteBuffer(buffer);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("GraphicsWrite"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.WriteBuffer(bufferHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("AsyncRead")))
                 {
-                    pass.EnableAsyncCompute(true);
-                    pass.EnablePassCulling(false);
-                    pass.ReadBuffer(buffer);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("AsyncRead"));
+                    passHandle.EnableAsyncCompute(true);
+                    passHandle.EnablePassCulling(false);
+                    passHandle.ReadBuffer(bufferHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 string[] rows = Compile(graph);
                 Assert.AreEqual("0", Row(rows, "AsyncRead")[5]);
@@ -275,16 +275,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var graph = Graph();
             try
             {
-                RGBufferHandle local = default;
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("Owner")))
+                RGBufferHandle localHandle = default;
                 {
-                    local = pass.CreatePassLocalBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "PassLocal" });
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("Owner"));
+                    localHandle = passHandle.CreatePassLocalBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "PassLocal" });
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
-                using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("Thief")))
                 {
-                    pass.ReadBuffer(local);
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                    RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler("Thief"));
+                    passHandle.ReadBuffer(localHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 var error = Assert.Throws<System.Reflection.TargetInvocationException>(() => Compile(graph));
                 StringAssert.Contains("Pass-local", error.InnerException.Message);
@@ -292,32 +292,32 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { graph.Dispose(); }
         }
 
-        static void WriteThenRead(RGBuilder graph, string writer, string reader, RGTextureHandle texture)
+        static void WriteThenRead(RGBuilder graph, string writer, string reader, RGTextureHandle textureHandle)
         {
-            using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler(writer)))
             {
-                pass.WriteTexture(texture);
-                pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler(writer));
+                passHandle.WriteTexture(textureHandle);
+                passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
             }
-            using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler(reader)))
             {
-                pass.ReadTexture(texture);
-                pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(new ProfilingSampler(reader));
+                passHandle.ReadTexture(textureHandle);
+                passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
             }
         }
 
-        static void Raster(RGBuilder graph, string name, RGTextureHandle color, bool sample)
+        static void Raster(RGBuilder graph, string name, RGTextureHandle colorHandle, bool sample)
         {
-            using (var pass = graph.AddRasterPass<PassData>(new ProfilingSampler(name)))
             {
-                pass.EnablePassCulling(false);
-                if (sample) pass.ReadTexture(color);
+                RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler(name));
+                passHandle.EnablePassCulling(false);
+                if (sample) passHandle.ReadTexture(colorHandle);
                 // The first producer cannot Load a target nobody has written. Later passes Load that store.
                 RenderBufferLoadAction load = name == "DepthLike" ? RenderBufferLoadAction.Clear
                     : name == "Write" ? RenderBufferLoadAction.DontCare
                     : RenderBufferLoadAction.Load;
-                pass.SetColorAttachment(color, 0, load, RenderBufferStoreAction.Store);
-                pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                passHandle.SetColorAttachment(colorHandle, 0, load, RenderBufferStoreAction.Store);
+                passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
             }
         }
 
@@ -330,20 +330,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var second = new ProfilingSampler("RasterB");
             try
             {
-                RGTextureHandle color = graph.CreateTexture(Color("ScopeColor"));
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("ScopeColor"));
                 using (new RGProfilingScope(graph, parent))
                 {
-                    using (var pass = graph.AddRasterPass<PassData>(first))
                     {
-                        pass.EnablePassCulling(false);
-                        pass.SetColorAttachment(color, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-                        pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                        RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(first);
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                        passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                     }
-                    using (var pass = graph.AddRasterPass<PassData>(second))
                     {
-                        pass.EnablePassCulling(false);
-                        pass.SetColorAttachment(color, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                        pass.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                        RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(second);
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                        passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
                     }
                 }
                 Compile(graph);
@@ -372,22 +372,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 using (new RGProfilingScope(graph, parent))
                 {
-                    using (var pass = graph.AddComputePass<PassData>(graphics))
                     {
-                        pass.EnablePassCulling(false);
-                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                        RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(graphics);
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
-                    using (var pass = graph.AddComputePass<PassData>(asyncFirst))
                     {
-                        pass.EnableAsyncCompute(true);
-                        pass.EnablePassCulling(false);
-                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                        RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(asyncFirst);
+                        passHandle.EnableAsyncCompute(true);
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
-                    using (var pass = graph.AddComputePass<PassData>(asyncLast))
                     {
-                        pass.EnableAsyncCompute(true);
-                        pass.EnablePassCulling(false);
-                        pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                        RGComputePassHandle<PassData> passHandle = graph.AddComputePass<PassData>(asyncLast);
+                        passHandle.EnableAsyncCompute(true);
+                        passHandle.EnablePassCulling(false);
+                        passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                     }
                 }
                 Compile(graph);

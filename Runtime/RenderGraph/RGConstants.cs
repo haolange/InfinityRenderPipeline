@@ -14,13 +14,13 @@ namespace InfinityTech.Rendering.RenderGraph
     /// </summary>
     public readonly struct RGConstantsHandle
     {
-        internal readonly RGBufferHandle buffer;
+        internal readonly RGBufferHandle bufferHandle;
         internal readonly int offset;
         internal readonly int units;
 
-        internal RGConstantsHandle(in RGBufferHandle buffer, int offset, int units)
+        internal RGConstantsHandle(in RGBufferHandle bufferHandle, int offset, int units)
         {
-            this.buffer = buffer;
+            this.bufferHandle = bufferHandle;
             this.offset = offset;
             this.units = units;
         }
@@ -54,8 +54,8 @@ namespace InfinityTech.Rendering.RenderGraph
             return offset;
         }
 
-        internal void Upload(CommandBuffer commands, GraphicsBuffer buffer, in RGConstantsHandle constants)
-            => commands.SetBufferData(buffer, m_Units.AsArray(), constants.offset, 0, constants.units);
+        internal void Upload(CommandBuffer commands, GraphicsBuffer buffer, in RGConstantsHandle constantsHandle)
+            => commands.SetBufferData(buffer, m_Units.AsArray(), constantsHandle.offset, 0, constantsHandle.units);
 
         internal void Clear() => m_Units.Clear();
 

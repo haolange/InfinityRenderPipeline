@@ -32,17 +32,17 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             graph.extension = extension;
             try
             {
-                RGBufferHandle scratch = graph.CreateBuffer(new BufferDescriptor(4, 4) { name = "Unread" });
-                using (var unread = graph.AddComputePass<EmptyPassData>(new UnityEngine.Rendering.ProfilingSampler("Unread")))
+                RGBufferHandle scratchHandle = graph.CreateBuffer(new BufferDescriptor(4, 4) { name = "Unread" });
                 {
-                    unread.WriteBuffer(scratch);
-                    unread.SetExecuteFunc((in EmptyPassData data, in RGComputeEncoder encoder) => { });
+                    RGComputePassHandle<EmptyPassData> passHandle = graph.AddComputePass<EmptyPassData>(new UnityEngine.Rendering.ProfilingSampler("Unread"));
+                    passHandle.WriteBuffer(scratchHandle);
+                    passHandle.SetExecuteFunc((in EmptyPassData data, in RGComputeEncoder encoder) => { });
                 }
                 graph.GetPass(0).extensionUses.Add(3);
-                using (var kept = graph.AddComputePass<EmptyPassData>(new UnityEngine.Rendering.ProfilingSampler("Kept")))
                 {
-                    kept.EnablePassCulling(false);
-                    kept.SetExecuteFunc((in EmptyPassData data, in RGComputeEncoder encoder) => { });
+                    RGComputePassHandle<EmptyPassData> passHandle = graph.AddComputePass<EmptyPassData>(new UnityEngine.Rendering.ProfilingSampler("Kept"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetExecuteFunc((in EmptyPassData data, in RGComputeEncoder encoder) => { });
                 }
                 graph.GetPass(1).extensionUses.Add(7);
 

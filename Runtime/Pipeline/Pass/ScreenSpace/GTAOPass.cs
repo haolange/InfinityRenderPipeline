@@ -64,20 +64,20 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public CaptureStageSnapshot traceSnapshot, spatialXSnapshot, spatialYSnapshot, temporalSnapshot;
 #endif
-            public RGConstantsHandle parameters;
+            public RGConstantsHandle parametersHandle;
             public int traceKernel, spatialXKernel, spatialYKernel, temporalKernel, upsampleKernel;
             public int2 halfGroups, fullGroups;
             public ComputeShader ssaoShader;
-            public RGTextureHandle halfResDepthTexture;
-            public RGTextureHandle halfResNormalTexture;
-            public RGTextureHandle fullResDepthTexture;
-            public RGTextureHandle fullResNormalTexture;
-            public RGTextureHandle motionTexture, motionMetadata, pendingOcclusionTexture, pendingDepthTexture;
-            public RGTextureHandle historyOcclusionTexture;
-            public RGTextureHandle historyOcclusionDepthTexture;
-            public RGTextureHandle occlusionHalfTexture;
-            public RGTextureHandle spatialTempTexture;
-            public RGTextureHandle occlusionTexture;
+            public RGTextureHandle halfResDepthTextureHandle;
+            public RGTextureHandle halfResNormalTextureHandle;
+            public RGTextureHandle fullResDepthTextureHandle;
+            public RGTextureHandle fullResNormalTextureHandle;
+            public RGTextureHandle motionTextureHandle, motionMetadataHandle, pendingOcclusionTextureHandle, pendingDepthTextureHandle;
+            public RGTextureHandle historyOcclusionTextureHandle;
+            public RGTextureHandle historyOcclusionDepthTextureHandle;
+            public RGTextureHandle occlusionHalfTextureHandle;
+            public RGTextureHandle spatialTempTextureHandle;
+            public RGTextureHandle occlusionTextureHandle;
         }
 
         static TextureDescriptor CreateGTAOHalfDescriptor(int width, int height, string name, GraphicsFormat format)
@@ -108,36 +108,36 @@ namespace InfinityTech.Rendering.Pipeline
                 occlusionTextureDsc.filterMode = FilterMode.Bilinear;
                 occlusionTextureDsc.wrapMode = TextureWrapMode.Clamp;
             }
-            RGTextureHandle occlusionTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionTextureDsc);
+            RGTextureHandle occlusionTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionTextureDsc);
 
             TextureDescriptor occlusionHalfDsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.OcclusionHalfTextureName, GraphicsFormat.R16_SFloat);
-            RGTextureHandle occlusionHalfTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionHalfBuffer, occlusionHalfDsc);
+            RGTextureHandle occlusionHalfTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionHalfBuffer, occlusionHalfDsc);
 
             TextureDescriptor spatialTempDsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.SpatialTempTextureName, GraphicsFormat.R16_SFloat);
-            RGTextureHandle spatialTempTexture = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SpatialTempBuffer, spatialTempDsc);
+            RGTextureHandle spatialTempTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SpatialTempBuffer, spatialTempDsc);
 
             TextureDescriptor historyAODsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.HistoryOcclusionTextureName, GraphicsFormat.R16G16B16A16_SFloat);
             TextureDescriptor historyDepthDsc = CreateGTAOHalfDescriptor(halfWidth, halfHeight, GTAOPassUtilityData.HistoryOcclusionDepthTextureName, GraphicsFormat.R32_SFloat);
             HistoryRead occlusionRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc, context.resetsHistory);
             HistoryRead occlusionDepthRead = context.historyCache.Read(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc, context.resetsHistory);
-            RGTextureHandle historyOcclusionTexture = m_RGBuilder.ImportTexture(occlusionRead.texture);
-            RGTextureHandle historyOcclusionDepthTexture = m_RGBuilder.ImportTexture(occlusionDepthRead.texture);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyOcclusionTexture);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyOcclusionDepthTexture);
+            RGTextureHandle historyOcclusionTextureHandle = m_RGBuilder.ImportTexture(occlusionRead.textureHandle);
+            RGTextureHandle historyOcclusionDepthTextureHandle = m_RGBuilder.ImportTexture(occlusionDepthRead.textureHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyOcclusionTextureHandle);
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyOcclusionDepthTextureHandle);
             var pendingOcclusion = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc));
             var pendingDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionDepthBuffer, historyDepthDsc));
             context.historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionBuffer);
             context.historyCache.MarkProduced(InfinityShaderIDs.HistoryOcclusionDepthBuffer);
 
-            RGTextureHandle halfResDepthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResDepthBuffer);
-            RGTextureHandle halfResNormalTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResNormalBuffer);
-            RGTextureHandle fullResDepthTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle fullResNormalTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureHandle motionTexture = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle halfResDepthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResDepthBuffer);
+            RGTextureHandle halfResNormalTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HalfResNormalBuffer);
+            RGTextureHandle fullResDepthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle fullResNormalTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureHandle motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            using (var passRef = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion)))
             {
-                ref GTAOPassData passData = ref passRef.GetPassData();
+                RGComputePassHandle<GTAOPassData> passHandle = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion));
+                ref GTAOPassData passData = ref passHandle.GetPassData();
                 passData = default;
                 passData.traceKernel = kernels.occlusionTrace.index;
                 passData.spatialXKernel = kernels.occlusionSpatialX.index;
@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.halfGroups = new int2(kernels.occlusionTrace.GroupsX(halfWidth), kernels.occlusionTrace.GroupsY(halfHeight));
                 passData.fullGroups = new int2(kernels.occlusionUpsample.GroupsX(fullWidth), kernels.occlusionUpsample.GroupsY(fullHeight));
                 int temporalIndex = Time.frameCount & 3;
-                passData.parameters = passRef.WriteConstants(new OcclusionParameters
+                passData.parametersHandle = passHandle.WriteConstants(new OcclusionParameters
                 {
                     numRays = ssao.numRays,
                     numSteps = ssao.numSteps,
@@ -166,33 +166,33 @@ namespace InfinityTech.Rendering.Pipeline
                 });
 
                 passData.ssaoShader = shaders.ssaoShader;
-                passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
-                passData.halfResNormalTexture = passRef.ReadTexture(halfResNormalTexture);
-                passData.fullResDepthTexture = passRef.ReadTexture(fullResDepthTexture);
-                passData.fullResNormalTexture = passRef.ReadTexture(fullResNormalTexture);
-                passData.motionTexture = passRef.ReadTexture(motionTexture);
-                passData.motionMetadata = passRef.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
-                passData.pendingOcclusionTexture = passRef.WriteTexture(pendingOcclusion);
-                passData.pendingDepthTexture = passRef.WriteTexture(pendingDepth);
+                passData.halfResDepthTextureHandle = passHandle.ReadTexture(halfResDepthTextureHandle);
+                passData.halfResNormalTextureHandle = passHandle.ReadTexture(halfResNormalTextureHandle);
+                passData.fullResDepthTextureHandle = passHandle.ReadTexture(fullResDepthTextureHandle);
+                passData.fullResNormalTextureHandle = passHandle.ReadTexture(fullResNormalTextureHandle);
+                passData.motionTextureHandle = passHandle.ReadTexture(motionTextureHandle);
+                passData.motionMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                passData.pendingOcclusionTextureHandle = passHandle.WriteTexture(pendingOcclusion);
+                passData.pendingDepthTextureHandle = passHandle.WriteTexture(pendingDepth);
 
-                passData.historyOcclusionTexture = passRef.ReadTexture(historyOcclusionTexture);
-                passData.historyOcclusionDepthTexture = passRef.ReadTexture(historyOcclusionDepthTexture);
-                passData.occlusionHalfTexture = passRef.WriteTexture(occlusionHalfTexture);
-                passData.spatialTempTexture = passRef.WriteTexture(spatialTempTexture);
-                passData.occlusionTexture = passRef.WriteTexture(occlusionTexture);
+                passData.historyOcclusionTextureHandle = passHandle.ReadTexture(historyOcclusionTextureHandle);
+                passData.historyOcclusionDepthTextureHandle = passHandle.ReadTexture(historyOcclusionDepthTextureHandle);
+                passData.occlusionHalfTextureHandle = passHandle.WriteTexture(occlusionHalfTextureHandle);
+                passData.spatialTempTextureHandle = passHandle.WriteTexture(spatialTempTextureHandle);
+                passData.occlusionTextureHandle = passHandle.WriteTexture(occlusionTextureHandle);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                passData.traceSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOTrace, occlusionHalfTexture);
-                passData.spatialXSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOSpatialX, spatialTempTexture);
-                passData.spatialYSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOSpatialY, occlusionHalfTexture);
-                passData.temporalSnapshot = PrepareStageSnapshot(passRef, ECaptureBuffer.AOTemporal, spatialTempTexture);
+                passData.traceSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTrace, occlusionHalfTextureHandle);
+                passData.spatialXSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialX, spatialTempTextureHandle);
+                passData.spatialYSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialY, occlusionHalfTextureHandle);
+                passData.temporalSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTemporal, spatialTempTextureHandle);
 #endif
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
+                passHandle.EnablePassCulling(false);
+                passHandle.EnableAsyncCompute(true);
+                passHandle.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssaoShader;
-                    cmdEncoder.SetComputeConstantBufferParam(shader, GTAOPassUtilityData.CBV_OcclusionParametersID, passData.parameters);
+                    cmdEncoder.SetComputeConstantBufferParam(shader, GTAOPassUtilityData.CBV_OcclusionParametersID, passData.parametersHandle);
 
                     int halfGroupsX = passData.halfGroups.x;
                     int halfGroupsY = passData.halfGroups.y;
@@ -201,63 +201,63 @@ namespace InfinityTech.Rendering.Pipeline
 
                     int trace = passData.traceKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOTraceSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionHalfTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionHalfTextureHandle);
                     cmdEncoder.DispatchCompute(shader, trace, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOTraceSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.traceSnapshot.Record(cmdEncoder, passData.occlusionHalfTexture);
+                    passData.traceSnapshot.Record(cmdEncoder, passData.occlusionHalfTextureHandle);
 #endif
 
                     int spatialX = passData.spatialXKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOSpatialXSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialX, GTAOPassUtilityData.UAV_SpatialTextureID, passData.spatialTempTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialX, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialX, GTAOPassUtilityData.UAV_SpatialTextureID, passData.spatialTempTextureHandle);
                     cmdEncoder.DispatchCompute(shader, spatialX, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOSpatialXSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.spatialXSnapshot.Record(cmdEncoder, passData.spatialTempTexture);
+                    passData.spatialXSnapshot.Record(cmdEncoder, passData.spatialTempTextureHandle);
 #endif
 
                     int spatialY = passData.spatialYKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOSpatialYSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, spatialY, GTAOPassUtilityData.UAV_SpatialTextureID, passData.occlusionHalfTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialY, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, spatialY, GTAOPassUtilityData.UAV_SpatialTextureID, passData.occlusionHalfTextureHandle);
                     cmdEncoder.DispatchCompute(shader, spatialY, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOSpatialYSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.spatialYSnapshot.Record(cmdEncoder, passData.occlusionHalfTexture);
+                    passData.spatialYSnapshot.Record(cmdEncoder, passData.occlusionHalfTextureHandle);
 #endif
 
                     int temporal = passData.temporalKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOTemporalSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_HistoryTextureID, passData.historyOcclusionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_HistoryDepthTexture, passData.historyOcclusionDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_MotionTexture, passData.motionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.UAV_AccumulationTextureID, passData.spatialTempTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.MotionMetadataID, passData.motionMetadata);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingHistoryID, passData.pendingOcclusionTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingDepthID, passData.pendingDepthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_DepthTexture, passData.halfResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_NormalTexture, passData.halfResNormalTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_OcclusionTexture, passData.occlusionHalfTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.SRV_HistoryTextureID, passData.historyOcclusionTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_HistoryDepthTexture, passData.historyOcclusionDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.UAV_AccumulationTextureID, passData.spatialTempTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.MotionMetadataID, passData.motionMetadataHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingHistoryID, passData.pendingOcclusionTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporal, GTAOPassUtilityData.PendingDepthID, passData.pendingDepthTextureHandle);
                     cmdEncoder.DispatchCompute(shader, temporal, halfGroupsX, halfGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOTemporalSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.temporalSnapshot.Record(cmdEncoder, passData.spatialTempTexture);
+                    passData.temporalSnapshot.Record(cmdEncoder, passData.spatialTempTextureHandle);
 #endif
 
                     int upsample = passData.upsampleKernel;
                     cmdEncoder.BeginSample(GTAOPassUtilityData.GTAOUpsampleSampler);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResDepthTextureID, passData.halfResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResNormalTextureID, passData.halfResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_DepthTexture, passData.fullResDepthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_NormalTexture, passData.fullResNormalTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.UAV_UpsampleTextureID, passData.occlusionTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResDepthTextureID, passData.halfResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.SRV_HalfResNormalTextureID, passData.halfResNormalTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_DepthTexture, passData.fullResDepthTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_NormalTexture, passData.fullResNormalTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_OcclusionTexture, passData.spatialTempTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, GTAOPassUtilityData.UAV_UpsampleTextureID, passData.occlusionTextureHandle);
                     cmdEncoder.DispatchCompute(shader, upsample, fullGroupsX, fullGroupsY, 1);
                     cmdEncoder.EndSample(GTAOPassUtilityData.GTAOUpsampleSampler);
                 });
