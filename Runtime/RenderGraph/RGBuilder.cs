@@ -462,7 +462,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
             transferPass.Clear();
-            transferPass.name = profilerSampler.name;
+            transferPass.name = PassName(profilerSampler);
             transferPass.customSampler = profilerSampler;
             RegisterPass(transferPass);
             return new RGTransferPassHandle<T>(transferPass, m_Resources);
@@ -471,15 +471,9 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassHandle<T> AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            return AddComputePass<T>(profilerSampler.name, profilerSampler);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGComputePassHandle<T> AddComputePass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
-        {
             RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
             computePass.Clear();
-            computePass.name = passName;
+            computePass.name = PassName(profilerSampler);
             computePass.customSampler = profilerSampler;
             RegisterPass(computePass);
             return new RGComputePassHandle<T>(computePass, m_Resources);
@@ -490,6 +484,10 @@ namespace InfinityTech.Rendering.RenderGraph
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndProfilingSampler(ProfilingSampler sampler) => EndProfileRange(sampler);
+
+        // A pass is named by its profiling sampler. ProfilingSampler.Get returns null in non-development players, which
+        // have no profiler; their passes record and execute the same, without a name.
+        static string PassName(ProfilingSampler sampler) => sampler != null ? sampler.name : null;
 
         void RegisterPass(IRGPass pass)
         {
@@ -503,7 +501,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
             rayTracingPass.Clear();
-            rayTracingPass.name = profilerSampler.name;
+            rayTracingPass.name = PassName(profilerSampler);
             rayTracingPass.customSampler = profilerSampler;
             RegisterPass(rayTracingPass);
             return new RGRayTracingPassHandle<T>(rayTracingPass, m_Resources);
@@ -514,7 +512,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
             rasterPass.Clear();
-            rasterPass.name = profilerSampler.name;
+            rasterPass.name = PassName(profilerSampler);
             rasterPass.customSampler = profilerSampler;
             RegisterPass(rasterPass);
             return new RGRasterPassHandle<T>(rasterPass, m_Resources, m_RendererListRecords, extension);

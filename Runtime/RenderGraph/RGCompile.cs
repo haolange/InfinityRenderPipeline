@@ -1272,13 +1272,14 @@ namespace InfinityTech.Rendering.RenderGraph
             m_OpenScopes.Add(scope);
         }
 
+        // A null sampler (non-development players have none) opened no scope, so it closes none.
         internal void EndProfileRange(ProfilingSampler sampler)
         {
-            if (m_OpenScopes.Count == 0)
+            if (sampler == null || m_OpenScopes.Count == 0)
             {
                 return;
             }
-            if (sampler != null && m_OpenScopes[m_OpenScopes.Count - 1].sampler != sampler)
+            if (m_OpenScopes[m_OpenScopes.Count - 1].sampler != sampler)
                 throw new InvalidOperationException("A profiling scope ended out of order.");
             m_OpenScopes.RemoveAt(m_OpenScopes.Count - 1);
         }

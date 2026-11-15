@@ -56,6 +56,33 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { graph.Dispose(); }
         }
 
+        // ProfilingSampler.Get returns null in non-development players, which have no profiler.
+        [Test]
+        public void NullSampler_RecordsAnUnnamedPassAndOpensNoScope()
+        {
+            var graph = Graph();
+            try
+            {
+                var outer = new ProfilingSampler("Outer");
+                RGBufferHandle buffer = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "WrittenByUnnamedPass" });
+                graph.BeginProfilingSampler(outer);
+                graph.BeginProfilingSampler(null);
+                using (var pass = graph.AddComputePass<PassData>(null))
+                {
+                    pass.WriteBuffer(buffer);
+                    pass.EnablePassCulling(false);
+                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                graph.EndProfilingSampler(null);
+                Assert.Throws<InvalidOperationException>(() => graph.EndProfilingSampler(new ProfilingSampler("Other")),
+                    "The outer scope is still open after a null scope ends.");
+                graph.EndProfilingSampler(outer);
+                string[] rows = Compile(graph);
+                Assert.AreEqual("False", Row(rows, "")[4], "The unnamed pass is recorded and kept.");
+            }
+            finally { graph.Dispose(); }
+        }
+
         [Test]
         public void StaleHandle_IsRejectedOnTheNextGraph()
         {
