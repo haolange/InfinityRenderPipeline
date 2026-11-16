@@ -9,6 +9,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Every GPU-RECORD struct has its sequential HLSL byte size in `Tests/Editor/GpuRecordLayout.generated.cs`. An EditMode test asserts `UnsafeUtility.SizeOf` matches that size, and the static check rejects a stale file. Constant-buffer register packing stays in the records check.
 - Render-graph recording and execution arrays come from one arena per graph. It resets when the graph is cleared, replacing the per-type length pools.
 - Render graph passes are one `RGPass<T>`. The four public handles keep kind-specific operations; shared Read, Write and Create declarations are one extension on `IPassHandle`.
 - A mesh draw list is created inside the raster pass that consumes it. `CreateMeshDrawList` declares the producer; compile places it after its inputs and at the start of the consumer's native group. `DeclareComputePass` and `DeclareTransferPass` are the graph slots. `RecordCamera` no longer holds draw-list handles, and shadow producers run immediately before the shadow group.

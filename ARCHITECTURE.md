@@ -286,7 +286,7 @@ Cookies and IES profiles share one atlas. Reflection probes are prefiltered into
 
 `LightRecordPack.TryPack` reads the culled transform, final color (linear color, color temperature and intensity), range and spot angle from the `VisibleLight` snapshot, and only fields `VisibleLight` lacks (inner angle, shadow strength, shadow type, baking output) from the `Light`.
 
-`LightRecord` and its HLSL struct are compared by `Tools/StaticCheck/static_check.py` and by an EditMode test. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`.
+`LightRecord` and its HLSL struct are compared by `Tools/StaticCheck/static_check.py` and by an EditMode test. Every `// GPU-RECORD` struct also has its sequential HLSL byte size, with no constant-buffer register padding, in `Tests/Editor/GpuRecordLayout.generated.cs`. The static check rejects a stale copy of that file, and an EditMode test asserts `UnsafeUtility.SizeOf` equals the listed size. Register packing stays in the records check. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`.
 
 ### Contracts
 
