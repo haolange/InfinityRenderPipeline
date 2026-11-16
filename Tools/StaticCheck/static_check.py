@@ -15,7 +15,7 @@ Checks
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   handlename       a variable, parameter or field of a package Handle type keeps Handle in its name
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
-  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
+  scalarupload     no Runtime method or local function outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
   silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   textureviews     the generated texture-view binding registry matches Tools/TextureViews.py output
@@ -388,17 +388,82 @@ SHADER_DECLARATION = r'\b(?:float|half|int|uint|bool)(?:[1-4](?:x[1-4])?)?\s+(\w
 SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*?Params?\s*\(')
 SCALAR_UPLOAD_LIMIT = 8
 SCALAR_UPLOAD_DEFINITIONS = {'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGCommandCore.cs'}
+SCALAR_UPLOAD_KEYWORDS = {
+    'if', 'for', 'foreach', 'while', 'switch', 'catch', 'using', 'lock', 'fixed', 'when',
+    'nameof', 'typeof', 'sizeof', 'checked', 'unchecked', 'return', 'throw', 'new', 'base', 'this', 'default',
+}
+METHOD_OPEN = re.compile(r'(?:[\w>\[\]?])\s+([A-Za-z_]\w*)\s*(?:<[^;{()]*>)?\s*\(')
+
+
+def csharp_method_bodies(text):
+    """(name, brace_start, brace_end) for each method and local function body, scanned by brace depth."""
+    bodies = []
+    for match in METHOD_OPEN.finditer(text):
+        name = match.group(1)
+        if name in SCALAR_UPLOAD_KEYWORDS:
+            continue
+        paren_depth, index = 0, match.end() - 1
+        while index < len(text):
+            if text[index] == '(':
+                paren_depth += 1
+            elif text[index] == ')':
+                paren_depth -= 1
+                if paren_depth == 0:
+                    index += 1
+                    break
+            index += 1
+        else:
+            continue
+        tail = re.match(r'(?:\s|where\s+[^{;=]+)*\{', text[index:])
+        if not tail:
+            continue
+        start = index + tail.end() - 1
+        depth, end = 0, len(text)
+        for cursor in range(start, len(text)):
+            if text[cursor] == '{':
+                depth += 1
+            elif text[cursor] == '}':
+                depth -= 1
+                if depth == 0:
+                    end = cursor
+                    break
+        bodies.append((name, start, end))
+    return bodies
+
+
+def without_strings(text):
+    return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',
+                  lambda m: m.group(0)[0] + re.sub(r'[^\n]', ' ', m.group(0)[1:-1]) + m.group(0)[-1],
+                  text, flags=re.S)
+
 
 def check_scalar_uploads(repo, out):
     """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
-    The count is per file, a heuristic: a pass that uploads its parameters one by one exceeds it."""
+    Counted per method and local function (nested bodies count only toward the inner function, never twice).
+    The threshold stays > 8: the largest per-dispatch caller today is MeshDrawGPUBackend.Produce at 8 calls,
+    whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20 and ComputeBloom had 9."""
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel in SCALAR_UPLOAD_DEFINITIONS:
             continue
-        count = len(SCALAR_UPLOAD.findall(without_comments(read(p))))
-        if count > SCALAR_UPLOAD_LIMIT:
-            out.append(('ERROR', 'scalarupload', f'{rel}: {count} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+        text = without_strings(without_comments(read(p)))
+        bodies = csharp_method_bodies(text)
+        counts = [0] * len(bodies)
+        unscoped = 0
+        for call in SCALAR_UPLOAD.finditer(text):
+            position = call.start()
+            enclosing = [index for index, (_, start, end) in enumerate(bodies) if start <= position < end]
+            if enclosing:
+                inner = max(enclosing, key=lambda index: bodies[index][1])
+                counts[inner] += 1
+            else:
+                unscoped += 1
+        for index, (name, start, _) in enumerate(bodies):
+            if counts[index] > SCALAR_UPLOAD_LIMIT:
+                line = text.count('\n', 0, start) + 1
+                out.append(('ERROR', 'scalarupload', f'{rel}:{line}: {name} makes {counts[index]} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+        if unscoped > SCALAR_UPLOAD_LIMIT:
+            out.append(('ERROR', 'scalarupload', f'{rel}: {unscoped} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
 
 def check_cbuffer_member_ids(repo, out):
     """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member

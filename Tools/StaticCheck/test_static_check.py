@@ -32,15 +32,31 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual('unityboundary', out[0][1])
 
     def test_pass_uploading_parameters_one_by_one_fails(self):
-        per_dispatch = ''.join(f'cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
-        self.write('Runtime/Pipeline/Pass/A.cs', per_dispatch + 'cmd.SetComputeConstantBufferParam(shader, CBV, parameters);')
-        self.write('Runtime/RenderGraph/RGEncoder.cs', per_dispatch * 2)
+        eight = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
+        five = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(5))
+        self.write('Runtime/Pipeline/Pass/A.cs',
+                   'class A {\n'
+                   '    void Produce() {\n' + eight + '        cmd.SetComputeConstantBufferParam(shader, CBV, parameters);\n'
+                   '        void Nested() {\n' + five + '        }\n'
+                   '    }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Pass/TwoPasses.cs',
+                   'class TwoPasses {\n'
+                   '    void First() {\n' + five + '    }\n'
+                   '    void Second() {\n' + five + '    }\n'
+                   '}\n')
+        self.write('Runtime/RenderGraph/RGEncoder.cs', 'class RGEncoder {\n    void Bind() {\n' + eight * 2 + '    }\n}\n')
         out = []
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual([], out)
-        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParams(shader, ID_Weights, weights);')
+        self.write('Runtime/Pipeline/Pass/B.cs',
+                   'class B {\n'
+                   '    void ComputePass() {\n' + eight + '        cmd.SetComputeFloatParams(shader, ID_Weights, weights);\n'
+                   '    }\n'
+                   '}\n')
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual(['scalarupload'], [o[1] for o in out])
+        self.assertIn('ComputePass makes 9 scalar SetCompute*Param calls', out[0][2])
 
     def test_resource_path_names_an_existing_file(self):
         self.write('Runtime/Textures/Noise.png', '')
