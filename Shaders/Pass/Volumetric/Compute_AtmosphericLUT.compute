@@ -450,6 +450,10 @@ void IntegrateAtmosphereRay(float altitude, float3 rayDir, float tMax, bool appl
 {
     luminance = 0;
     transmittance = 1;
+    if (!any(Atmo_SunIlluminance.rgb > 0))
+    {
+        return;
+    }
 
     float3 sunDir = normalize(Atmo_SunDirection.xyz);
     float3 up = PlanetUp();
