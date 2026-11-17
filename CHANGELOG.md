@@ -9,6 +9,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- A camera that regenerates the atmosphere view LUT reuses one queue observer instead of allocating `AtmosphereProduction` every frame.
 - CPU profiling is three `ProfilerMarker` tables. `Record.<method>` and `ProcessLight.<stage>` time the pipeline record. `Light.<stage>` and `Shadow.<stage>` time light build and shadow allocation. `Mesh.<stage>` times mesh residency and draw-list recording. `RG.Compile.<stage>` and `RG.Execute.<stage>` time graph compile and execute. A pass `ProfilingSampler` stays the GPU and execute name. The B11a means are in FeatureStatus.
 - macOS player validation uses one `BuildPipeline.BuildPlayer` path. Development keeps `Development | AllowDebugging`. Release omits both. The default evidence directory is the project's `intermediate/player-build`.
 - `IntegrateAtmosphereRay` returns zero luminance when `Atmo_SunIlluminance` is zero, so the unit-illuminance `MultiScatteringLUT` contributes nothing on a camera without a directional light and the sky and sky irradiance are black.

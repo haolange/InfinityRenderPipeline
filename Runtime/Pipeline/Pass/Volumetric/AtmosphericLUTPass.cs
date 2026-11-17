@@ -168,6 +168,8 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
+        AtmosphereProduction m_AtmosphereProduction;
+
         sealed class AtmosphereProduction : IRGPassQueueObserver
         {
             public AtmosphereSharedCache shared;
@@ -262,9 +264,16 @@ namespace InfinityTech.Rendering.Pipeline
 
             {
                 RGComputePassHandle<AtmosphericLUTPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT));
-                passHandle.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
-                    view = context.state.atmosphereViewCache, generateShared = generateShared,
-                    generateView = generateView, generateIBL = generateIBL });
+                if (m_AtmosphereProduction == null)
+                {
+                    m_AtmosphereProduction = new AtmosphereProduction();
+                }
+                m_AtmosphereProduction.shared = m_AtmosphereSharedCache;
+                m_AtmosphereProduction.view = context.state.atmosphereViewCache;
+                m_AtmosphereProduction.generateShared = generateShared;
+                m_AtmosphereProduction.generateView = generateView;
+                m_AtmosphereProduction.generateIBL = generateIBL;
+                passHandle.SetQueueObserver(m_AtmosphereProduction);
                 ref AtmosphericLUTPassData passData = ref passHandle.GetPassData();
                 passData.parameter = parameter;
                 AtmosphereConstants constants = CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance);

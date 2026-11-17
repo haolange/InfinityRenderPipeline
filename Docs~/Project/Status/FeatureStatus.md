@@ -1,5 +1,9 @@
 # Feature status
 
+### B11b allocation — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
+
+B11a’s moving-camera `GC.Alloc` samples were `new AtmosphereProduction` in `ComputeAtmosphericLUT`. The pipeline now keeps one observer and writes its fields each record. The recording arena and the CPU instance-buffer descriptor did not appear in those stacks, so they stay exact. After 300 warm-up frames and 300 sample frames, `frameAllocations` is 0, 0, 0 for Matrix GPU Indirect and CPU Direct with the camera moving, and for still Spazon. Matrix GPU Indirect `RecordRG` is 0.200 ms against the B11a 0.191 ms.
+
 ### B11a CPU marker baseline — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 Editor Code Optimization Release. Play mode, Game view only, one Game camera. Warmup 300 frames, mean of the next 300. Matrix (`BoxMatix_MeshPipeline`) moves the camera on a 40 m circle. Spazon keeps the camera still. `frameAllocations` is the mean `GC.Alloc` count inside `Render` for three 100-frame windows.
