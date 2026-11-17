@@ -313,6 +313,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshDrawListRecord record = Registry(graph).GetListCopy(drawsHandle.index);
                     Assert.AreEqual(EMeshDrawListState.Released, record.state);
                     Assert.IsFalse(record.build.isCreated, "A released CPU list never schedules its build.");
+                    // The nonempty list declared its producers, so the culled counts below are not met by declaring none.
+                    bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
+                    Assert.AreEqual(gpu ? 1 : 0, CountPasses(graph, "ComputeMeshView", false), "A nonempty GPU list declares its view's one producer.");
+                    Assert.AreEqual(gpu ? 1 : 0, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(gpu ? 0 : 1, CountPasses(graph, "UploadMeshData", false));
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", true), "The producer is culled with its consumer.");
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", true));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", true), "A view producer without a live list is culled with it.");
@@ -902,13 +907,18 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 MeshTestUtility.RequireGPUIndirect(fixture.world);
                 MeshDrawGPUBackend backend = fixture.world.gpuBackend;
                 MeshGPUViewPayload payload = backend.RentViewPayload(), other = null, again = null;
+                // Each rented payload is retired exactly once, in the body or in the finally, so a failed assert neither
+                // leaks a culling context nor pools a payload twice.
+                bool payloadRetired = false, otherRetired = false;
                 try
                 {
                     backend.RetireViewPayload(payload);
+                    payloadRetired = true;
                     Assert.IsNotNull(payload.cullingContextHandle.buffer, "Retire is logical; the culling context stays with the view until flush.");
                     other = backend.RentViewPayload();
                     Assert.AreNotSame(payload, other, "A retired view payload is not handed out again before flush.");
                     backend.RetireViewPayload(other);
+                    otherRetired = true;
                     backend.FlushRetired(default);
                     Assert.IsNull(payload.cullingContextHandle.buffer, "A pooled view payload is an empty shell.");
                     Assert.IsNull(other.cullingContextHandle.buffer);
@@ -918,6 +928,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 }
                 finally
                 {
+                    if (!payloadRetired) backend.RetireViewPayload(payload);
+                    if (!otherRetired && !ReferenceEquals(other, payload)) backend.RetireViewPayload(other);
                     backend.RetireViewPayload(again);
                     backend.FlushRetired(default);
                 }

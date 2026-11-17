@@ -2,14 +2,10 @@
 
 ## [0.5.0] - Unreleased
 
-- Separate native Unity renderer lighting/state from custom Mesh content. Custom Mesh removes Lightmap and CPU per-instance Probe attributes and retains shader world-space APV. Native Shadowmask decisions use visible Light baking output. This supersedes the earlier destroyed-lightmap-cache repair; no custom cache remains.
-- Keep URT native/custom instances distinct and refresh native input independently of mesh world revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
-- Target development refresh/capture tools by explicit project/process. Refresh invokes public AssetDatabase through Unity CLI, with no cross-session UI fallback; temporary native capture compiler caches are cleaned on exit.
-
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
-- Render passes are standalone `internal sealed class XxxPass` types instead of members of the partial `InfinityRenderPipeline`. Each receives the graph, the resource tables, the settings and the caches, observers and passes it uses in its constructor; the pipeline builds one instance of each and records them in the same order. Cookie, reflection-probe, cached-shadow and atmosphere observers and the diffusion profile buffer live in their passes; final output is `FinalOutputPass`; `HDROutputState.cs` moved to `Runtime/Pipeline/`. `static_check passroot` also rejects a pass naming the pipeline, and `redundantparam` is removed.
+- Render passes are standalone `internal sealed class XxxPass` types instead of members of the partial `InfinityRenderPipeline`. Each receives the graph, the resource tables, the settings and the caches, observers and passes it uses in its constructor; the pipeline builds one instance of each and records them in the same order. Cookie, reflection-probe, cached-shadow and atmosphere observers and the diffusion profile buffer live in their passes; final output is `FinalOutputPass`; `HDROutputState.cs` moved to `Runtime/Pipeline/`. `static_check passroot` also rejects a pass naming the pipeline.
 - Scene color stages are derived, not republished: `SceneColorKeys` (opaque, fogged, resolved, display) follows the features that record, producers write only their fixed keys, and the debug view writes `DebugViewBuffer` instead of replacing the post-process key. A capture of `PostProcess` now holds the post output, not the debug view. Screen-space reflection and indirect diffuse record at one position on every device; without async compute they now run before the shadow passes on the graphics queue.
 - `RenderContext` is the pipeline-lifetime root (resource pool, scene world, render graph, atmosphere cache, Adaptive Probe Volumes, camera states, frame transactions). Passes never reach it; external tools read `pipeline.renderContext` instead of the removed `resourcePool` accessor and reflection on private pipeline fields.
 - Scene registration: each authoring component (mesh, light, reflection probe, decal, terrain) registers in its own process-lifetime `ComponentRegistry`. A pipeline's `SceneWorld` derives one table per module from those registries and publishes every module in one transaction (prepare, commit, roll back together). Terrain LOD runs per view in `TerrainModule.ProcessView`, unchanged.
@@ -24,7 +20,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Every GPU-RECORD struct has its sequential HLSL byte size in `Tests/Editor/GpuRecordLayout.generated.cs`. An EditMode test asserts `UnsafeUtility.SizeOf` matches that size, and the static check rejects a stale file. Constant-buffer register packing stays in the records check.
 - Render-graph recording arrays and execution scratch share one arena per graph, grouped by element type and length. The contract is in [ARCHITECTURE.md](ARCHITECTURE.md).
 - Render graph passes are one `RGPass<T>`. The four public handles keep kind-specific operations; shared Read, Write and Create declarations are one extension on `IPassHandle`.
-- A mesh draw list is created inside the raster pass that consumes it, from the mesh view that pass receives as a parameter. `CreateMeshDrawList` declares the producer; compile places it after its inputs and at the start of the consumer's native group. `DeclareComputePass` and `DeclareTransferPass` are the graph slots. `RecordCamera` holds the camera's view handles, not draw-list handles; shadow passes cull one light view per slice, and shadow producers run immediately before the shadow group.
+- A mesh draw list is created inside the raster pass that consumes it, from the mesh view that pass receives as a parameter. `CreateMeshDrawList` declares the producer; compile places it after its inputs and at the start of the consumer's native group. `DeclareComputePass` and `DeclareTransferPass` are the graph slots. `RecordCamera` holds the camera's view handles, not draw-list handles; shadow passes cull one light view per slice; shadow list producers run immediately before the shadow group, and a frustum or light view's visibility producer at the start of the graph.
 - Screen-space reflection rejects a history sample whose confidence is below half the current resolve, and does not let a kept history go darker than this frame's hit color. The blend weight stays this frame's edge fade. A dead history was covering that hit at the history weight and drawing the floor black in the SSR buffer.
 - Screen-space reflection mixes like a single-ray trace: the blend weight is the mean screen-edge fade of the hits, and a miss does not enter that average. Temporal filtering changes the hit color only. The output alpha stays on this frame's edge fade, so a missed neighbor or an old history cannot bring the environment term back through the blend.
 - Screen-space reflection and indirect diffuse accept a full-resolution depth step when the shared edge lies between the two texel depths and a neighboring triple is colinear within 0.25 of that step. `SCREEN_TRACE_RELATIVE_THICKNESS` selects 2% of eye depth instead and is not compiled into the production shaders. There is no Volume thickness. A debug ray miss stores an octahedral direction and why the march stopped: clip, behind a surface, or step budget.
@@ -58,7 +54,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Levels are selected with visibility, per view on the GPU and per list in the CPU job; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
 - `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data.
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
-- SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
+- SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage.
 - HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
 - SSR keeps full-resolution Resolve/Temporal/Spatial and optional half-resolution Trace. SSGI removes ray-reuse Resolve: cosine tracing samples accepted previous-color mips directly, then uses working-resolution temporal/world-space spatial filtering and bilateral reconstruction. Obsolete SSGI ResolveSamples/ResolveRadius controls and their default-profile entries are removed; loading never rewrites user profiles.
 - Burley SSS now filters a separately produced diffuse component at half resolution and recomposes it into opaque scene color, preserving specular/emissive light. Deferred, opaque Forward and Shader Graph outputs share the optional diffuse contract; indirect replacement updates that component too.
@@ -77,8 +73,18 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - ReactiveMask initialization uses the first transparent color attachment clear instead of a compute dispatch; non-TAA variants omit the MRT output.
 - Editor depth upsampling is consumer-driven; cached shadow atlas copies use the canonical raster tile-copy path.
 - Root task ledger retired; active work uses conversation tasks.
+- Source layout: render passes live in `Runtime/Pipeline/Pass/<domain>/` and Volume components in
+  `Runtime/Volume/<domain>/` (moved with their `.meta`; GUIDs, class names and namespaces are unchanged).
+- `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
+- The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
+- `ObjectFactory` adds `InfinityAdditionalCameraData` (with Undo) when a Camera is added, as it already did for Lights.
+- `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
+- Separate native Unity renderer lighting/state from custom Mesh content. Custom Mesh removes Lightmap and CPU per-instance Probe attributes and retains shader world-space APV. Native Shadowmask decisions use visible Light baking output. This supersedes the earlier destroyed-lightmap-cache repair; no custom cache remains.
+- Keep URT native/custom instances distinct and refresh native input independently of mesh world revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
+- Target development refresh/capture tools by explicit project/process. Refresh invokes public AssetDatabase through Unity CLI, with no cross-session UI fallback; temporary native capture compiler caches are cleaned on exit.
 
 ### Added
+- Manual page [Passes and pipelines](Docs~/Manual/architecture.md) for code that writes a pass or a pipeline on `InfinityRenderPipelineBase`: the three contexts, the scene world, scene-color stages and the mesh view and draw-list flow.
 - `InfinityRenderPipelineBase` owns the render context and the frame; a pipeline derives it, passes `PipelineCapabilities` (recorded features, required producers, async compute) and overrides `RecordCamera`. `InfinityRenderPipeline` is the desktop pipeline on it and `TestRenderPipeline` (EditMode tests) a depth-only second one. Required producers come from the capabilities instead of a static list, a feature the pipeline does not record reports that reason, and `static_check pipelinebase` keeps the base and the contexts free of the desktop pipeline and its passes.
 - Stochastic screen-space reflections (Frostbite): tile classification into Hi-Z / linear / skip with indirect
   dispatch, half-resolution tracing, VNDF sampling with the blue-noise Sobol textures, ray-reuse resolve with
@@ -164,6 +170,30 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
+### Removed
+- `RGScoper.MoveTexture` and `RGScoper.PublishTextureRole`; the `OpaqueSceneColorBuffer` and `ResolvedSceneColor` keys; `TranslucentFeatureUtility`.
+- `RenderTaskQueue` (`AddTask`, `ClearTasks`) and the `RenderTask` delegate; the light, decal and terrain registries on `RenderContext` (`GetWorldLight`, `WorldDecalCount`, `Add/RemoveWorldTerrain`); the decal reconciliation that searched every loaded object on pipeline creation; `BaseComponent` (merged into `EntityComponent`).
+- The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
+- Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.
+- One-off migration and diagnosis tools in `Editor/Tools/Validation` that had no entry point.
+- The commented-out RTAO ray-tracing pass in InfinityLit, the unused `PreintegratedDGF_LUT` function, the RenderGraph
+  GraphView stub and 21 orphan `.meta` files.
+- Unused package dependencies `com.unity.addressables` and `com.unity.terrain-tools`.
+- Screen Space Reflection parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
+  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; `VarianceEstimator.hlsl` and the
+  unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
+- The z-binning compute (`Compute_ZBinningLightList`), the ZBin overflow counter and its capture path
+  (`includeZBinOverflow`, counter readback).
+- Asset field `enableDynamicBatch` and its Inspector toggle: Unity 6000.6 removed dynamic batching from `DrawingSettings`. The old key in an asset's YAML is ignored until the asset is saved.
+- `MeshView` and its visibility products (`EMeshViewKind`, `EMeshVisibilityPhase`, persistent per-view visibility cache, frustum batches, culling and compaction dispatches); `MeshCullingContext` replaces them. The per-list build kernels `BuildDrawListOccluded`, `BuildDrawListOccludedHistory` and `BuildDrawListRemainder` and the `_DrawnCandidates` table; the `CullMeshView*` view kernels and the one `BuildDrawList` list kernel replace them.
+- `MeshDrawListDesc`, `SetMeshMotion`, `RegisterMeshOccluder` and the per-context occluder and repeat registries with `FindRepeat` and `TryOccluder`; `MeshPassTable`, its interned presets and `IsMeshLightMode`; `MeshPassDesc.cpuBackend` and `passTag`; the value equality of `MeshCullingContext` and `MeshPassDesc`. `MeshDrawListRegistry` is now `MeshViewRegistry`.
+- Shader properties and C# uploads for camera matrices, camera position vectors, `ScreenSpaceDepthParams`, per-pass jitter, `_ShadowDistance` and `_LocalShadowCount`; the SR_Jitter and SR_FrameIndex constants nothing read.
+- Stand-in textures for absent optional inputs (white cookie atlas, empty probe atlas, depth as ambient occlusion).
+- Screen Space Indirect Diffuse parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
+  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; the SSGI moments and depth-normal
+  histories; capture stages `SSGIRadiance` and `SSGISpatial` (now `SSGIRayHit`, `SSGITraceRadiance`, `SSGITemporal`).
+- The `redundantparam` static check: a pass receives its dependencies in its constructor.
+
 ### Fixed
 - A replaced pipeline lost every light enabled before it existed (its light table was filled only by enable callbacks). A new scene world derives its tables from the component registries.
 - Lightmap snapshots reject destroyed Unity texture wrappers and invalidate on Editor scene/open-close and Play transitions, restoring native color/direction/Shadowmask bindings without fetching a new array on stable frames. Runtime LightmapSettings edits retain the explicit notification contract.
@@ -172,18 +202,15 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   workloads. Retain historical transient causes as unknown and external SDK skips outside Infinity acceptance.
   Picture controls distinguish disabled planetary ground and the fixture marker shadow from rendering defects;
   no atmosphere algorithm fix or isolated-pass performance gain is claimed.
-
-- Active decals recover their feature count after a render-pipeline instance is replaced. The new context reconciles loaded, enabled decals once after pending registration, preserving subsequent enable/disable tracking.
+- Active decals recover their feature count after a render-pipeline instance is replaced: the new scene world derives its decal table from the component registry.
 - LocalLights and Translucent fixture generators persist their authored Volume components as Profile subassets. Independent disk-import tests retain their original disabled feature gates and parameters.
 - The geometry seam regression test reads the six canonical Geometry, Lighting and Shadow pass paths after the S17 folder move; all existence and forbidden-token assertions remain active.
-
 - Image regression now supplies valid normal-frame dimensions/ROI, preserves original scene/selection state through
   Play reload and retires only its own capture before recovery. Explicit fixture creation and scoped paths avoid
   replacing existing scenes; the four early fixture generators share native dirty-asset save protection.
 - Image comparison rejects non-finite pixels, invalid dimensions and extra raw bytes. Baselines validate encoding
   and SHA, commit through immutable payloads and atomic metadata, and retain prior valid data on commit failure.
   Missing cases, capture errors and persistence failures cannot produce a passing run.
-
 - S15 Editor/Metal validation now records the actual generated-graph, native UI and normal-frame consumer boundaries.
   Only the 16 category attributes covering 20 exercised S15 test cases are retired; unrelated unverified tests remain
   marked. Historical transient black outputs and final Display differences remain documented observations.
@@ -197,7 +224,6 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Sky GGX and reflection-probe array cubemaps now filter taps across face boundaries at each sampled mip instead of
   clamping each face independently. The shared path preserves atlas slices, intensity and roughness LOD; cube vertices
   use a symmetric three-face corner value. Sky prefilter input uses the same cross-face sampling.
-
 - Validation liveness markers use the viewport's shorter dimension and a rotating-cube bound when explicitly
   created/placed. Their faces stay inside the corner and near/far planes instead of producing large clipped strips
   in front of the fixture camera. Loading an existing scene does not reposition its marker.
@@ -213,9 +239,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Default Volume completion records a new component reference only after its Undo creation and subasset identity are established. Persistent Profile Undo/Redo preserves concrete component types, including CoreRP APV options.
 - Material Conversion Wizard persists only materials it actually converted; Render Pipeline Wizard fixes no longer save unrelated dirty assets. Default-profile completion and mixed-lighting fixes persist their own edited asset when applicable.
 - Lit and Lit Shader Graph inspectors expose Unity's explicit GI emission flags without inferring graph emission from `_EmissionColor`; newly generated fixture materials with nonzero emission enable baked emission instead of retaining `EmissiveIsBlack`.
-
 - Validation fixtures can target an internal project-relative Assets directory while menus retain their default paths; saving explicitly targets fixture-owned assets and rejects unrelated dirty native assets before Unity SaveScene can implicitly save them.
-
 - Material conversion tests compare the upgraded color exactly with an independent native Material setter/getter round trip; Unity does not preserve the input literal's float bits. Render Graph Viewer tests stop at their unique compiled-snapshot publication before any GPU pass, verify the sentinel and restore the prior debug session instead of submitting an empty render context.
 - SSGI verification now distinguishes final post-TAA display evidence from raw GI/debug signals. Production-kernel regression coverage checks reset samples, configured temporal accumulation, premultiplied confidence, invalid history and spatial normalization without requiring an unrequested first-frame prefilter. No production filtering algorithm is changed.
 - Camera culling requests reflection probes explicitly. Overwriting Unity's native culling options without `NeedsReflectionProbes` returned an empty visible-probe list, so the configured atlas and reflection consumers never received scene probes.
@@ -270,10 +294,8 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   additional tests compare the installed Unity extraction with and without temperature, rather than assuming a pi factor.
 - Light Inspector adoption of an existing native shape now owns an Undo entry. Pipeline disposal restores the previous
   lightmapper delegate while preserving a later replacement, including an older disposed pipeline in the owner chain.
-
 - Normal-frame SSR capture exposes classification and history metadata without changing Debug View or history. Requested
   classification uses graph-owned lifetime through Transfer readback; ordinary frames retain pass-local classification.
-
 - Volumetric clouds use the Atmospherical Profile planet radius and a consistent planet-centered shell for view and
   light rays. Cloud intervals exclude the inner cavity and planet, clip at opaque depth, and retain both visible grazing
   segments; layer rejection uses unclamped height. Sky depth no longer clips clouds at the camera far plane.
@@ -284,7 +306,6 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Custom Mesh visibility retains the full Unity scene mask through the entity description, CPU/GPU culling, shadow views and cache identity; the mask is read when a component syncs, and Editor scene moves notify static components. Cached local shadows distinguish cameras with different scene masks.
 - Pending-verification tests use NUnit's legal `Unverified_0_5` category. The former hyphenated name made NUnit
   reject tests as Failed:Invalid before execution; the rename preserves all pending markers and assertions.
-
 - Shader stripping compares native `ShaderTagId` identities instead of case-sensitive names, preserving used
   native passes when Unity returns canonicalized tag spellings. Callback fixtures now select real single-pass
   shaders instead of changing a snippet name while still addressing an unrelated pass.
@@ -313,37 +334,6 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Release player scripts did not compile: light shape code read `Light.areaSize`, `Light.shadowAngle` and `Light.lightmapBakeType`, which exist only in the Editor. A player now writes only `type` and `shapeRadius`, and a player build freezes each scene light's Editor-derived shape into its `InfinityAdditionalLightData` (`LightShapeBuildProcessor`), so scene lights render the same in the Editor and the player.
 - Ground-truth ambient occlusion produced zero in the pipeline, and deferred indirect lighting was multiplied by that zero. Its parameters are now one bound record (`OcclusionParameters`) and GTAO produces occlusion. Which step of the earlier per-member parameter path lost the values was not isolated.
 - The atmosphere caches were reused after a change they depend on: the aerial-perspective volume after a camera turned in place or changed field of view, and every atmosphere table after the sun's illuminance changed or the sun was removed. The view key now includes the view direction and projection, and both keys include the sun illuminance.
-
-### Changed
-- Source layout: render passes live in `Runtime/Pipeline/Pass/<domain>/` and Volume components in
-  `Runtime/Volume/<domain>/` (moved with their `.meta`; GUIDs, class names and namespaces are unchanged).
-- `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
-- The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
-- `ObjectFactory` adds `InfinityAdditionalCameraData` (with Undo) when a Camera is added, as it already did for Lights.
-- `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
-
-### Removed
-- `RGScoper.MoveTexture` and `RGScoper.PublishTextureRole`; the `OpaqueSceneColorBuffer` and `ResolvedSceneColor` keys; `TranslucentFeatureUtility`.
-- `RenderTaskQueue` (`AddTask`, `ClearTasks`) and the `RenderTask` delegate; the light, decal and terrain registries on `RenderContext` (`GetWorldLight`, `WorldDecalCount`, `Add/RemoveWorldTerrain`); the decal reconciliation that searched every loaded object on pipeline creation; `BaseComponent` (merged into `EntityComponent`).
-- The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
-- Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.
-- One-off migration and diagnosis tools in `Editor/Tools/Validation` that had no entry point.
-- The commented-out RTAO ray-tracing pass in InfinityLit, the unused `PreintegratedDGF_LUT` function, the RenderGraph
-  GraphView stub and 21 orphan `.meta` files.
-- Unused package dependencies `com.unity.addressables` and `com.unity.terrain-tools`.
-- Screen Space Reflection parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
-  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; `VarianceEstimator.hlsl` and the
-  unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
-- The z-binning compute (`Compute_ZBinningLightList`), the ZBin overflow counter and its capture path
-  (`includeZBinOverflow`, counter readback).
-- Asset field `enableDynamicBatch` and its Inspector toggle: Unity 6000.6 removed dynamic batching from `DrawingSettings`. The old key in an asset's YAML is ignored until the asset is saved.
-- `MeshView` and its visibility products (`EMeshViewKind`, `EMeshVisibilityPhase`, persistent per-view visibility cache, frustum batches, culling and compaction dispatches); `MeshCullingContext` replaces them. The per-list build kernels `BuildDrawListOccluded`, `BuildDrawListOccludedHistory` and `BuildDrawListRemainder` and the `_DrawnCandidates` table; the `CullMeshView*` view kernels and the one `BuildDrawList` list kernel replace them.
-- `MeshDrawListDesc`, `SetMeshMotion`, `RegisterMeshOccluder` and the per-context occluder and repeat registries with `FindRepeat` and `TryOccluder`; `MeshPassTable`, its interned presets and `IsMeshLightMode`; `MeshPassDesc.cpuBackend` and `passTag`; the value equality of `MeshCullingContext` and `MeshPassDesc`. `MeshDrawListRegistry` is now `MeshViewRegistry`.
-- Shader properties and C# uploads for camera matrices, camera position vectors, `ScreenSpaceDepthParams`, per-pass jitter, `_ShadowDistance` and `_LocalShadowCount`; the SR_Jitter and SR_FrameIndex constants nothing read.
-- Stand-in textures for absent optional inputs (white cookie atlas, empty probe atlas, depth as ambient occlusion).
-- Screen Space Indirect Diffuse parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
-  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; the SSGI moments and depth-normal
-  histories; capture stages `SSGIRadiance` and `SSGISpatial` (now `SSGIRayHit`, `SSGITraceRadiance`, `SSGITemporal`).
 
 ## [0.4.0] - 2026-09-11
 

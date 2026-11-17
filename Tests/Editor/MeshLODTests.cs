@@ -267,7 +267,23 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, context, true);
                         List<MeshDrawnInstance> gpu = run.Build(MeshProducerRun.CullView, context, dither: true);
                         uint[] visibility = run.Visibility();
-                        CollectionAssert.AreEqual(MeshTestUtility.DrawnEntities(cpu, count), MeshProducerRun.Visible(visibility), $"{mode}: view visibility");
+                        // Visibility is the view's answer and the drawn set is the pass's. They differ in one case: the
+                        // selected level is the chain's last, the pass dithers and the fade is exactly 0, where the outgoing
+                        // level draws nothing (MeshDrawLod.Factor) and no incoming level exists, so a visible entity has no
+                        // instance. Such an entity must draw nothing and is left out of the comparison; the sweep keeps every
+                        // distance off a bound, so normally there is none.
+                        uint[] drawn = MeshTestUtility.DrawnEntities(cpu, count);
+                        uint[] visible = MeshProducerRun.Visible(visibility);
+                        for (int entity = 0; entity < count; ++entity)
+                        {
+                            MeshLODSelection.Select(chain, world.entityBounds[entity], lod, out byte selected, out float selectedFade);
+                            if (selected == chain.count - 1 && selectedFade == 0)
+                            {
+                                Assert.AreEqual(0u, drawn[entity], $"{mode}: entity {entity} at the last level's bound draws nothing");
+                                drawn[entity] = visible[entity];
+                            }
+                        }
+                        CollectionAssert.AreEqual(drawn, visible, $"{mode}: view visibility");
                         Assert.AreEqual(cpu.Count, gpu.Count, $"{mode}: instance count");
                         for (int i = 0; i < cpu.Count; ++i)
                         {
@@ -283,7 +299,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             }
                             sawBand |= cpu[i].factor != 0;
                         }
-                        sawCulled |= Array.IndexOf(MeshTestUtility.DrawnEntities(cpu, count), 0u) >= 0;
+                        sawCulled |= Array.IndexOf(visible, 0u) >= 0;
                     }
                     Assert.AreEqual(3, levels.Count, "The sweep reaches every level.");
                     Assert.IsTrue(sawBand && sawCulled, "The sweep crosses a band and the culled range.");

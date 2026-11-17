@@ -18,7 +18,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Implementation and normative system contracts: frame order, graph, mesh drawing pipeline, lighting, history and output |
 | [AGENTS.md](AGENTS.md) | Principles, design rules, conventions and work method for contributors and coding agents |
-| [Docs~/Manual/index.md](Docs~/Manual/index.md) | Authoring: settings, lights, materials, volumes, Editor windows |
+| [Docs~/Manual/index.md](Docs~/Manual/index.md) | Authoring: settings, lights, materials, volumes, Editor windows, passes and derived pipelines |
 | [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) | What has been recorded, tested, image-checked and measured |
 | [Docs~/Project/Audit/UnityIntegrationAudit.md](Docs~/Project/Audit/UnityIntegrationAudit.md) | Ownership boundary with Unity and inspected engine packages |
 | [CHANGELOG.md](CHANGELOG.md) | Source history |
@@ -26,7 +26,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 
 ## What a frame records
 
-`InfinityRenderPipelineBase.Render` runs the frame and `InfinityRenderPipeline.RecordCamera` records each camera. Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
+`InfinityRenderPipelineBase.Render` runs the frame and `InfinityRenderPipeline.RecordCamera`, the desktop pipeline's one hook, records each camera; writing a pass or another pipeline on the base is described in [Passes and pipelines](Docs~/Manual/architecture.md). Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - Mesh drawing through explicit views (`CullMeshView`) and `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`, with one pass cache per entry of the pipeline's mesh pass table (nine for the desktop pipeline), owned by the mesh world
 - Deferred shading from a thin GBuffer, plus a forward surface route
@@ -51,7 +51,7 @@ Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingL
 
 A component draws a `MeshAsset`: one mesh per LOD level with its screen size, material slots and fade width. Every submesh of every level is one element; the component's materials, indexed by material slot, draw them. Levels switch at `LODGroup` screen sizes and cross-fade with dithering in opaque passes. Authoring is in [Mesh content](Docs~/Manual/mesh.md). The Mesh Component inspector creates a one-level asset from a Mesh. Configure instances through `MeshAsset`, `Mobility`, the typed properties and `SetMaterials`. `Materials` is read-only. Dynamic world matrices, including parent motion, are read automatically. After an in-place mesh edit call `NotifyGeometryChanged(Mesh)`, and after a script edit of a MeshAsset call `NotifyGeometryChanged(MeshAsset)`; inspector edits notify automatically. After a static pose or external entity edit call `NotifyEntityChanged`. After a route or stage edit call `MaterialRouteUtility.ApplyPassState`. After a direct queue or pass edit call `NotifyMaterialRoutingChanged`. Ordinary material uniforms do not rebuild draw structure.
 
-The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when instancing, compute and the four mesh-draw kernels are available, and CPU procedural drawing otherwise. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the mesh world and the transform-version history.
+The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when the device supports compute and instancing, and CPU procedural drawing otherwise; translucent color passes, which need strict back-to-front order, always draw on the CPU. Every kernel of the mesh compute shader is required on both backends. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the mesh world and the transform-version history.
 
 Mesh shaders declare the SubShader tag `InfinityMeshInstancing = True` and read `InstanceToEntity`, `InstanceOffset`, `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` through `GPUScene.hlsl`; opaque passes also read `MeshInstanceFade` and declare `multi_compile _ INFINITY_LOD_DITHER` for the LOD cross-fade. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
 

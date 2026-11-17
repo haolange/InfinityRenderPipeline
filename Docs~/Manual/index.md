@@ -24,3 +24,4 @@ Editor windows use Unity Editor styles. This manual describes their behavior. It
 - [Rendering Debugger](rendering-debugger.md)
 - [Editor tools](editor.md)
 - [UI](ui.md)
+- [Passes and pipelines](architecture.md)

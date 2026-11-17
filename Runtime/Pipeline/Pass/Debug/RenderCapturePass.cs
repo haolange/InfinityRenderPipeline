@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
-            // Capture the final opaque lighting before ownership moves to scene-color stages.
+            // Capture the final opaque lighting before the translucent passes draw into the scene color.
             RecordCaptureTransfer(context, session, "Lighting", context.sceneColor.opaque);
         }
 

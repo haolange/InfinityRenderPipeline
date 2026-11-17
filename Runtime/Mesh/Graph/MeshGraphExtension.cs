@@ -162,7 +162,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         // One compute producer per view with a nonempty GPU list, declared by the first such list. It evaluates eligibility,
         // LOD, frustum and occluder once per entity slot; the view decides the kernel. A remainder view reads the visibility
-        // of its history view, whose list of the same pass exists and declared that view's producer first.
+        // of its history view, whose list of the same pass exists and declared that view's producer first; that view's
+        // producer sized SRV_MeshViewDrawn, so the remainder covers exactly its entity slots (P1: one source for the count).
         RGBufferHandle RecordViewProducer(RGBuilder builder, int viewIndex, in MeshViewRecord view, int entityHighWater)
         {
             using (MeshCpuMarkers.s_RecordViewProducer.Auto())
@@ -171,12 +172,18 @@ namespace InfinityTech.Rendering.MeshPipeline
                 bool occluded = occluder.isValid;
                 bool history = occluded && occluder.history;
                 bool remainder = view.drawnView >= 0;
-                RGBufferHandle drawnHandle = remainder ? registry.GetViewCopy(view.drawnView).visibilityHandle : default;
-                if (remainder && !drawnHandle.IsValid())
-                {
-                    throw new InvalidOperationException("A remainder view reads the visibility of its history view, which has no GPU producer.");
-                }
                 int entityCount = math.max(1, entityHighWater);
+                RGBufferHandle drawnHandle = default;
+                if (remainder)
+                {
+                    MeshViewRecord drawn = registry.GetViewCopy(view.drawnView);
+                    if (!drawn.visibilityHandle.IsValid())
+                    {
+                        throw new InvalidOperationException("A remainder view reads the visibility of its history view, which has no GPU producer.");
+                    }
+                    drawnHandle = drawn.visibilityHandle;
+                    entityCount = drawn.entityCount;
+                }
                 // MeshViewVisibility: one uint per entity slot, 0 when culled, else 1 | level << 8 | fade << 16 (the word
                 // MeshPackLODVisibility returns in Shaders/Library/MeshLOD.hlsl; fade 65535 is stable).
                 RGBufferHandle visibilityHandle = builder.CreateBuffer(new BufferDescriptor(entityCount, sizeof(uint)) { name = "MeshViewVisibility" });

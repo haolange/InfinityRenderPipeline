@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
@@ -64,9 +65,21 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void ProducerScopes_NameTheirKernels()
         {
-            Assert.AreEqual("CullMeshView", MeshDrawProfiling.cullMeshView.name);
-            Assert.AreEqual("InitializeIndirectArgs", MeshDrawProfiling.initializeIndirectArgs.name);
-            Assert.AreEqual("BuildDrawList", MeshDrawProfiling.buildDrawList.name);
+            // The kernels come from the compute shader's own declarations and the backend's resolution, not from the samplers.
+            string shader = File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/Mesh/Compute_MeshDrawPipeline.compute");
+            string backend = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/Mesh/Backend/MeshDrawGPUBackend.cs");
+            string[] kernels = Regex.Matches(shader, @"^\s*#pragma\s+kernel\s+(\w+)", RegexOptions.Multiline).Cast<Match>().Select(m => m.Groups[1].Value).ToArray();
+            foreach (var scope in new[] { MeshDrawProfiling.initializeIndirectArgs, MeshDrawProfiling.buildDrawList })
+            {
+                CollectionAssert.Contains(kernels, scope.name, "A list producer's in-pass scope names the kernel it dispatches.");
+                StringAssert.Contains($"ComputeKernel.Resolve(shader, field, \"{scope.name}\")", backend);
+            }
+            // The view producer's scope names the family of view kernels: each kernel the view can choose starts with it.
+            string[] viewKernels = kernels.Where(kernel => kernel.StartsWith(MeshDrawProfiling.cullMeshView.name, StringComparison.Ordinal)).ToArray();
+            CollectionAssert.Contains(viewKernels, MeshDrawProfiling.cullMeshView.name);
+            string[] resolvedViewKernels = Regex.Matches(backend, @"m_CullView\w*Kernel = ComputeKernel\.Resolve\(shader, field, ""(\w+)""\)")
+                .Cast<Match>().Select(m => m.Groups[1].Value).ToArray();
+            CollectionAssert.AreEquivalent(viewKernels, resolvedViewKernels, "The backend resolves exactly the view kernels of the view scope's family.");
         }
 
         [Test]
