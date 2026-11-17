@@ -1,5 +1,7 @@
 # Feature status
 
+The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
+
 ### B11d and B11e — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 Still Spazon after the caster cache: `Shadow.FitCascade` 0.053 ms, `Light.Registry` 0.0035 ms once, `Light.Pack` 0.011 ms, `Light.ZBin` 0.013 ms, `Light.Sort` 0.0001 ms, `Light.TileRect` 0 calls. One Game camera, so the light snapshot is not rebuilt per camera and was not hoisted. Pack, tile, sort and z-bin are not the head, so they stay managed. A cascade-fit reuse keyed on the camera matrices was compiled and measured: TAA changes the projection every frame, the key missed, and `Shadow.FitCascade` rose to 0.077 ms. That reuse was removed.
