@@ -245,8 +245,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        // One compute producer per nonempty GPU list, recorded where the list is created. A history-occluded list returns the
-        // drawn table it writes; a remainder list reads the one it is given.
+        // One compute producer per nonempty GPU list. The pass is declared, not appended: compile places it after its inputs
+        // and before its consumer's native group. A history-occluded list returns the drawn table it writes; a remainder
+        // list reads the one it is given.
         RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawnHandle, bool remainder)
         {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
@@ -258,7 +259,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ? builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" })
                 : default;
             {
-                RGComputePassHandle<MeshDrawProducerData> passHandle = builder.AddComputePass<MeshDrawProducerData>(MeshDrawProfiling.production);
+                RGComputePassHandle<MeshDrawProducerData> passHandle = builder.DeclareComputePass<MeshDrawProducerData>(MeshDrawProfiling.production);
                 passHandle.KeepImportedWritesLocal();
                 ref MeshDrawProducerData data = ref passHandle.GetPassData();
                 data = default;
@@ -320,7 +321,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferHandle instancesHandle = builder.ImportBuffer(record.cpuInstancesHandle);
             RGBufferHandle fadesHandle = builder.ImportBuffer(record.cpuFadesHandle);
             {
-                RGTransferPassHandle<MeshDrawUploadData> passHandle = builder.AddTransferPass<MeshDrawUploadData>(MeshDrawProfiling.upload);
+                RGTransferPassHandle<MeshDrawUploadData> passHandle = builder.DeclareTransferPass<MeshDrawUploadData>(MeshDrawProfiling.upload);
                 passHandle.KeepImportedWritesLocal();
                 passHandle.WriteBuffer(instancesHandle);
                 passHandle.WriteBuffer(fadesHandle);
@@ -374,9 +375,9 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// Pass-facing mesh recording API. Creating a draw list records its producer at that point of the graph; submitting it
-    /// records its draw calls into the raster encoder. Native command-buffer submission keeps the words native submit and
-    /// submission segment.
+        /// Pass-facing mesh recording API. Creating a draw list registers its descriptor and its producer; compile places that
+        /// producer. Submitting a list records its draw calls into the raster encoder. Native command-buffer submission keeps
+        /// the words native submit and submission segment.
     /// </summary>
     public static class MeshGraphRecording
     {
@@ -395,9 +396,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Records the list's producer here, before its raster consumer. A later list of the same context and pass draws only
-        /// what earlier ones left: after a list tested against the previous frame's pyramid, what a newer occluder no longer
-        /// hides; otherwise nothing.
+        /// Registers the list and declares its producer. The producer is not inserted here. A later list of the same context
+        /// and pass draws only what earlier ones left: after a list tested against the previous frame's pyramid, what a newer
+        /// occluder no longer hides; otherwise nothing. The occluder is the one registered for this context at this call.
         /// </summary>
         public static RGMeshDrawListHandle CreateMeshDrawList(this RGBuilder builder, in MeshDrawListDesc desc)
         {

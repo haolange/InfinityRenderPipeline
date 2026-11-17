@@ -19,9 +19,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle rendererListHandle;
         }
 
-        void RasterDepth(in CameraRecordContext context, in RGMeshDrawListHandle depthMeshDrawListHandle)
+        void RasterDepth(in CameraRecordContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
+            RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));
             TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;

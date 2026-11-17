@@ -32,15 +32,31 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual('unityboundary', out[0][1])
 
     def test_pass_uploading_parameters_one_by_one_fails(self):
-        per_dispatch = ''.join(f'cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
-        self.write('Runtime/Pipeline/Pass/A.cs', per_dispatch + 'cmd.SetComputeConstantBufferParam(shader, CBV, parameters);')
-        self.write('Runtime/RenderGraph/RGEncoder.cs', per_dispatch * 2)
+        eight = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
+        five = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(5))
+        self.write('Runtime/Pipeline/Pass/A.cs',
+                   'class A {\n'
+                   '    void Produce() {\n' + eight + '        cmd.SetComputeConstantBufferParam(shader, CBV, parameters);\n'
+                   '        void Nested() {\n' + five + '        }\n'
+                   '    }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Pass/TwoPasses.cs',
+                   'class TwoPasses {\n'
+                   '    void First() {\n' + five + '    }\n'
+                   '    void Second() {\n' + five + '    }\n'
+                   '}\n')
+        self.write('Runtime/RenderGraph/RGEncoder.cs', 'class RGEncoder {\n    void Bind() {\n' + eight * 2 + '    }\n}\n')
         out = []
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual([], out)
-        self.write('Runtime/Pipeline/Pass/B.cs', per_dispatch + 'cmd.SetComputeFloatParams(shader, ID_Weights, weights);')
+        self.write('Runtime/Pipeline/Pass/B.cs',
+                   'class B {\n'
+                   '    void ComputePass() {\n' + eight + '        cmd.SetComputeFloatParams(shader, ID_Weights, weights);\n'
+                   '    }\n'
+                   '}\n')
         static_check.check_scalar_uploads(str(self.repo), out)
         self.assertEqual(['scalarupload'], [o[1] for o in out])
+        self.assertIn('ComputePass makes 9 scalar SetCompute*Param calls', out[0][2])
 
     def test_resource_path_names_an_existing_file(self):
         self.write('Runtime/Textures/Noise.png', '')
@@ -442,6 +458,23 @@ Tags { "LightMode" = "UnknownPass" }
         self.write('Shaders/Test.hlsl', 'Texture2D SRV_Test;\nTexture2D SRV_New;')
         static_check.check_texture_views(str(self.repo), out)
         self.assertEqual(2, len(out))
+
+    def test_gpu_record_layout_rejects_a_stale_generated_file(self):
+        self.write('Runtime/A.cs', 'namespace N {\n// GPU-RECORD: Rec Shaders/Rec.hlsl\nstruct Rec { public float value; }\n}\n')
+        self.write('Shaders/Rec.hlsl', 'struct Rec { float value; };\n')
+        out = []
+        static_check.check_gpu_record_layout(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertEqual('gpurecordlayout', out[0][1])
+        generated = self.repo / 'Tests/Editor/GpuRecordLayout.generated.cs'
+        generated.parent.mkdir(parents=True, exist_ok=True)
+        generated.write_text(static_check.gpu_record_layout_text(str(self.repo)))
+        out = []
+        static_check.check_gpu_record_layout(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/Rec.hlsl', 'struct Rec {\n    float value;\n    float extra;\n};\n')
+        static_check.check_gpu_record_layout(str(self.repo), out)
+        self.assertEqual(1, len(out))
 
     def historical_receipt(self):
         self.write('old.md', '[missing](missing.md)\n[another](another.md)')

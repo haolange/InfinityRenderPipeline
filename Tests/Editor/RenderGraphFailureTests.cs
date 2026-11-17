@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(RenderBufferLoadAction.DontCare, false)]
         public void AttachmentLoad_DeclaresPreviousContentsAsInput(RenderBufferLoadAction load, bool readsPrevious)
         {
-            var pass = new RGRasterPass<ConsumerPassData>();
+            var pass = new RGPass<ConsumerPassData>();
             var color = new RGTextureHandle(0, 1);
             var depth = new RGTextureHandle(1, 1);
             pass.SetColorAttachment(color, 0, load, RenderBufferStoreAction.Store);
@@ -98,7 +98,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                graph.Dispose(); commands.Dispose(); pool.ReleaseAllTempAlloc();
+                graph.Dispose(); commands.Dispose(); pool.Reset();
                 foreach (var handle in handles) handle?.Release();
                 depthHandle?.Release();
                 foreach (var texture in textures) if (texture != null) UnityEngine.Object.DestroyImmediate(texture);

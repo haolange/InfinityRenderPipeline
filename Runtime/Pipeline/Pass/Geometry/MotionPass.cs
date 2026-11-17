@@ -27,12 +27,13 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterMotion(in CameraRecordContext context, in RGMeshDrawListHandle motionMeshDrawListHandle)
+        void RasterMotion(in CameraRecordContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
                 return;
             }
+            RGMeshDrawListHandle motionMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterMotionPass));
 
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 

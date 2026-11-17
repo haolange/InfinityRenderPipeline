@@ -312,7 +312,6 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void ReleasePassResources(ref RGPassCompileInfo passCompileInfo)
         {
-            m_ObjectPool.ReleaseAllTempAlloc();
             foreach (int buffer in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Buffer])
                 m_Resources.ReleaseBufferResource(buffer, GetResourceReuseFence(ERGResourceType.Buffer, buffer));
             foreach (int texture in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Texture])

@@ -148,6 +148,86 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void DeclaredPasses_SitBeforeTheConsumerGroup_AndDoNotSplitIt()
+        {
+            var graph = new RGBuilder("DeclaredPlace", null, true);
+            try
+            {
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("Shared"));
+                RGBufferHandle firstHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "ProducerAOut" });
+                RGBufferHandle secondHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "ProducerBOut" });
+                {
+                    RGComputePassHandle<PassData> passHandle = graph.DeclareComputePass<PassData>(new ProfilingSampler("ProducerA"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.WriteBuffer(firstHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                {
+                    RGComputePassHandle<PassData> passHandle = graph.DeclareComputePass<PassData>(new ProfilingSampler("ProducerB"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.WriteBuffer(secondHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                RasterReading(graph, "DepthLike", colorHandle, firstHandle);
+                RasterReading(graph, "Shade", colorHandle, secondHandle);
+                Compile(graph);
+                RGGraphSnapshot snapshot = graph.CaptureDebugSnapshot();
+                Assert.AreEqual("ProducerA", snapshot.passes[0].name);
+                Assert.AreEqual("ProducerB", snapshot.passes[1].name);
+                Assert.AreEqual("DepthLike", snapshot.passes[2].name);
+                Assert.AreEqual("Shade", snapshot.passes[3].name);
+                Assert.AreEqual(snapshot.passes[2].mergeGroup, snapshot.passes[3].mergeGroup);
+                Assert.GreaterOrEqual(snapshot.passes[2].mergeGroup, 0);
+                Assert.Less(snapshot.passes[0].mergeGroup, 0);
+                Assert.IsFalse(graph.CompiledPass(0).enableAsyncCompute);
+                Assert.IsFalse(graph.CompiledPass(1).enableAsyncCompute);
+            }
+            finally { graph.Dispose(); }
+        }
+
+        [Test]
+        public void DeclaredPass_WhoseInputIsWrittenInsideTheConsumerGroup_Fails()
+        {
+            var graph = new RGBuilder("DeclaredConflict", null, false);
+            try
+            {
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("Shared"));
+                RGBufferHandle producedHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "DeclaredOut" });
+                Raster(graph, "DepthLike", colorHandle, false);
+                {
+                    RGComputePassHandle<PassData> passHandle = graph.DeclareComputePass<PassData>(new ProfilingSampler("LateProducer"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.ReadTexture(colorHandle);
+                    passHandle.WriteBuffer(producedHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                {
+                    RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("Shade"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.ReadBuffer(producedHandle);
+                    passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                }
+                var error = Assert.Throws<System.Reflection.TargetInvocationException>(() => Compile(graph));
+                StringAssert.Contains("LateProducer", error.InnerException.Message);
+                StringAssert.Contains("Shared", error.InnerException.Message);
+            }
+            finally { graph.Dispose(); }
+        }
+
+        static void RasterReading(RGBuilder graph, string name, RGTextureHandle colorHandle, RGBufferHandle bufferHandle)
+        {
+            {
+                RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler(name));
+                passHandle.EnablePassCulling(false);
+                RenderBufferLoadAction load = name == "DepthLike" ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load;
+                passHandle.SetColorAttachment(colorHandle, 0, load, RenderBufferStoreAction.Store);
+                passHandle.ReadBuffer(bufferHandle);
+                passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+            }
+        }
+
+        [Test]
         public void NativePass_MergesAdjacentRasterAndSplitsOnASample()
         {
             var graph = new RGBuilder("Merge", null, false);
@@ -261,12 +341,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             recording[0] = 42;
             int[] temp = pool.GetTempArray<int>(2);
             temp[0] = 1;
-            pool.ReleaseAllTempAlloc();
-            int[] reused = pool.GetTempArray<int>(2);
-            Assert.AreEqual(42, recording[0]);
-            reused[0] = 7;
-            Assert.AreEqual(42, recording[0]);
-            pool.ReleaseRecordingAlloc();
+            int[] later = pool.GetTempArray<int>(2);
+            later[0] = 7;
+            Assert.AreNotSame(recording, temp);
+            Assert.AreNotSame(recording, later);
+            Assert.AreEqual(42, recording[0], "A recording array stays intact while execution scratch is rented.");
+            pool.Reset();
+            int[] again = pool.GetRecordingArray<int>(2);
+            Assert.AreSame(recording, again);
+            Assert.AreEqual(0, again[0]);
         }
 
         [Test]

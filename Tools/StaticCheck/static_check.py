@@ -11,10 +11,11 @@ Checks
   lightmode every LightMode tag used by shaders is declared in InfinityPassIDs (or a known Unity tag)
   links     relative Markdown links resolve
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct or cbuffer field order/types
+  gpurecordlayout  Tests/Editor/GpuRecordLayout.generated.cs lists each GPU-RECORD type and the sequential byte size of its HLSL fields
   iteratorref      an iterator method (IEnumerator/IEnumerable with yield) holds no ref local (CS8176)
   handlename       a variable, parameter or field of a package Handle type keeps Handle in its name
   cbuffermember    no C# property ID names a value that only exists inside a named cbuffer: those are filled by binding a record
-  scalarupload     no Runtime file outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
+  scalarupload     no Runtime method or local function outside the graph's command definitions has more than 8 scalar SetCompute*Param(s) calls
   silentfallback   Runtime binds no Unity built-in texture (white, black, gray, normal, red) as a stand-in for a missing resource
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
   textureviews     the generated texture-view binding registry matches Tools/TextureViews.py output
@@ -387,17 +388,82 @@ SHADER_DECLARATION = r'\b(?:float|half|int|uint|bool)(?:[1-4](?:x[1-4])?)?\s+(\w
 SCALAR_UPLOAD = re.compile(r'\.SetCompute(?:Int|Float|Vector|Matrix)\w*?Params?\s*\(')
 SCALAR_UPLOAD_LIMIT = 8
 SCALAR_UPLOAD_DEFINITIONS = {'Runtime/RenderGraph/RGEncoder.cs', 'Runtime/RenderGraph/RGCommands.cs', 'Runtime/RenderGraph/RGCommandCore.cs'}
+SCALAR_UPLOAD_KEYWORDS = {
+    'if', 'for', 'foreach', 'while', 'switch', 'catch', 'using', 'lock', 'fixed', 'when',
+    'nameof', 'typeof', 'sizeof', 'checked', 'unchecked', 'return', 'throw', 'new', 'base', 'this', 'default',
+}
+METHOD_OPEN = re.compile(r'(?:[\w>\[\]?])\s+([A-Za-z_]\w*)\s*(?:<[^;{()]*>)?\s*\(')
+
+
+def csharp_method_bodies(text):
+    """(name, brace_start, brace_end) for each method and local function body, scanned by brace depth."""
+    bodies = []
+    for match in METHOD_OPEN.finditer(text):
+        name = match.group(1)
+        if name in SCALAR_UPLOAD_KEYWORDS:
+            continue
+        paren_depth, index = 0, match.end() - 1
+        while index < len(text):
+            if text[index] == '(':
+                paren_depth += 1
+            elif text[index] == ')':
+                paren_depth -= 1
+                if paren_depth == 0:
+                    index += 1
+                    break
+            index += 1
+        else:
+            continue
+        tail = re.match(r'(?:\s|where\s+[^{;=]+)*\{', text[index:])
+        if not tail:
+            continue
+        start = index + tail.end() - 1
+        depth, end = 0, len(text)
+        for cursor in range(start, len(text)):
+            if text[cursor] == '{':
+                depth += 1
+            elif text[cursor] == '}':
+                depth -= 1
+                if depth == 0:
+                    end = cursor
+                    break
+        bodies.append((name, start, end))
+    return bodies
+
+
+def without_strings(text):
+    return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',
+                  lambda m: m.group(0)[0] + re.sub(r'[^\n]', ' ', m.group(0)[1:-1]) + m.group(0)[-1],
+                  text, flags=re.S)
+
 
 def check_scalar_uploads(repo, out):
     """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
-    The count is per file, a heuristic: a pass that uploads its parameters one by one exceeds it."""
+    Counted per method and local function (nested bodies count only toward the inner function, never twice).
+    The threshold stays > 8: the largest per-dispatch caller today is MeshDrawGPUBackend.Produce at 8 calls,
+    whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20 and ComputeBloom had 9."""
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel in SCALAR_UPLOAD_DEFINITIONS:
             continue
-        count = len(SCALAR_UPLOAD.findall(without_comments(read(p))))
-        if count > SCALAR_UPLOAD_LIMIT:
-            out.append(('ERROR', 'scalarupload', f'{rel}: {count} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+        text = without_strings(without_comments(read(p)))
+        bodies = csharp_method_bodies(text)
+        counts = [0] * len(bodies)
+        unscoped = 0
+        for call in SCALAR_UPLOAD.finditer(text):
+            position = call.start()
+            enclosing = [index for index, (_, start, end) in enumerate(bodies) if start <= position < end]
+            if enclosing:
+                inner = max(enclosing, key=lambda index: bodies[index][1])
+                counts[inner] += 1
+            else:
+                unscoped += 1
+        for index, (name, start, _) in enumerate(bodies):
+            if counts[index] > SCALAR_UPLOAD_LIMIT:
+                line = text.count('\n', 0, start) + 1
+                out.append(('ERROR', 'scalarupload', f'{rel}:{line}: {name} makes {counts[index]} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+        if unscoped > SCALAR_UPLOAD_LIMIT:
+            out.append(('ERROR', 'scalarupload', f'{rel}: {unscoped} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
 
 def check_cbuffer_member_ids(repo, out):
     """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member
@@ -497,6 +563,132 @@ def check_sgstrings(repo, out):
         for m in re.finditer(r'const string k\w+ = "(\w+)";', read(passes)):
             if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
                 out.append(('ERROR', 'sgstrings', f'InfinityPasses.cs: LightMode "{m.group(1)}" not in InfinityPassIDs'))
+
+GPU_RECORD = re.compile(
+    r'//\s*GPU-RECORD:\s*(\w+)\s+(\S+)\s*\n(?:\s*\[[^\]]*\]\s*\n)*\s*(?:public|internal|private)?\s*(?:unsafe\s+)?struct\s+(\w+)')
+GPU_RECORD_LAYOUT = 'Tests/Editor/GpuRecordLayout.generated.cs'
+
+
+def csharp_open_scopes(text, index):
+    """Namespace and enclosing types still open at index. The marked struct's own brace is not open yet."""
+    stack, i, depth, pending = [], 0, 0, None
+    while i < index:
+        c = text[i]
+        if c == '/' and i + 1 < index and text[i + 1] == '/':
+            newline = text.find('\n', i)
+            i = index if newline < 0 else newline
+            continue
+        if c == '/' and i + 1 < index and text[i + 1] == '*':
+            end = text.find('*/', i + 2)
+            i = index if end < 0 else end + 2
+            continue
+        if c in '"\'':
+            quote = c
+            i += 1
+            while i < index and text[i] != quote:
+                i += 2 if text[i] == '\\' else 1
+            i += 1
+            continue
+        if pending is None:
+            match = re.match(r'(namespace|class|struct|interface|enum)\s+([\w.]+)', text[i:])
+            if match and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == '_')):
+                pending = (match.group(1), match.group(2))
+                i += match.end()
+                continue
+        if c == '{':
+            depth += 1
+            if pending is not None:
+                stack.append((depth, pending[0], pending[1]))
+                pending = None
+            i += 1
+            continue
+        if c == '}':
+            depth -= 1
+            while stack and stack[-1][0] > depth:
+                stack.pop()
+            i += 1
+            continue
+        if c == ';' and pending is not None and pending[0] == 'namespace':
+            stack.append((depth, pending[0], pending[1]))
+            pending = None
+        i += 1
+    return stack
+
+
+def gpu_record_entries(repo):
+    """Each GPU-RECORD as (qualified C# type, hlsl struct, hlsl path, sequential byte size)."""
+    entries = []
+    for path in all_files(repo, {'.cs'}):
+        text = read(path)
+        for match in GPU_RECORD.finditer(text):
+            hlsl_name, hlsl_file, cs_name = match.groups()
+            hlsl_path = os.path.join(repo, hlsl_file)
+            if not os.path.exists(hlsl_path):
+                raise ValueError(f'{os.path.relpath(path, repo)}: HLSL file {hlsl_file} missing')
+            fields = parse_hlsl_struct(read(hlsl_path), hlsl_name)
+            if fields is None:
+                raise ValueError(f'{cs_name}: HLSL struct {hlsl_name} was not parsed')
+            offsets, size = sequential_offsets([field[0] for field in fields])
+            if offsets is None:
+                raise ValueError(f'{cs_name}: HLSL struct {hlsl_name} has a field type with no sequential size')
+            scopes = csharp_open_scopes(text, match.start())
+            namespace = '.'.join(name for _, kind, name in scopes if kind == 'namespace')
+            enclosing = [name for _, kind, name in scopes if kind in ('class', 'struct')]
+            qualified = '.'.join([namespace] + enclosing + [cs_name]) if namespace else '.'.join(enclosing + [cs_name])
+            entries.append((qualified, hlsl_name, hlsl_file.replace('\\', '/'), size))
+    entries.sort()
+    return entries
+
+
+def gpu_record_layout_text(repo):
+    """EditMode assertions that UnsafeUtility.SizeOf matches the sequential size of the HLSL fields."""
+    lines = [
+        '// Generated by Tools/StaticCheck/static_check.py --write-gpu-record-layout.',
+        '// Each size is the sequential byte size of the HLSL struct fields: 4 bytes per component, no cbuffer register padding.',
+        '// The records check still owns 16-byte register packing. Do not edit this file.',
+        'using NUnit.Framework;',
+        'using Unity.Collections.LowLevel.Unsafe;',
+        '',
+        'namespace InfinityTech.Rendering.Pipeline.Tests',
+        '{',
+        '    public class GpuRecordLayout',
+        '    {',
+    ]
+    seen = set()
+    for qualified, hlsl_name, hlsl_file, size in gpu_record_entries(repo):
+        method = qualified.split('.')[-1]
+        if method in seen:
+            raise ValueError(f'duplicate GPU-RECORD type name {method}')
+        seen.add(method)
+        lines.append('        [Test]')
+        lines.append(f'        public void {method}_MatchesHlslByteSize()')
+        lines.append('        {')
+        lines.append(f'            // {hlsl_name} in {hlsl_file}')
+        lines.append(f'            Assert.AreEqual({size}, UnsafeUtility.SizeOf<global::{qualified}>());')
+        lines.append('        }')
+        lines.append('')
+    if lines[-1] == '':
+        lines.pop()
+    lines.extend(['    }', '}', ''])
+    return '\n'.join(lines)
+
+
+def check_gpu_record_layout(repo, out):
+    """The generated SizeOf list is exactly what the HLSL field types imply, so a drifted file fails before the Editor runs."""
+    path = os.path.join(repo, GPU_RECORD_LAYOUT)
+    try:
+        expected = gpu_record_layout_text(repo).encode('utf-8')
+    except ValueError as error:
+        out.append(('ERROR', 'gpurecordlayout', str(error)))
+        return
+    if not os.path.exists(path):
+        out.append(('ERROR', 'gpurecordlayout', GPU_RECORD_LAYOUT + ' is stale; run python3 Tools/StaticCheck/static_check.py --repo . --write-gpu-record-layout'))
+        return
+    with open(path, 'rb') as handle:
+        actual = handle.read()
+    if actual != expected:
+        out.append(('ERROR', 'gpurecordlayout', GPU_RECORD_LAYOUT + ' is stale; run python3 Tools/StaticCheck/static_check.py --repo . --write-gpu-record-layout'))
+
 
 def check_texture_views(repo, out):
     generator = os.path.join(repo, 'Tools', 'TextureViews.py')
@@ -995,13 +1187,21 @@ def check_layering(repo, out):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
+    ap.add_argument('--write-gpu-record-layout', action='store_true', help='Write Tests/Editor/GpuRecordLayout.generated.cs from GPU-RECORD HLSL sizes')
     a = ap.parse_args(); repo = os.path.abspath(a.repo); out = []
+    if a.write_gpu_record_layout:
+        text = gpu_record_layout_text(repo)
+        path = os.path.join(repo, GPU_RECORD_LAYOUT)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', newline='\n') as handle:
+            handle.write(text)
+        print('wrote', GPU_RECORD_LAYOUT)
     global _SOURCE_CACHE
     _SOURCE_CACHE = {}
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('iteratorref', check_iterator_ref_locals), ('handlename', check_handle_names), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('links', check_links), ('records', check_records), ('gpurecordlayout', check_gpu_record_layout), ('iteratorref', check_iterator_ref_locals), ('handlename', check_handle_names), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
                      ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('findproperty', check_find_property), ('lodither', check_lod_dither),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),

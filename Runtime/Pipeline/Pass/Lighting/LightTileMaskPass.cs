@@ -60,25 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
         public RGTextureHandle probeAtlasHandle;
         public bool hasProbeAtlas;
 
-        public void Read<TPassData>(RGComputePassHandle<TPassData> passHandle) where TPassData : struct
-        {
-            passHandle.ReadBuffer(zBinsHandle);
-            passHandle.ReadBuffer(tileMasksHandle);
-            passHandle.ReadBuffer(cookiesHandle);
-            if (hasCookieAtlas)
-            {
-                passHandle.ReadTexture(cookieAtlasHandle);
-            }
-            passHandle.ReadBuffer(probesHandle);
-            passHandle.ReadBuffer(probeZBinsHandle);
-            passHandle.ReadBuffer(probeTileMasksHandle);
-            if (hasProbeAtlas)
-            {
-                passHandle.ReadTexture(probeAtlasHandle);
-            }
-        }
-
-        public void Read<TPassData>(RGRasterPassHandle<TPassData> passHandle) where TPassData : struct
+        public void Read<THandle>(THandle passHandle) where THandle : struct, IPassHandle
         {
             passHandle.ReadBuffer(zBinsHandle);
             passHandle.ReadBuffer(tileMasksHandle);

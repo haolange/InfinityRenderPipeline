@@ -21,66 +21,52 @@ namespace InfinityTech.Rendering.RenderGraph
         public static RGSharedObjectPool<T> sharedPool => s_Instance.Value;
     }
 
+    // One arena for a graph's recording arrays and execution scratch. The cursor resets when the graph is cleared.
+    // A slot is reused when the element type and length match; recording arrays stay live through execution.
     public sealed class RGObjectPool
     {
-        readonly List<(object array, (Type type, int length) key)> m_ExecutionArrays = new List<(object, (Type, int))>();
-        readonly Dictionary<(Type, int), Stack<object>> m_ExecutionPool = new Dictionary<(Type, int), Stack<object>>();
-        readonly List<(object array, (Type type, int length) key)> m_RecordingArrays = new List<(object, (Type, int))>();
-        readonly Dictionary<(Type, int), Stack<object>> m_RecordingPool = new Dictionary<(Type, int), Stack<object>>();
+        readonly List<object> m_Slots = new List<object>(64);
+        int m_Cursor;
 
         internal RGObjectPool()
         {
         }
 
-        // Arrays borrowed while a pass executes. Released at the end of that pass.
-        public T[] GetTempArray<T>(int size)
-        {
-            return Rent<T>(size, m_ExecutionPool, m_ExecutionArrays);
-        }
+        public T[] GetTempArray<T>(int size) => Rent<T>(size);
 
-        // Arrays captured during recording and read by a later pass. They outlive every pass execution.
-        public T[] GetRecordingArray<T>(int size)
-        {
-            return Rent<T>(size, m_RecordingPool, m_RecordingArrays);
-        }
+        public T[] GetRecordingArray<T>(int size) => Rent<T>(size);
 
-        static T[] Rent<T>(int size, Dictionary<(Type, int), Stack<object>> pool, List<(object array, (Type type, int length) key)> outstanding)
+        T[] Rent<T>(int size)
         {
-            var key = (typeof(T), size);
-            if (!pool.TryGetValue(key, out Stack<object> stack))
+            if (size < 0)
             {
-                stack = new Stack<object>();
-                pool.Add(key, stack);
+                throw new ArgumentOutOfRangeException(nameof(size));
             }
-
-            T[] result = stack.Count > 0 ? (T[])stack.Pop() : new T[size];
-            outstanding.Add((result, key));
-            return result;
-        }
-
-        internal void ReleaseAllTempAlloc()
-        {
-            ReturnAll(m_ExecutionArrays, m_ExecutionPool);
-        }
-
-        internal void ReleaseRecordingAlloc()
-        {
-            ReturnAll(m_RecordingArrays, m_RecordingPool);
-        }
-
-        static void ReturnAll(List<(object array, (Type type, int length) key)> outstanding, Dictionary<(Type, int), Stack<object>> pool)
-        {
-            for (int i = 0; i < outstanding.Count; ++i)
+            if (m_Cursor < m_Slots.Count)
             {
-                (object array, (Type type, int length) key) item = outstanding[i];
-                if (!pool.TryGetValue(item.key, out Stack<object> stack))
+                if (m_Slots[m_Cursor] is T[] existing && existing.Length == size)
                 {
-                    stack = new Stack<object>();
-                    pool.Add(item.key, stack);
+                    m_Cursor++;
+                    if (size > 0)
+                    {
+                        Array.Clear(existing, 0, size);
+                    }
+                    return existing;
                 }
-                stack.Push(item.array);
+                var replaced = new T[size];
+                m_Slots[m_Cursor] = replaced;
+                m_Cursor++;
+                return replaced;
             }
-            outstanding.Clear();
+            var created = new T[size];
+            m_Slots.Add(created);
+            m_Cursor++;
+            return created;
+        }
+
+        internal void Reset()
+        {
+            m_Cursor = 0;
         }
 
         internal T Get<T>() where T : new()

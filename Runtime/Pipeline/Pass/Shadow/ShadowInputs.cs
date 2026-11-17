@@ -52,23 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
         public RGBufferHandle localMatricesHandle;
         public RGBufferHandle localSlicesHandle;
 
-        public void Read<TPassData>(RGComputePassHandle<TPassData> passHandle) where TPassData : struct
-        {
-            passHandle.ReadTexture(cascadeMapHandle);
-            passHandle.ReadTexture(localMapHandle);
-            if (hasCascadeMoments)
-            {
-                passHandle.ReadTexture(cascadeMomentsHandle);
-            }
-            if (hasLocalMoments)
-            {
-                passHandle.ReadTexture(localMomentsHandle);
-            }
-            passHandle.ReadBuffer(localMatricesHandle);
-            passHandle.ReadBuffer(localSlicesHandle);
-        }
-
-        public void Read<TPassData>(RGRasterPassHandle<TPassData> passHandle) where TPassData : struct
+        public void Read<THandle>(THandle passHandle) where THandle : struct, IPassHandle
         {
             passHandle.ReadTexture(cascadeMapHandle);
             passHandle.ReadTexture(localMapHandle);

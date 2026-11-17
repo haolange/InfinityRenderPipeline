@@ -41,8 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
         // Mip 0 of a pyramid is half the full extent (HiZDescriptor).
         static int HiZMipCount(int2 size) => PyramidMipBatch.MipCount((size.x + 1) / 2, (size.y + 1) / 2);
 
-        void RasterDepthRecovery(in RGMeshDrawListHandle drawsHandle)
+        void RasterDepthRecovery(in CameraRecordContext context)
         {
+            RGMeshDrawListHandle drawsHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));
             {
                 RGRasterPassHandle<DepthPassData> passHandle = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery));
                 passHandle.SetDepthStencilAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer),

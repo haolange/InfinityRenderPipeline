@@ -53,44 +53,4 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
-    {
-        RGMeshDrawListHandle CreateMeshList(in MeshCullingContext cullingContext, ShaderTagId pass)
-            => m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(cullingContext, pass));
-
-        RGMeshDrawListHandle[] CreateCascadeMeshLists(in CameraRecordContext context)
-        {
-            int count = ShadowAllocator.CascadeCount;
-            var lists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(count);
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            int lightIndex = allocator.CascadeVisibleLightIndex;
-            if (lightIndex < 0)
-                return lists;
-            Light shadowLight = context.cullingResults.visibleLights[lightIndex].light;
-            for (int cascade = 0; cascade < count; ++cascade)
-            {
-                CascadeShadowSlice slice = allocator.CascadeSlices[cascade];
-                if (!slice.valid)
-                    continue;
-                lists[cascade] = CreateMeshList(CameraCulling.Context(context.camera, shadowLight, slice.splitData), InfinityPassIDs.RasterShadowPass);
-            }
-            return lists;
-        }
-
-        RGMeshDrawListHandle[] CreateLocalMeshLists(in CameraRecordContext context)
-        {
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
-            int count = allocator.LocalSliceCount;
-            var lists = m_RGBuilder.GetRecordingArray<RGMeshDrawListHandle>(count < 1 ? 1 : count);
-            for (int slice = 0; slice < count; ++slice)
-            {
-                LocalShadowSlice local = allocator.LocalSlices[slice];
-                if (local.cachedSampling || !local.valid)
-                    continue;
-                Light light = context.cullingResults.visibleLights[local.visibleLightIndex].light;
-                lists[slice] = CreateMeshList(CameraCulling.Context(context.camera, light, local.splitData), InfinityPassIDs.RasterShadowPass);
-            }
-            return lists;
-        }
-    }
 }

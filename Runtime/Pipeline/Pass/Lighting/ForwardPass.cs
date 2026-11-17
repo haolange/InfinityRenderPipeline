@@ -62,8 +62,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterForward(in CameraRecordContext context, in RGMeshDrawListHandle forwardMeshDrawListHandle)
+        void RasterForward(in CameraRecordContext context)
         {
+            RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterForwardPass));
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,

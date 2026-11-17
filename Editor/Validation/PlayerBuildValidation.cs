@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Editor
             public string finishedUtc;
             public string unity;
             public string target;
+            public bool development;
             public string output;
             public string result;
             public string[] scenes;
@@ -27,13 +28,16 @@ namespace InfinityTech.Rendering.Editor
         }
 
         [MenuItem("Window/Infinity/Build macOS Player")]
-        public static void BuildMacOSPlayer() => BuildMacOSPlayer(new[] { "Assets/Scene/Spazon/Scene_Spazon.unity" });
+        public static void BuildMacOSPlayer() => BuildMacOSPlayer(new[] { "Assets/Scene/Spazon/Scene_Spazon.unity" }, true);
+
+        [MenuItem("Window/Infinity/Build macOS Release Player")]
+        public static void BuildMacOSReleasePlayer() => BuildMacOSPlayer(new[] { "Assets/Scene/Spazon/Scene_Spazon.unity" }, false);
 
         [MenuItem("Window/Infinity/Build macOS Fault Fixture Player")]
         static void BuildFaultFixturePlayer() => BuildMacOSPlayer(new[] {
-            "Assets/Scene/Validation/Validation_LocalLights.unity", "Assets/Scene/Spazon/Scene_Spazon.unity" });
+            "Assets/Scene/Validation/Validation_LocalLights.unity", "Assets/Scene/Spazon/Scene_Spazon.unity" }, true);
 
-        static void BuildMacOSPlayer(string[] scenes)
+        internal static string BuildMacOSPlayer(string[] scenes, bool development, string runDirectory = null)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
                 throw new InvalidOperationException("Player validation build requires an idle EditMode editor.");
@@ -49,16 +53,28 @@ namespace InfinityTech.Rendering.Editor
             foreach (string path in generatedPaths)
                 if (File.Exists(path) || File.Exists(path + ".meta"))
                     throw new InvalidOperationException("Build-generated path already exists; archive and verify its ownership before building: " + path);
-            string root = Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation"));
-            string run = Path.Combine(root, "player-build-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(run);
-            File.WriteAllText(Path.Combine(root, "player-build-latest.txt"), run);
+            string run;
+            string outputApp;
+            if (!string.IsNullOrEmpty(runDirectory))
+            {
+                run = Path.GetFullPath(runDirectory);
+                Directory.CreateDirectory(run);
+                outputApp = Path.Combine(run, "InfinityRP.app");
+            }
+            else
+            {
+                string root = Path.GetFullPath(Path.Combine(Application.dataPath, "../intermediate/player-build"));
+                run = Path.Combine(root, "player-build-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(run);
+                File.WriteAllText(Path.Combine(root, "player-build-latest.txt"), run);
+                outputApp = Path.Combine(run, "InfinityRP.app");
+            }
             var evidence = new BuildEvidence
             {
                 startedUtc = DateTime.UtcNow.ToString("O"), unity = Application.unityVersion,
                 target = BuildTarget.StandaloneOSX.ToString(),
-                // Native exports and signing need a local filesystem without AppleDouble copy collisions.
-                output = Path.Combine(Path.GetTempPath(), Path.GetFileName(run), "InfinityRP.app"),
+                development = development,
+                output = outputApp,
                 scenes = scenes, result = "Started",
                 graphicsApis = PlayerSettings.GetGraphicsAPIs(BuildTarget.StandaloneOSX).Select(api => api.ToString()).ToArray()
             };
@@ -69,7 +85,9 @@ namespace InfinityTech.Rendering.Editor
                 BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
                     scenes = evidence.scenes, locationPathName = evidence.output,
-                    target = BuildTarget.StandaloneOSX, options = BuildOptions.Development | BuildOptions.AllowDebugging
+                    subtarget = (int)StandaloneBuildSubtarget.Player,
+                    target = BuildTarget.StandaloneOSX,
+                    options = development ? (BuildOptions.Development | BuildOptions.AllowDebugging) : BuildOptions.None
                 });
                 evidence.result = report.summary.result.ToString();
                 evidence.errors = report.summary.totalErrors;
@@ -115,6 +133,7 @@ namespace InfinityTech.Rendering.Editor
             }
             if (evidence.result != BuildResult.Succeeded.ToString())
                 throw new InvalidOperationException("macOS Player build failed. See " + Path.Combine(run, "build-report.json"));
+            return evidence.output;
         }
     }
 }

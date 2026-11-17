@@ -131,12 +131,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal int passCount => m_PassList.Count;
         internal IRGPass GetPass(int index) => m_PassList[index];
         internal bool IsCulled(int passIndex) => m_PassCompileInfos[passIndex].culled;
-        internal T[] GetRecordingArray<T>(int count)
-        {
-            T[] array = m_ObjectPool.GetRecordingArray<T>(count);
-            Array.Clear(array, 0, count);
-            return array;
-        }
+        internal T[] GetRecordingArray<T>(int count) => m_ObjectPool.GetRecordingArray<T>(count);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Set by a diagnostics session; null otherwise.
@@ -144,6 +139,14 @@ namespace InfinityTech.Rendering.RenderGraph
 #endif
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
+        // Passes declared outside the sequence. Compile inserts each one; Clear releases any that were not inserted.
+        readonly List<IRGPass> m_DeclaredPasses = new List<IRGPass>(16);
+        readonly List<IRGPass> m_PlacedPasses = new List<IRGPass>(128);
+        readonly List<RGNativePassGroup> m_ProvisionalGroups = new List<RGNativePassGroup>(8);
+        int[] m_ProvisionalGroupStart = Array.Empty<int>();
+        int[] m_DeclaredInsertAt = Array.Empty<int>();
+        int[] m_DeclaredGroupLimit = Array.Empty<int>();
+        int[] m_DeclaredOrder = Array.Empty<int>();
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
@@ -460,23 +463,58 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTransferPassHandle<T> AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
-            transferPass.Clear();
-            transferPass.name = PassName(profilerSampler);
-            transferPass.customSampler = profilerSampler;
+            RGPass<T> transferPass = NewPass<T>(profilerSampler, EPassType.Transfer);
             RegisterPass(transferPass);
+            return new RGTransferPassHandle<T>(transferPass, m_Resources);
+        }
+
+        /// <summary>
+        /// Records a transfer pass outside the sequence. Compile inserts it after the passes that write its inputs
+        /// and at the start of the native group that contains its first consumer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTransferPassHandle<T> DeclareTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGPass<T> transferPass = NewPass<T>(profilerSampler, EPassType.Transfer);
+            DeclarePass(transferPass);
             return new RGTransferPassHandle<T>(transferPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassHandle<T> AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
-            computePass.Clear();
-            computePass.name = PassName(profilerSampler);
-            computePass.customSampler = profilerSampler;
+            RGPass<T> computePass = NewPass<T>(profilerSampler, EPassType.Compute);
             RegisterPass(computePass);
             return new RGComputePassHandle<T>(computePass, m_Resources);
+        }
+
+        /// <summary>
+        /// Records a compute pass outside the sequence. Compile inserts it after the passes that write its inputs
+        /// and at the start of the native group that contains its first consumer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGComputePassHandle<T> DeclareComputePass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGPass<T> computePass = NewPass<T>(profilerSampler, EPassType.Compute);
+            DeclarePass(computePass);
+            return new RGComputePassHandle<T>(computePass, m_Resources);
+        }
+
+        RGPass<T> NewPass<T>(ProfilingSampler profilerSampler, EPassType passType) where T : struct
+        {
+            RGPass<T> pass = m_ObjectPool.Get<RGPass<T>>();
+            pass.Clear();
+            pass.Prepare(passType);
+            pass.name = PassName(profilerSampler);
+            pass.customSampler = profilerSampler;
+            return pass;
+        }
+
+        void DeclarePass(IRGPass pass)
+        {
+            pass.index = -1;
+            m_DeclaredPasses.Add(pass);
+            NoteProfiledPass(pass);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -499,10 +537,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGRayTracingPassHandle<T> AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
-            rayTracingPass.Clear();
-            rayTracingPass.name = PassName(profilerSampler);
-            rayTracingPass.customSampler = profilerSampler;
+            RGPass<T> rayTracingPass = NewPass<T>(profilerSampler, EPassType.RayTracing);
             RegisterPass(rayTracingPass);
             return new RGRayTracingPassHandle<T>(rayTracingPass, m_Resources);
         }
@@ -510,10 +545,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGRasterPassHandle<T> AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
-            rasterPass.Clear();
-            rasterPass.name = PassName(profilerSampler);
-            rasterPass.customSampler = profilerSampler;
+            RGPass<T> rasterPass = NewPass<T>(profilerSampler, EPassType.Raster);
             RegisterPass(rasterPass);
             return new RGRasterPassHandle<T>(rasterPass, m_Resources, m_RendererListRecords, extension);
         }
@@ -585,25 +617,6 @@ namespace InfinityTech.Rendering.RenderGraph
                         Debug.LogException(cleanupError);
                     }
                 }
-                finally
-                {
-                    try
-                    {
-                        m_ObjectPool.ReleaseAllTempAlloc();
-                        m_ObjectPool.ReleaseRecordingAlloc();
-                    }
-                    catch (Exception cleanupError)
-                    {
-                        if (failure == null)
-                        {
-                            failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError);
-                        }
-                        else
-                        {
-                            Debug.LogException(cleanupError);
-                        }
-                    }
-                }
             }
             failure?.Throw();
         }
@@ -644,6 +657,25 @@ namespace InfinityTech.Rendering.RenderGraph
                     Debug.LogException(error);
                 }
             }
+            foreach (var pass in m_DeclaredPasses)
+            {
+                try
+                {
+                    pass.Release(m_ObjectPool);
+                }
+                catch (Exception error)
+                {
+                    if (failure == null)
+                    {
+                        failure = error;
+                    }
+                    else
+                    {
+                        Debug.LogException(error);
+                    }
+                }
+            }
+            m_DeclaredPasses.Clear();
             foreach (var pass in m_PassList)
             {
                 try
@@ -663,7 +695,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             m_PassList.Clear();
-            m_ObjectPool.ReleaseRecordingAlloc();
+            m_ObjectPool.Reset();
             for (int i = 0; i < m_ProfileScopes.Count; ++i)
             {
                 m_ScopePool.Push(m_ProfileScopes[i]);
