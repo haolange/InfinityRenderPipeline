@@ -1,5 +1,9 @@
 # Feature status
 
+### B11c caster cache — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
+
+`Shadow.CollectCasters` on moving Matrix GPU Indirect is 0.0004 ms, from 0.022 ms in B11a. The caster index list follows `structuralRevision`. Bounds and local-frustum answers also follow `transformRevision` and the light, so a camera move with a static world does not walk entities. `ProcessLight` is 0.039 ms, from 0.058 ms, gap 6.3%. A mask-only entity desc change now advances `structuralRevision`. The miss path stays the managed loop: these scenes do not show a recalc cost, so it is not a Burst job. `ShadowCasterAllocationTests` 7 passed. `MeshWorldTests` 9 passed.
+
 ### B11b allocation — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 B11a’s moving-camera `GC.Alloc` samples were `new AtmosphereProduction` in `ComputeAtmosphericLUT`. The pipeline now keeps one observer and writes its fields each record. The recording arena and the CPU instance-buffer descriptor did not appear in those stacks, so they stay exact. After 300 warm-up frames and 300 sample frames, `frameAllocations` is 0, 0, 0 for Matrix GPU Indirect and CPU Direct with the camera moving, and for still Spazon. Matrix GPU Indirect `RecordRG` is 0.200 ms against the B11a 0.191 ms.

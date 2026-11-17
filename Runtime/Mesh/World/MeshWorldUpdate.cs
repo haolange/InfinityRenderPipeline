@@ -242,8 +242,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (membershipChanged)
             {
                 MarkEntityElementsDirty(index);
-                structuralRevision++;
             }
+            // Flags and masks both decide which entities cast into a light. One revision covers both.
+            structuralRevision++;
         }
 
         internal void SetEntityMobility(ulong generation, MeshEntityId id, Transform transform, in BoundingBox localBounds)
