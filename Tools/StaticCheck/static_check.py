@@ -40,9 +40,9 @@ Checks
   hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
   physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
   rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
-  redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
   framealloc       frame- and camera-rate methods build no managed array, collection, string or package class (AGENTS R17)
-  passroot         pass files never reach the pipeline-lifetime root: per-camera facts come from ViewContext, services by injection
+  passroot         pass files never name the pipeline or reach the render context root: per-camera facts come from ViewContext,
+                   services by constructor injection
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -1109,7 +1109,8 @@ DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession
                                 r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
                                 r'RecordDeferredLightingCapture|captureSession|displayProbe|'
                                 r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
-                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend|PipelineFrameMeasurement)\b')
+                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend|PipelineFrameMeasurement|'
+                                r'DebugViewPass|RenderCapturePass)\b')
 DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
 
 
@@ -1227,41 +1228,16 @@ def check_rg_api(repo, out):
                     out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes a string {name}'))
 
 
-PIPELINE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipeline\b')
-CLASS_MEMBER = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|readonly)\s+)*[\w<>\[\],.]+\s+(\w+)\s*(?:=>|=|;)', re.M)
-CLASS_METHOD = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|override|unsafe)\s+)*[\w<>\[\],.]+\s+(\w+)\s*\(([^)]*)\)', re.M)
-
-def check_redundant_parameters(repo, out):
-    """A pipeline instance method never takes a parameter named like a pipeline field or property: it shadows it."""
-    bodies = []
-    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
-        text = without_comments(read(p))
-        for match in PIPELINE_PARTIAL.finditer(text):
-            body = method_body(text[match.start():], '{') or ''
-            offset = match.start() + text[match.start():].index(body)
-            bodies.append((os.path.relpath(p, repo).replace(os.sep, '/'), text, body, offset))
-    members = set()
-    for _, _, body, _ in bodies:
-        members |= set(CLASS_MEMBER.findall(body))
-    for rel, text, body, offset in bodies:
-        for m in CLASS_METHOD.finditer(body):
-            if re.search(r'\bstatic\b', body[m.start():m.start(1)]):
-                continue
-            for name in re.findall(r'(\w+)\s*(?:=[^,]*)?(?:,|$)', m.group(2).strip()):
-                if name in members:
-                    line = text.count(chr(10), 0, offset + m.start()) + 1
-                    out.append(('ERROR', 'redundantparam', f'{rel}:{line}: {m.group(1)} takes {name}, which shadows the pipeline member'))
-
-
-PASS_ROOT = re.compile(r'\b(?:renderContext|RenderContext)\b')
+PASS_ROOT = re.compile(r'\b(?:renderContext|RenderContext|InfinityRenderPipeline|InfinityRenderPipelineBase)\b')
 
 def check_pass_root(repo, out):
-    """A pass reads its camera's facts from ViewContext and its services from what the pipeline hands it, never the root."""
+    """A pass reads its camera's facts from ViewContext and receives its services in its constructor. It never names the
+    pipeline, which constructs it, or the render context root."""
     for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
         for number, line in enumerate(code_only(read(p)).split('\n'), 1):
             if PASS_ROOT.search(line):
-                out.append(('ERROR', 'passroot', f'{rel}:{number}: a pass reaches the render context root'))
+                out.append(('ERROR', 'passroot', f'{rel}:{number}: a pass names the pipeline or reaches the render context root'))
 
 
 def check_layering(repo, out):
@@ -1303,7 +1279,7 @@ def main():
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
                      ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
-                     ('redundantparam', check_redundant_parameters), ('framealloc', check_frame_allocations),
+                     ('framealloc', check_frame_allocations),
                      ('passroot', check_pass_root)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)

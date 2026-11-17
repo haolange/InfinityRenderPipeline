@@ -11,15 +11,24 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string TextureName = "DepthTexture";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class DepthPass
     {
-        struct DepthPassData
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal DepthPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+        }
+
+        internal struct DepthPassData
         {
             public RGMeshDrawListHandle meshDrawListHandle;
             public RGRendererListHandle rendererListHandle;
         }
 
-        void RasterDepth(in ViewContext context)
+        internal void RasterDepth(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
             RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));

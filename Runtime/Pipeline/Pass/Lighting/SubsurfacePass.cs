@@ -31,8 +31,36 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class SubsurfacePass : System.IDisposable
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly ResourcePool m_ResourcePool;
+        // The pass-owned diffusion profile buffer and the records it was last uploaded from.
+        BufferHandle m_DiffusionProfileBufferHandle;
+        DiffusionProfileRecord[] m_DiffusionProfileRecords = System.Array.Empty<DiffusionProfileRecord>();
+
+        internal SubsurfacePass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings, ResourcePool resourcePool)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+            m_ResourcePool = resourcePool;
+        }
+
+        // Returns the diffusion buffer to the pool; the pipeline disposes this pass before the render context disposes the pool.
+        public void Dispose()
+        {
+            BufferHandle bufferHandle = m_DiffusionProfileBufferHandle;
+            m_DiffusionProfileBufferHandle = default;
+            m_DiffusionProfileRecords = System.Array.Empty<DiffusionProfileRecord>();
+            if (bufferHandle.buffer != null)
+            {
+                m_ResourcePool.ReleaseBuffer(bufferHandle);
+            }
+        }
+
         struct SubsurfacePassData
         {
             public RGConstantsHandle parametersHandle;
@@ -85,7 +113,7 @@ namespace InfinityTech.Rendering.Pipeline
             return profileCount;
         }
 
-        void ComputeBurleySubsurface(in ViewContext context)
+        internal void ComputeBurleySubsurface(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
             {
@@ -101,8 +129,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface));
                 ref SubsurfacePassData passData = ref passHandle.GetPassData();
-                passData.burleyKernel = kernels.burleySubsurface;
-                passData.composeKernel = kernels.composeSubsurface;
+                passData.burleyKernel = m_Resources.kernels.burleySubsurface;
+                passData.composeKernel = m_Resources.kernels.composeSubsurface;
                 passData.resolution = size;
                 passData.parametersHandle = passHandle.WriteConstants(new SubsurfaceParameters
                 {

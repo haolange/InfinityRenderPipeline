@@ -25,9 +25,18 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_DepthID = Shader.PropertyToID("UAV_Depth");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class RenderCapturePass
     {
-        struct CaptureStageSnapshot
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal RenderCapturePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
+        internal struct CaptureStageSnapshot
         {
             public bool enabled;
             public ComputeKernel kernel;
@@ -47,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> passHandle, ECaptureBuffer buffer, RGTextureHandle sourceHandle) where TPassData : struct
+        internal CaptureStageSnapshot PrepareStageSnapshot<TPassData>(RGComputePassHandle<TPassData> passHandle, ECaptureBuffer buffer, RGTextureHandle sourceHandle) where TPassData : struct
         {
             var session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || !session.Captures(buffer))
@@ -55,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return default;
             }
             string semantic = buffer.ToString();
-            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.texture);
+            ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.texture);
             var descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             descriptor.name = "Capture_" + semantic;
             descriptor.enableRandomWrite = true;
@@ -75,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
-        void RecordLightingCapture(in ViewContext context)
+        internal void RecordLightingCapture(in ViewContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || !session.Captures(ECaptureBuffer.Lighting))
@@ -86,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
             RecordCaptureTransfer(context, session, "Lighting", context.sceneColor.opaque);
         }
 
-        void RecordDeferredLightingCapture(in ViewContext context)
+        internal void RecordDeferredLightingCapture(in ViewContext context)
         {
             var session = RenderCaptureService.current;
             if (session != null && session.CaptureThisFrame && session.Captures(ECaptureBuffer.DeferredLighting))
@@ -103,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         int RecordLightMaskCapture(in ViewContext context)
         {
-            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
+            ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.bufferUIntBytes);
             var lightContext = context.lights;
             bool local = lightContext.HasLocalLightList();
             int width = local ? lightContext.TileCount.x * lightContext.TileWordCount : 1;
@@ -118,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<CaptureLightMaskPassData> passHandle = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler);
                 ref CaptureLightMaskPassData passData = ref passHandle.GetPassData();
-                passData.sourceHandle = passHandle.ReadBuffer(QueryLightLoop(context).tileMasksHandle);
+                passData.sourceHandle = passHandle.ReadBuffer(LightTileMaskPass.QueryLightLoop(m_RGBuilder, context).tileMasksHandle);
                 passData.destinationHandle = passHandle.WriteTexture(destination);
                 passData.kernel = kernel;
                 passData.width = width;
@@ -136,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             return id;
         }
 
-        void RecordNormalFrameCapture(in ViewContext context)
+        internal void RecordNormalFrameCapture(in ViewContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame)
@@ -338,7 +347,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         RGTextureHandle ConvertCaptureDepth(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
         {
-            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.depth);
+            ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.depth);
             descriptor.depthBufferBits = EDepthBits.None;
             descriptor.colorFormat = GraphicsFormat.R32_SFloat;
             descriptor.isShadowMap = false;
@@ -368,7 +377,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         RGTextureHandle ConvertCaptureMetadata(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
         {
-            ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.surfaceMetadata);
+            ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.surfaceMetadata);
             descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureSurfaceValues";

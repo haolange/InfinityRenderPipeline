@@ -106,8 +106,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class SSRPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal SSRPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct SSRPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -158,7 +167,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         }
 
-        void ComputeScreenSpaceReflection(in ViewContext context)
+        internal void ComputeScreenSpaceReflection(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSR))
             {
@@ -233,7 +242,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSRVarianceBuffer, historyVarianceHandle);
             bool historyValid = context.state.acceptedSSR && radianceRead.valid && metaRead.valid && varianceRead.valid;
 
-            InfinityRenderPipelineRuntimeTextures textures = resources.textures;
+            InfinityRenderPipelineRuntimeTextures textures = m_Resources.textures;
 
             {
                 RGComputePassHandle<SSRPassData> passHandle = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection));
@@ -262,14 +271,14 @@ namespace InfinityTech.Rendering.Pipeline
                     debugMode = debugMode
                 });
                 passData.tileCount = tileCount;
-                passData.ssrShader = shaders.ssrShader;
-                passData.clearArgsKernel = kernels.ssrClearArgs.index;
-                passData.classifyKernel = kernels.ssrClassify.index;
-                passData.traceKernel = kernels.ssrTrace.index;
-                passData.resolveKernel = kernels.ssrResolve.index;
-                passData.temporalKernel = kernels.ssrTemporal.index;
-                passData.bilateralKernel = kernels.ssrBilateral.index;
-                passData.resolveGroups = new int2(kernels.ssrResolve.GroupsX(width), kernels.ssrResolve.GroupsY(height));
+                passData.ssrShader = m_Resources.shaders.ssrShader;
+                passData.clearArgsKernel = m_Resources.kernels.ssrClearArgs.index;
+                passData.classifyKernel = m_Resources.kernels.ssrClassify.index;
+                passData.traceKernel = m_Resources.kernels.ssrTrace.index;
+                passData.resolveKernel = m_Resources.kernels.ssrResolve.index;
+                passData.temporalKernel = m_Resources.kernels.ssrTemporal.index;
+                passData.bilateralKernel = m_Resources.kernels.ssrBilateral.index;
+                passData.resolveGroups = new int2(m_Resources.kernels.ssrResolve.GroupsX(width), m_Resources.kernels.ssrResolve.GroupsY(height));
                 passData.rankingTile = textures.blueNoiseRankingTile;
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
@@ -280,7 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.gBufferAHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA));
                 passData.gBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = ReadTemporalColorView(passHandle, context.state.temporalColorView);
+                passData.temporalColor = TemporalColorSourcePass.ReadTemporalColorView(passHandle, context.state.temporalColorView);
                 passData.motionMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadianceHandle = passHandle.ReadTexture(historyRadianceHandle);
@@ -316,8 +325,8 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.runDebug = runDebug;
                 passData.debugHandle = runDebug ? passHandle.WriteTexture(debugHandle) : default;
-                passData.debugKernel = kernels.ssrDebug.index;
-                passData.debugGroups = new int2(kernels.ssrDebug.GroupsX(width), kernels.ssrDebug.GroupsY(height));
+                passData.debugKernel = m_Resources.kernels.ssrDebug.index;
+                passData.debugGroups = new int2(m_Resources.kernels.ssrDebug.GroupsX(width), m_Resources.kernels.ssrDebug.GroupsY(height));
 #endif
 
                 passHandle.EnablePassCulling(false);
@@ -432,7 +441,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.OwenScrambledSobolID, passData.owenScrambledSobol, TextureView.Whole(passData.owenScrambledSobol));
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_RayHit, passData.rayHitHandle);
             cmdEncoder.SetComputeBufferParam(shader, kernel, SSRPassUtilityData.UAV_SamplesID, passData.samplesHandle);
-            BindTemporalColorView(cmdEncoder, shader, kernel, passData.temporalColor);
+            TemporalColorSourcePass.BindTemporalColorView(cmdEncoder, shader, kernel, passData.temporalColor);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadataHandle);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
             cmdEncoder.DispatchComputeIndirect(shader, kernel, passData.tileArgsHandle, 0);

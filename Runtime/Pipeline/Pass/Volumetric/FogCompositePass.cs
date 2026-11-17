@@ -26,8 +26,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class FogCompositePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal FogCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct FogCompositePassData
         {
             public ComputeKernel kernel;
@@ -45,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle volumetricCloudTextureHandle;
         }
 
-        void ComputeFogComposite(in ViewContext context)
+        internal void ComputeFogComposite(in ViewContext context)
         {
             bool hasFog = context.features.ShouldRecord(EFrameFeature.VolumetricFog);
             bool hasCloud = context.features.ShouldRecord(EFrameFeature.VolumetricCloud);
@@ -75,9 +84,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<FogCompositePassData> passHandle = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite));
                 ref FogCompositePassData passData = ref passHandle.GetPassData();
-                passData.kernel = kernels.fogComposite;
-                passData.fogKeyword = kernels.fogCompositeFog;
-                passData.cloudKeyword = kernels.fogCompositeCloud;
+                passData.kernel = m_Resources.kernels.fogComposite;
+                passData.fogKeyword = m_Resources.kernels.fogCompositeFog;
+                passData.cloudKeyword = m_Resources.kernels.fogCompositeCloud;
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.parametersHandle = passHandle.WriteConstants(new FogCompositeParameters
                 {
@@ -86,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;
-                passData.fogCompositeShader = shaders.fogCompositeShader;
+                passData.fogCompositeShader = m_Resources.shaders.fogCompositeShader;
                 passData.sceneColorTextureHandle = passHandle.ReadTexture(sceneColorTextureHandle);
                 passData.foggedSceneColorTextureHandle = passHandle.WriteTexture(foggedSceneColorHandle);
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);

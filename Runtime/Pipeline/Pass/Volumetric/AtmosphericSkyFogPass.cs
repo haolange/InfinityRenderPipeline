@@ -13,8 +13,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_SunBufferID = Shader.PropertyToID("SRV_SunBuffer");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class AtmosphericSkyFogPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal AtmosphericSkyFogPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct AtmosphericSkyFogPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -28,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle sunBufferHandle;
         }
 
-        void ComputeAtmosphericSkyAndFog(in ViewContext context)
+        internal void ComputeAtmosphericSkyAndFog(in ViewContext context)
         {
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.opaque);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -42,10 +51,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<AtmosphericSkyFogPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog));
                 ref AtmosphericSkyFogPassData passData = ref passHandle.GetPassData();
-                passData.parametersHandle = passHandle.WriteConstants(CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance));
+                passData.parametersHandle = passHandle.WriteConstants(AtmosphericLUTPass.CreateAtmosphereConstants(parameter, sunDirection, sunIlluminance));
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
-                passData.compositeKernel = kernels.atmosphereComposite;
-                passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
+                passData.compositeKernel = m_Resources.kernels.atmosphereComposite;
+                passData.atmosphericLUTShader = m_Resources.shaders.atmosphericLUTShader;
                 passData.lightingTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
                 passHandle.WriteTexture(lightingTextureHandle);
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);

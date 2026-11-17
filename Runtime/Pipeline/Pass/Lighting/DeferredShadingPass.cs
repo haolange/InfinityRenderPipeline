@@ -31,8 +31,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string TextureName = "LightingTexture";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class DeferredShadingPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal DeferredShadingPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct DeferredShadingPassData
         {
             public int kernel;
@@ -62,13 +71,13 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle atmosphereSkySHHandle;
         }
 
-        void ComputeDeferredShading(in ViewContext context)
+        internal void ComputeDeferredShading(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
 
             int width = context.dimensions.internalSize.x;
             int height = context.dimensions.internalSize.y;
-            ComputeKernel kernel = kernels.deferredShading;
+            ComputeKernel kernel = m_Resources.kernels.deferredShading;
             int2 groupCount = new int2(kernel.GroupsX(width), kernel.GroupsY(height));
 
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
@@ -122,17 +131,17 @@ namespace InfinityTech.Rendering.Pipeline
                 });
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
-                LightLoopInputs lightLoop = QueryLightLoop(context);
+                LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                 lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                ShadowInputs shadows = QueryShadowInputs(context);
+                ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
                 shadows.Read(passHandle);
                 passData.shadows = shadows;
                 passData.deferredShadingShader = kernel.shader;
-                passData.subsurfaceKeyword = kernels.deferredShadingSubsurface;
-                passData.occlusionKeyword = kernels.deferredShadingOcclusion;
-                passData.contactShadowKeyword = kernels.deferredShadingContactShadow;
+                passData.subsurfaceKeyword = m_Resources.kernels.deferredShadingSubsurface;
+                passData.occlusionKeyword = m_Resources.kernels.deferredShadingOcclusion;
+                passData.contactShadowKeyword = m_Resources.kernels.deferredShadingContactShadow;
                 passData.gBufferAHandle = passHandle.ReadTexture(gBufferAHandle);
                 passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
                 passData.gBufferCHandle = passHandle.ReadTexture(gBufferCHandle);

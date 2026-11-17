@@ -13,8 +13,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string DepthTextureName = "MotionDepthTexture";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class MotionPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal MotionPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+        }
+
         struct ObjectMotionPassData
         {
             public RGMeshDrawListHandle meshDrawListHandle;
@@ -27,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterMotion(in ViewContext context)
+        internal void RasterMotion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
@@ -88,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref CameraMotionPassData passData = ref passHandle.GetPassData();
                 {
                     passData.depthTextureHandle = depthTextureHandle;
-                    passData.shaderPass = blitPasses.cameraMotion;
+                    passData.shaderPass = m_Resources.blitPasses.cameraMotion;
                 }
 
                 //Execute Phase

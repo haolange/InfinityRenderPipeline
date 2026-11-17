@@ -19,8 +19,15 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int InvViewFlipYJitterProjID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class RTAOPass
     {
+        readonly RGBuilder m_RGBuilder;
+
+        internal RTAOPass(RGBuilder graph)
+        {
+            m_RGBuilder = graph;
+        }
+
         struct RTAOPassData
         {
             public int2 resolution;
@@ -38,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle occlusionTextureHandle;
         }
 
-        void TraceOcclusion(in ViewContext context)
+        internal void TraceOcclusion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.RTAO))
             {
@@ -50,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RayTracingAmbientOcclusion settings = context.volumes.rayTracingAmbientOcclusion;
-            if (!VolumeComponentActive(settings))
+            if (!GraphicsUtility.VolumeComponentActive(settings))
             {
                 throw new System.InvalidOperationException("InfinityRP: RTAO is marked to produce but the Volume is inactive.");
             }

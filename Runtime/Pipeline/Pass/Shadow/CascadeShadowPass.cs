@@ -20,8 +20,17 @@ namespace InfinityTech.Rendering.Pipeline
 
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class CascadeShadowPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal CascadeShadowPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+        }
+
         struct CascadeShadowPassData
         {
             public int cascadeCount;
@@ -35,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererListsHandle;
         }
 
-        void RasterCascadeShadow(in ViewContext context)
+        internal void RasterCascadeShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;

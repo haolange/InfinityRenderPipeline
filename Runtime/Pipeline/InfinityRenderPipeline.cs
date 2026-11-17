@@ -165,18 +165,51 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        // Pass dependencies taken from the render context at construction (R3); the context owns and disposes them.
-        readonly RGBuilder m_RGBuilder;
-        readonly ResourcePool m_ResourcePool;
-        readonly AtmosphereSharedCache m_AtmosphereSharedCache;
-        readonly LocalShadowCache m_LocalShadowCache;
-        readonly LightCookieAtlas m_LightCookieAtlas;
-        readonly ReflectionProbeAtlas m_ReflectionProbeAtlas;
-        // Pass-owned state.
-        private BufferHandle m_DiffusionProfileBufferHandle;
-        private DiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
-        private CookieProduction m_CookieProduction;
-        private ReflectionProbeProduction m_ReflectionProbeProduction;
+        // One instance per pass for the pipeline's lifetime, built from the render context's services at construction (R3).
+        readonly LightUploadPass m_LightUploadPass;
+        readonly LightCookiePass m_LightCookiePass;
+        readonly LightTileMaskPass m_LightTileMaskPass;
+        readonly ReflectionProbePass m_ReflectionProbePass;
+        readonly CombineLutPass m_CombineLutPass;
+        readonly AtmosphericLUTPass m_AtmosphericLUTPass;
+        readonly TemporalColorSourcePass m_TemporalColorSourcePass;
+        readonly HiZPass m_HiZPass;
+        readonly MeshOcclusionPass m_MeshOcclusionPass;
+        readonly DepthPass m_DepthPass;
+        readonly DBufferPass m_DBufferPass;
+        readonly GBufferPass m_GBufferPass;
+        readonly MotionPass m_MotionPass;
+        readonly HalfResDownsamplePass m_HalfResDownsamplePass;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly RenderCapturePass m_RenderCapturePass;
+        readonly DebugViewPass m_DebugViewPass;
+#endif
+        readonly RTAOPass m_RTAOPass;
+        readonly GTAOPass m_GTAOPass;
+        readonly ContactShadowPass m_ContactShadowPass;
+        readonly SSRPass m_SSRPass;
+        readonly SSGIPass m_SSGIPass;
+        readonly ShadowCasterCulling m_ShadowCasterCulling;
+        readonly CascadeShadowPass m_CascadeShadowPass;
+        readonly LocalShadowPass m_LocalShadowPass;
+        readonly ShadowMomentPass m_ShadowMomentPass;
+        readonly DeferredShadingPass m_DeferredShadingPass;
+        readonly ForwardPass m_ForwardPass;
+        readonly ScreenSpaceCompositePass m_ScreenSpaceCompositePass;
+        readonly ScreenSpaceHistoryPass m_ScreenSpaceHistoryPass;
+        readonly SubsurfacePass m_SubsurfacePass;
+        readonly AtmosphericSkyFogPass m_AtmosphericSkyFogPass;
+        readonly TranslucentPass m_TranslucentPass;
+        readonly VolumetricCloudPass m_VolumetricCloudPass;
+        readonly VolumetricFogPass m_VolumetricFogPass;
+        readonly FogCompositePass m_FogCompositePass;
+        readonly ColorPyramidPass m_ColorPyramidPass;
+        readonly SuperResolutionPass m_SuperResolutionPass;
+        readonly AntiAliasingPass m_AntiAliasingPass;
+        readonly FinalOutputPass m_FinalOutputPass;
+        readonly PostProcessingPass m_PostProcessingPass;
+        readonly UIOverlayPass m_UIOverlayPass;
+        readonly UtilityPass m_UtilityPass;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         const string RtaoAssetDisabled = "Ray tracing is disabled on the RP Asset.";
@@ -201,7 +234,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             cubemap = null;
             InfinityRenderPipeline owner = s_GlobalStateOwner;
-            return owner != null && owner.m_AtmosphereSharedCache != null && owner.m_AtmosphereSharedCache.TryGetCubemap(out cubemap);
+            return owner != null && owner.renderContext != null && owner.renderContext.atmosphereCache.TryGetCubemap(out cubemap);
         }
         InfinityRenderPipeline m_PreviousGlobalStateOwner;
         SupportedRenderingFeatures m_InstalledSupportedFeatures;
@@ -219,8 +252,6 @@ namespace InfinityTech.Rendering.Pipeline
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
-        internal PipelineKernels kernels => resources.kernels;
-        internal BlitShaderPasses blitPasses => resources.blitPasses;
         public override RenderPipelineGlobalSettings defaultSettings => m_GlobalSettings;
         // The pipeline-lifetime root. Diagnostics observers read it outside the measured scopes.
         internal readonly RenderContext renderContext;
@@ -255,14 +286,68 @@ namespace InfinityTech.Rendering.Pipeline
 
                 m_UpdateInit = true;
                 renderContext = new RenderContext(m_Settings, shaders.meshDrawPipelineCS);
-                m_RGBuilder = renderContext.graph;
-                m_ResourcePool = renderContext.resourcePool;
-                m_AtmosphereSharedCache = renderContext.atmosphereCache;
-                m_LocalShadowCache = renderContext.sceneWorld.lights.shadowCache;
-                m_LightCookieAtlas = renderContext.sceneWorld.lights.cookieAtlas;
-                m_ReflectionProbeAtlas = renderContext.sceneWorld.probes.atlas;
-                m_CookieProduction = new CookieProduction { atlas = m_LightCookieAtlas };
-                m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas };
+                // Passes in dependency order: a pass another one calls is built first.
+                RGBuilder graph = renderContext.graph;
+                m_LightUploadPass = new LightUploadPass(graph);
+                m_LightCookiePass = new LightCookiePass(graph, resources, renderContext.sceneWorld.lights.cookieAtlas);
+                m_LightTileMaskPass = new LightTileMaskPass(graph, resources);
+                m_ReflectionProbePass = new ReflectionProbePass(graph, resources, renderContext.sceneWorld.probes.atlas, m_LightTileMaskPass);
+                m_CombineLutPass = new CombineLutPass(graph, resources);
+                m_AtmosphericLUTPass = new AtmosphericLUTPass(graph, resources, renderContext.atmosphereCache);
+                m_TemporalColorSourcePass = new TemporalColorSourcePass(graph, resources);
+                m_HiZPass = new HiZPass(graph, resources);
+                m_MeshOcclusionPass = new MeshOcclusionPass(graph, m_HiZPass);
+                m_DepthPass = new DepthPass(graph, m_Settings);
+                m_DBufferPass = new DBufferPass(graph, m_Settings);
+                m_GBufferPass = new GBufferPass(graph, m_Settings);
+                m_MotionPass = new MotionPass(graph, resources, m_Settings);
+                m_HalfResDownsamplePass = new HalfResDownsamplePass(graph, resources);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                m_RenderCapturePass = new RenderCapturePass(graph, resources);
+                m_DebugViewPass = new DebugViewPass(graph, resources);
+#endif
+                m_RTAOPass = new RTAOPass(graph);
+                m_GTAOPass = new GTAOPass(graph, resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    , m_RenderCapturePass
+#endif
+                    );
+                m_ContactShadowPass = new ContactShadowPass(graph, resources);
+                m_SSRPass = new SSRPass(graph, resources);
+                m_SSGIPass = new SSGIPass(graph, resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    , m_RenderCapturePass
+#endif
+                    );
+                m_ShadowCasterCulling = new ShadowCasterCulling();
+                m_CascadeShadowPass = new CascadeShadowPass(graph, m_Settings);
+                m_LocalShadowPass = new LocalShadowPass(graph, resources, m_Settings, renderContext.sceneWorld.lights.shadowCache);
+                m_ShadowMomentPass = new ShadowMomentPass(graph, resources, m_Settings);
+                m_DeferredShadingPass = new DeferredShadingPass(graph, resources);
+                m_ForwardPass = new ForwardPass(graph, m_Settings);
+                m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources);
+                m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
+                m_SubsurfacePass = new SubsurfacePass(graph, resources, m_Settings, renderContext.resourcePool);
+                m_AtmosphericSkyFogPass = new AtmosphericSkyFogPass(graph, resources);
+                m_TranslucentPass = new TranslucentPass(graph, m_Settings);
+                m_VolumetricCloudPass = new VolumetricCloudPass(graph, resources);
+                m_VolumetricFogPass = new VolumetricFogPass(graph, resources);
+                m_FogCompositePass = new FogCompositePass(graph, resources);
+                m_ColorPyramidPass = new ColorPyramidPass(graph, resources);
+                m_SuperResolutionPass = new SuperResolutionPass(graph, resources);
+                m_AntiAliasingPass = new AntiAliasingPass(graph, resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    , m_RenderCapturePass
+#endif
+                    );
+                m_FinalOutputPass = new FinalOutputPass(graph, resources);
+                m_PostProcessingPass = new PostProcessingPass(graph, resources, m_FinalOutputPass);
+                m_UIOverlayPass = new UIOverlayPass(graph);
+                m_UtilityPass = new UtilityPass(graph, resources, m_PostProcessingPass, m_UIOverlayPass, m_FinalOutputPass
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    , m_DebugViewPass, m_RenderCapturePass
+#endif
+                    );
             }
             catch (Exception constructionFailure)
             {
@@ -407,8 +492,8 @@ namespace InfinityTech.Rendering.Pipeline
                     var context = new ViewContext(frameContext, setup, scene);
                     // Shadow and light-loop constants are final once CullCamera built the lights; every pass of the
                     // camera reads them from these two uniforms, uploaded ahead of the graph.
-                    state.shadowUniform.Upload(cmdBuffer, ResolveShadowUniform(context));
-                    state.lightLoopUniform.Upload(cmdBuffer, ResolveLightLoopUniform(context));
+                    state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, m_Settings));
+                    state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
                     using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                     {
                         RecordCamera(context);
@@ -667,27 +752,27 @@ namespace InfinityTech.Rendering.Pipeline
             // so the whole geometry raster window can overlap them.
             using (PipelineCpuMarkers.s_RecordUploadLightData.Auto())
             {
-                UploadLightData(context.lights);
+                m_LightUploadPass.UploadLightData(context.lights);
             }
             using (PipelineCpuMarkers.s_RecordComputeLightCookies.Auto())
             {
-                ComputeLightCookies(context);
+                m_LightCookiePass.ComputeLightCookies(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeReflectionProbes.Auto())
             {
-                ComputeReflectionProbes(context);
+                m_ReflectionProbePass.ComputeReflectionProbes(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeCombineLuts.Auto())
             {
-                ComputeCombineLuts(context, CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading));
+                m_CombineLutPass.ComputeCombineLuts(context, CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading));
             }
             using (PipelineCpuMarkers.s_RecordComputeAtmosphericLUT.Auto())
             {
-                ComputeAtmosphericLUT(context);
+                m_AtmosphericLUTPass.ComputeAtmosphericLUT(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeTemporalColorPyramid.Auto())
             {
-                ComputeTemporalColorPyramid(context);
+                m_TemporalColorSourcePass.ComputeTemporalColorPyramid(context);
             }
 
             // PHASE 1: geometry raster (shared depth attachment chain). Each pass creates its own draw list. Compile
@@ -699,190 +784,190 @@ namespace InfinityTech.Rendering.Pipeline
             }
             using (PipelineCpuMarkers.s_RecordSetMeshMotion.Auto())
             {
-                m_RGBuilder.SetMeshMotion(meshMotion);
+                renderContext.graph.SetMeshMotion(meshMotion);
             }
             bool twoStageMesh;
             using (PipelineCpuMarkers.s_RecordRegisterMeshHistoryOccluder.Auto())
             {
-                twoStageMesh = RegisterMeshHistoryOccluder(context, meshMotion);
+                twoStageMesh = m_MeshOcclusionPass.RegisterMeshHistoryOccluder(context, meshMotion);
             }
             if (twoStageMesh)
             {
                 using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
                 {
-                    RasterDepth(context);
+                    m_DepthPass.RasterDepth(context);
                 }
                 using (PipelineCpuMarkers.s_RecordRegisterMeshEarlyOccluder.Auto())
                 {
-                    RegisterMeshEarlyOccluder(context);
+                    m_MeshOcclusionPass.RegisterMeshEarlyOccluder(context);
                 }
                 using (PipelineCpuMarkers.s_RecordRasterDepthRecovery.Auto())
                 {
-                    RasterDepthRecovery(context);
+                    m_MeshOcclusionPass.RasterDepthRecovery(context);
                 }
             }
             else
             {
                 using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
                 {
-                    RasterDepth(context);
+                    m_DepthPass.RasterDepth(context);
                 }
             }
             using (PipelineCpuMarkers.s_RecordRasterDBuffer.Auto())
             {
-                RasterDBuffer(context);
+                m_DBufferPass.RasterDBuffer(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterGBuffer.Auto())
             {
-                RasterGBuffer(context);
+                m_GBufferPass.RasterGBuffer(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterMotion.Auto())
             {
-                RasterMotion(context);
+                m_MotionPass.RasterMotion(context);
             }
 
             // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
             using (PipelineCpuMarkers.s_RecordComputeHiZ.Auto())
             {
-                ComputeHiZ(context);
+                m_HiZPass.ComputeHiZ(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeHalfResDownsample.Auto())
             {
-                ComputeHalfResDownsample(context);
+                m_HalfResDownsamplePass.ComputeHalfResDownsample(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeLightTileMask.Auto())
             {
-                ComputeLightTileMask(context);
+                m_LightTileMaskPass.ComputeLightTileMask(context);
             }
 
             // Dispatch near-deadline AO/contact before the longer previous-color effects.
             // Their graphics-independent results can overlap the shadow raster window.
             using (PipelineCpuMarkers.s_RecordTraceOcclusion.Auto())
             {
-                TraceOcclusion(context);
+                m_RTAOPass.TraceOcclusion(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeGroundTruthOcclusion.Auto())
             {
-                ComputeGroundTruthOcclusion(context);
+                m_GTAOPass.ComputeGroundTruthOcclusion(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeContactShadow.Auto())
             {
-                ComputeContactShadow(context);
+                m_ContactShadowPass.ComputeContactShadow(context);
             }
             // Previous-color effects. They read depth, Hi-Z, the G-buffer and the previous frame's color only, so one
             // position serves both queues: async compute overlaps them with shadows, and a device without it runs them
             // here on the graphics queue.
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
             {
-                ComputeScreenSpaceReflection(context);
+                m_SSRPass.ComputeScreenSpaceReflection(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
             {
-                ComputeScreenSpaceIndirect(context);
+                m_SSGIPass.ComputeScreenSpaceIndirect(context);
             }
 
             // PHASE 3: shadow raster (longest ROP window).
             using (PipelineCpuMarkers.s_RecordCullShadowCasterSplits.Auto())
             {
-                CullShadowCasterSplits(context);
+                m_ShadowCasterCulling.CullShadowCasterSplits(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterCascadeShadow.Auto())
             {
-                RasterCascadeShadow(context);
+                m_CascadeShadowPass.RasterCascadeShadow(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterLocalShadow.Auto())
             {
-                RasterLocalShadow(context);
+                m_LocalShadowPass.RasterLocalShadow(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeShadowMoments.Auto())
             {
-                ComputeShadowMoments(context);
+                m_ShadowMomentPass.ComputeShadowMoments(context);
             }
 
             // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
             using (PipelineCpuMarkers.s_RecordComputeDeferredShading.Auto())
             {
-                ComputeDeferredShading(context);
+                m_DeferredShadingPass.ComputeDeferredShading(context);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             using (PipelineCpuMarkers.s_RecordRecordDeferredLightingCapture.Auto())
             {
-                RecordDeferredLightingCapture(context);
+                m_RenderCapturePass.RecordDeferredLightingCapture(context);
             }
 #endif
             using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
             {
-                RasterForward(context);
+                m_ForwardPass.RasterForward(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
             {
-                ComputeScreenSpaceComposite(context);
+                m_ScreenSpaceCompositePass.ComputeScreenSpaceComposite(context);
             }
             // History copies stay after the shadow window; an early graphics copy
             // would join the async effects before independent shadow rasterization.
             using (PipelineCpuMarkers.s_RecordCopyHistorySSR.Auto())
             {
-                CopyHistorySSR(context);
+                m_ScreenSpaceHistoryPass.CopyHistorySSR(context);
             }
             using (PipelineCpuMarkers.s_RecordCopyHistorySSGI.Auto())
             {
-                CopyHistorySSGI(context);
+                m_ScreenSpaceHistoryPass.CopyHistorySSGI(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeBurleySubsurface.Auto())
             {
-                ComputeBurleySubsurface(context);
+                m_SubsurfacePass.ComputeBurleySubsurface(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeAtmosphericSkyAndFog.Auto())
             {
-                ComputeAtmosphericSkyAndFog(context);
+                m_AtmosphericSkyFogPass.ComputeAtmosphericSkyAndFog(context);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             using (PipelineCpuMarkers.s_RecordRecordLightingCapture.Auto())
             {
-                RecordLightingCapture(context);
+                m_RenderCapturePass.RecordLightingCapture(context);
             }
 #endif
 
             // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
             using (PipelineCpuMarkers.s_RecordRasterTranslucentDepth.Auto())
             {
-                RasterTranslucentDepth(context);
+                m_TranslucentPass.RasterTranslucentDepth(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeVolumetricCloud.Auto())
             {
-                ComputeVolumetricCloud(context);
+                m_VolumetricCloudPass.ComputeVolumetricCloud(context);
             }
             using (PipelineCpuMarkers.s_RecordCopyHistoryVolumetricCloud.Auto())
             {
-                CopyHistoryVolumetricCloud(context);
+                m_VolumetricCloudPass.CopyHistoryVolumetricCloud(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeVolumetricFog.Auto())
             {
-                ComputeVolumetricFog(context);
+                m_VolumetricFogPass.ComputeVolumetricFog(context);
             }
             using (PipelineCpuMarkers.s_RecordCopyHistoryVolumetricFog.Auto())
             {
-                CopyHistoryVolumetricFog(context);
+                m_VolumetricFogPass.CopyHistoryVolumetricFog(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeFogComposite.Auto())
             {
-                ComputeFogComposite(context);
+                m_FogCompositePass.ComputeFogComposite(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT0.Auto())
             {
-                RasterTranslucentT0(context);
+                m_TranslucentPass.RasterTranslucentT0(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeColorPyramid.Auto())
             {
-                ComputeColorPyramid(context);
+                m_ColorPyramidPass.ComputeColorPyramid(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT1.Auto())
             {
-                RasterTranslucentT1(context);
+                m_TranslucentPass.RasterTranslucentT1(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT2.Auto())
             {
-                RasterTranslucentT2(context);
+                m_TranslucentPass.RasterTranslucentT2(context);
             }
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)
@@ -891,19 +976,19 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 using (PipelineCpuMarkers.s_RecordComputeSuperResolution.Auto())
                 {
-                    ComputeSuperResolution(context);
+                    m_SuperResolutionPass.ComputeSuperResolution(context);
                 }
             }
             else if (context.temporalResolve == ETemporalResolve.TAA)
             {
                 using (PipelineCpuMarkers.s_RecordComputeAntiAliasing.Auto())
                 {
-                    ComputeAntiAliasing(context);
+                    m_AntiAliasingPass.ComputeAntiAliasing(context);
                 }
             }
             using (PipelineCpuMarkers.s_RecordRecordCameraOutput.Auto())
             {
-                RecordCameraOutput(context);
+                m_UtilityPass.RecordCameraOutput(context);
             }
             using (PipelineCpuMarkers.s_RecordEnsureRequiredProducers.Auto())
             {
@@ -1204,16 +1289,14 @@ namespace InfinityTech.Rendering.Pipeline
             if (ownsSharedResources) Release(PipelineDiagnostics.PipelineDisposed);
 #endif
             // The pass-owned diffusion buffer returns to the pool before the render context disposes it. A failed
-            // construction reaches here without a context.
-            if (m_DiffusionProfileBufferHandle.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBufferHandle));
-            m_DiffusionProfileBufferHandle = default;
+            // construction reaches here without the pass or the context.
+            if (m_SubsurfacePass != null) Release(m_SubsurfacePass.Dispose);
             if (renderContext != null) Release(renderContext.Dispose);
 
             if (ownsSharedResources && m_OwnsVolumeManager &&
                 ReferenceEquals(VolumeManager.instance.globalDefaultProfile, resources.defaultVolumeProfile) &&
                 ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
             m_OwnsVolumeManager = false;
-            m_DiffusionProfileRecords = Array.Empty<DiffusionProfileRecord>();
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);

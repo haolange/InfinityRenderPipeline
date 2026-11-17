@@ -18,8 +18,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class GBufferPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal GBufferPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+        }
+
         struct GBufferPassData
         {
             public bool bindDBuffer;
@@ -32,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle dBufferCHandle;
         }
 
-        void RasterGBuffer(in ViewContext context)
+        internal void RasterGBuffer(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.GBuffer);
             RGMeshDrawListHandle gbufferMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterGBufferPass));

@@ -68,15 +68,15 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | Shader property IDs | One ID per property name; shared names on a `*ShaderIDs` holder | `PassShaderIDs.SRV_DepthTexture` |
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
-- A name says what a type holds or does. Do not borrow a type prefix from another engine. On a collision choose a more descriptive name; never add a prefix or a number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
+- A name says what a type holds or does. Borrow no type prefix from another engine. On a collision choose a more descriptive name, never a prefix or number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
 - A variable keeps its type's head noun and may drop the domain prefix (`MeshCullingContext cullingContext`). A Handle type keeps the suffix (`RGTextureHandle depthTextureHandle`). No abbreviations. Time words are `previous` and `current`.
-- Acronyms stay uppercase in type and method names; a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
-- Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only inside an approved migration (§5). Do not add a divergent spelling or an old-name alias.
-- Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Volume components live in `Runtime/Volume/<domain>/`. One primary type per file unless a pass or feature group is clearer together.
-- Layout follows [Docs~/Project/Style](Docs~/Project/Style) (Page, Type, Flow, Data, Editor, Shaders).
+- Acronyms stay uppercase in type and method names; a camelCase identifier starting with an acronym lowercases it. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
+- Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only in an approved migration (§5). Add no divergent spelling or old-name alias.
+- A pass is an `internal sealed class XxxPass` in `Runtime/Pipeline/Pass/<domain>/` with its `XxxPassData` and optional `XxxPassUtilityData`. Its constructor takes its setup-time dependencies (graph, resource tables, settings, caches and observers it owns or reads); it records from `in ViewContext` and never names the pipeline or render context. One primary type per file unless a pass or feature group is clearer together.
+- Layout follows [Docs~/Project/Style](Docs~/Project/Style).
 - Assemblies are `Unity.RenderPipelines.Infinity.*`. Components use `[ExecuteAlways]`, `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private`, names kept (§5).
 - Shader names start with `InfinityPipeline/`; the tag is `RenderPipeline=InfinityRenderPipeline`; compute files are `Compute_<Feature>.compute`. Infinity LightModes and their pass names are `RasterXXXPass` and match `InfinityPassIDs`; other owned raster shader names use the Raster prefix; Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay. GPU work types are Raster (draw), Compute (dispatch), Copy (transfer), Upload (CPU upload). Pass names come from the pass `ProfilingSampler`.
-- Comments are English. A TODO is `// TODO: <action>`. No large blocks of commented-out code.
+- Comments are English. A TODO is `// TODO: <action>`. No large commented-out blocks.
 
 ## 4. Work method
 

@@ -6,8 +6,15 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial class InfinityRenderPipeline
+    internal sealed class ScreenSpaceHistoryPass
     {
+        readonly RGBuilder m_RGBuilder;
+
+        internal ScreenSpaceHistoryPass(RGBuilder graph)
+        {
+            m_RGBuilder = graph;
+        }
+
         struct CopyHistoryScalarPassData
         {
             public RGTextureHandle sourceHandle;
@@ -45,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // SSR history is the temporal output (before the optional spatial pass, so filtering never feeds back) plus
         // its meta texture (normal, depth, history age).
-        void CopyHistorySSR(in ViewContext context)
+        internal void CopyHistorySSR(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSR))
             {
@@ -56,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Each denoise stage keeps the combiner mix, not the temporal output.
-        void CopyHistorySSGI(in ViewContext context)
+        internal void CopyHistorySSGI(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSGI))
             {

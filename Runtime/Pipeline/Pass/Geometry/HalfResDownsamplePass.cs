@@ -28,8 +28,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_HalfResNormalID = Shader.PropertyToID("UAV_HalfResNormalTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class HalfResDownsamplePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal HalfResDownsamplePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct HalfResDownsamplePassData
         {
             public int2 halfResolution;
@@ -41,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle halfResNormalTextureHandle;
         }
 
-        void ComputeHalfResDownsample(in ViewContext context)
+        internal void ComputeHalfResDownsample(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.HalfResDownsample))
             {
@@ -85,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
                     halfResolution = new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight)
                 });
                 passData.halfResolution = new int2(halfWidth, halfHeight);
-                passData.halfRes = kernels.halfResDownsample;
+                passData.halfRes = m_Resources.kernels.halfResDownsample;
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 passData.normalTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.halfResDepthTextureHandle = passHandle.WriteTexture(halfResDepthTextureHandle);

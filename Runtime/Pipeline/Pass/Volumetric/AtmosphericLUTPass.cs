@@ -96,8 +96,19 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class AtmosphericLUTPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly AtmosphereSharedCache m_AtmosphereSharedCache;
+
+        internal AtmosphericLUTPass(RGBuilder graph, InfinityRenderPipelineResources resources, AtmosphereSharedCache atmosphereSharedCache)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_AtmosphereSharedCache = atmosphereSharedCache;
+        }
+
         struct AtmosphericLUTPassData
         {
             public AtmosphereParameter parameter;
@@ -140,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        static AtmosphereConstants CreateAtmosphereConstants(AtmosphereParameter parameter, Vector4 sunDirection, Vector4 sunIlluminance)
+        internal static AtmosphereConstants CreateAtmosphereConstants(AtmosphereParameter parameter, Vector4 sunDirection, Vector4 sunIlluminance)
         {
             return new AtmosphereConstants
             {
@@ -194,7 +205,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void ComputeAtmosphericLUT(in ViewContext context)
+        internal void ComputeAtmosphericLUT(in ViewContext context)
         {
             AtmosphereParameter parameter = context.atmosphere;
 
@@ -253,7 +264,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int groupsX = kernels.atmosphereCubemap.GroupsX(parameter.cubemapSize);
+            int groupsX = m_Resources.kernels.atmosphereCubemap.GroupsX(parameter.cubemapSize);
             int shPartialCount = groupsX * groupsX * 6;
             RGBufferHandle shPartialHandle = default;
             if (generateIBL)
@@ -280,16 +291,16 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.generateView = generateView ? 1 : 0;
                 passData.generateIBL = generateIBL ? 1 : 0;
                 passData.ggxMipCount = ggxMipCount;
-                passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
-                passData.transmittanceKernel = kernels.transmittanceLUT;
-                passData.multiScatteringKernel = kernels.multiScatteringLUT;
-                passData.skyViewKernel = kernels.skyViewLUT;
-                passData.aerialPerspectiveKernel = kernels.aerialPerspectiveLUT;
-                passData.cubemapKernel = kernels.atmosphereCubemap;
-                passData.sunBufferKernel = kernels.sunBuffer;
-                passData.shProjectKernel = kernels.atmosphereSHProject;
-                passData.shReduceKernel = kernels.atmosphereSHReduce;
-                passData.filterArrayToArrayKernel = kernels.filterArrayToArray;
+                passData.atmosphericLUTShader = m_Resources.shaders.atmosphericLUTShader;
+                passData.transmittanceKernel = m_Resources.kernels.transmittanceLUT;
+                passData.multiScatteringKernel = m_Resources.kernels.multiScatteringLUT;
+                passData.skyViewKernel = m_Resources.kernels.skyViewLUT;
+                passData.aerialPerspectiveKernel = m_Resources.kernels.aerialPerspectiveLUT;
+                passData.cubemapKernel = m_Resources.kernels.atmosphereCubemap;
+                passData.sunBufferKernel = m_Resources.kernels.sunBuffer;
+                passData.shProjectKernel = m_Resources.kernels.atmosphereSHProject;
+                passData.shReduceKernel = m_Resources.kernels.atmosphereSHReduce;
+                passData.filterArrayToArrayKernel = m_Resources.kernels.filterArrayToArray;
 
                 if (generateShared)
                 {

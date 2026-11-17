@@ -16,8 +16,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword RefractionKeyword = GlobalKeyword.Create("_REFRACTION_PYRAMID");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class TranslucentPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal TranslucentPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+        }
+
         struct TranslucentDepthPassData
         {
             public RGMeshDrawListHandle meshDrawListHandle;
@@ -40,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle translucentDepthHandle;
         }
 
-        void RasterTranslucentDepth(in ViewContext context)
+        internal void RasterTranslucentDepth(in ViewContext context)
         {
             RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterTranslucentDepthPass));
             TextureDescriptor translucentDepthDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
@@ -71,17 +80,17 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterTranslucentT0(in ViewContext context)
+        internal void RasterTranslucentT0(in ViewContext context)
         {
             RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
-        void RasterTranslucentT1(in ViewContext context)
+        internal void RasterTranslucentT1(in ViewContext context)
         {
             RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
-        void RasterTranslucentT2(in ViewContext context)
+        internal void RasterTranslucentT2(in ViewContext context)
         {
             RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }

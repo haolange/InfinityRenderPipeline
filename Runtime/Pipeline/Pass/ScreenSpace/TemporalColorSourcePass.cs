@@ -39,8 +39,17 @@ namespace InfinityTech.Rendering.Pipeline
         public int padding1;
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class TemporalColorSourcePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal TemporalColorSourcePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct TemporalColorMipData
         {
             internal TemporalColorView source;
@@ -58,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                 SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
                 SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst");
         }
-        void ComputeTemporalColorPyramid(in ViewContext context)
+        internal void ComputeTemporalColorPyramid(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.TemporalColorPyramid))
             {
@@ -70,12 +79,12 @@ namespace InfinityTech.Rendering.Pipeline
             var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
             int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
             int depthID = sr ? SuperResolutionPassUtilityData.HistoryDepthTextureID : AntiAliasingUtilityData.HistoryDepthTextureID;
-            HistoryRead colorRead = context.historyCache.Read(colorID, TemporalColorDescriptor(size.x, size.y,
+            HistoryRead colorRead = context.historyCache.Read(colorID, AntiAliasingPass.TemporalColorDescriptor(size.x, size.y,
                 sr ? "HistorySuperResolutionColor" : "HistoryColorTexture", true, domain), context.resetsHistory);
-            HistoryRead depthRead = context.historyCache.Read(depthID, TemporalDepthDescriptor(size.x, size.y,
+            HistoryRead depthRead = context.historyCache.Read(depthID, AntiAliasingPass.TemporalDepthDescriptor(size.x, size.y,
                 sr ? "HistorySuperResolutionDepth" : "HistoryDepthTexture", true, domain), context.resetsHistory);
             int2 baseSize = math.max(1, size / 2);
-            var descriptor = TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
+            var descriptor = AntiAliasingPass.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
             descriptor.viewDivisor = 2;
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;
@@ -99,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.EnableAsyncCompute(true);
                 ref TemporalColorMipData passData = ref passHandle.GetPassData();
                 passData = default;
-                passData.kernel = kernels.temporalColorMip;
+                passData.kernel = m_Resources.kernels.temporalColorMip;
                 passData.source = source;
                 passData.source.colorHandle = passHandle.ReadTexture(source.colorHandle);
                 passData.source.depthHandle = passHandle.ReadTexture(source.depthHandle);
@@ -136,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.MarkProduced(EFrameFeature.TemporalColorPyramid);
         }
-        static TemporalColorView ReadTemporalColorView<TPassData>(RGComputePassHandle<TPassData> passHandle, TemporalColorView source) where TPassData : struct
+        internal static TemporalColorView ReadTemporalColorView<TPassData>(RGComputePassHandle<TPassData> passHandle, TemporalColorView source) where TPassData : struct
         {
             source.colorHandle = passHandle.ReadTexture(source.colorHandle);
             source.depthHandle = passHandle.ReadTexture(source.depthHandle);
@@ -149,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline
             });
             return source;
         }
-        static void BindTemporalColorView(in RGComputeEncoder commands, ComputeShader shader, int kernel, in TemporalColorView source)
+        internal static void BindTemporalColorView(in RGComputeEncoder commands, ComputeShader shader, int kernel, in TemporalColorView source)
         {
             commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorParameters, source.parametersHandle);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Color,source.colorHandle);

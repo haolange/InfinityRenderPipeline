@@ -111,8 +111,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class DebugViewPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal DebugViewPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct DebugViewPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -131,7 +140,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle debugViewTextureHandle;
         }
 
-        void ComputeDebugView(in ViewContext context)
+        internal void ComputeDebugView(in ViewContext context)
         {
             EDebugView view = context.debugView;
             if (view == EDebugView.None)
@@ -209,7 +218,7 @@ namespace InfinityTech.Rendering.Pipeline
                 RGComputePassHandle<DebugViewPassData> passHandle = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView));
                 ref DebugViewPassData passData = ref passHandle.GetPassData();
                 passData.resolution = new int2(context.dimensions.displaySize.x, context.dimensions.displaySize.y);
-                passData.kernel = kernels.debugView[(int)kind];
+                passData.kernel = m_Resources.kernels.debugView[(int)kind];
                 passData.kind = kind;
                 passData.parametersHandle = passHandle.WriteConstants(new DebugViewParameters
                 {
@@ -218,7 +227,7 @@ namespace InfinityTech.Rendering.Pipeline
                     mode = (int)view,
                     farDepth = GraphicsConventions.SampledFarDepth
                 });
-                passData.debugViewShader = shaders.debugViewShader;
+                passData.debugViewShader = m_Resources.shaders.debugViewShader;
                 switch (kind)
                 {
                     case EDebugViewKernel.GBuffer:
@@ -238,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.optionalTextureHandle = passHandle.ReadTexture(optionalTextureHandle);
                         break;
                     case EDebugViewKernel.LightLoop:
-                        LightLoopInputs lightLoop = QueryLightLoop(context);
+                        LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                         lightLoop.Read(passHandle);
                         passData.lightLoop = lightLoop;
                         passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);

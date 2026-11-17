@@ -183,9 +183,10 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_diagnostics(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Pass.cs', 'bool run = context.debugView != EDebugView.None;\nk = kernels.ssrDebug;\n'
-                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\n')
+                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\nreadonly DebugViewPass m_DebugViewPass;\n'
+                   'struct DebugViewPassData { }\n')
         static_check.check_diagnostics(str(self.repo), out)
-        self.assertEqual(3, len(out))
+        self.assertEqual(4, len(out))
 
     def test_table_kernel_must_exist_in_its_own_shader(self):
         self.write('Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs',
@@ -330,27 +331,19 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_silent_fallback(str(self.repo), out)
         self.assertEqual(['Runtime/Pipeline/Pass/A.cs:2'], [o[2].split(': ')[0] for o in out])
 
-    def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
-        self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
-                   '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'
-                   '        void ComputeHiZ(in ViewContext context, int mip)\n        {\n        }\n}\n')
-        out = []
-        static_check.check_redundant_parameters(str(self.repo), out)
-        self.assertEqual([], out)
-        self.write('Runtime/Pipeline/Pass/A.cs', 'public partial class InfinityRenderPipeline\n{\n'
-                   '        void RasterDepth(RenderContext renderContext, in ViewContext context)\n        {\n        }\n}\n')
-        static_check.check_redundant_parameters(str(self.repo), out)
-        self.assertEqual(['Runtime/Pipeline/Pass/A.cs:3'], [o[2].split(': ')[0] for o in out])
-
-    def test_pass_root_rejects_the_root_and_allows_the_scriptable_context(self):
-        self.write('Runtime/Pipeline/Pass/A.cs', '// renderContext in a comment is fine\n'
-                   'RendererList list = context.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);\n')
+    def test_pass_root_rejects_the_root_and_the_pipeline_and_allows_the_scriptable_context(self):
+        self.write('Runtime/Pipeline/Pass/A.cs', '// renderContext and InfinityRenderPipeline in a comment are fine\n'
+                   'RendererList list = context.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);\n'
+                   'internal DepthPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings) { }\n')
         out = []
         static_check.check_pass_root(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Pipeline/Pass/B.cs', 'var lights = renderContext.sceneWorld.lights.context;\n')
+        self.write('Runtime/Pipeline/Pass/C.cs', 'public partial class InfinityRenderPipeline\n{\n}\n')
+        self.write('Runtime/Pipeline/Pass/D.cs', 'internal DepthPass(InfinityRenderPipelineBase pipeline) { }\n')
         static_check.check_pass_root(str(self.repo), out)
-        self.assertEqual(['Runtime/Pipeline/Pass/B.cs:1'], [o[2].split(': ')[0] for o in out])
+        self.assertEqual(['Runtime/Pipeline/Pass/B.cs:1', 'Runtime/Pipeline/Pass/C.cs:1', 'Runtime/Pipeline/Pass/D.cs:1'],
+                         sorted(o[2].split(': ')[0] for o in out))
 
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)

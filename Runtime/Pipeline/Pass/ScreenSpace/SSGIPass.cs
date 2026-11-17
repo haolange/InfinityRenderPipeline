@@ -55,8 +55,27 @@ namespace InfinityTech.Rendering.Pipeline
         internal const string HistoryMetaName = "HistorySSGIMeta";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class SSGIPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly RenderCapturePass m_RenderCapturePass;
+#endif
+
+        internal SSGIPass(RGBuilder graph, InfinityRenderPipelineResources resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            , RenderCapturePass renderCapturePass
+#endif
+            )
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            m_RenderCapturePass = renderCapturePass;
+#endif
+        }
+
         struct SSGIPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -89,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle rayHitHandle;
             public bool captureRayHit;
             public int traceDebugKernel;
-            public CaptureStageSnapshot traceSnapshot;
+            public RenderCapturePass.CaptureStageSnapshot traceSnapshot;
 #endif
             public RGTextureHandle traceRadianceHandle;
             public RGTextureHandle hitDistanceHandle;
@@ -101,7 +120,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle outputHandle;
         }
 
-        void ComputeScreenSpaceIndirect(in ViewContext context)
+        internal void ComputeScreenSpaceIndirect(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSGI))
             {
@@ -154,7 +173,7 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
             RGTextureHandle occlusionHandle = hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default;
 
-            InfinityRenderPipelineRuntimeTextures textures = resources.textures;
+            InfinityRenderPipelineRuntimeTextures textures = m_Resources.textures;
 
             {
                 RGComputePassHandle<SSGIPassData> passHandle = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect));
@@ -176,15 +195,15 @@ namespace InfinityTech.Rendering.Pipeline
                     historyValid = historyValid ? 1 : 0
                 });
                 passData.hasAO = hasAO;
-                passData.occlusionKeyword = kernels.ssgiOcclusion;
+                passData.occlusionKeyword = m_Resources.kernels.ssgiOcclusion;
                 passData.tileCount = tileCount;
-                passData.ssgiShader = shaders.ssgiShader;
-                passData.traceKernel = kernels.ssgiTrace.index;
-                passData.temporalKernel = kernels.ssgiTemporal.index;
-                passData.spatialKernel = kernels.ssgiSpatial.index;
-                passData.upsampleKernel = kernels.ssgiUpsample.index;
-                passData.denoiseGroups = new int2(kernels.ssgiTemporal.GroupsX(traceResolution.x), kernels.ssgiTemporal.GroupsY(traceResolution.y));
-                passData.upsampleGroups = new int2(kernels.ssgiUpsample.GroupsX(resolution.x), kernels.ssgiUpsample.GroupsY(resolution.y));
+                passData.ssgiShader = m_Resources.shaders.ssgiShader;
+                passData.traceKernel = m_Resources.kernels.ssgiTrace.index;
+                passData.temporalKernel = m_Resources.kernels.ssgiTemporal.index;
+                passData.spatialKernel = m_Resources.kernels.ssgiSpatial.index;
+                passData.upsampleKernel = m_Resources.kernels.ssgiUpsample.index;
+                passData.denoiseGroups = new int2(m_Resources.kernels.ssgiTemporal.GroupsX(traceResolution.x), m_Resources.kernels.ssgiTemporal.GroupsY(traceResolution.y));
+                passData.upsampleGroups = new int2(m_Resources.kernels.ssgiUpsample.GroupsX(resolution.x), m_Resources.kernels.ssgiUpsample.GroupsY(resolution.y));
                 passData.rankingTile = textures.blueNoiseRankingTile;
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
@@ -194,7 +213,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hiZFurthestTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
                 passData.gBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = ReadTemporalColorView(passHandle, context.state.temporalColorView);
+                passData.temporalColor = TemporalColorSourcePass.ReadTemporalColorView(passHandle, context.state.temporalColorView);
                 passData.motionMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadianceHandle = passHandle.ReadTexture(historyRadianceHandle);
@@ -203,9 +222,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.occlusionHandle = hasAO ? passHandle.ReadTexture(occlusionHandle) : default;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 passData.captureRayHit = captureRayHit;
-                passData.traceDebugKernel = kernels.ssgiTraceDebug.index;
+                passData.traceDebugKernel = m_Resources.kernels.ssgiTraceDebug.index;
                 passData.rayHitHandle = captureRayHit ? passHandle.WriteTexture(rayHitHandle) : default;
-                passData.traceSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.SSGITraceRadiance, traceRadianceHandle);
+                passData.traceSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.SSGITraceRadiance, traceRadianceHandle);
 #endif
                 passData.traceRadianceHandle = passHandle.WriteTexture(traceRadianceHandle);
                 passData.hitDistanceHandle = passHandle.WriteTexture(hitDistanceHandle);
@@ -245,7 +264,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.UAV_RayHit, passData.rayHitHandle);
                     }
 #endif
-                    BindTemporalColorView(cmdEncoder, shader, trace, passData.temporalColor);
+                    TemporalColorSourcePass.BindTemporalColorView(cmdEncoder, shader, trace, passData.temporalColor);
                     cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_HitMotionMetadata, passData.motionMetadataHandle);
                     cmdEncoder.SetComputeTextureParam(shader, trace, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
                     cmdEncoder.SetComputeTextureParam(shader, trace, SSGIPassUtilityData.UAV_TraceRadianceID, passData.traceRadianceHandle);

@@ -23,8 +23,21 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class LocalShadowPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly LocalShadowCache m_LocalShadowCache;
+
+        internal LocalShadowPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings, LocalShadowCache localShadowCache)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+            m_LocalShadowCache = localShadowCache;
+        }
+
         struct LocalShadowPassData
         {
             public int sliceCount;
@@ -73,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(in ViewContext context)
+        internal void RasterLocalShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.localShadowMapResolution;
             ShadowAllocator allocator = context.lights.ShadowAllocator;
@@ -282,7 +295,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle cacheAtlasHandle = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlasHandle);
 
-            int shaderPass = blitPasses.copyShadowDepthTile;
+            int shaderPass = m_Resources.blitPasses.copyShadowDepthTile;
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var keys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(saveCount);

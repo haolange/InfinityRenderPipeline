@@ -34,8 +34,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_SuperResolutionTextureID = Shader.PropertyToID("UAV_SuperResolutionTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class SuperResolutionPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal SuperResolutionPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct SuperResolutionPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -49,20 +58,20 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle superResolutionTextureHandle, pendingColorHandle, pendingDepthHandle;
         }
 
-        void ComputeSuperResolution(in ViewContext context)
+        internal void ComputeSuperResolution(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
 
             int width = context.dimensions.displaySize.x;
             int height = context.dimensions.displaySize.y;
 
-            TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
+            TextureDescriptor historyColorDescriptor = AntiAliasingPass.TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
             HistoryRead colorRead = context.historyCache.Read(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, context.resetsHistory);
             RGTextureHandle historyColorTextureHandle = m_RGBuilder.ImportTexture(colorRead.textureHandle);
             m_RGBuilder.scoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTextureHandle);
             var pendingColor = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
-            var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
+            var depthHistoryDescriptor = AntiAliasingPass.TemporalDepthDescriptor(width, height,
                 "HistorySuperResolutionDepth", true, ETextureSizingDomain.Display);
             var pendingDepth = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
@@ -94,9 +103,9 @@ namespace InfinityTech.Rendering.Pipeline
                     resetHistory = colorRead.valid ? 0 : 1,
                     sharpness = 0.5f,
                 });
-                passData.kernel = kernels.superResolution.index;
-                passData.groups = new int2(kernels.superResolution.GroupsX(width), kernels.superResolution.GroupsY(height));
-                passData.superResolutionShader = kernels.superResolution.shader;
+                passData.kernel = m_Resources.kernels.superResolution.index;
+                passData.groups = new int2(m_Resources.kernels.superResolution.GroupsX(width), m_Resources.kernels.superResolution.GroupsY(height));
+                passData.superResolutionShader = m_Resources.kernels.superResolution.shader;
                 passData.sceneColorTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 passData.motionTextureHandle = passHandle.ReadTexture(motionTextureHandle);

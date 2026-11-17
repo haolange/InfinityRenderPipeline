@@ -31,8 +31,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int Mode(int shadowFilter) => shadowFilter == (int)EShadowFilter.EVSM ? 1 : 0;
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ShadowMomentPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal ShadowMomentPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+        }
+
         struct ShadowMomentPassData
         {
             public ComputeKernel fromDepth, blurH, blurV;
@@ -48,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Builds the VSM / EVSM moment atlases for the slices whose light needs them. Each atlas has half the resolution
         // of its depth atlas and the same UV layout; it exists only on frames where a visible shadowed light uses it.
-        void ComputeShadowMoments(in ViewContext context)
+        internal void ComputeShadowMoments(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ShadowMoments))
             {
@@ -131,9 +142,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<ShadowMomentPassData> passHandle = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments));
                 ref ShadowMomentPassData passData = ref passHandle.GetPassData();
-                passData.fromDepth = kernels.momentFromDepth;
-                passData.blurH = kernels.momentBlurH;
-                passData.blurV = kernels.momentBlurV;
+                passData.fromDepth = m_Resources.kernels.momentFromDepth;
+                passData.blurH = m_Resources.kernels.momentBlurH;
+                passData.blurV = m_Resources.kernels.momentBlurV;
                 passData.sliceCount = sliceCount;
                 passData.rects = rects;
                 passData.depthParams = depthParams;

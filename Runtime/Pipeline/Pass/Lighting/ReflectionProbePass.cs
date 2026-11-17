@@ -13,8 +13,23 @@ namespace InfinityTech.Rendering.Pipeline
         internal const int FilterSampleCount = 32;
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ReflectionProbePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly ReflectionProbeAtlas m_ReflectionProbeAtlas;
+        readonly LightTileMaskPass m_LightTileMaskPass;
+        readonly ReflectionProbeProduction m_ReflectionProbeProduction;
+
+        internal ReflectionProbePass(RGBuilder graph, InfinityRenderPipelineResources resources, ReflectionProbeAtlas reflectionProbeAtlas, LightTileMaskPass lightTileMaskPass)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_ReflectionProbeAtlas = reflectionProbeAtlas;
+            m_LightTileMaskPass = lightTileMaskPass;
+            m_ReflectionProbeProduction = new ReflectionProbeProduction { atlas = reflectionProbeAtlas };
+        }
+
         struct ReflectionProbeFilterPassData
         {
             public ComputeKernel filterCubeToArray;
@@ -34,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the probe atlas when probes reach this camera's screen, GGX-filters the cubes that are new, changed or
         // realtime (once per frame across cameras), and builds the probe tile masks of the clustered list.
-        void ComputeReflectionProbes(in ViewContext context)
+        internal void ComputeReflectionProbes(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ReflectionProbes))
             {
@@ -51,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     RGComputePassHandle<ReflectionProbeFilterPassData> passHandle = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes));
                     ref ReflectionProbeFilterPassData passData = ref passHandle.GetPassData();
-                    passData.filterCubeToArray = kernels.filterCubeToArray;
+                    passData.filterCubeToArray = m_Resources.kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
@@ -82,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 
-            RecordTileMaskPass(LightShaderIDs.ProbeTileRectBuffer, InfinityShaderIDs.ProbeTileMaskBuffer, ReflectionProbePassUtilityData.ProbeTileMaskBufferName,
+            m_LightTileMaskPass.RecordTileMaskPass(LightShaderIDs.ProbeTileRectBuffer, InfinityShaderIDs.ProbeTileMaskBuffer, ReflectionProbePassUtilityData.ProbeTileMaskBufferName,
                 lightContext.ReflectionProbeCount, lightContext.ProbeTileWordCount, lightContext.TileCount, CustomSamplerId.ComputeProbeTileMask);
             context.features.MarkProduced(EFrameFeature.ReflectionProbes);
         }
