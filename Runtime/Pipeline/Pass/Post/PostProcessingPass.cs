@@ -139,7 +139,7 @@ namespace InfinityTech.Rendering.Pipeline
             public float highPercentile;
         }
 
-        void RasterPostProcessing(in CameraRecordContext context, in OutputPlan plan, RGTextureHandle targetHandle)
+        void RasterPostProcessing(in ViewContext context, in OutputPlan plan, RGTextureHandle targetHandle)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.MarkProduced(EFrameFeature.PostProcess);
         }
 
-        static PostVolumeState ResolvePostVolumeState(in CameraRecordContext context)
+        static PostVolumeState ResolvePostVolumeState(in ViewContext context)
         {
             Exposure exposure = context.volumes.exposure;
             Bloom bloom = context.volumes.bloom;
@@ -271,7 +271,7 @@ namespace InfinityTech.Rendering.Pipeline
             return evDsc;
         }
 
-        RGTextureHandle ImportIdleExposureEV(in CameraRecordContext context)
+        RGTextureHandle ImportIdleExposureEV(in ViewContext context)
         {
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
             TextureHandle evReadHandle = context.historyCache.GetTexture(InfinityShaderIDs.ExposureEVBuffer, evDsc);
@@ -280,7 +280,7 @@ namespace InfinityTech.Rendering.Pipeline
             return exposureReadHandle;
         }
 
-        RGTextureHandle ComputeAutoExposure(in CameraRecordContext context, in RGTextureHandle sceneColorTextureHandle, in PostVolumeState volumes)
+        RGTextureHandle ComputeAutoExposure(in ViewContext context, in RGTextureHandle sceneColorTextureHandle, in PostVolumeState volumes)
         {
             TextureDescriptor evDsc = CreateExposureEVDescriptor();
 
@@ -354,7 +354,7 @@ namespace InfinityTech.Rendering.Pipeline
             return exposureWriteHandle;
         }
 
-        void ComputeBloom(in CameraRecordContext context, in RGTextureHandle sceneColorTextureHandle, in RGTextureHandle bloomTextureHandle, in RGTextureHandle exposureEVHandle, in PostVolumeState volumes)
+        void ComputeBloom(in ViewContext context, in RGTextureHandle sceneColorTextureHandle, in RGTextureHandle bloomTextureHandle, in RGTextureHandle exposureEVHandle, in PostVolumeState volumes)
         {
             {
                 RGComputePassHandle<BloomPassData> passHandle = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom));
@@ -425,7 +425,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterPostCombine(in CameraRecordContext context, RGTextureHandle sceneColorHandle, RGTextureHandle bloomHandle, RGTextureHandle lutHandle, RGTextureHandle exposureHandle, RGTextureHandle targetHandle, in PostVolumeState volumes, bool finalTarget)
+        void RasterPostCombine(in ViewContext context, RGTextureHandle sceneColorHandle, RGTextureHandle bloomHandle, RGTextureHandle lutHandle, RGTextureHandle exposureHandle, RGTextureHandle targetHandle, in PostVolumeState volumes, bool finalTarget)
         {
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterPostCombine;
             {
@@ -446,7 +446,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.filmGrainResponse = volumes.filmGrainResponse;
                 passData.exposureMultiplier = volumes.exposureMultiplier;
                 passData.autoExposure = volumes.autoExposure;
-                passData.frameIndex = Time.frameCount;
+                passData.frameIndex = context.frame;
                 passData.hasBloom = volumes.bloomIntensity > 0;
                 passData.sceneColorTextureHandle = passHandle.ReadTexture(sceneColorHandle);
                 if (passData.hasBloom)

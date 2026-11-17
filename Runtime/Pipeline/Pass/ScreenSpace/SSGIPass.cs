@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle outputHandle;
         }
 
-        void ComputeScreenSpaceIndirect(in CameraRecordContext context)
+        void ComputeScreenSpaceIndirect(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSGI))
             {
@@ -164,13 +164,13 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y),
                     traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
                     traceScale = 2,
-                    frameIndex = (uint)Time.frameCount,
+                    frameIndex = (uint)context.frame,
                     previousFrameIndex = (uint)context.state.acceptedSSGIFrameIndex,
                     intensity = settings.intensity,
                     hiZSteps = (uint)math.max(1, settings.hiZSteps),
                     traceFlags = (uint)((settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0)),
                     samples = (uint)math.clamp(settings.samples, 1, 4),
-                    frameAngle = (Time.frameCount & 63) * 2.39996323f,
+                    frameAngle = (context.frame & 63) * 2.39996323f,
                     temporalWeight = settings.temporalWeight,
                     temporalClampScale = settings.temporalClampScale,
                     historyValid = historyValid ? 1 : 0

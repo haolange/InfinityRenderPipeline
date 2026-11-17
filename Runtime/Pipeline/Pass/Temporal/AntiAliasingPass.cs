@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeAntiAliasing(in CameraRecordContext context)
+        void ComputeAntiAliasing(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.TAA);
             var depthSource = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);

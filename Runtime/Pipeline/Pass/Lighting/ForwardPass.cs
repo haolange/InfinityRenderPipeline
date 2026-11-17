@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterForward(in CameraRecordContext context)
+        void RasterForward(in ViewContext context)
         {
             RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterForwardPass));
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = renderContext.sceneWorld.lights.context.HasShadowmask;
+                    passData.shadowmask = context.lights.HasShadowmask;
                     ShadowInputs shadows = QueryShadowInputs(context);
                     shadows.Read(passHandle);
                     passData.shadows = shadows;

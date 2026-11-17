@@ -1,9 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -386,32 +384,15 @@ namespace InfinityTech.Rendering.Editor.Validation
                 {
                     throw new InvalidOperationException("InfinityRP is not the active pipeline.");
                 }
-                FieldInfo statesField = typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic);
-                if (statesField == null)
-                {
-                    throw new MissingFieldException(typeof(InfinityRenderPipeline).FullName, "m_CameraStates");
-                }
-                var states = statesField.GetValue(pipeline) as IDictionary;
-                if (states == null)
-                {
-                    throw new InvalidOperationException("Camera states do not implement the expected dictionary contract.");
-                }
-                object state = states[m_Camera.GetHashCode()];
-                if (state == null)
+                if (!pipeline.renderContext.cameras.states.TryGetValue(CameraStateTable.CameraId(m_Camera), out CameraFrameState state))
                 {
                     throw new InvalidOperationException("No actual MainCamera frame state is available.");
                 }
-                Type type = state.GetType();
-                FieldInfo succeeded = type.GetField("executeSucceeded");
-                FieldInfo stackField = type.GetField("volumeStack");
-                FieldInfo seen = type.GetField("lastSeenFrame");
-                if (succeeded == null || stackField == null || seen == null)
-                    throw new MissingFieldException("Camera frame-state reflection contract changed.");
-                if (requireSuccessfulExecution && !(bool)succeeded.GetValue(state))
+                if (requireSuccessfulExecution && !state.executeSucceeded)
                     throw new InvalidOperationException("MainCamera frame did not execute successfully.");
-                if (Time.frameCount - (int)seen.GetValue(state) > 1)
+                if (Time.frameCount - state.lastSeenFrame > 1)
                     throw new InvalidOperationException("MainCamera volume snapshot is stale.");
-                var stack = stackField.GetValue(state) as VolumeStack;
+                VolumeStack stack = state.volumeStack;
                 if (stack == null)
                 {
                     throw new InvalidOperationException("MainCamera has no actual volume stack.");

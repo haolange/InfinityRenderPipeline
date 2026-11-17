@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricCloud(in CameraRecordContext context)
+        void ComputeVolumetricCloud(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {
@@ -119,7 +119,7 @@ namespace InfinityTech.Rendering.Pipeline
                     numPrimarySteps = cloud.numPrimarySteps,
                     numLightSteps = cloud.numLightSteps,
                     temporalWeight = historyRead.valid ? cloud.temporalWeight : 0.0f,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     planetRadius = atmosphereParameter.planetRadius,
                     atmosphereHeight = atmosphereParameter.atmosphereHeight
                 });
@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryVolumetricCloud(in CameraRecordContext context)
+        void CopyHistoryVolumetricCloud(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {

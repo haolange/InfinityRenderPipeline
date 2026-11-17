@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         }
 
-        void ComputeScreenSpaceReflection(in CameraRecordContext context)
+        void ComputeScreenSpaceReflection(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSR))
             {
@@ -243,7 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(resolution.x, resolution.y, 1.0f / resolution.x, 1.0f / resolution.y),
                     traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
                     traceScale = (uint)(settings.halfResolution ? 2 : 1),
-                    frameIndex = (uint)Time.frameCount,
+                    frameIndex = (uint)context.frame,
                     maxRoughness = settings.maxRoughness,
                     edgeFade = settings.edgeFade,
                     mirrorRoughness = settings.mirrorRoughness,

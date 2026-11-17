@@ -100,9 +100,9 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline
     {
         // The camera's shadow constants, from the allocator the light context built after culling.
-        ShadowUniform ResolveShadowUniform()
+        ShadowUniform ResolveShadowUniform(in ViewContext context)
         {
-            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
             ShadowFilterSettings filter = m_Settings.shadowFilter;
             // The cascade atlas holds 2x2 tiles of cascadeShadowMapResolution.
             float cascadeSize = m_Settings.cascadeShadowMapResolution * 2;
@@ -121,14 +121,14 @@ namespace InfinityTech.Rendering.Pipeline
                 filterParameters = CascadeShadowPassUtilityData.FilterParams(filter),
                 momentParameters = ShadowMomentPassUtilityData.SamplingParams(filter),
                 cascadeCount = allocator.CascadeAllocatedCount,
-                shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
+                shadowmaskMode = context.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0,
                 shadowDistance = m_Settings.shadowDistance
             };
         }
 
-        ShadowInputs QueryShadowInputs(in CameraRecordContext context)
+        ShadowInputs QueryShadowInputs(in ViewContext context)
         {
-            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
             var inputs = new ShadowInputs
             {
                 cascadeMapHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap),

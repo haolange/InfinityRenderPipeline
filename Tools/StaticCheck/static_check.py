@@ -42,6 +42,7 @@ Checks
   rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
   redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
   framealloc       frame- and camera-rate methods build no managed array, collection, string or package class (AGENTS R17)
+  passroot         pass files never reach the pipeline-lifetime root: per-camera facts come from ViewContext, services by injection
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -1252,6 +1253,17 @@ def check_redundant_parameters(repo, out):
                     out.append(('ERROR', 'redundantparam', f'{rel}:{line}: {m.group(1)} takes {name}, which shadows the pipeline member'))
 
 
+PASS_ROOT = re.compile(r'\b(?:renderContext|RenderContext)\b')
+
+def check_pass_root(repo, out):
+    """A pass reads its camera's facts from ViewContext and its services from what the pipeline hands it, never the root."""
+    for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        for number, line in enumerate(code_only(read(p)).split('\n'), 1):
+            if PASS_ROOT.search(line):
+                out.append(('ERROR', 'passroot', f'{rel}:{number}: a pass reaches the render context root'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -1291,7 +1303,8 @@ def main():
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
                      ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
-                     ('redundantparam', check_redundant_parameters), ('framealloc', check_frame_allocations)):
+                     ('redundantparam', check_redundant_parameters), ('framealloc', check_frame_allocations),
+                     ('passroot', check_pass_root)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

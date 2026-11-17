@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle postProcessTextureHandle;
         }
 
-        void ComputeDebugView(in CameraRecordContext context)
+        void ComputeDebugView(in ViewContext context)
         {
             EDebugView view = context.debugView;
             if (view == EDebugView.None)
@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             // A view whose optional input is not registered, or a probe atlas view with no probe, shows the Missing kernel.
             DebugViewBinding binding = DebugViewPassUtilityData.BindingOf(view);
             EDebugViewKernel kind = binding.kernel;
-            int probeCount = renderContext.sceneWorld.lights.context.ReflectionProbeCount;
+            int probeCount = context.lights.ReflectionProbeCount;
             RGTextureHandle optionalTextureHandle = default;
             if (binding.inputs.Length > 0)
             {
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
                     break;
                 case EDebugViewKernel.ProbeAtlas:
                     // Six faces per probe; the atlas slot of list entry i is its first slice (record parameters.y).
-                    parameters.x = renderContext.sceneWorld.lights.context.ReflectionProbeFirstSlice(Mathf.Clamp(lightingDebug.reflectionProbeAtlasIndex, 0, probeCount - 1));
+                    parameters.x = context.lights.ReflectionProbeFirstSlice(Mathf.Clamp(lightingDebug.reflectionProbeAtlasIndex, 0, probeCount - 1));
                     break;
             }
 

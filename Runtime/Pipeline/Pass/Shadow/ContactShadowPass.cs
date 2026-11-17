@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Requested in the content phase: the Volume is active and the sun or a local light has Contact Shadows on.
-        void ComputeContactShadow(in CameraRecordContext context)
+        void ComputeContactShadow(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ContactShadow))
             {
@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                     depthParams = ContactShadowPassUtilityData.DepthParams(context.camera),
                     numSteps = settings.numSteps,
                     sunNumSteps = settings.sunNumSteps,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     maxDistance = settings.maxDistance,
                     thickness = settings.thickness,
                     intensity = settings.intensity,

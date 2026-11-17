@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterMotion(in CameraRecordContext context)
+        void RasterMotion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {

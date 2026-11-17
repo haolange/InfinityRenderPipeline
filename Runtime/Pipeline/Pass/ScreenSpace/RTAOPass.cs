@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle occlusionTextureHandle;
         }
 
-        void TraceOcclusion(in CameraRecordContext context)
+        void TraceOcclusion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.RTAO))
             {
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             InfinityRayTracingEnvironment env = InfinityRayTracingEnvironment.EnsureOwned();
-            env.SyncGeometry(renderContext.sceneWorld.meshes);
+            env.SyncGeometry(context.meshes);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
             InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;

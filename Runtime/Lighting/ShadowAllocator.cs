@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.LightPipeline
             in CullingResults cullingResults,
             InfinityAdditionalLightData[] additionalData,
             Camera camera,
-            in ShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
+            in ShadowAllocatorSettings settings, MeshWorld meshWorld, int frame, LocalShadowCache shadowCache = null)
         {
             if (camera == null)
             {
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_CollectCasters.Auto())
             {
-                m_MeshCasters.Collect(meshWorld, Time.frameCount);
+                m_MeshCasters.Collect(meshWorld, frame);
             }
             Reset();
 
@@ -194,7 +194,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_AllocateLocal.Auto())
             {
-                AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
+                AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, frame, shadowCache);
             }
         }
 
@@ -259,7 +259,7 @@ namespace InfinityTech.Rendering.LightPipeline
             int tileResolution,
             int tilesPerRow,
             int tileBudget,
-            int maxLocalLights, LocalShadowCache shadowCache)
+            int maxLocalLights, int frame, LocalShadowCache shadowCache)
         {
             // A cached record's sampling occupies up to six entries at recordIndex * MaxLocalFaces; cachedFaces holds their
             // count, 0 when the record is not served from the cache. Both live until this call returns (AGENTS R17).
@@ -278,7 +278,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     if (light != null && light.shadows != LightShadows.None
                         && ext != null
                         && ext.shadowUpdateMode == EShadowUpdateMode.OnDemand)
-                        cachedFaces[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), ext.shadowCacheVersion, Time.frameCount,
+                        cachedFaces[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), ext.shadowCacheVersion, frame,
                             cachedSampling.AsSpan().Slice(i * MaxLocalFaces, MaxLocalFaces));
                 }
             int candidateCount = 0;
@@ -338,7 +338,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 Light light = cullingResults.visibleLights[visibleIndex].light;
                 int firstSlice = nextSlice;
                 if (cachedFaces[recordIndex] != 0)
-                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), faces, Time.frameCount);
+                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), faces, frame);
 
                 for (int face = 0; face < faces; ++face)
                 {

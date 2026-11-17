@@ -80,15 +80,13 @@ namespace InfinityTech.Rendering.Editor
             Camera camera = cameraName == null ? Validation.ValidationSceneUtility.RequireActiveGameCamera() : Camera.allCameras.Single(c => c.cameraType == CameraType.Game && c.isActiveAndEnabled && c.name == cameraName && c.gameObject.scene.name == sceneName);
             var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipeline
                 ?? throw new InvalidOperationException("Frame tree requires an active Infinity render pipeline.");
-            var samplers = (Dictionary<int, ProfilingSampler>)typeof(Pipeline.InfinityRenderPipeline)
-                .GetField("m_CameraSamplers", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(pipeline);
-            MethodInfo getCameraId = typeof(Pipeline.InfinityRenderPipeline).GetMethod("GetCameraID", BindingFlags.NonPublic | BindingFlags.Instance);
-            string cameraSampler = CameraSamplerName(camera, pipeline, samplers, getCameraId);
+            Pipeline.CameraStateTable cameraStates = pipeline.renderContext.cameras;
+            string cameraSampler = CameraSamplerName(camera, cameraStates);
             if (Camera.allCameras.Concat(SceneView.GetAllSceneCameras()).Distinct().Any(c =>
             {
                 if (c == camera || !c.isActiveAndEnabled)
                     return false;
-                string other = CameraSamplerName(c, pipeline, samplers, getCameraId);
+                string other = CameraSamplerName(c, cameraStates);
                 return other == cameraSampler || other.StartsWith(cameraSampler + "/", StringComparison.Ordinal)
                     || cameraSampler.StartsWith(other + "/", StringComparison.Ordinal);
             }))
@@ -299,13 +297,12 @@ namespace InfinityTech.Rendering.Editor
         static void Save() => File.WriteAllText(Path.Combine(s_Directory, "frame-tree.json"), JsonUtility.ToJson(s_Evidence, true));
         static bool HasCameraScope(string path, string cameraScope) =>
             !string.IsNullOrEmpty(path) && (path == cameraScope || path.StartsWith(cameraScope + "/", StringComparison.Ordinal));
-        static string CameraSamplerName(Camera camera, Pipeline.InfinityRenderPipeline pipeline, Dictionary<int, ProfilingSampler> samplers, MethodInfo getCameraId)
+        static string CameraSamplerName(Camera camera, Pipeline.CameraStateTable cameraStates)
         {
             ProfilingSampler custom = camera.GetComponent<InfinityTech.Component.InfinityAdditionalCameraData>()?.viewProfiler;
             if (custom != null)
                 return custom.name;
-            int cameraId = (int)getCameraId.Invoke(pipeline, new object[] { camera });
-            return samplers.TryGetValue(cameraId, out ProfilingSampler sampler) ? sampler.name : camera.name;
+            return cameraStates.TryGetSampler(camera, out ProfilingSampler sampler) ? sampler.name : camera.name;
         }
         static MethodInfo RequireMethod(string name) => s_Utility.GetMethod(name, Static) ?? throw new MissingMethodException(s_Utility.FullName, name);
         static object Read(object data, string name) => (data.GetType().GetField(name, Instance) ?? throw new MissingFieldException(data.GetType().FullName, name)).GetValue(data);

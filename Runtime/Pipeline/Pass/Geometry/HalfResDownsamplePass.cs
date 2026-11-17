@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle halfResNormalTextureHandle;
         }
 
-        void ComputeHalfResDownsample(in CameraRecordContext context)
+        void ComputeHalfResDownsample(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.HalfResDownsample))
             {

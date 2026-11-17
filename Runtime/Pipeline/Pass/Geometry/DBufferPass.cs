@@ -21,9 +21,9 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle depthTextureHandle;
         }
 
-        void RasterDBuffer(in CameraRecordContext context)
+        void RasterDBuffer(in ViewContext context)
         {
-            if (renderContext.sceneWorld.decals.table.count == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            if (context.decalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }

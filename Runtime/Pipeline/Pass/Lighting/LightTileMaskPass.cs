@@ -133,10 +133,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The camera's light-loop constants, from the light context built after culling. Probes count only when the
         // reflection probe feature records a probe list this frame.
-        LightLoopUniform ResolveLightLoopUniform(FrameFeatureSet features)
+        LightLoopUniform ResolveLightLoopUniform(in ViewContext context)
         {
-            LightContext lightContext = renderContext.sceneWorld.lights.context;
-            bool hasProbeList = features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
+            LightContext lightContext = context.lights;
+            bool hasProbeList = context.features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
             return new LightLoopUniform
             {
                 tileParameters = lightContext.TileParams,
@@ -151,9 +151,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        LightLoopInputs QueryLightLoop(in CameraRecordContext context)
+        LightLoopInputs QueryLightLoop(in ViewContext context)
         {
-            LightContext lightContext = renderContext.sceneWorld.lights.context;
+            LightContext lightContext = context.lights;
             bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
             bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
             RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
@@ -178,9 +178,9 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
-        void ComputeLightTileMask(in CameraRecordContext context)
+        void ComputeLightTileMask(in ViewContext context)
         {
-            LightContext lightContext = renderContext.sceneWorld.lights.context;
+            LightContext lightContext = context.lights;
             if (!lightContext.HasLocalLightList())
             {
                 return;

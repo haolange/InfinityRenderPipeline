@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the probe atlas when probes reach this camera's screen, GGX-filters the cubes that are new, changed or
         // realtime (once per frame across cameras), and builds the probe tile masks of the clustered list.
-        void ComputeReflectionProbes(in CameraRecordContext context)
+        void ComputeReflectionProbes(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ReflectionProbes))
             {
@@ -42,11 +42,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
-            LightContext lightContext = renderContext.sceneWorld.lights.context;
-            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(renderContext.sceneWorld.probes.atlas.GetAtlas());
+            LightContext lightContext = context.lights;
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlasHandle);
 
-            if (renderContext.sceneWorld.probes.atlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
+            if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
                 {
                     RGComputePassHandle<ReflectionProbeFilterPassData> passHandle = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes));
@@ -54,8 +54,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
-                    passData.resolution = renderContext.sceneWorld.probes.atlas.Resolution;
-                    passData.mipCount = renderContext.sceneWorld.probes.atlas.MipCount;
+                    passData.resolution = m_ReflectionProbeAtlas.Resolution;
+                    passData.mipCount = m_ReflectionProbeAtlas.MipCount;
                     passData.atlasHandle = passHandle.WriteTexture(atlasHandle);
                     passHandle.EnablePassCulling(false);
                     passHandle.SetQueueObserver(m_ReflectionProbeProduction);

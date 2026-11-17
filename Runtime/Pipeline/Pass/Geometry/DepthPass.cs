@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle rendererListHandle;
         }
 
-        void RasterDepth(in CameraRecordContext context)
+        void RasterDepth(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
             RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));

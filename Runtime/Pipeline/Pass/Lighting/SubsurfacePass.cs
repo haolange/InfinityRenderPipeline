@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
             return profileCount;
         }
 
-        void ComputeBurleySubsurface(in CameraRecordContext context)
+        void ComputeBurleySubsurface(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
             {

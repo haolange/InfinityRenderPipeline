@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void RasterUpscaleDepthForEditorOverlays(in CameraRecordContext context)
+        void RasterUpscaleDepthForEditorOverlays(in ViewContext context)
         {
             RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var dimensions = context.dimensions;
@@ -64,12 +64,12 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 screenParams;
         }
         
-        void RasterWireOverlay(in CameraRecordContext context)
+        void RasterWireOverlay(in ViewContext context)
         {
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
             RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
-            RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(context.camera);
+            RendererList wireOverlayRendererList = context.scriptableRenderContext.CreateWireOverlayRendererList(context.camera);
 
             {
                 RGRasterPassHandle<WireOverlayPassData> passHandle = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay));
@@ -100,14 +100,14 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 screenParams;
         }
 
-        void RasterGizmos(in CameraRecordContext context)
+        void RasterGizmos(in ViewContext context)
         {
             if (Handles.ShouldRenderGizmos())
             {
                 RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
                 RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
-                RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(context.camera, GizmoSubset.PostImageEffects);
+                RendererList gizmosRendererList = context.scriptableRenderContext.CreateGizmoRendererList(context.camera, GizmoSubset.PostImageEffects);
 
                 {
                     RGRasterPassHandle<GizmosPassData> passHandle = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos));
@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         }
 
-        void RecordCameraOutput(in CameraRecordContext context)
+        void RecordCameraOutput(in ViewContext context)
         {
             bool wire = false, gizmos = false;
 #if UNITY_EDITOR
@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.MarkProduced(EFrameFeature.Display);
         }
 
-        RGTextureHandle ImportCameraOutput(in CameraRecordContext context)
+        RGTextureHandle ImportCameraOutput(in ViewContext context)
         {
             RenderTexture texture = context.camera.targetTexture;
             var identifier = texture != null ? new RenderTargetIdentifier(texture) : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.Pipeline
             return m_RGBuilder.ImportBackbuffer(identifier, descriptor);
         }
 
-        FinalOutputPassData PrepareFinalOutput(in CameraRecordContext context, RGTextureHandle sourceHandle, bool finalTarget, int shaderPass)
+        FinalOutputPassData PrepareFinalOutput(in ViewContext context, RGTextureHandle sourceHandle, bool finalTarget, int shaderPass)
         {
             var dimensions = context.dimensions;
             var descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
@@ -275,7 +275,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         }
 
-        void RasterFinalOutput(in CameraRecordContext context, RGTextureHandle sourceHandle, RGTextureHandle targetHandle, bool finalTarget)
+        void RasterFinalOutput(in ViewContext context, RGTextureHandle sourceHandle, RGTextureHandle targetHandle, bool finalTarget)
         {
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterOutputCopy;
             {

@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryScalar(in CameraRecordContext context, int sourceId, int historyId, string name)
+        void CopyHistoryScalar(in ViewContext context, int sourceId, int historyId, string name)
         {
             RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(sourceId);
             TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // SSR history is the temporal output (before the optional spatial pass, so filtering never feeds back) plus
         // its meta texture (normal, depth, history age).
-        void CopyHistorySSR(in CameraRecordContext context)
+        void CopyHistorySSR(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSR))
             {
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Each denoise stage keeps the combiner mix, not the temporal output.
-        void CopyHistorySSGI(in CameraRecordContext context)
+        void CopyHistorySSGI(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSGI))
             {
@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
-        void CopyHistoryRadianceMeta(in CameraRecordContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
+        void CopyHistoryRadianceMeta(in ViewContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
             RGTextureHandle radianceSourceHandle = m_RGBuilder.scoper.QueryTexture(radianceSourceId);
             RGTextureHandle metaSourceHandle = m_RGBuilder.scoper.QueryTexture(metaSourceId);

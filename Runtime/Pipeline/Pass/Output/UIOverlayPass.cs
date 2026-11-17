@@ -14,14 +14,14 @@ namespace InfinityTech.Rendering.Pipeline
             public Rect viewport;
         }
 
-        void RasterUIOverlay(in CameraRecordContext context, RGTextureHandle displayColorHandle, bool finalTarget)
+        void RasterUIOverlay(in ViewContext context, RGTextureHandle displayColorHandle, bool finalTarget)
         {
             if (context.camera.cameraType != CameraType.Game || context.camera.targetTexture != null)
             {
                 return;
             }
 
-            RendererList overlay = renderContext.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);
+            RendererList overlay = context.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);
             {
                 RGRasterPassHandle<UIOverlayPassData> passHandle = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay));
                 passHandle.EnablePassCulling(false);

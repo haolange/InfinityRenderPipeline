@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sceneColorTextureHandle;
         }
 
-        void ComputeScreenSpaceComposite(in CameraRecordContext context)
+        void ComputeScreenSpaceComposite(in ViewContext context)
         {
             bool hasSSR = context.features.ShouldRecord(EFrameFeature.SSR);
             bool hasSSGI = context.features.ShouldRecord(EFrameFeature.SSGI);

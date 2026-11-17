@@ -167,7 +167,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGConstantsHandle parametersHandle;
         }
 
-        void ComputeCombineLuts(in CameraRecordContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
+        void ComputeCombineLuts(in ViewContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
             TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32);
             combineLookupTextureDescriptor.dimension = TextureDimension.Tex3D;

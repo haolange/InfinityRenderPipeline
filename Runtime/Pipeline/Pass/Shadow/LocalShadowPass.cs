@@ -73,10 +73,10 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(in CameraRecordContext context)
+        void RasterLocalShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.localShadowMapResolution;
-            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);
 
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             int lastRecord = -1;
-            int frame = Time.frameCount;
+            int frame = context.frame;
             long production = 0;
             bool cacheGroupAvailable = false;
             for (int slice = 0; slice < sliceCount; ++slice)
@@ -127,9 +127,9 @@ namespace InfinityTech.Rendering.Pipeline
                 if (local.recordIndex != lastRecord)
                 {
                     lastRecord = local.recordIndex;
-                    production = renderContext.sceneWorld.lights.shadowCache.NextProduction();
+                    production = m_LocalShadowCache.NextProduction();
                     Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
-                    cacheGroupAvailable = renderContext.sceneWorld.lights.shadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
+                    cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
                         CameraSceneCulling.Mask(context.camera), local.isSpot ? 1 : 6, frame);
                 }
 
@@ -144,16 +144,16 @@ namespace InfinityTech.Rendering.Pipeline
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
-                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
+                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight, context.shadowmaskMode);
 
-                InfinityAdditionalLightData ext = renderContext.sceneWorld.lights.context.AdditionalData(lightIdx);
+                InfinityAdditionalLightData ext = context.lights.AdditionalData(lightIdx);
                 if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
                     cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, CameraSceneCulling.Mask(context.camera));
-                    cacheSlots[slice] = renderContext.sceneWorld.lights.shadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
+                    cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && cacheRender[slice])
-                        renderContext.sceneWorld.lights.shadowCache.SetPendingSampling(cacheKeys[slice], new LocalShadowCache.SamplingState
+                        m_LocalShadowCache.SetPendingSampling(cacheKeys[slice], new LocalShadowCache.SamplingState
                         {
                             slice = local, gpu = allocator.LocalGPU[slice],
                             faceCount = local.isSpot ? 1 : 6, production = production
@@ -279,7 +279,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RGTextureHandle cacheAtlasHandle = m_RGBuilder.ImportTexture(renderContext.sceneWorld.lights.shadowCache.GetAtlas());
+            RGTextureHandle cacheAtlasHandle = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlasHandle);
 
             int shaderPass = blitPasses.copyShadowDepthTile;
@@ -299,13 +299,13 @@ namespace InfinityTech.Rendering.Pipeline
                     keys[write] = cacheKeys[slice];
                 }
                 frameRects[write] = tileRects[slice];
-                cacheRects[write] = renderContext.sceneWorld.lights.shadowCache.SlotPixelRect(cacheSlots[slice]);
+                cacheRects[write] = m_LocalShadowCache.SlotPixelRect(cacheSlots[slice]);
             }
             // Depth-only resources cannot use region CopyTexture. Keep each direction in its own raster pass:
             // sampling and attaching the same physical atlas in one pass would be a feedback hazard.
             if (saveCount > 0)
             {
-                m_CachedShadowProduction.cache = renderContext.sceneWorld.lights.shadowCache;
+                m_CachedShadowProduction.cache = m_LocalShadowCache;
                 m_CachedShadowProduction.keys = keys;
                 m_CachedShadowProduction.count = saveCount;
                 RecordShadowDepthCopies(shadowMapTextureHandle, cacheAtlasHandle, frameRects, cacheRects, 0, saveCount, shaderPass, m_CachedShadowProduction);

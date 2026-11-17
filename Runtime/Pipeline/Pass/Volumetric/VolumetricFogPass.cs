@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricFog(in CameraRecordContext context)
+        void ComputeVolumetricFog(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                     depthSlices = depthSlices,
                     maxDistance = fog.maxDistance,
                     temporalWeight = historyRead.valid ? fog.temporalWeight : 0.0f,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     aerialDistance = aerialDistance
                 });
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryVolumetricFog(in CameraRecordContext context)
+        void CopyHistoryVolumetricFog(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {

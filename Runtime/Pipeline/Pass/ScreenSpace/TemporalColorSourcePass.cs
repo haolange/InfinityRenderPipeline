@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                 SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
                 SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst");
         }
-        void ComputeTemporalColorPyramid(in CameraRecordContext context)
+        void ComputeTemporalColorPyramid(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.TemporalColorPyramid))
             {

@@ -31,12 +31,13 @@ namespace InfinityTech.Rendering.LightPipeline
         internal int BoundsSlotCount => m_BoundsCount;
         internal int LocalSlotCount => m_LocalCount;
 
-        internal static bool ExcludesStatic(Light light)
+        // shadowmaskMode is the frame's QualitySettings snapshot.
+        internal static bool ExcludesStatic(Light light, ShadowmaskMode shadowmaskMode)
         {
             LightBakingOutput baking = light.bakingOutput;
             return baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Mixed
                 && baking.mixedLightingMode == MixedLightingMode.Shadowmask
-                && QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask;
+                && shadowmaskMode == ShadowmaskMode.Shadowmask;
         }
 
         internal void Collect(MeshWorld world, int frame)

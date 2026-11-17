@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle sunBufferHandle;
         }
 
-        void ComputeAtmosphericSkyAndFog(in CameraRecordContext context)
+        void ComputeAtmosphericSkyAndFog(in ViewContext context)
         {
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGBufferHandle sunBufferHandle = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer);
 
             AtmosphereParameter parameter = context.atmosphere;
-            LightContext.ResolveSun(renderContext.sceneWorld.lights.context, out Vector4 sunDirection, out Vector4 sunIlluminance);
+            LightContext.ResolveSun(context.lights, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
             {
                 RGComputePassHandle<AtmosphericSkyFogPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog));

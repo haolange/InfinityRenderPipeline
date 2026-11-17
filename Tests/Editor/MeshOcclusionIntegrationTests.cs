@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -100,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     m_Readbacks = new List<AsyncGPUReadbackRequest>(1);
-                    var states = (Dictionary<int, CameraFrameState>)typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
+                    var states = pipeline.renderContext.cameras.states;
                     var state = states.Values.Single(s => s.camera == m_Camera);
                     Assert.IsTrue(state.acceptedHiZ);
                     Assert.IsTrue(state.historyCache.TryGetCommittedTexture(HiZPassUtilityData.HistoryFurthest, out var depth));

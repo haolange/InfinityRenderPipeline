@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
             return TextureDescriptor.Create2D(name, width, height, format, ETextureSizingDomain.Internal, 2);
         }
 
-        void ComputeGroundTruthOcclusion(in CameraRecordContext context)
+        void ComputeGroundTruthOcclusion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.GTAO))
             {
@@ -146,7 +146,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.upsampleKernel = kernels.occlusionUpsample.index;
                 passData.halfGroups = new int2(kernels.occlusionTrace.GroupsX(halfWidth), kernels.occlusionTrace.GroupsY(halfHeight));
                 passData.fullGroups = new int2(kernels.occlusionUpsample.GroupsX(fullWidth), kernels.occlusionUpsample.GroupsY(fullHeight));
-                int temporalIndex = Time.frameCount & 3;
+                int temporalIndex = context.frame & 3;
                 passData.parametersHandle = passHandle.WriteConstants(new OcclusionParameters
                 {
                     numRays = ssao.numRays,

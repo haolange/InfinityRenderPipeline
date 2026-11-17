@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the cookie atlas when this camera's records reference it and uploads the textures that are new or
         // changed. Uploads queued by an earlier camera of the frame are not repeated.
-        void ComputeLightCookies(in CameraRecordContext context)
+        void ComputeLightCookies(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.LightCookies))
             {
@@ -44,10 +44,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.LightCookies);
 
-            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(renderContext.sceneWorld.lights.cookieAtlas.GetAtlas());
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlasHandle);
 
-            if (renderContext.sceneWorld.lights.cookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
+            if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {
                 {
                     RGComputePassHandle<LightCookiePassData> passHandle = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies));

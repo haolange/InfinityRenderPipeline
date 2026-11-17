@@ -333,14 +333,24 @@ class StaticCheckTests(unittest.TestCase):
     def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
         self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
                    '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'
-                   '        void ComputeHiZ(in CameraRecordContext context, int mip)\n        {\n        }\n}\n')
+                   '        void ComputeHiZ(in ViewContext context, int mip)\n        {\n        }\n}\n')
         out = []
         static_check.check_redundant_parameters(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Pipeline/Pass/A.cs', 'public partial class InfinityRenderPipeline\n{\n'
-                   '        void RasterDepth(RenderContext renderContext, in CameraRecordContext context)\n        {\n        }\n}\n')
+                   '        void RasterDepth(RenderContext renderContext, in ViewContext context)\n        {\n        }\n}\n')
         static_check.check_redundant_parameters(str(self.repo), out)
         self.assertEqual(['Runtime/Pipeline/Pass/A.cs:3'], [o[2].split(': ')[0] for o in out])
+
+    def test_pass_root_rejects_the_root_and_allows_the_scriptable_context(self):
+        self.write('Runtime/Pipeline/Pass/A.cs', '// renderContext in a comment is fine\n'
+                   'RendererList list = context.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);\n')
+        out = []
+        static_check.check_pass_root(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/Pass/B.cs', 'var lights = renderContext.sceneWorld.lights.context;\n')
+        static_check.check_pass_root(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Pass/B.cs:1'], [o[2].split(': ')[0] for o in out])
 
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)

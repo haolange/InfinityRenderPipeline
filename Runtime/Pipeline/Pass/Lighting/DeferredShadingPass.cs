@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle atmosphereSkySHHandle;
         }
 
-        void ComputeDeferredShading(in CameraRecordContext context)
+        void ComputeDeferredShading(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
 

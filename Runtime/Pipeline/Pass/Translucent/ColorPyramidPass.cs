@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeColorPyramid(in CameraRecordContext context)
+        void ComputeColorPyramid(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ColorPyramid))
             {

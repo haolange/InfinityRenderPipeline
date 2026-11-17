@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeHiZ(in CameraRecordContext context)
+        void ComputeHiZ(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.HiZ))
             {

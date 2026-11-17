@@ -35,11 +35,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererListsHandle;
         }
 
-        void RasterCascadeShadow(in CameraRecordContext context)
+        void RasterCascadeShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;
-            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
 
             TextureDescriptor shadowMapDsc = new TextureDescriptor(shadowMapResolution * 2, shadowMapResolution * 2);
             {
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (lightIndex >= 0)
             {
                 Light shadowLight = context.cullingResults.visibleLights[lightIndex].light;
-                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
+                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight, context.shadowmaskMode);
                 bool hasNativeCasters = context.cullingResults.GetShadowCasterBounds(lightIndex, out _);
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)

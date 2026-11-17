@@ -68,14 +68,14 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sourceHandle, destinationHandle;
             public RenderCaptureSession.Staging staging;
             public RGBuilder graph;
-            public int sourceMip, width, height;
+            public int frame, sourceMip, width, height;
         }
         static readonly ProfilingSampler s_CaptureLightMaskSampler = new ProfilingSampler("ComputeCaptureLightMask");
         static readonly ProfilingSampler s_CaptureMetadataSampler = new ProfilingSampler("ComputeCaptureSurfaceMetadata");
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
-        void RecordLightingCapture(in CameraRecordContext context)
+        void RecordLightingCapture(in ViewContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || !session.Captures(ECaptureBuffer.Lighting))
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
             RecordCaptureTransfer(context, session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
 
-        void RecordDeferredLightingCapture(in CameraRecordContext context)
+        void RecordDeferredLightingCapture(in ViewContext context)
         {
             var session = RenderCaptureService.current;
             if (session != null && session.CaptureThisFrame && session.Captures(ECaptureBuffer.DeferredLighting))
@@ -101,10 +101,10 @@ namespace InfinityTech.Rendering.Pipeline
             public int width, height;
         }
 
-        int RecordLightMaskCapture(in CameraRecordContext context)
+        int RecordLightMaskCapture(in ViewContext context)
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
-            var lightContext = renderContext.sceneWorld.lights.context;
+            var lightContext = context.lights;
             bool local = lightContext.HasLocalLightList();
             int width = local ? lightContext.TileCount.x * lightContext.TileWordCount : 1;
             int height = local ? lightContext.TileCount.y : 1;
@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
             return id;
         }
 
-        void RecordNormalFrameCapture(in CameraRecordContext context)
+        void RecordNormalFrameCapture(in ViewContext context)
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame)
@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (session.Captures(ECaptureBuffer.CascadeShadow))
             {
-                session.RecordShadowState(renderContext.sceneWorld.lights.context.ShadowAllocator);
+                session.RecordShadowState(context.lights.ShadowAllocator);
             }
             foreach (string buffer in session.request.buffers)
             {
@@ -394,7 +394,7 @@ namespace InfinityTech.Rendering.Pipeline
             return destination;
         }
 
-        void RecordCaptureTransfer(in CameraRecordContext context, RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
+        void RecordCaptureTransfer(in ViewContext context, RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
             RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(shaderId);
             if (!sourceHandle.IsValid())
@@ -440,12 +440,13 @@ namespace InfinityTech.Rendering.Pipeline
                 data.staging = staging;
                 passHandle.SetQueueObserver(staging);
                 data.graph = m_RGBuilder;
+                data.frame = context.frame;
                 data.sourceMip = sourceMip;
                 data.width = descriptor.width;
                 data.height = descriptor.height;
                 passHandle.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands) =>
                 {
-                    parameters.staging.owner.RecordGraph(parameters.graph, Time.frameCount);
+                    parameters.staging.owner.RecordGraph(parameters.graph, parameters.frame);
                     commands.CopyTexture(parameters.sourceHandle, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destinationHandle, 0, 0, 0, 0);
                     commands.RequestAsyncReadback(parameters.staging.texture, parameters.staging.Complete);
                 });

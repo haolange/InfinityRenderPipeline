@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle dBufferCHandle;
         }
 
-        void RasterGBuffer(in CameraRecordContext context)
+        void RasterGBuffer(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.GBuffer);
             RGMeshDrawListHandle gbufferMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterGBufferPass));
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.bindDBuffer = bindDBuffer;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = renderContext.sceneWorld.lights.context.HasShadowmask;
+                    passData.shadowmask = context.lights.HasShadowmask;
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.meshDrawListHandle = passHandle.UseMeshDrawList(gbufferMeshDrawListHandle);
                     passData.rendererListHandle = passHandle.UseRendererList(gbufferRendererListHandle);

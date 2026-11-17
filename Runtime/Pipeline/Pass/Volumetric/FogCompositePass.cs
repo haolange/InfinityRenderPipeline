@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle volumetricCloudTextureHandle;
         }
 
-        void ComputeFogComposite(in CameraRecordContext context)
+        void ComputeFogComposite(in ViewContext context)
         {
             bool hasFog = context.features.ShouldRecord(EFrameFeature.VolumetricFog);
             bool hasCloud = context.features.ShouldRecord(EFrameFeature.VolumetricCloud);

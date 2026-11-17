@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle superResolutionTextureHandle, pendingColorHandle, pendingDepthHandle;
         }
 
-        void ComputeSuperResolution(in CameraRecordContext context)
+        void ComputeSuperResolution(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
 
