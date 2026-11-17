@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.bindDBuffer = bindDBuffer;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = renderContext.lightContext.HasShadowmask;
+                    passData.shadowmask = renderContext.sceneWorld.lights.context.HasShadowmask;
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.meshDrawListHandle = passHandle.UseMeshDrawList(gbufferMeshDrawListHandle);
                     passData.rendererListHandle = passHandle.UseRendererList(gbufferRendererListHandle);

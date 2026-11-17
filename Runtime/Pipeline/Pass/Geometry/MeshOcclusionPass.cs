@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
         // reset, a first frame or a non-temporal camera has no history to test, so every list is frustum-only.
         bool RegisterMeshHistoryOccluder(in CameraRecordContext context, in MeshMotionBinding motion)
         {
-            MeshWorld world = renderContext.meshWorld;
+            MeshWorld world = renderContext.sceneWorld.meshes;
             if (!context.policy.temporal || !context.features.ShouldRecord(EFrameFeature.HiZ) || world.entityCount == 0
                 || world.SelectBackend(MeshPassTable.Depth) != EMeshDrawBackendPolicy.GPUIndirect
                 || context.resetsHistory || motion.previous == null)

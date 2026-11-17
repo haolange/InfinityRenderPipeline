@@ -3,7 +3,6 @@ using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MaterialPipeline;
 
@@ -73,6 +72,7 @@ namespace InfinityTech.Component
         BoundingBox m_BoundBox;
         bool m_DirtyEnqueued;
         uint m_RegistrationEpoch;
+        ulong m_RegistryId;
 
         internal MeshEntityId entityId => m_State.entity;
 
@@ -96,22 +96,23 @@ namespace InfinityTech.Component
                 MaterialRouteUtility.routingChanged += InvalidateMaterialRouting;
                 s_RoutingSubscribed = true;
             }
-            s_Registered.Add(this);
+            m_RegistryId = UnityEntityId.ToUInt64(this);
+            s_Registry.Register(m_RegistryId, this);
             RefreshGeometryReference();
-            RenderTaskQueue.RegisterMesh(this, epoch);
+            s_PendingRegistrations.Add((this, epoch));
         }
 
         protected override void UnRegister()
         {
             ++m_RegistrationEpoch;
-            s_Registered.Remove(this);
+            s_Registry.Unregister(m_RegistryId);
             ReleaseGeometryReference();
             SyncState published = m_State;
             // Clear local state immediately so UnRegister is idempotent across OnDisable and OnDestroy.
             ResetSyncState();
             m_DirtyEnqueued = false;
             transformPending = false;
-            RenderTaskQueue.UnregisterMesh(this, published.entity, published.worldId);
+            s_PendingRemovals.Add((published.entity, published.worldId));
         }
 
         public void MarkDirty()
@@ -121,7 +122,7 @@ namespace InfinityTech.Component
                 return;
             }
             m_DirtyEnqueued = true;
-            RenderContext.EnqueueDirtyMesh(this);
+            s_PendingSyncs.Add(this);
         }
 
         void ResetSyncState()

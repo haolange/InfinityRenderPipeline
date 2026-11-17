@@ -135,7 +135,7 @@ namespace InfinityTech.Rendering.Pipeline
         // reflection probe feature records a probe list this frame.
         LightLoopUniform ResolveLightLoopUniform(FrameFeatureSet features)
         {
-            LightContext lightContext = renderContext.lightContext;
+            LightContext lightContext = renderContext.sceneWorld.lights.context;
             bool hasProbeList = features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
             return new LightLoopUniform
             {
@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Pipeline
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
         LightLoopInputs QueryLightLoop(in CameraRecordContext context)
         {
-            LightContext lightContext = renderContext.lightContext;
+            LightContext lightContext = renderContext.sceneWorld.lights.context;
             bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
             bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
             RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
@@ -180,7 +180,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeLightTileMask(in CameraRecordContext context)
         {
-            LightContext lightContext = renderContext.lightContext;
+            LightContext lightContext = renderContext.sceneWorld.lights.context;
             if (!lightContext.HasLocalLightList())
             {
                 return;

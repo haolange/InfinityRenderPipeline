@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Matrix4x4 consumerProjection = uniform.matrix_InvFlipYJitterProj.inverse;
                 Vector4 projectedDepth = consumerProjection * new Vector4(0, 0, -10, 1);
                 float depth = projectedDepth.z / projectedDepth.w;
-                Matrix4x4 producerProjection = GraphicsUtility.GetComputeGpuProjection(camera);
+                Matrix4x4 producerProjection = InfinityTech.Core.GraphicsConventions.GetComputeGpuProjection(camera);
                 int controlsMissing = 0;
                 foreach (var pixel in new[] { new int2(40, 35), new int2(230, 35), new int2(40, 145), new int2(230, 145) })
                 {

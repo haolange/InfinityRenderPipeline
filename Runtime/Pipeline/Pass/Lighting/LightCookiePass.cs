@@ -44,10 +44,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.LightCookies);
 
-            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(renderContext.sceneWorld.lights.cookieAtlas.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlasHandle);
 
-            if (m_LightCookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
+            if (renderContext.sceneWorld.lights.cookieAtlas.TakeUploads(out CookieUpload[] uploads, out int uploadCount))
             {
                 {
                     RGComputePassHandle<LightCookiePassData> passHandle = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies));

@@ -127,7 +127,7 @@ namespace InfinityTech.Rendering.Editor
         {
             var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
             if (pipeline == null) throw new InvalidOperationException("Infinity is not the active pipeline.");
-            MeshWorld world = pipeline.renderContext.meshWorld;
+            MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             var entities = new System.Collections.Generic.List<object>();
             for (int i = 0; i < world.entityHighWater; i++)
             {

@@ -288,7 +288,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // Light-list indices are record indices of this camera; nothing here is keyed across frames.
         internal void Build(
             in CullingResults cullingResults,
-            Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup,
+            SceneTable<InfinityAdditionalLightData> lights,
             Camera camera,
             in ShadowAllocatorSettings settings,
             int2 screenSize, MeshPipeline.MeshWorld meshWorld,             LocalShadowCache shadowCache = null)
@@ -311,7 +311,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 sun = RenderSettings.sun;
                 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
                 worldToView = camera != null ? camera.worldToCameraMatrix : Matrix4x4.identity;
-                gpuProjection = camera != null ? Pipeline.GraphicsUtility.GetComputeGpuProjection(camera) : Matrix4x4.identity;
+                gpuProjection = camera != null ? GraphicsConventions.GetComputeGpuProjection(camera) : Matrix4x4.identity;
                 orthographic = camera != null && camera.orthographic;
                 near = camera != null ? camera.nearClipPlane : 0.1f;
                 m_WorldToView = worldToView;
@@ -335,7 +335,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     m_AdditionalData[i] = null;
                     if (light != null)
                     {
-                        worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
+                        lights.TryGet(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
                     }
                 }
             }
@@ -456,7 +456,7 @@ namespace InfinityTech.Rendering.LightPipeline
         int CompareProbes(int a, int b) => ReflectionProbePriority.Compare(m_ProbeSortInput[a].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[a].bounds),
             m_ProbeSortInput[b].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[b].bounds));
 
-        internal void ResolveReflectionProbes(ReflectionProbeAtlas atlas, in CullingResults cullingResults, int frame)
+        internal void ResolveReflectionProbes(ReflectionProbeAtlas atlas, SceneTable<InfinityAdditionalReflectionProbeData> probeTable, in CullingResults cullingResults, int frame)
         {
             m_Probes.Clear();
             m_ProbeTileRects.Clear();
@@ -489,7 +489,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 Vector3 center = bounds.center;
                 Vector3 extents = bounds.extents;
                 float blend = math.max(probe.blendDistance, 0.0f);
-                bool sphere = component.TryGetComponent(out InfinityAdditionalReflectionProbeData ext) && ext.influence == EReflectionProbeInfluence.Sphere;
+                bool sphere = probeTable.TryGet(UnityEntityId.ToUInt64(component), out InfinityAdditionalReflectionProbeData ext) && ext.influence == EReflectionProbeInfluence.Sphere;
                 float radius = sphere ? (ext.sphereRadius > 0 ? ext.sphereRadius : math.cmax(new float3(extents.x, extents.y, extents.z))) : 0.0f;
                 float boundingRadius = sphere ? radius + blend : (extents + Vector3.one * blend).magnitude;
 

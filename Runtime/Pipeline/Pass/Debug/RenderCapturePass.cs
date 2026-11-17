@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
         int RecordLightMaskCapture(in CameraRecordContext context)
         {
             ComputeKernel kernel = CaptureKernels.Require(resources.captureKernels.bufferUIntBytes);
-            var lightContext = renderContext.lightContext;
+            var lightContext = renderContext.sceneWorld.lights.context;
             bool local = lightContext.HasLocalLightList();
             int width = local ? lightContext.TileCount.x * lightContext.TileWordCount : 1;
             int height = local ? lightContext.TileCount.y : 1;
@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (session.Captures(ECaptureBuffer.CascadeShadow))
             {
-                session.RecordShadowState(renderContext.lightContext.ShadowAllocator);
+                session.RecordShadowState(renderContext.sceneWorld.lights.context.ShadowAllocator);
             }
             foreach (string buffer in session.request.buffers)
             {

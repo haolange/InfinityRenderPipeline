@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             InfinityRayTracingEnvironment env = InfinityRayTracingEnvironment.EnsureOwned();
-            env.SyncGeometry(renderContext.meshWorld);
+            env.SyncGeometry(renderContext.sceneWorld.meshes);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             InfinityDebugDisplaySettings.current.lighting.rayTracingBackend = InfinityRayTracingEnvironment.lastBackend;
             InfinityDebugDisplaySettings.current.lighting.rtaoBlockReason = InfinityRayTracingEnvironment.lastBlockReason;

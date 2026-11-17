@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Application.runInBackground = true;
             var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
             Assert.IsNotNull(pipeline);
-            MeshWorld world = pipeline.renderContext.meshWorld;
+            MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");
             m_PreviousCapture = RGDebugSession.captureEnabled; m_PreviousPause = RGDebugSession.paused; m_PreviousFocus = EditorWindow.focusedWindow; m_StateCaptured = true;
             m_World = world;

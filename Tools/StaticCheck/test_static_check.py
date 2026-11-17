@@ -321,7 +321,7 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/P.cs:2'], [o[2].split(': ')[0] for o in out])
 
     def test_silent_fallback_rejects_a_builtin_stand_in_and_allows_the_listed_debug_draw(self):
-        self.write('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'volume.RenderDebug(camera, options, Texture2D.whiteTexture);\n')
+        self.write('Runtime/Pipeline/Integration/ProbeVolumeIntegration.cs', 'volume.RenderDebug(camera, options, Texture2D.whiteTexture);\n')
         out = []
         static_check.check_silent_fallback(str(self.repo), out)
         self.assertEqual([], out)

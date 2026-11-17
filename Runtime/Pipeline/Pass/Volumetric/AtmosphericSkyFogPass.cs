@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGBufferHandle sunBufferHandle = m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer);
 
             AtmosphereParameter parameter = context.atmosphere;
-            LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
+            LightContext.ResolveSun(renderContext.sceneWorld.lights.context, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
             {
                 RGComputePassHandle<AtmosphericSkyFogPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog));

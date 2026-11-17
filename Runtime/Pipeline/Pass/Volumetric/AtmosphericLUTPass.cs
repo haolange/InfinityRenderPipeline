@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             AtmosphereParameter parameter = context.atmosphere;
 
-            LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
+            LightContext.ResolveSun(renderContext.sceneWorld.lights.context, out Vector4 sunDirection, out Vector4 sunIlluminance);
             // The key quantizes the position the view LUT kernels read from ViewUniform.
             AtmosphereViewKey viewKey = AtmosphereViewKey.Create(parameter, (Vector3)sunDirection, (Vector3)sunIlluminance, context.cameraUniform.matrix_ViewToWorld.GetColumn(3),
                 context.cameraUniform.matrix_WorldToView, context.cameraUniform.matrix_FlipYProj);

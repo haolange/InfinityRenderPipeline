@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
         // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs with this camera's allocated splits.
         void CullShadowCasterSplits(in CameraRecordContext context)
         {
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
             CullingResults cullingResults = context.cullingResults;
             var records = new NativeList<ShadowCasterSplitRecord>(allocator.ActiveCascadeCount + allocator.LocalSliceCount, Allocator.Temp);
             int cascadeLight = allocator.CascadeVisibleLightIndex;

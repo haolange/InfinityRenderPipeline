@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -10,9 +9,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class MeshComponentEditNotifierTests
     {
-        static List<MeshComponent> Queue(string field) => (List<MeshComponent>)typeof(RenderContext)
-            .GetField(field, BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-
         [TestCase(EMeshMobility.Static, true)]
         [TestCase(EMeshMobility.Dynamic, false)]
         public void UndoRecordedMove_RefreshesOnlyStaticPoses(EMeshMobility mobility, bool expectNotified)
@@ -20,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var parent = new GameObject("MeshComponentEditNotifier.Parent") { hideFlags = HideFlags.DontSave };
             var child = new GameObject("MeshComponentEditNotifier.Child") { hideFlags = HideFlags.DontSave };
             MeshComponent component = null;
-            List<MeshComponent> transforms = Queue("s_TransformUpdates"), dirty = Queue("s_DirtyMeshList");
+            List<MeshComponent> transforms = MeshComponent.s_PendingPoses, dirty = MeshComponent.s_PendingSyncs;
             try
             {
                 child.transform.SetParent(parent.transform, false);

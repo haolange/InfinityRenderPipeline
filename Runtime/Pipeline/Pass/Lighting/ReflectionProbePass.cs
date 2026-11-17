@@ -42,11 +42,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
-            LightContext lightContext = renderContext.lightContext;
-            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
+            LightContext lightContext = renderContext.sceneWorld.lights.context;
+            RGTextureHandle atlasHandle = m_RGBuilder.ImportTexture(renderContext.sceneWorld.probes.atlas.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlasHandle);
 
-            if (m_ReflectionProbeAtlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
+            if (renderContext.sceneWorld.probes.atlas.TakeUploads(out ProbeCubeUpload[] uploads, out int uploadCount))
             {
                 {
                     RGComputePassHandle<ReflectionProbeFilterPassData> passHandle = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes));
@@ -54,8 +54,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.filterCubeToArray = kernels.filterCubeToArray;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
-                    passData.resolution = m_ReflectionProbeAtlas.Resolution;
-                    passData.mipCount = m_ReflectionProbeAtlas.MipCount;
+                    passData.resolution = renderContext.sceneWorld.probes.atlas.Resolution;
+                    passData.mipCount = renderContext.sceneWorld.probes.atlas.MipCount;
                     passData.atlasHandle = passHandle.WriteTexture(atlasHandle);
                     passHandle.EnablePassCulling(false);
                     passHandle.SetQueueObserver(m_ReflectionProbeProduction);

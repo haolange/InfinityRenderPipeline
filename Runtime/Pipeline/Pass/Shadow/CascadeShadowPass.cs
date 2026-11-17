@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
 
             TextureDescriptor shadowMapDsc = new TextureDescriptor(shadowMapResolution * 2, shadowMapResolution * 2);
             {

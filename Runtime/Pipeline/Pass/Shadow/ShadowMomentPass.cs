@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
             // A visible VSM / EVSM light makes the moments a required producer: a blocked feature fails at record time.
             context.features.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
             ShadowFilterSettings filter = m_Settings.shadowFilter;
 
             if (allocator.CascadeUsesMoments)

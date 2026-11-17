@@ -6,50 +6,12 @@ using InfinityTech.Component;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
+using InfinityTech.Rendering.Scene;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class MeshComponentRegistrationTests
     {
-        // Run only the delegates appended by this test. Existing Editor tasks remain untouched.
-        static RenderTask[] TakeOwnTasks(int start)
-        {
-            int count = RenderTaskQueue.GraphicsTasks.Count - start;
-            Assert.GreaterOrEqual(count, 0);
-            var tasks = RenderTaskQueue.GraphicsTasks.GetRange(start, count).ToArray();
-            RenderTaskQueue.GraphicsTasks.RemoveRange(start, count);
-            return tasks;
-        }
-
-        static void FlushOwnMeshTasks(int start, RenderContext context)
-        {
-            var tasks = RenderTaskQueue.MeshTasks.GetRange(start, RenderTaskQueue.MeshTasks.Count - start).ToArray();
-            RenderTaskQueue.MeshTasks.RemoveRange(start, tasks.Length);
-            foreach (var task in tasks) RenderTaskQueue.ProcessMeshTask(task, context);
-        }
-
-        static System.Collections.Generic.List<MeshComponent> DirtyList() => (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
-            "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
-
-        static void FlushOwnFrame(int start, int meshStart, RenderContext context, params MeshComponent[] components)
-        {
-            foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
-            FlushOwnMeshTasks(meshStart, context);
-            // Registration joins the world before dirty synchronization. Drain this context's removals and only these
-            // components' dirty entries through the frame transaction; another Editor object's queued work is restored.
-            var dirty = DirtyList();
-            var own = dirty.Where(value => components.Contains(value)).ToArray();
-            var others = dirty.Where(value => !components.Contains(value)).ToArray();
-            dirty.Clear();
-            dirty.AddRange(own);
-            try { context.DrainDirtyMeshes(); }
-            finally
-            {
-                dirty.Clear();
-                dirty.AddRange(others);
-            }
-        }
-
         [TestCase(false, false, false, 0)]
         [TestCase(true, false, false, 0)]
         [TestCase(true, true, false, 0)]
@@ -63,12 +25,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Material material = null;
             MeshAsset asset = null;
             var pool = new ResourcePool();
-            var context = new RenderContext(pool, meshShader);
+            var sceneWorld = new SceneWorld(pool, meshShader);
             MeshComponent component = null;
-            int start = RenderTaskQueue.GraphicsTasks.Count;
-            int meshStart = RenderTaskQueue.MeshTasks.Count;
-            var meshPrefix = RenderTaskQueue.MeshTasks.ToArray();
-            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
             int geometryStates = MeshComponent.geometryStateCount;
             try
             {
@@ -87,13 +45,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 component.CastShadow = ECastShadowMethod.Dynamic;
                 go.SetActive(true);
                 if (initiallyRegistered)
-                    FlushOwnFrame(start, meshStart, context, component);
+                    SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
                 if (deactivateObject) go.SetActive(false);
                 else component.enabled = false;
                 if (mobilityChange != 0) component.Mobility = mobilityChange == 1 ? EMeshMobility.Dynamic : EMeshMobility.Static;
                 if (reenable) go.SetActive(true);
-                FlushOwnFrame(start, meshStart, context, component);
-                MeshWorld world = context.meshWorld;
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
+                MeshWorld world = sceneWorld.meshes;
                 Assert.AreEqual(reenable ? 1 : 0, world.entityCount,
                     "An enable queued before disable cannot resurrect an inactive renderer.");
                 Assert.AreEqual(reenable ? mesh.subMeshCount : 0, world.elementCount);
@@ -101,7 +59,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic ? 1 : 0, world.dynamicEntityCount);
                 Assert.AreEqual(reenable && component.Mobility == EMeshMobility.Dynamic, world.IsDynamic(component.entityId));
                 if (reenable) Assert.Greater(world.GetPassCache(MeshPassTable.Shadow).memberCount, 0, "A shadow-casting component joins the Shadow pass.");
-                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
                 Assert.IsFalse(go.GetComponent<Renderer>().forceRenderingOff, "Custom registration must not mutate native rendering state.");
                 UnityEngine.Object.DestroyImmediate(go);
                 go = null;
@@ -113,30 +70,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     if (go != null) UnityEngine.Object.DestroyImmediate(go);
-                    foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
-                    FlushOwnMeshTasks(meshStart, context);
-                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
+                    SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
                 }
                 finally
                 {
                     UnityEngine.Object.DestroyImmediate(material);
                     UnityEngine.Object.DestroyImmediate(asset);
-                    // RenderContext teardown clears process queues. Preserve external work, including its order,
-                    // and remove only this destroyed component from the project-owned dirty list.
-                    var dirty = DirtyList();
-                    var remainingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
-                    var remainingMeshTasks = RenderTaskQueue.MeshTasks.ToArray();
-                    var remainingDirty = dirty.Where(value => !ReferenceEquals(value, component)).ToArray();
-                    try { context.Dispose(); }
-                    finally
-                    {
-                        pool.Dispose();
-                        RenderTaskQueue.GraphicsTasks.InsertRange(0, remainingTasks);
-                        RenderTaskQueue.MeshTasks.InsertRange(0, remainingMeshTasks);
-                        dirty.InsertRange(0, remainingDirty);
-                    }
-                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks.Take(start));
-                    CollectionAssert.AreEqual(meshPrefix, RenderTaskQueue.MeshTasks.Take(meshStart));
+                    try { SceneWorldTestUtility.Dispose(sceneWorld); }
+                    finally { pool.Dispose(); }
                 }
             }
         }
@@ -147,12 +88,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var objects = new System.Collections.Generic.List<UnityEngine.Object>();
             var pool = new ResourcePool();
-            var context = new RenderContext(pool, meshShader);
+            var sceneWorld = new SceneWorld(pool, meshShader);
             MeshComponent component = null;
-            int start = RenderTaskQueue.GraphicsTasks.Count;
-            int meshStart = RenderTaskQueue.MeshTasks.Count;
-            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
-            var meshPrefix = RenderTaskQueue.MeshTasks.ToArray();
             int geometryStates = MeshComponent.geometryStateCount;
             try
             {
@@ -171,9 +108,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 component.MeshAsset = asset;
                 component.SetMaterials(new[] { first, second });
                 go.SetActive(true);
-                FlushOwnFrame(start, meshStart, context, component);
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
 
-                MeshWorld world = context.meshWorld;
+                MeshWorld world = sceneWorld.meshes;
                 Assert.IsTrue(world.IsAlive(component.entityId));
                 MeshEntity entity = world.entities[(int)component.entityId.Index];
                 Assert.AreEqual(asset.BuildLodChain(), entity.lod, "The entity carries the asset's LOD chain.");
@@ -198,16 +135,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 sharing.MeshAsset = asset;
                 sharing.SetMaterials(new[] { first, second });
                 other.SetActive(true);
-                FlushOwnFrame(start, meshStart, context, component, sharing);
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component, sharing);
                 Assert.AreEqual(geometryStates + 1, MeshComponent.geometryStateCount, "Components of one asset share one geometry state.");
                 MeshEntityId before = component.entityId, sharedBefore = sharing.entityId;
                 MeshComponent.NotifyGeometryChanged(far);
-                FlushOwnFrame(start, meshStart, context, component, sharing);
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component, sharing);
                 Assert.AreNotEqual(before, component.entityId, "A LOD mesh edit rebuilds the entity.");
                 Assert.AreNotEqual(sharedBefore, sharing.entityId);
                 Assert.AreEqual(2, world.entityCount);
                 UnityEngine.Object.DestroyImmediate(other);
-                FlushOwnFrame(start, meshStart, context, component);
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
                 Assert.AreEqual(1, world.entityCount);
 
                 // Screen sizes that do not decrease make the asset invalid: the component is reported and removed.
@@ -224,37 +161,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 independent.SetMaterials(new[] { first });
                 third.SetActive(true);
                 UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("MeshComponent 'MultiLevel' is not drawn: .*LOD 1"));
-                FlushOwnFrame(start, meshStart, context, component, independent);
+                SceneWorldTestUtility.UpdateOwn(sceneWorld, component, independent);
                 Assert.IsFalse(world.IsAlive(component.entityId), "An invalid asset is not drawn.");
                 Assert.IsTrue(world.IsAlive(independent.entityId), "The valid component of the same transaction is drawn.");
                 Assert.AreEqual(1, world.entityCount);
-                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
             }
             finally
             {
                 try
                 {
                     foreach (UnityEngine.Object value in objects) if (value is GameObject) UnityEngine.Object.DestroyImmediate(value);
-                    foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
-                    FlushOwnMeshTasks(meshStart, context);
+                    SceneWorldTestUtility.UpdateOwn(sceneWorld, component);
                 }
                 finally
                 {
                     foreach (UnityEngine.Object value in objects) if (value != null) UnityEngine.Object.DestroyImmediate(value);
-                    var dirty = DirtyList();
-                    var remainingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
-                    var remainingMeshTasks = RenderTaskQueue.MeshTasks.ToArray();
-                    var remainingDirty = dirty.Where(value => value != null).ToArray();
-                    try { context.Dispose(); }
-                    finally
-                    {
-                        pool.Dispose();
-                        RenderTaskQueue.GraphicsTasks.InsertRange(0, remainingTasks);
-                        RenderTaskQueue.MeshTasks.InsertRange(0, remainingMeshTasks);
-                        dirty.InsertRange(0, remainingDirty);
-                    }
-                    CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks.Take(start));
-                    CollectionAssert.AreEqual(meshPrefix, RenderTaskQueue.MeshTasks.Take(meshStart));
+                    try { SceneWorldTestUtility.Dispose(sceneWorld); }
+                    finally { pool.Dispose(); }
                     Assert.AreEqual(geometryStates, MeshComponent.geometryStateCount, "Destroyed components release their geometry states.");
                 }
             }

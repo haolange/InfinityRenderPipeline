@@ -1,8 +1,8 @@
 using NUnit.Framework;
 using System.Collections.Generic;
-using System.Reflection;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline.Tests;
+using InfinityTech.Rendering.Scene;
 using UnityEngine;
 using InfinityTech.Component;
 using UnityEditor.SceneManagement;
@@ -10,129 +10,106 @@ using UnityEngine.SceneManagement;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
+    // The decal registry is the authority for which decals exist; a scene world's decal table derives from it and publishes
+    // only inside its transaction.
     public class DecalContextRegistrationTests
     {
-        readonly List<RenderContext> m_Contexts = new List<RenderContext>();
-        RenderTask[] m_PendingTasks;
+        readonly List<SceneWorld> m_Worlds = new List<SceneWorld>();
         ComputeShader m_MeshShader;
         ResourcePool m_Pool;
-        RenderContext OwnContext()
+
+        SceneWorld OwnWorld()
         {
-            var context = new RenderContext(m_Pool, m_MeshShader);
-            m_Contexts.Add(context);
-            return context;
+            var world = new SceneWorld(m_Pool, m_MeshShader);
+            m_Worlds.Add(world);
+            return world;
         }
-        [SetUp]
-        public void PreservePendingWork()
+
+        static int Decals(SceneWorld world)
         {
-            m_PendingTasks = RenderTaskQueue.GraphicsTasks.ToArray();
+            SceneWorldTestUtility.UpdateOwn(world);
+            return world.decals.table.count;
+        }
+
+        [SetUp]
+        public void CreatePool()
+        {
             m_MeshShader = MeshTestUtility.LoadMeshDrawShader();
             m_Pool = new ResourcePool();
         }
+
         [TearDown]
-        public void DisposeOwnedContexts()
+        public void DisposeOwnedWorlds()
         {
-            // Context disposal clears process-wide work. Preserve the Editor's preexisting work,
-            // including dirty meshes, rather than letting test cleanup consume another scene's updates.
-            var dirty = (List<MeshComponent>)typeof(RenderContext).GetField("s_DirtyMeshList",
-                BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-            var pendingDirty = dirty.ToArray();
-            try { foreach (var context in m_Contexts) context.Dispose(); }
+            try { foreach (var world in m_Worlds) SceneWorldTestUtility.Dispose(world); }
             finally
             {
-                m_Contexts.Clear();
+                m_Worlds.Clear();
                 m_Pool?.Dispose();
                 m_Pool = null;
-                RenderTaskQueue.GraphicsTasks.Clear();
-                RenderTaskQueue.GraphicsTasks.AddRange(m_PendingTasks);
-                dirty.Clear();
-                dirty.AddRange(pendingDirty);
-            }
-        }
-        // Consume only this test's appended delegates; preserve the Editor's pending scene work.
-        static void Drain(int start, RenderContext context)
-        {
-            var tasks = RenderTaskQueue.GraphicsTasks.GetRange(start, RenderTaskQueue.GraphicsTasks.Count - start);
-            RenderTaskQueue.GraphicsTasks.RemoveRange(start, tasks.Count);
-            foreach (var task in tasks) task?.Invoke(context);
-        }
-
-        [TestCase(false)]
-        [TestCase(true)]
-        public void ReplacementContext_RecoversEnabledDecals_WithoutDoubleCountingPendingEnable(bool drainBeforeReplacement)
-        {
-            int start = RenderTaskQueue.GraphicsTasks.Count;
-            var prefix = RenderTaskQueue.GraphicsTasks.ToArray();
-            var previous = OwnContext();
-            previous.InitializeWorldDecals();
-            int baseline = previous.WorldDecalCount;
-            GameObject go = null;
-            var replacement = OwnContext();
-            try
-            {
-                go = new GameObject("Decal context lifetime test");
-                var decal = go.AddComponent<DecalComponent>();
-                if (drainBeforeReplacement) Drain(start, previous);
-                Drain(start, replacement);
-                replacement.InitializeWorldDecals();
-                Assert.AreEqual(baseline + 1, replacement.WorldDecalCount,
-                    "Live decals survive context replacement whether their enable task ran on the old or new context.");
-                decal.enabled = false;
-                Drain(start, replacement);
-                replacement.InitializeWorldDecals();
-                Assert.AreEqual(baseline, replacement.WorldDecalCount, "Later disables retain incremental ownership.");
-                decal.enabled = true;
-                Drain(start, replacement);
-                Assert.AreEqual(baseline + 1, replacement.WorldDecalCount);
-                Object.DestroyImmediate(go);
-                go = null;
-                Drain(start, replacement);
-                Assert.AreEqual(baseline, replacement.WorldDecalCount);
-                CollectionAssert.AreEqual(prefix, RenderTaskQueue.GraphicsTasks);
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-                Drain(start, replacement);
-            }
-        }
-
-        [TestCase(false)]
-        [TestCase(true)]
-        public void FirstDrain_UsesFinalActiveState_AfterQueuedToggles(bool finalEnabled)
-        {
-            int start = RenderTaskQueue.GraphicsTasks.Count;
-            var context = OwnContext();
-            var reference = OwnContext();
-            reference.InitializeWorldDecals();
-            int baseline = reference.WorldDecalCount;
-            GameObject go = null;
-            try
-            {
-                go = new GameObject("Decal queued toggle test");
-                var decal = go.AddComponent<DecalComponent>();
-                decal.enabled = false;
-                decal.enabled = true;
-                decal.enabled = finalEnabled;
-                Drain(start, context);
-                context.InitializeWorldDecals();
-                Assert.AreEqual(baseline + (finalEnabled ? 1 : 0), context.WorldDecalCount);
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-                Drain(start, context);
-                Assert.AreEqual(baseline, context.WorldDecalCount);
             }
         }
 
         [Test]
-        public void LoadedSceneUnload_RemovesRecoveredDecals()
+        public void ReplacementWorld_RebuildsFromTheRegistry()
         {
-            int start = RenderTaskQueue.GraphicsTasks.Count;
-            var context = OwnContext();
-            context.InitializeWorldDecals();
-            int baseline = context.WorldDecalCount;
+            var previous = OwnWorld();
+            int baseline = Decals(previous);
+            GameObject go = null;
+            try
+            {
+                go = new GameObject("Decal world lifetime test");
+                var decal = go.AddComponent<DecalComponent>();
+                Assert.AreEqual(baseline + 1, Decals(previous));
+                var replacement = OwnWorld();
+                Assert.AreEqual(baseline + 1, Decals(replacement), "A new world derives every live decal from the registry.");
+                decal.enabled = false;
+                Assert.AreEqual(baseline, Decals(replacement));
+                decal.enabled = true;
+                Assert.AreEqual(baseline + 1, Decals(replacement));
+                Object.DestroyImmediate(go);
+                go = null;
+                Assert.AreEqual(baseline, Decals(replacement));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Update_PublishesTheFinalActiveState_AfterToggles(bool finalEnabled)
+        {
+            var world = OwnWorld();
+            int baseline = Decals(world);
+            int revision = world.decals.table.revision;
+            GameObject go = null;
+            try
+            {
+                go = new GameObject("Decal toggle test");
+                var decal = go.AddComponent<DecalComponent>();
+                decal.enabled = false;
+                decal.enabled = true;
+                decal.enabled = finalEnabled;
+                Assert.AreEqual(baseline, world.decals.table.count, "The table publishes only inside the scene transaction.");
+                Assert.AreEqual(baseline + (finalEnabled ? 1 : 0), Decals(world));
+                Assert.AreEqual(revision + 1, world.decals.table.revision, "Registry changes since the published table republish it once.");
+                Decals(world);
+                Assert.AreEqual(revision + 1, world.decals.table.revision, "An unchanged registry publishes nothing.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Assert.AreEqual(baseline, Decals(world));
+            }
+        }
+
+        [Test]
+        public void SceneUnload_RemovesItsDecals()
+        {
+            var world = OwnWorld();
+            int baseline = Decals(world);
             Scene original = SceneManager.GetActiveScene();
             Scene owned = EditorSceneManager.NewPreviewScene();
             try
@@ -140,21 +117,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var go = new GameObject("Decal unload test");
                 SceneManager.MoveGameObjectToScene(go, owned);
                 go.AddComponent<DecalComponent>();
-                Drain(start, context);
-                {
-                    var replacement = OwnContext();
-                    replacement.InitializeWorldDecals();
-                    Assert.AreEqual(baseline + 1, replacement.WorldDecalCount);
-                    EditorSceneManager.ClosePreviewScene(owned);
-                    Drain(start, replacement);
-                    Assert.AreEqual(baseline, replacement.WorldDecalCount);
-                }
+                Assert.AreEqual(baseline + 1, Decals(world));
+                EditorSceneManager.ClosePreviewScene(owned);
+                Assert.AreEqual(baseline, Decals(world));
             }
             finally
             {
                 if (owned.IsValid() && owned.isLoaded) EditorSceneManager.ClosePreviewScene(owned);
                 if (original.IsValid() && original.isLoaded) SceneManager.SetActiveScene(original);
-                Drain(start, context);
             }
         }
     }

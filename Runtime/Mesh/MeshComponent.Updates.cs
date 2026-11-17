@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Rendering.MaterialPipeline;
@@ -12,7 +12,14 @@ namespace InfinityTech.Component
 {
     public partial class MeshComponent
     {
-        private static readonly HashSet<MeshComponent> s_Registered = new HashSet<MeshComponent>();
+        // The live set of mesh components: the authority a scene world derives its mesh entities from.
+        internal static readonly ComponentRegistry<MeshComponent> s_Registry = new ComponentRegistry<MeshComponent>();
+        // Work queued by components for whichever scene world consumes it next (component-owned, not world-owned). An
+        // enable carries its registration epoch; a removal carries the world that holds the entity (P2).
+        internal static readonly List<(MeshComponent component, uint epoch)> s_PendingRegistrations = new List<(MeshComponent, uint)>(64);
+        internal static readonly List<(MeshEntityId entity, int worldId)> s_PendingRemovals = new List<(MeshEntityId, int)>(64);
+        internal static readonly List<MeshComponent> s_PendingSyncs = new List<MeshComponent>(256);
+        internal static readonly List<MeshComponent> s_PendingPoses = new List<MeshComponent>(256);
         private static bool s_RoutingSubscribed;
         internal bool transformPending;
 
@@ -206,7 +213,7 @@ namespace InfinityTech.Component
 
         static void InvalidateMaterialRouting(Material material)
         {
-            foreach (var component in s_Registered)
+            foreach (var component in s_Registry.components)
                 for (int i = 0; i < component.Materials.Length; ++i)
                     if (component.materials[i] == material)
                     {
@@ -227,7 +234,7 @@ namespace InfinityTech.Component
         /// </summary>
         internal static void ResyncAll()
         {
-            foreach (var component in s_Registered)
+            foreach (var component in s_Registry.components)
             {
                 component.ResetSyncState();
                 component.m_DirtyEnqueued = false;
@@ -243,7 +250,7 @@ namespace InfinityTech.Component
         internal static void NotifyShadersChanged()
         {
             MeshPassShaderUtility.NotifyShadersChanged();
-            foreach (var component in s_Registered)
+            foreach (var component in s_Registry.components)
             {
                 component.MarkDirty();
             }
@@ -252,7 +259,7 @@ namespace InfinityTech.Component
         /// <summary>Refreshes the pose of every registered static component (asset proxy update or the first runtime frame).</summary>
         internal static void NotifyAllStaticPoses()
         {
-            foreach (var component in s_Registered)
+            foreach (var component in s_Registry.components)
                 if (component.mobility == EMeshMobility.Static)
                 {
                     component.NotifyEntityChanged();
@@ -266,7 +273,7 @@ namespace InfinityTech.Component
                 return;
             }
             transformPending = true;
-            RenderContext.EnqueueMeshTransform(this);
+            s_PendingPoses.Add(this);
         }
 
         /// <summary>Writes the current static pose outside the structural transaction.</summary>

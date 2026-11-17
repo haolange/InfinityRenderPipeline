@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterDBuffer(in CameraRecordContext context)
         {
-            if (renderContext.WorldDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            if (renderContext.sceneWorld.decals.table.count == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }

@@ -9,6 +9,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Scene registration: each authoring component (mesh, light, reflection probe, decal, terrain) registers in its own process-lifetime `ComponentRegistry`. A pipeline's `SceneWorld` derives one table per module from those registries and publishes every module in one transaction (prepare, commit, roll back together). Terrain LOD runs per view in `TerrainModule.ProcessView`, unchanged.
 - Frame-rate scratch follows AGENTS R17: local shadow allocation, mesh residency and dynamic poses use `Allocator.Temp`/`TempJob`, the cached-shadow and atmosphere observers live with the pipeline, and `static_check framealloc` rejects managed allocation in frame- and camera-rate methods. Shadow caster slots are indexed by a `Dictionary` keyed on light and scene mask.
 - Frame measurement exists only in Editor and Development builds and records each `Render` call with its camera types and native-submit allocations; `infinity_cpu_markers_start` accepts `includeSceneView` and reports allocations per camera type.
 - Shadow caster answers follow the mesh world's revisions, so a static world is not walked every frame. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
@@ -47,7 +48,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Mesh draw lists produce their own visibility. A list takes a `MeshCullingContext` (a GPU record: planes, layer, scene and rendering-layer masks, LOD projection; equal fields are the identity) and tests each entity for mask, LOD, frustum and occlusion inside its own producer: one compute producer (`ComputeMeshDrawList`) per GPU list, or one generic Burst gather job per CPU list. No visibility result outlives its list, and the per-view visibility caches, frustum batches and separate culling and compaction dispatches are gone.
 - A culling context has one occluder slot; the latest registration wins. A temporal camera with a valid Hi-Z history registers the previous pyramid, draws depth, registers this frame's early pyramid and records the remainder depth list. Later lists of the same context and pass draw only the remainder, so an instance draws at most once per context and pass. Occlusion is skipped without a valid history.
 - Mesh preparation is `ComputeMeshDrawList` (GPU) or `UploadMeshData` (CPU) per draw list. Those producers are not wrapped in the raster pass name.
-- Public mesh recording is `MeshDrawListDesc` (`MeshCullingContext`, `ShaderTagId`) then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`. GPU records use the same name in C# and HLSL. `BoundingBox`, `MinMaxBox`, `PlaneEquation`, `RenderTaskQueue` and `LightSourceShape` are the names that would otherwise collide.
+- Public mesh recording is `MeshDrawListDesc` (`MeshCullingContext`, `ShaderTagId`) then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`. GPU records use the same name in C# and HLSL. `BoundingBox`, `MinMaxBox`, `PlaneEquation` and `LightSourceShape` are the names that would otherwise collide.
 - CPU direct gathers, sorts (State, FrontToBack with saturated key segments, BackToFront) and merges in Burst jobs and issues one instanced draw per run. GPU indirect runs one compute producer per draw list and issues one indirect draw per command and range in state order. Command batching and the CPU overflow fallback are removed.
 - Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
 - Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
@@ -160,6 +161,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- A replaced pipeline lost every light enabled before it existed (its light table was filled only by enable callbacks). A new scene world derives its tables from the component registries.
 - Lightmap snapshots reject destroyed Unity texture wrappers and invalidate on Editor scene/open-close and Play transitions, restoring native color/direction/Shadowmask bindings without fetching a new array on stable frames. Runtime LightmapSettings edits retain the explicit notification contract.
 - Close the approved remaining macOS Metal Editor acceptance: 625/625 Infinity-only tests, eight normal regressions
   with unchanged baselines, three independent fresh-RP first/stable probe checks and seven valid composite timing
@@ -317,6 +319,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
 
 ### Removed
+- `RenderTaskQueue` (`AddTask`, `ClearTasks`) and the `RenderTask` delegate; the light, decal and terrain registries on `RenderContext` (`GetWorldLight`, `WorldDecalCount`, `Add/RemoveWorldTerrain`); the decal reconciliation that searched every loaded object on pipeline creation; `BaseComponent` (merged into `EntityComponent`).
 - The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
 - Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.
 - One-off migration and diagnosis tools in `Editor/Tools/Validation` that had no entry point.

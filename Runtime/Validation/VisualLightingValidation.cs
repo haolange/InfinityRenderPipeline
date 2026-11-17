@@ -452,7 +452,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         return;
                     }
-                    var allocator = ((InfinityRenderPipeline)RenderPipelineManager.currentPipeline).renderContext.lightContext.ShadowAllocator;
+                    var allocator = ((InfinityRenderPipeline)RenderPipelineManager.currentPipeline).renderContext.sceneWorld.lights.context.ShadowAllocator;
                     Vector4 sphere = allocator.CascadeSpheres[boundary];
                     Vector3 receiver = m_Receivers[0].transform.position;
                     float radial = sphere.w - Mathf.Pow(receiver.x - sphere.x, 2) - Mathf.Pow(receiver.y - sphere.y, 2);

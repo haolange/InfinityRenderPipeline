@@ -565,7 +565,7 @@ def check_cbuffer_member_ids(repo, out):
 
 SILENT_FALLBACK = re.compile(r'\bTexture2D\.(whiteTexture|blackTexture|grayTexture|normalTexture|redTexture|linearGrayTexture)\b')
 # Core RP's Adaptive Probe Volume debug draw takes a texture argument it samples only in its own debug modes.
-SILENT_FALLBACK_ALLOWED = {('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
+SILENT_FALLBACK_ALLOWED = {('Runtime/Pipeline/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
 
 def check_silent_fallback(repo, out):
     """A built-in texture bound where a resource does not exist forges that resource (P1); gate the reader instead."""
@@ -1152,6 +1152,9 @@ LAYERS = {
 # The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
 for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList', 'Graph'):
     LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
+# Lighting and the scene world sit below the pipeline: they derive scene facts and never name pipeline types.
+LAYERS['Runtime/Lighting/'] = ('Pipeline', 'Volume', 'Atmosphere')
+LAYERS['Runtime/Scene/World/'] = ('Pipeline', 'Volume', 'Atmosphere')
 
 
 STATIC_ID_INIT = re.compile(r'^\s*(?:(?:public|internal|private|protected)\s+)?static\s+(?!readonly\b)(?!const\b)[\w.<>\[\]]+\s+(\w+)\s*=\s*'
