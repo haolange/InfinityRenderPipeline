@@ -25,13 +25,14 @@ namespace InfinityTech.Rendering.Pipeline
         // Pipeline-wide frame transactions in completion order; camera-owned ones live in CameraFrameState.
         internal readonly IFrameTransaction[] frameTransactions;
 
-        internal RenderContext(in InfinityRenderPipelineAsset.Settings settings, ComputeShader meshDrawShader)
+        // asyncCompute: the pipeline lets its graph use the async queue; the device still has to support it.
+        internal RenderContext(in InfinityRenderPipelineAsset.Settings settings, ComputeShader meshDrawShader, bool asyncCompute)
         {
             try
             {
                 resourcePool = new ResourcePool();
                 sceneWorld = new SceneWorld(resourcePool, meshDrawShader);
-                graph = new RGBuilder("RenderGraph", resourcePool);
+                graph = new RGBuilder("RenderGraph", resourcePool, asyncCompute && SystemInfo.supportsAsyncCompute);
                 graph.SetMeshWorld(sceneWorld.meshes);
                 atmosphereCache = new AtmosphereSharedCache(resourcePool);
                 probeVolumes = new ProbeVolumeIntegration(settings);

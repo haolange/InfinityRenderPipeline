@@ -186,7 +186,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
             var plan = new OutputPlan(context.camera.cameraType == CameraType.Game && context.camera.targetTexture == null,
                 context.outputDecision.policy, debugOutput, linearCapture, wire, gizmos);
-            RGTextureHandle targetHandle = ImportCameraOutput(context);
+            RGTextureHandle targetHandle = m_FinalOutputPass.ImportCameraOutput(context);
             m_PostProcessingPass.RasterPostProcessing(context, plan, targetHandle);
             if (plan.linearIntermediate)
             {
@@ -230,22 +230,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
             context.features.ThrowIfCannotProduce(EFrameFeature.Display);
             context.features.MarkProduced(EFrameFeature.Display);
-        }
-
-        RGTextureHandle ImportCameraOutput(in ViewContext context)
-        {
-            RenderTexture texture = context.camera.targetTexture;
-            var identifier = texture != null ? new RenderTargetIdentifier(texture) : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
-            // CameraTarget has no RenderTexture. The attachment size is this frame's display size;
-            // a 0x0 import fails attachment validation and drops the present pass.
-            int2 display = context.dimensions.displaySize;
-            var descriptor = new InfinityTech.Rendering.GPUResource.TextureDescriptor
-            {
-                name = texture != null ? texture.name : "DisplayBackbuffer",
-                width = texture != null ? texture.width : display.x, height = texture != null ? texture.height : display.y,
-                colorFormat = context.outputDecision.backbufferFormat, dimension = TextureDimension.Tex2D, slices = 1
-            };
-            return m_RGBuilder.ImportBackbuffer(identifier, descriptor);
         }
     }
 }

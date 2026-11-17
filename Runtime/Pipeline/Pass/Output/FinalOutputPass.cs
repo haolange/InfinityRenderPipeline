@@ -1,4 +1,5 @@
 using UnityEngine;
+using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 
@@ -18,6 +19,23 @@ namespace InfinityTech.Rendering.Pipeline
         {
             m_RGBuilder = graph;
             m_Resources = resources;
+        }
+
+        // The camera's output target: its target texture, or the backbuffer at this frame's display size.
+        internal RGTextureHandle ImportCameraOutput(in ViewContext context)
+        {
+            RenderTexture texture = context.camera.targetTexture;
+            var identifier = texture != null ? new RenderTargetIdentifier(texture) : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
+            // CameraTarget has no RenderTexture. The attachment size is this frame's display size;
+            // a 0x0 import fails attachment validation and drops the present pass.
+            int2 display = context.dimensions.displaySize;
+            var descriptor = new InfinityTech.Rendering.GPUResource.TextureDescriptor
+            {
+                name = texture != null ? texture.name : "DisplayBackbuffer",
+                width = texture != null ? texture.width : display.x, height = texture != null ? texture.height : display.y,
+                colorFormat = context.outputDecision.backbufferFormat, dimension = TextureDimension.Tex2D, slices = 1
+            };
+            return m_RGBuilder.ImportBackbuffer(identifier, descriptor);
         }
 
         internal struct FinalOutputPassData

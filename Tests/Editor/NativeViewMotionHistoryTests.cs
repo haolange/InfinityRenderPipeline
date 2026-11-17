@@ -42,7 +42,8 @@ namespace InfinityTech.Rendering.Tests
             Assert.IsFalse(translucent.Contains("NativePreviousVertices"));
 
             string pipeline = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/InfinityRenderPipeline.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/InfinityRenderPipeline.cs")) + File.ReadAllText(Path.GetFullPath(
+                "Packages/com.infinity.render-pipeline/Runtime/Pipeline/InfinityRenderPipelineBase.cs"));
             Assert.IsFalse(pipeline.Contains("SetPropertyBlock"));
             Assert.IsFalse(pipeline.Contains("nativeMotionHistory"));
 

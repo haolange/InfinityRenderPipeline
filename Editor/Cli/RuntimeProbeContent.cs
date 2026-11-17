@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Editor
             return material;
         }
 
-        internal static void ReadMeshState(InfinityRenderPipeline pipeline, out int entities, out int elements)
+        internal static void ReadMeshState(InfinityRenderPipelineBase pipeline, out int entities, out int elements)
         {
             MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             entities = world.entityCount;

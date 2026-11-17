@@ -39,6 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
     // Every input of a camera's frame-phase request (R2): ResolveFrame is a function of these alone.
     internal struct FrameFeatureInputs
     {
+        // PipelineCapabilities.requiredProducers: every camera requests these.
+        public EFrameFeature[] requiredProducers;
         public ResolvedFrameSettings frameSettings;
         public ETemporalResolve temporalResolve;
         public VolumeSnapshot volumes;
@@ -143,10 +145,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        // The required producers, plus the camera's temporal resolve when it has one.
-        internal void EnsureRequiredProducers(ETemporalResolve temporalResolve)
+        // The pipeline's required producers, plus the camera's temporal resolve when it has one.
+        internal void EnsureRequiredProducers(EFrameFeature[] requiredProducers, ETemporalResolve temporalResolve)
         {
-            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
+            foreach (EFrameFeature feature in requiredProducers)
             {
                 EnsureProduced(feature);
             }
@@ -173,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal void ResolveFrame(in FrameFeatureInputs inputs)
         {
             Reset();
-            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
+            foreach (EFrameFeature feature in inputs.requiredProducers)
             {
                 Request(feature);
             }

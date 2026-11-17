@@ -278,7 +278,7 @@ namespace InfinityTech.Rendering.Editor
 
         void CloseWindow()
         {
-            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline
+            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase
                 ?? throw new InvalidOperationException("Infinity is not the active pipeline.");
             long used = Profiler.GetMonoUsedSizeLong();
             long heap = Profiler.GetMonoHeapSizeLong();

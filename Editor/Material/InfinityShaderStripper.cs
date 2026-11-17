@@ -25,8 +25,8 @@ namespace InfinityTech.Rendering.Editor.Build
 
         public static void ValidateResources()
         {
-            // This is also callable from Editor validation without starting a build.
-            var resources = new InfinityRenderPipelineResources();
+            // This is also callable from Editor validation without starting a build. The asset builds InfinityRenderPipeline.
+            var resources = new InfinityRenderPipelineResources(InfinityRenderPipeline.s_Capabilities.requiredProducers);
             ValidateContainer(resources.shaders);
             ValidateContainer(resources.textures);
             ValidateContainer(resources.materials);

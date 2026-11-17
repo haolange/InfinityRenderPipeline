@@ -465,9 +465,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void ResolveMeshBackend_FollowsDiagnosticsThenDebuggerThenAsset()
         {
-            Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, InfinityRenderPipeline.ResolveMeshBackend(null, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.GPUIndirect), "The debugger precedes the asset.");
-            Assert.AreEqual(EMeshDrawBackendPolicy.GPUIndirect, InfinityRenderPipeline.ResolveMeshBackend(EMeshDrawBackendPolicy.GPUIndirect, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.CPUDirect), "A diagnostics override precedes the debugger.");
-            Assert.AreEqual(EMeshDrawBackendPolicy.Auto, InfinityRenderPipeline.ResolveMeshBackend(null, null, EMeshDrawBackendPolicy.Auto));
+            Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, InfinityRenderPipelineBase.ResolveMeshBackend(null, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.GPUIndirect), "The debugger precedes the asset.");
+            Assert.AreEqual(EMeshDrawBackendPolicy.GPUIndirect, InfinityRenderPipelineBase.ResolveMeshBackend(EMeshDrawBackendPolicy.GPUIndirect, EMeshDrawBackendPolicy.CPUDirect, EMeshDrawBackendPolicy.CPUDirect), "A diagnostics override precedes the debugger.");
+            Assert.AreEqual(EMeshDrawBackendPolicy.Auto, InfinityRenderPipelineBase.ResolveMeshBackend(null, null, EMeshDrawBackendPolicy.Auto));
         }
 
         [Test]

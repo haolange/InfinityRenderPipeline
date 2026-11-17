@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 error = "Save this scene before creating its baking sky.";
                 return false;
             }
-            if (!InfinityRenderPipeline.TryGetAtmosphereCubemap(out RenderTexture cubemap) || cubemap == null
+            if (!InfinityRenderPipelineBase.TryGetAtmosphereCubemap(out RenderTexture cubemap) || cubemap == null
                 || cubemap.dimension != TextureDimension.Tex2DArray || cubemap.volumeDepth != 6 || cubemap.width != cubemap.height)
             {
                 error = "No atmosphere cubemap yet: the Infinity pipeline must be active and have rendered a frame (open a Scene or Game view).";

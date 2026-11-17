@@ -379,7 +379,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             VolumeStack ActualStack(bool requireSuccessfulExecution = false)
             {
-                var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+                var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException("InfinityRP is not the active pipeline.");

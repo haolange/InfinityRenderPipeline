@@ -7,6 +7,8 @@ namespace InfinityTech.Rendering.Pipeline
     // Per-camera inputs the registry needs to decide whether a requested feature can record this frame.
     internal struct FeatureSupportContext
     {
+        // PipelineCapabilities.featureMask: the features the pipeline records, indexed by EFrameFeature.
+        public bool[] pipelineFeatures;
         // InfinityRenderPipelineResources.featureResourceReasons: support that depends only on resources.
         public string[] resourceReasons;
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
@@ -41,13 +43,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         static readonly FeatureDescriptor[] s_Descriptors = Build();
 
-        // Every camera records these. Resources that cannot support one fail when they resolve, not per frame.
-        internal static readonly EFrameFeature[] RequiredProducers =
-            { EFrameFeature.Depth, EFrameFeature.GBuffer, EFrameFeature.DeferredShading, EFrameFeature.Display };
+        // The reason of every feature outside PipelineCapabilities.features.
+        internal const string NotRecordedReason = "This pipeline does not record it.";
 
-        internal static void RequireProducerSupport(string[] resourceReasons)
+        // Every camera records the pipeline's required producers (PipelineCapabilities). Resources that cannot support one
+        // fail when they resolve, not per frame.
+        internal static void RequireProducerSupport(string[] resourceReasons, EFrameFeature[] requiredProducers)
         {
-            foreach (EFrameFeature feature in RequiredProducers)
+            foreach (EFrameFeature feature in requiredProducers)
             {
                 string reason = resourceReasons[(int)feature];
                 if (reason != null)
@@ -321,7 +324,12 @@ namespace InfinityTech.Rendering.Pipeline
             evaluated[index] = true;
             FeatureDescriptor descriptor = s_Descriptors[index];
             string reason = null;
-            if (descriptor.requiresTemporal && !context.temporal)
+            if (!context.pipelineFeatures[index])
+            {
+                reason = NotRecordedReason;
+            }
+
+            if (reason == null && descriptor.requiresTemporal && !context.temporal)
             {
                 reason = "This camera type renders without history (preview or reflection probe).";
             }

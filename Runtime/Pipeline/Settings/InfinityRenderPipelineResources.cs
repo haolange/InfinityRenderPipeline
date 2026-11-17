@@ -45,9 +45,15 @@ namespace InfinityTech.Rendering.Pipeline
             private set;
         }
 #endif
+        // The pipeline's required producers: every resolution, including the one after a shader import, fails when the
+        // resources cannot support one of them.
+        readonly EFrameFeature[] m_RequiredProducers;
 
-        public InfinityRenderPipelineResources()
+        public InfinityRenderPipelineResources(EFrameFeature[] requiredProducers)
         {
+            if (requiredProducers == null)
+                throw new ArgumentNullException(nameof(requiredProducers));
+            m_RequiredProducers = requiredProducers;
             InfinityRenderPipelineGlobalSettings.Require();
 
             if (!GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeShaders resolvedShaders) || resolvedShaders == null)
@@ -77,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
             resolvedKernels.RequireUngatedKernels();
             var resolvedPasses = new BlitShaderPasses(materials.blitMaterial);
             string[] reasons = FeatureRegistry.ResolveResourceSupport(resolvedKernels, textures);
-            FeatureRegistry.RequireProducerSupport(reasons);
+            FeatureRegistry.RequireProducerSupport(reasons, m_RequiredProducers);
             kernels = resolvedKernels;
             blitPasses = resolvedPasses;
             featureResourceReasons = reasons;

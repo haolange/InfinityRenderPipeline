@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_EnteredPlayMode = true;
             m_PreviousRunBackground = Application.runInBackground;
             Application.runInBackground = true;
-            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             Assert.IsNotNull(pipeline);
             MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");

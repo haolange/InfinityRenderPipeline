@@ -43,6 +43,8 @@ Checks
   framealloc       frame- and camera-rate methods build no managed array, collection, string or package class (AGENTS R17)
   passroot         pass files never name the pipeline or reach the render context root: per-camera facts come from ViewContext,
                    services by constructor injection
+  pipelinebase     InfinityRenderPipelineBase and Runtime/Pipeline/Context name neither InfinityRenderPipeline nor a pass class:
+                   the frame sits below the pipelines built on it
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -1110,7 +1112,7 @@ DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession
                                 r'RecordDeferredLightingCapture|captureSession|displayProbe|'
                                 r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
                                 r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend|PipelineFrameMeasurement|'
-                                r'DebugViewPass|RenderCapturePass)\b')
+                                r'DebugViewPass|RenderCapturePass|m_RenderCapturePass|m_DebugViewPass)\b')
 DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
 
 
@@ -1240,6 +1242,37 @@ def check_pass_root(repo, out):
                 out.append(('ERROR', 'passroot', f'{rel}:{number}: a pass names the pipeline or reaches the render context root'))
 
 
+PIPELINE_BASE_FILE = 'Runtime/Pipeline/InfinityRenderPipelineBase.cs'
+PIPELINE_BASE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipelineBase\b')
+# Types declared under Pass/ that the frame itself reads, each for one named reason.
+PIPELINE_BASE_PASS_TYPES = {
+    'PassShaderIDs',           # CameraUniform binds the camera-wide _ScreenParams
+    'OutputTransformUtility',  # every camera resolves its output transform and HDR output ownership
+    'CameraCulling',           # CullCamera builds the camera's main mesh culling context
+    'ScreenSpaceModeUtility',  # FrameFeatureSet.ResolveFrame requests SSR and SSGI from the volumes
+    'CombineLutCache',         # CameraFrameState owns the camera's combine-LUT frame transaction
+}
+
+def check_pipeline_base(repo, out):
+    """The frame infrastructure (InfinityRenderPipelineBase, its partial files and the contexts) sits below the pipelines
+    built on it: it names neither the desktop pipeline nor a class declared under Runtime/Pipeline/Pass, except the
+    listed types the frame itself reads."""
+    pass_classes = set()
+    for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
+        pass_classes.update(re.findall(r'\bclass\s+(\w+)', code_only(read(p))))
+    names = sorted((pass_classes - PIPELINE_BASE_PASS_TYPES) | {'InfinityRenderPipeline'}, key=len, reverse=True)
+    pattern = re.compile(r'\b(?:' + '|'.join(re.escape(name) for name in names) + r')\b')
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        text = code_only(read(p))
+        if rel != PIPELINE_BASE_FILE and not rel.startswith('Runtime/Pipeline/Context/') and not PIPELINE_BASE_PARTIAL.search(text):
+            continue
+        for number, line in enumerate(text.split('\n'), 1):
+            m = pattern.search(line)
+            if m:
+                out.append(('ERROR', 'pipelinebase', f'{rel}:{number}: the frame infrastructure names {m.group(0)}, which belongs to a pipeline built on it'))
+
+
 def check_layering(repo, out):
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')
@@ -1280,7 +1313,7 @@ def main():
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
                      ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
                      ('framealloc', check_frame_allocations),
-                     ('passroot', check_pass_root)):
+                     ('passroot', check_pass_root), ('pipelinebase', check_pipeline_base)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

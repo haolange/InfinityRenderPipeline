@@ -1,170 +1,19 @@
 using System;
-using UnityEngine;
-using UnityEngine.VFX;
-using Unity.Collections;
-using Unity.Mathematics;
 using UnityEngine.Rendering;
-using InfinityTech.Core;
-using InfinityTech.Component;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using InfinityTech.Rendering.Pipeline;
-using InfinityTech.Rendering.Volume;
-using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
-using InfinityTech.Rendering.LightPipeline;
-using InfinityTech.Rendering.TerrainPipeline;
-using InfinityTech.Rendering.Scene;
-
-
-
-
-
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal enum EPipelineProfileId
+    // The desktop deferred pipeline: every frame feature, deferred shading, async compute where the device has it.
+    public class InfinityRenderPipeline : InfinityRenderPipelineBase
     {
-        SetupCamera,
-        CulllingScene,
-        ProcessLOD,
-        ProcessLight,
-        FrameRendering,
-        ProxyUpdate,
-        RecordRG,
-        ExecuteRG
-    }
+        // Every EFrameFeature; each camera produces depth, the G-buffer, deferred shading and the display.
+        internal static readonly PipelineCapabilities s_Capabilities = new PipelineCapabilities(
+            (EFrameFeature[])Enum.GetValues(typeof(EFrameFeature)),
+            new[] { EFrameFeature.Depth, EFrameFeature.GBuffer, EFrameFeature.DeferredShading, EFrameFeature.Display },
+            asyncCompute: true);
 
-    internal class CameraUniform
-    {
-        public int frameIndex;
-        public float2 jitter;
-        public Matrix4x4 matrix_WorldToView;
-        public Matrix4x4 matrix_ViewToWorld;
-        public Matrix4x4 matrix_Proj;
-        public Matrix4x4 matrix_InvProj;
-        public Matrix4x4 matrix_FlipYProj;
-        public Matrix4x4 matrix_FlipYJitterProj;
-        public Matrix4x4 matrix_InvFlipYJitterProj;
-        public Matrix4x4 matrix_ViewFlipYProj;
-        public Matrix4x4 matrix_InvViewFlipYProj;
-        public Matrix4x4 matrix_ViewJitterProj;
-        public Matrix4x4 matrix_InvViewJitterProj;
-        public Matrix4x4 matrix_ViewFlipYJitterProj;
-        public Matrix4x4 matrix_InvViewFlipYJitterProj;
-        public Matrix4x4 matrix_LastViewFlipYProj;
-        public Matrix4x4 matrix_LastViewFlipYJitterProj;
-        public Vector2 currentJitterUV;
-        public Vector2 previousJitterUV;
-        private Vector4 m_DepthParameters;
-        private Vector3 m_PreparedPosition;
-        private Quaternion m_PreparedRotation;
-        private Matrix4x4 m_PreparedProjection, m_LastProjection;
-        private int m_CommittedFrames;
-        private bool m_HasPreparedView;
-
-        private bool m_HasCommittedView;
-        private Vector3 m_LastCameraPosition;
-        private Quaternion m_LastCameraRotation;
-        private const float HistoryCutPosition = 2.0f;
-        private const float HistoryCutAngle = 20.0f;
-
-        internal bool hasCommittedView => m_HasCommittedView;
-
-        // A jump beyond the cut thresholds or a projection change since the last committed frame.
-        internal bool IsCut(Camera camera)
-        {
-            return Vector3.Distance(camera.transform.position, m_LastCameraPosition) > HistoryCutPosition
-                || Quaternion.Angle(camera.transform.rotation, m_LastCameraRotation) > HistoryCutAngle
-                || camera.projectionMatrix != m_LastProjection;
-        }
-
-        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, EHistoryReset historyReset)
-        {
-            bool resetHistory = historyReset != EHistoryReset.None;
-            m_HasPreparedView = true;
-            m_PreparedPosition = camera.transform.position;
-            m_PreparedRotation = camera.transform.rotation;
-            m_PreparedProjection = camera.projectionMatrix;
-            frameIndex = m_CommittedFrames % 8;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (historyReset == EHistoryReset.Locked) frameIndex = 0;
-#endif
-            matrix_WorldToView = camera.worldToCameraMatrix;
-            matrix_ViewToWorld = matrix_WorldToView.inverse;
-            matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-            matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            // A non-temporal camera always resets, so it never jitters.
-            Matrix4x4 jitterProj = default;
-            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref jitterProj, ref matrix_FlipYJitterProj, applyJitter: !resetHistory);
-            matrix_InvProj = matrix_Proj.inverse;
-            matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
-            matrix_ViewFlipYProj = matrix_FlipYProj * matrix_WorldToView;
-            matrix_InvViewFlipYProj = matrix_ViewFlipYProj.inverse;
-            matrix_ViewJitterProj = jitterProj * matrix_WorldToView;
-            matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
-            matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
-            matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
-            currentJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
-            m_DepthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
-            if (resetHistory)
-            {
-                // No previous camera sample exists after a reset. Seed the upload without
-                // committing last-camera state; successful frame completion still owns that.
-                previousJitterUV = currentJitterUV;
-                matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
-                matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
-            }
-        }
-
-        internal void Commit()
-        {
-            if (!m_HasPreparedView) return;
-            m_HasPreparedView = false;
-            matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
-            matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
-            m_LastCameraPosition = m_PreparedPosition;
-            m_LastCameraRotation = m_PreparedRotation;
-            m_LastProjection = m_PreparedProjection;
-            previousJitterUV = currentJitterUV;
-            m_CommittedFrames++;
-            m_HasCommittedView = true;
-        }
-
-        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize, UniformBuffer<ViewUniform> viewBuffer)
-        {
-            float2 resolution = renderSize;
-            cmdBuffer.SetGlobalVector(PassShaderIDs.ScreenParams, new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
-            viewBuffer.Upload(cmdBuffer, new ViewUniform
-            {
-                matrix_WorldToView = matrix_WorldToView,
-                matrix_ViewToWorld = matrix_ViewToWorld,
-                matrix_Proj = matrix_Proj,
-                matrix_InvProj = matrix_InvProj,
-                matrix_FlipYProj = matrix_FlipYProj,
-                matrix_FlipYJitterProj = matrix_FlipYJitterProj,
-                matrix_InvFlipYJitterProj = matrix_InvFlipYJitterProj,
-                matrix_ViewJitterProj = matrix_ViewJitterProj,
-                matrix_InvViewJitterProj = matrix_InvViewJitterProj,
-                matrix_ViewFlipYProj = matrix_ViewFlipYProj,
-                matrix_InvViewFlipYProj = matrix_InvViewFlipYProj,
-                matrix_ViewFlipYJitterProj = matrix_ViewFlipYJitterProj,
-                matrix_InvViewFlipYJitterProj = matrix_InvViewFlipYJitterProj,
-                matrix_LastViewFlipYProj = matrix_LastViewFlipYProj,
-                matrix_LastViewFlipYJitterProj = matrix_LastViewFlipYJitterProj,
-                view_DepthParameters = m_DepthParameters,
-                view_JitterUV = new Vector4(currentJitterUV.x, currentJitterUV.y, previousJitterUV.x, previousJitterUV.y)
-            });
-        }
-    }
-
-    public partial class InfinityRenderPipeline : RenderPipeline
-    {
-        private bool m_UpdateInit;
         // One instance per pass for the pipeline's lifetime, built from the render context's services at construction (R3).
         readonly LightUploadPass m_LightUploadPass;
         readonly LightCookiePass m_LightCookiePass;
@@ -210,82 +59,11 @@ namespace InfinityTech.Rendering.Pipeline
         readonly PostProcessingPass m_PostProcessingPass;
         readonly UIOverlayPass m_UIOverlayPass;
         readonly UtilityPass m_UtilityPass;
-        SupportedRenderingFeatures m_PreviousSupportedFeatures;
-        string m_PreviousGlobalRenderPipeline;
-        const string RtaoAssetDisabled = "Ray tracing is disabled on the RP Asset.";
-        const string RtaoFrameSettings = "Disabled by Frame Settings.";
-        const string RtaoVolumeInactive = "RTAO Volume is inactive.";
-        const string RtaoNotReady = "UnifiedRayTracing is not ready.";
-        const string RtaoNoInstances = "URT accel has no mesh instances.";
-        bool m_PreviousLightsUseLinearIntensity;
-        bool m_PreviousLightsUseColorTemperature;
-        bool m_PreviousUseScriptableRenderPipelineBatching;
-#if UNITY_EDITOR
-        static InfinityRenderPipeline s_LightmapperStateOwner;
-        InfinityRenderPipeline m_PreviousLightmapperStateOwner;
-        bool m_LightmapperStateReleased;
-        UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate m_PreviousLightmapperDelegate;
-#endif
 
-        static InfinityRenderPipeline s_GlobalStateOwner;
-
-        // The active pipeline's atmosphere cubemap from the last submitted frame (Editor baking-sky tool).
-        internal static bool TryGetAtmosphereCubemap(out RenderTexture cubemap)
+        public InfinityRenderPipeline(InfinityRenderPipelineAsset asset) : base(asset, s_Capabilities)
         {
-            cubemap = null;
-            InfinityRenderPipeline owner = s_GlobalStateOwner;
-            return owner != null && owner.renderContext != null && owner.renderContext.atmosphereCache.TryGetCubemap(out cubemap);
-        }
-        InfinityRenderPipeline m_PreviousGlobalStateOwner;
-        SupportedRenderingFeatures m_InstalledSupportedFeatures;
-        Material m_PreviousBlitMaterial;
-        Texture m_PreviousBestFitTexture;
-        int m_PreviousAntiAliasing;
-        bool m_InstalledBatching;
-        Material m_InstalledBlitMaterial;
-        Texture m_InstalledBestFitTexture;
-        VolumeProfile m_InstalledQualityProfile;
-        bool m_OwnsVolumeManager;
-        bool m_ResourcesDisposed;
-
-        readonly InfinityRenderPipelineAsset.Settings m_Settings;
-        InfinityRenderPipelineGlobalSettings m_GlobalSettings;
-        internal InfinityRenderPipelineResources resources;
-        internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
-        public override RenderPipelineGlobalSettings defaultSettings => m_GlobalSettings;
-        // The pipeline-lifetime root. Diagnostics observers read it outside the measured scopes.
-        internal readonly RenderContext renderContext;
-        // The asset snapshot this pipeline instance renders with (diagnostics read it outside the measured scopes).
-        internal InfinityRenderPipelineAsset.Settings settings => m_Settings;
-
-        public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
-        {
-            // Pooled and retired resources are reused or destroyed only after their GPU completion fence passes.
-            if (!SystemInfo.supportsGraphicsFence)
-                throw new NotSupportedException("InfinityRP requires graphics fences.");
-            if (asset == null)
-                throw new ArgumentNullException(nameof(asset));
-            m_Settings = asset.ResolveSettings();
-            if (m_Settings.atmosphericalProfile == null)
-                throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
-            m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
-            resources = new InfinityRenderPipelineResources();
             try
             {
-                CaptureGraphicsState();
-                SetGraphicsSetting();
-                QualitySettings.antiAliasing = 0;
-                RTHandles.Initialize(Screen.width, Screen.height);
-
-                m_InstalledQualityProfile = asset.qualityVolumeProfile;
-                VolumeManager.instance.Initialize(resources.defaultVolumeProfile, m_InstalledQualityProfile);
-                m_OwnsVolumeManager = true;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                InfinityDebugDisplaySettings.EnsureRegistered();
-#endif
-
-                m_UpdateInit = true;
-                renderContext = new RenderContext(m_Settings, shaders.meshDrawPipelineCS);
                 // Passes in dependency order: a pass another one calls is built first.
                 RGBuilder graph = renderContext.graph;
                 m_LightUploadPass = new LightUploadPass(graph);
@@ -297,10 +75,10 @@ namespace InfinityTech.Rendering.Pipeline
                 m_TemporalColorSourcePass = new TemporalColorSourcePass(graph, resources);
                 m_HiZPass = new HiZPass(graph, resources);
                 m_MeshOcclusionPass = new MeshOcclusionPass(graph, m_HiZPass);
-                m_DepthPass = new DepthPass(graph, m_Settings);
-                m_DBufferPass = new DBufferPass(graph, m_Settings);
-                m_GBufferPass = new GBufferPass(graph, m_Settings);
-                m_MotionPass = new MotionPass(graph, resources, m_Settings);
+                m_DepthPass = new DepthPass(graph, settings);
+                m_DBufferPass = new DBufferPass(graph, settings);
+                m_GBufferPass = new GBufferPass(graph, settings);
+                m_MotionPass = new MotionPass(graph, resources, settings);
                 m_HalfResDownsamplePass = new HalfResDownsamplePass(graph, resources);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 m_RenderCapturePass = new RenderCapturePass(graph, resources);
@@ -320,16 +98,16 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
                     );
                 m_ShadowCasterCulling = new ShadowCasterCulling();
-                m_CascadeShadowPass = new CascadeShadowPass(graph, m_Settings);
-                m_LocalShadowPass = new LocalShadowPass(graph, resources, m_Settings, renderContext.sceneWorld.lights.shadowCache);
-                m_ShadowMomentPass = new ShadowMomentPass(graph, resources, m_Settings);
+                m_CascadeShadowPass = new CascadeShadowPass(graph, settings);
+                m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache);
+                m_ShadowMomentPass = new ShadowMomentPass(graph, resources, settings);
                 m_DeferredShadingPass = new DeferredShadingPass(graph, resources);
-                m_ForwardPass = new ForwardPass(graph, m_Settings);
+                m_ForwardPass = new ForwardPass(graph, settings);
                 m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources);
                 m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
-                m_SubsurfacePass = new SubsurfacePass(graph, resources, m_Settings, renderContext.resourcePool);
+                m_SubsurfacePass = new SubsurfacePass(graph, resources, settings, renderContext.resourcePool);
                 m_AtmosphericSkyFogPass = new AtmosphericSkyFogPass(graph, resources);
-                m_TranslucentPass = new TranslucentPass(graph, m_Settings);
+                m_TranslucentPass = new TranslucentPass(graph, settings);
                 m_VolumetricCloudPass = new VolumetricCloudPass(graph, resources);
                 m_VolumetricFogPass = new VolumetricFogPass(graph, resources);
                 m_FogCompositePass = new FogCompositePass(graph, resources);
@@ -351,403 +129,31 @@ namespace InfinityTech.Rendering.Pipeline
             }
             catch (Exception constructionFailure)
             {
-                try { ReleaseOwnedResources(); }
+                // The pass-owned diffusion buffer returns to the pool before the base releases the render context.
+                try
+                {
+                    try
+                    {
+                        if (m_SubsurfacePass != null) m_SubsurfacePass.Dispose();
+                    }
+                    finally
+                    {
+                        ReleaseOwnedResources();
+                    }
+                }
                 catch (Exception cleanupFailure) { throw new AggregateException(constructionFailure, cleanupFailure); }
                 throw;
             }
         }
 
-        protected override void Render(ScriptableRenderContext scriptableRenderContext, List<Camera> cameras)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            PipelineDiagnostics.BeginFrame(cameras);
-#endif
-            var frameContext = new FrameContext(scriptableRenderContext);
-            Exception firstCameraException = null;
-            bool submitted = false;
-            bool frameValid = false;
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using (new PipelineFrameMeasurement.Scope(false, PipelineFrameMeasurement.enabled ? PipelineFrameMeasurement.CameraTypesOf(cameras) : 0))
-#endif
-            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
-            {
-                renderContext.resourcePool.BeginFrame();
-                renderContext.graph.RecoverUnjoinedAsync(scriptableRenderContext, renderContext.resourcePool.requiresQueueDrain);
-                renderContext.resourcePool.QueueDrainAccepted();
-
-                InvokeProxyUpdate();
-                renderContext.sceneWorld.meshes.UpdateResidency();
-                CommandBuffer cmdBuffer = CommandBufferPool.Get();
-                cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
-                cmdBuffer.Clear();
-
-                bool contextBegan = false;
-                try
-                {
-                    BeginContextRendering(scriptableRenderContext, cameras);
-                    contextBegan = true;
-#if UNITY_EDITOR
-                    resources.ResolveShadersAfterImport();
-#endif
-                    IFrameTransaction[] frameTransactions = renderContext.frameTransactions;
-                    for (int i = 0; i < frameTransactions.Length; ++i)
-                    {
-                        frameTransactions[i].BeginFrame();
-                    }
-                    for (int i = 0; i < cameras.Count; ++i)
-                    {
-                        RenderCamera(frameContext, cameras[i], cameras, cmdBuffer, ref firstCameraException);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    if (firstCameraException == null) firstCameraException = exception;
-                }
-
-                try
-                {
-                    frameValid = SubmitFrame(frameContext, cmdBuffer, ref firstCameraException, out submitted);
-                }
-                finally
-                {
-                    try
-                    {
-                        if (contextBegan) EndContextRendering(scriptableRenderContext, cameras);
-                    }
-                    catch (Exception exception)
-                    {
-                        if (firstCameraException == null) firstCameraException = exception;
-                    }
-                    finally
-                    {
-                        try { cmdBuffer.Clear(); }
-                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
-                        try { CommandBufferPool.Release(cmdBuffer); }
-                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
-                    }
-                }
-
-            }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            PipelineDiagnostics.EndFrame(new PipelineFrameResult(renderContext.cameras.states, frameValid, submitted, firstCameraException,
-                renderContext.graph.RetiredResourceCount, renderContext.sceneWorld.lights.context.RetiredBufferCount, renderContext.graph.CanRetireSubmittedResources));
-#endif
-            if (firstCameraException != null)
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstCameraException).Throw();
-        }
-
-        // Queues the frame, completes every frame transaction by the outcome and retires what the reuse fence covers.
-        // A failure after submission is kept as the frame's first exception.
-        bool SubmitFrame(in FrameContext frameContext, CommandBuffer cmdBuffer, ref Exception firstCameraException, out bool submitted)
-        {
-            RGBuilder graph = renderContext.graph;
-            ResourcePool resourcePool = renderContext.resourcePool;
-            GraphicsFence poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
-            var retiredReuseFence = new ResourceReuseFence
-            {
-                hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
-            };
-            bool frameValid = FrameSubmission.Execute(new ContextFrameSubmission(frameContext.scriptableRenderContext),
-                cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
-
-            try
-            {
-                if (!nativeSubmitted) renderContext.sceneWorld.meshes.transformVersions.RollbackUnsubmitted();
-                if (!nativeSubmitted) resourcePool.SubmissionUncertain(true);
-                else if (!fenceCommandsQueued || !graph.CanRetireSubmittedResources) resourcePool.SubmissionNeedsJoin();
-                frameValid &= graph.CanRetireSubmittedResources;
-                InfinityRayTracingEnvironment.current?.CompleteFrame(frameValid);
-                CompleteFrameTransaction(renderContext.frameTransactions, renderContext.cameras.states, frameValid);
-                if (nativeSubmitted && fenceCommandsQueued && graph.CanRetireSubmittedResources)
-                {
-                    FlushFrameRetirement(retiredReuseFence);
-                    resourcePool.AfterSubmit(poolFence, retiredReuseFence);
-                    renderContext.cameras.Recycle(frameContext.frame, retiredReuseFence);
-                }
-            }
-            catch (Exception exception)
-            {
-                if (firstCameraException == null) firstCameraException = exception;
-            }
-            return frameValid;
-        }
-
-        // One camera: PrepareCamera decides, CullCamera culls, RecordCamera records the graph, Execute runs it.
-        // A failure rolls this camera back and keeps the frame going; a queue submission failure aborts the frame.
-        void RenderCamera(in FrameContext frameContext, Camera camera, List<Camera> cameras, CommandBuffer cmdBuffer, ref Exception firstCameraException)
-        {
-            ScriptableRenderContext scriptableRenderContext = frameContext.scriptableRenderContext;
-            RGBuilder graph = renderContext.graph;
-            camera.TryGetComponent(out InfinityAdditionalCameraData cameraData);
-            CameraFrameState state = BeginCameraState(frameContext.frame, camera, out bool newlyCreated, out int previousSeenFrame);
-            using (new ProfilingScope(cmdBuffer, renderContext.cameras.GetSampler(camera, cameraData)))
-            {
-                BeginCameraRendering(scriptableRenderContext, camera);
-                try
-                {
-                    CameraSetup setup = PrepareCamera(frameContext, camera, cameras, cameraData, state, newlyCreated, previousSeenFrame);
-                    SceneCullingResults scene = CullCamera(frameContext, setup, cmdBuffer);
-                    var context = new ViewContext(frameContext, setup, scene);
-                    // Shadow and light-loop constants are final once CullCamera built the lights; every pass of the
-                    // camera reads them from these two uniforms, uploaded ahead of the graph.
-                    state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, m_Settings));
-                    state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
-                    using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
-                    {
-                        RecordCamera(context);
-                    }
-
-                    using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
-                    {
-                        graph.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
-                        graph.Execute(scriptableRenderContext, cmdBuffer);
-                        state.executeSucceeded = true;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                        PipelineDiagnostics.AfterCamera(camera, true, null);
-#endif
-                    }
-                }
-                catch (Exception exception)
-                {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    PipelineDiagnostics.AfterCamera(camera, false, exception);
-#endif
-                    // A queue failure may follow an accepted write but precede OnQueued; each owner decides what it keeps.
-                    bool queueUncertain = graph.HasQueueSubmissionFailure;
-                    state.CameraFailed(queueUncertain);
-                    IFrameTransaction[] frameTransactions = renderContext.frameTransactions;
-                    for (int i = 0; i < frameTransactions.Length; ++i)
-                    {
-                        frameTransactions[i].CameraFailed(queueUncertain);
-                    }
-                    if (firstCameraException == null)
-                    {
-                        firstCameraException = exception;
-                    }
-                    if (graph.HasQueueSubmissionFailure) throw;
-                }
-                finally
-                {
-                    // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
-                    graph.ClearRecordedGraph();
-                }
-                EndCameraRendering(scriptableRenderContext, camera);
-            }
-        }
-
-        // Marks the camera's cross-frame state as prepared this render. previousSeenFrame is its last render before this one.
-        CameraFrameState BeginCameraState(int frame, Camera camera, out bool newlyCreated, out int previousSeenFrame)
-        {
-            CameraFrameState state = renderContext.cameras.GetOrCreate(camera, out newlyCreated);
-            previousSeenFrame = state.lastSeenFrame;
-            state.lastSeenFrame = frame;
-            state.camera = camera;
-            state.preparedThisRender = true;
-            state.cameraType = camera.cameraType;
-            state.executeSucceeded = false;
-            state.temporalColorView = default;
-            return state;
-        }
-
-        // Every decision of this camera's frame that does not need culling.
-        CameraSetup PrepareCamera(in FrameContext frameContext, Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData,
-            CameraFrameState state, bool newlyCreated, int previousSeenFrame)
-        {
-            CameraRenderPolicy policy = CameraRenderPolicy.For(camera.cameraType);
-            ResolvedFrameSettings frameSettings = FrameSettingsUtility.Resolve(m_Settings.defaultFrameSettings, m_Settings.reflectionFrameSettings,
-                camera.cameraType == CameraType.Reflection, cameraData != null && cameraData.customFrameSettings,
-                cameraData != null ? cameraData.frameSettings : default);
-            CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera, m_Settings.enableSuperResolution, m_Settings.renderScale, cameraData);
-            EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, frameContext.frame, dimensions);
-            ETemporalResolve temporalResolve = !policy.temporal ? ETemporalResolve.None
-                : dimensions.superResolution ? ETemporalResolve.SuperResolution : ETemporalResolve.TAA;
-            dimensions = dimensions.WithCapacity(state.internalCapacity.Prepare(dimensions.internalSize), state.displayCapacity.Prepare(dimensions.displaySize));
-            state.preparedDimensions = dimensions;
-            renderContext.graph.SetTextureCapacity(dimensions.textureCapacity);
-            state.historyCache.SetTextureCapacity(dimensions.textureCapacity);
-            state.BeginFrame();
-
-            ResolveVolumeSelection(camera, cameras, cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask);
-            VolumeManager.instance.Update(state.volumeStack, volumeTrigger, volumeLayerMask);
-            VolumeSnapshot volumes = VolumeSnapshot.Capture(state.volumeStack);
-            AtmosphereParameter atmosphere = AtmosphereParameter.FromProfile(m_Settings.atmosphericalProfile);
-            atmosphere.ThrowIfInvalid();
-            state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
-
-            FeatureSupportContext featureSupport = ResolveFeatureSupport(policy, frameSettings, volumes);
-            state.features.ResolveFrame(new FrameFeatureInputs
-            {
-                frameSettings = frameSettings, temporalResolve = temporalResolve, volumes = volumes,
-                decalCount = renderContext.sceneWorld.decals.table.count, support = featureSupport
-            });
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            InfinityDebugDisplaySettings.current.rendering.lastFeatures = state.features;
-            InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
-            InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
-#endif
-            // Unity keeps previous object transforms only for a camera that declares motion vectors. Declare them once,
-            // before camera setup and culling; the flag stays on the camera.
-            const DepthTextureMode motionOutputs = DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
-            if (state.features.ShouldRecord(EFrameFeature.Motion) && (camera.depthTextureMode & motionOutputs) != motionOutputs)
-            {
-                camera.depthTextureMode |= motionOutputs;
-            }
-
-            var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
-                policy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera), !CoreUtils.IsSceneLightingDisabled(camera),
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                InfinityDebugDisplaySettings.current.ResolveDebugView(camera),
-#endif
-                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            PipelineDiagnostics.BeforeCamera(setup);
-#endif
-            return setup;
-        }
-
-        OutputTransformDecision ResolveOutputDecision(Camera camera, CameraFrameState state)
-        {
-            UpdateHdrTonemapping();
-            OutputTransformDecision decision = OutputTransformUtility.ResolveFromHardware(m_Settings.outputMode, m_Settings.hdrEncoding, camera,
-                state.hasResolvedBackbufferFormat, state.lastResolvedBackbufferFormat);
-            state.lastResolvedBackbufferFormat = decision.backbufferFormat;
-            state.hasResolvedBackbufferFormat = decision.backbufferFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!state.loggedOutputDecision)
-            {
-                Debug.Log($"[InfinityRP] Present camera={camera.name} type={camera.cameraType} format={decision.backbufferFormat} colorSpace={decision.colorSpace} policy={decision.policy} authority={(decision.displayTransferAuthority ? "DisplayTransferCapability" : "TextureFormat")}");
-                state.loggedOutputDecision = true;
-            }
-#endif
-            return decision;
-        }
-
-        // Unity camera setup, culling and everything that reads the culling results before recording.
-        SceneCullingResults CullCamera(in FrameContext frameContext, in CameraSetup setup, CommandBuffer cmdBuffer)
-        {
-            ScriptableRenderContext scriptableRenderContext = frameContext.scriptableRenderContext;
-            SceneWorld sceneWorld = renderContext.sceneWorld;
-            LightContext lightContext = sceneWorld.lights.context;
-            Camera camera = setup.camera;
-            CullingResults cullingResults;
-            MeshCullingContext mainCulling;
-            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
-            {
-#if UNITY_EDITOR
-                if (camera.cameraType == CameraType.SceneView)
-                {
-                    ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);
-                }
-#endif
-
-                setup.state.cameraUniform.SetUniformData(cmdBuffer, setup.dimensions.internalSize, setup.state.viewUniform);
-                // Adaptive Probe Volumes: CoreRP-owned resources, bound before culling and recording.
-                renderContext.probeVolumes.SetupCamera(cmdBuffer, camera, setup.state.volumeStack, setup.policy.temporal);
-                scriptableRenderContext.SetupCameraProperties(camera);
-                scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                cmdBuffer.Clear();
-
-                VFXManager.PrepareCamera(camera);
-
-                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
-                {
-                    camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                    cullingParameters.shadowDistance = m_Settings.shadowDistance;
-                    cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting |
-                        CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
-                    cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
-
-                    BeginMeshCamera(camera, m_Settings.meshBackendPolicy);
-                    mainCulling = CameraCulling.Context(camera, ref cullingParameters);
-                }
-
-                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
-                {
-                    sceneWorld.terrains.ProcessView(camera, setup.dimensions.internalSize);
-                }
-
-                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
-                {
-                    ShadowAllocatorSettings shadowSettings;
-                    shadowSettings.cascadeMapResolution = m_Settings.cascadeShadowMapResolution;
-                    shadowSettings.localMapResolution = m_Settings.localShadowMapResolution;
-                    shadowSettings.shadowDistance = m_Settings.shadowDistance;
-                    shadowSettings.cascadeRatios = m_Settings.cascadeSplitRatios;
-                    shadowSettings.maxLocalLights = m_Settings.maxShadowedLocalLights;
-                    shadowSettings.cascadeCount = m_Settings.cascadeCount;
-                    shadowSettings.cascadeBlendWidth = m_Settings.cascadeBlendWidth;
-                    shadowSettings.filterGuardTexels = m_Settings.shadowFilter.pcfRadius + 1;
-                    using (PipelineCpuMarkers.s_ProcessLightShadowCache.Auto())
-                    {
-                        sceneWorld.lights.shadowCache.Configure(m_Settings.cachedShadowAtlasWidth,
-                            m_Settings.localShadowMapResolution, Mathf.Max(1, m_Settings.localShadowMapResolution / 4));
-                        if (sceneWorld.lights.shadowCache.SlotCount > 0)
-                        {
-                            sceneWorld.lights.shadowCache.GetAtlas();
-                        }
-                    }
-                    lightContext.Build(cullingResults, sceneWorld.lights.table, camera, shadowSettings, setup.dimensions.internalSize, sceneWorld.meshes,
-                        frameContext.frame, sceneWorld.lights.shadowCache);
-                    using (PipelineCpuMarkers.s_ProcessLightResolveCookies.Auto())
-                    {
-                        sceneWorld.lights.cookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
-                        // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
-                        lightContext.ResolveCookies(setup.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? sceneWorld.lights.cookieAtlas : null,
-                            cullingResults, frameContext.frame);
-                    }
-                    using (PipelineCpuMarkers.s_ProcessLightResolveProbes.Auto())
-                    {
-                        sceneWorld.probes.atlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
-                        lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? sceneWorld.probes.atlas : null,
-                            sceneWorld.probes.table, cullingResults, frameContext.frame);
-                    }
-                    using (PipelineCpuMarkers.s_ProcessLightContentFeatures.Auto())
-                    {
-                        ShadowAllocator shadowAllocator = lightContext.ShadowAllocator;
-                        setup.state.features.ResolveContent(new ContentFeatureInputs
-                        {
-                            localLightList = lightContext.HasLocalLightList(),
-                            contactShadowsEnabled = setup.frameSettings.IsEnabled(EFrameSetting.ContactShadows),
-                            contactShadowVolume = VolumeComponentActive(setup.volumes.contactShadow),
-                            contactShadowCasters = lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0,
-                            lightCookies = lightContext.CookieCount > 0,
-                            reflectionProbes = lightContext.ReflectionProbeCount > 0,
-                            shadowMoments = shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0,
-                        }, setup.featureSupport);
-                    }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
-                    lightingDebug.lastDirectionalCount = lightContext.DirectionalLightCount;
-                    lightingDebug.lastLocalCount = lightContext.LocalLightCount;
-                    lightingDebug.lastReflectionProbeCount = lightContext.ReflectionProbeCount;
-                    lightingDebug.lastUnsupportedShapeCount = lightContext.UnsupportedShapeCount;
-                    lightingDebug.lastDistanceCulledCount = lightContext.DistanceCulledCount;
-#endif
-
-                    using (PipelineCpuMarkers.s_ProcessLightExecuteCommandBuffer.Auto())
-                    {
-                        scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                        cmdBuffer.Clear();
-                    }
-                }
-
-                VFXCameraXRSettings cameraXRSettings;
-                cameraXRSettings.viewTotal = 1;
-                cameraXRSettings.viewCount = 1;
-                cameraXRSettings.viewOffset = 0;
-                VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
-                scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                cmdBuffer.Clear();
-            }
-
-            return new SceneCullingResults(cullingResults, mainCulling, lightContext, sceneWorld.meshes, sceneWorld.decals.table.count);
-        }
-
         // The camera's pass list in submission order. Each record call has its own CPU marker.
-        void RecordCamera(in ViewContext context)
+        private protected override void RecordCamera(in ViewContext context, CommandBuffer cmdBuffer)
         {
+            // Shadow and light-loop constants are final once CullCamera built the lights; every pass of the
+            // camera reads them from these two uniforms, uploaded ahead of the graph.
+            context.state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
+            context.state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
+
             // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
             // so the whole geometry raster window can overlap them.
             using (PipelineCpuMarkers.s_RecordUploadLightData.Auto())
@@ -990,352 +396,19 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_UtilityPass.RecordCameraOutput(context);
             }
-            using (PipelineCpuMarkers.s_RecordEnsureRequiredProducers.Auto())
-            {
-                context.features.EnsureRequiredProducers(context.temporalResolve);
-            }
         }
 
-        void BeginMeshCamera(Camera camera, EMeshDrawBackendPolicy assetPolicy)
-        {
-            MeshWorld world = renderContext.sceneWorld.meshes;
-            EMeshDrawBackendPolicy requestedBackend = assetPolicy;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            InfinityDebugDisplaySettingsMesh debug = InfinityDebugDisplaySettings.current.mesh;
-            EMeshDrawBackendPolicy? diagnosticOverride = null;
-            if (PipelineDiagnostics.TryOverrideBackend(camera, out EMeshDrawBackendPolicy diagnosticBackend))
-                diagnosticOverride = diagnosticBackend;
-            requestedBackend = ResolveMeshBackend(diagnosticOverride, debug.backendOverride, assetPolicy);
-#endif
-            world.requestedBackend = requestedBackend;
-            world.BeginCamera(camera);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            debug.requestedBackend = world.requestedBackend;
-            debug.actualBackend = world.SelectBackend(MeshPassTable.Depth);
-            debug.backendReason = world.requestedBackend == EMeshDrawBackendPolicy.CPUDirect ? "Requested CPU Direct"
-                : world.gpuBackend.isSupported ? "Indirect drawing supported" : "Indirect drawing unsupported; CPU Direct";
-            debug.entityCount = world.entityCount;
-            debug.elementCount = world.elementCount;
-            debug.passCacheCount = world.stats.passCacheCount;
-            debug.commandCount = world.stats.commandCount;
-#endif
-        }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        /// <summary>A diagnostics override wins, then the Rendering Debugger, then the asset.</summary>
-        internal static EMeshDrawBackendPolicy ResolveMeshBackend(EMeshDrawBackendPolicy? diagnosticOverride, EMeshDrawBackendPolicy? debugOverride,
-            EMeshDrawBackendPolicy assetPolicy)
-        {
-            return diagnosticOverride ?? debugOverride ?? assetPolicy;
-        }
-#endif
-
-        internal static void CompleteFrameTransaction(IFrameTransaction[] shared, Dictionary<int, CameraFrameState> states, bool submitted)
-        {
-            for (int i = 0; i < shared.Length; ++i)
-            {
-                if (submitted) shared[i].CommitFrame();
-                else shared[i].RollbackPending();
-            }
-            foreach (CameraFrameState state in states.Values)
-            {
-                if (submitted && state.executeSucceeded) state.CommitFrame();
-                else if (state.preparedThisRender) state.RollbackFrame();
-            }
-        }
-
-        void FlushFrameRetirement(ResourceReuseFence reuseFence)
-        {
-            renderContext.graph.FlushRetiredResources(reuseFence);
-            renderContext.sceneWorld.lights.context.FlushRetiredBuffers();
-            IFrameTransaction[] frameTransactions = renderContext.frameTransactions;
-            for (int i = 0; i < frameTransactions.Length; ++i)
-            {
-                frameTransactions[i].FlushRetired(reuseFence);
-            }
-            foreach (CameraFrameState state in renderContext.cameras.states.Values)
-            {
-                state.FlushRetired(reuseFence);
-            }
-            renderContext.sceneWorld.meshes.FlushRetired(reuseFence);
-        }
-
-        void CaptureGraphicsState()
-        {
-            m_PreviousGlobalStateOwner = s_GlobalStateOwner;
-#if UNITY_EDITOR
-            m_PreviousLightmapperStateOwner = s_LightmapperStateOwner;
-            m_PreviousLightmapperDelegate = UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate();
-#endif
-            m_PreviousSupportedFeatures = SupportedRenderingFeatures.active;
-            m_PreviousGlobalRenderPipeline = Shader.globalRenderPipeline;
-            m_PreviousLightsUseLinearIntensity = GraphicsSettings.lightsUseLinearIntensity;
-            m_PreviousLightsUseColorTemperature = GraphicsSettings.lightsUseColorTemperature;
-            m_PreviousUseScriptableRenderPipelineBatching = GraphicsSettings.useScriptableRenderPipelineBatching;
-            m_PreviousAntiAliasing = QualitySettings.antiAliasing;
-            m_PreviousBlitMaterial = GraphicsUtility.s_BlitMaterial;
-            m_PreviousBestFitTexture = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
-        }
-
-#if UNITY_EDITOR
-        void InstallLightmapperState()
-        {
-            UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(InfinityLightmapperDelegate.Delegate);
-            m_LightmapperStateReleased = false;
-            s_LightmapperStateOwner = this;
-        }
-
-        void RestoreLightmapperState()
-        {
-            m_LightmapperStateReleased = true;
-            if (s_LightmapperStateOwner != this) return;
-            var previousOwner = m_PreviousLightmapperStateOwner;
-            var previousDelegate = m_PreviousLightmapperDelegate;
-            while (previousOwner != null && previousOwner.m_LightmapperStateReleased)
-            {
-                if (previousDelegate == InfinityLightmapperDelegate.Delegate)
-                    previousDelegate = previousOwner.m_PreviousLightmapperDelegate;
-                previousOwner = previousOwner.m_PreviousLightmapperStateOwner;
-            }
-            s_LightmapperStateOwner = previousOwner;
-            if (UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate() == InfinityLightmapperDelegate.Delegate)
-                UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(previousDelegate);
-        }
-#endif
-
-        void RestoreGraphicsState()
-        {
-#if UNITY_EDITOR
-            RestoreLightmapperState();
-#endif
-            if (s_GlobalStateOwner != this) return;
-            s_GlobalStateOwner = m_PreviousGlobalStateOwner != null && !m_PreviousGlobalStateOwner.m_ResourcesDisposed ? m_PreviousGlobalStateOwner : null;
-            // A replacement pipeline may have already installed its own global state.
-            if (!ReferenceEquals(SupportedRenderingFeatures.active, m_InstalledSupportedFeatures)) return;
-            SupportedRenderingFeatures.active = m_PreviousSupportedFeatures;
-            if (Shader.globalRenderPipeline == "InfinityRenderPipeline")
-                Shader.globalRenderPipeline = m_PreviousGlobalRenderPipeline;
-            if (GraphicsSettings.lightsUseLinearIntensity)
-                GraphicsSettings.lightsUseLinearIntensity = m_PreviousLightsUseLinearIntensity;
-            if (GraphicsSettings.lightsUseColorTemperature)
-                GraphicsSettings.lightsUseColorTemperature = m_PreviousLightsUseColorTemperature;
-            if (GraphicsSettings.useScriptableRenderPipelineBatching == m_InstalledBatching)
-                GraphicsSettings.useScriptableRenderPipelineBatching = m_PreviousUseScriptableRenderPipelineBatching;
-            if (QualitySettings.antiAliasing == 0)
-                QualitySettings.antiAliasing = m_PreviousAntiAliasing;
-            if (GraphicsUtility.s_BlitMaterial == m_InstalledBlitMaterial)
-                GraphicsUtility.s_BlitMaterial = m_PreviousBlitMaterial;
-            if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
-                Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
-        }
-
-        static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
-        {
-            if (camera.cameraType == CameraType.Preview)
-            {
-                volumeTrigger = camera.transform;
-                volumeLayerMask = 0;
-                return;
-            }
-
-            InfinityAdditionalCameraData resolved = cameraData;
-            if (camera.cameraType == CameraType.SceneView)
-            {
-                Camera game = FindUniqueActiveGameCamera(cameras);
-                if (game != null)
-                {
-                    game.TryGetComponent(out resolved);
-                }
-            }
-
-            volumeTrigger = (resolved != null && resolved.volumeTrigger != null) ? resolved.volumeTrigger : camera.transform;
-            volumeLayerMask = resolved != null ? resolved.volumeLayerMask : (LayerMask)~0;
-        }
-
-        static Camera FindUniqueActiveGameCamera(List<Camera> cameras)
-        {
-            Camera found = null;
-            for (int i = 0; i < cameras.Count; ++i)
-            {
-                Camera candidate = cameras[i];
-                if (candidate == null || candidate.cameraType != CameraType.Game || !candidate.isActiveAndEnabled)
-                {
-                    continue;
-                }
-
-                if (found != null)
-                {
-                    return null;
-                }
-
-                found = candidate;
-            }
-
-            return found;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void SetGraphicsSetting()
-        {
-            // Resolve dependencies and allocate the feature declaration before any global write.
-            m_InstalledBatching = m_Settings.enableSRPBatch;
-            m_InstalledBlitMaterial = resources.materials.blitMaterial;
-            m_InstalledBestFitTexture = resources.textures.bestFitNormalTexture;
-            var installedFeatures = new SupportedRenderingFeatures()
-            {
-                // Probes are axis aligned (their capture is world aligned); influence and projection boxes blend.
-                reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.None,
-                reflectionProbesBlendDistance = true,
-                defaultMixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly,
-                mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly | SupportedRenderingFeatures.LightmapMixedBakeModes.Shadowmask,
-                lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed | LightmapBakeType.Realtime,
-                lightmapsModes = LightmapsMode.NonDirectional | LightmapsMode.CombinedDirectional,
-                lightProbeProxyVolumes = true,
-                overridesLightProbeSystem = m_Settings.supportProbeVolume,
-                skyOcclusion = m_Settings.supportProbeVolume,
-                motionVectors = true,
-                receiveShadows = true,
-                reflectionProbes = true,
-                rendererPriority = true,
-                overridesFog = true,
-                overridesOtherLightingSettings = true,
-                editableMaterialRenderQueue = true,
-                enlighten = false,
-                overridesLODBias = true,
-                overridesMaximumLODLevel = true,
-                rendersUIOverlay = true,
-                supportsHDR = true
-            };
-            m_InstalledSupportedFeatures = installedFeatures;
-            s_GlobalStateOwner = this;
-            InheritHdrTonemappingOwnership(m_PreviousGlobalStateOwner);
-            SupportedRenderingFeatures.active = installedFeatures;
-            Shader.globalRenderPipeline = "InfinityRenderPipeline";
-
-            GraphicsUtility.s_BlitMaterial = m_InstalledBlitMaterial;
-
-            GraphicsSettings.lightsUseLinearIntensity = true;
-            GraphicsSettings.lightsUseColorTemperature = true;
-            GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
-            Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
-#if UNITY_EDITOR
-            InstallLightmapperState();
-#endif
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void InvokeProxyUpdate()
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using (new PipelineFrameMeasurement.Scope(true, 0))
-#endif
-            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
-            {
-                // One scene transaction across the modules, then poses: explicit static notifications and every dynamic transform.
-                SceneWorld sceneWorld = renderContext.sceneWorld;
-                sceneWorld.Update(ConsumeStaticPoseRefresh());
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using (new PipelineFrameMeasurement.Section(1))
-#endif
-                {
-                    sceneWorld.ApplyStaticPoses();
-                }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using (new PipelineFrameMeasurement.Section(0))
-#endif
-                {
-                    sceneWorld.meshes.UpdateDynamicPoses();
-                }
-            }
-        }
-
-        // Static poses refresh once per pipeline instance; in the Editor only when the asset asks for it.
-        bool ConsumeStaticPoseRefresh()
-        {
-            if (!m_UpdateInit) return false;
-            m_UpdateInit = false;
-#if UNITY_EDITOR
-            return m_Settings.updateProxy;
-#else
-            return true;
-#endif
-        }
-
+        // The pass-owned diffusion buffer returns to the pool before the base disposes the render context.
         protected override void Dispose(bool disposing)
         {
-            base.Dispose(disposing);
-            if (disposing) ReleaseOwnedResources();
-        }
-
-        void ReleaseOwnedResources()
-        {
-            if (m_ResourcesDisposed) return;
-            m_ResourcesDisposed = true;
-            var failures = new List<Exception>();
-            void Release(Action action)
+            try
             {
-                try { action(); }
-                catch (Exception error) { failures.Add(error); }
+                if (disposing) m_SubsurfacePass.Dispose();
             }
-            bool ownsSharedResources = s_GlobalStateOwner == this;
-            if (ownsSharedResources)
+            finally
             {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                PipelineFrameMeasurement.Dispose();
-#endif
-                Release(RestoreHdrTonemapping);
+                base.Dispose(disposing);
             }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (ownsSharedResources) Release(PipelineDiagnostics.PipelineDisposed);
-#endif
-            // The pass-owned diffusion buffer returns to the pool before the render context disposes it. A failed
-            // construction reaches here without the pass or the context.
-            if (m_SubsurfacePass != null) Release(m_SubsurfacePass.Dispose);
-            if (renderContext != null) Release(renderContext.Dispose);
-
-            if (ownsSharedResources && m_OwnsVolumeManager &&
-                ReferenceEquals(VolumeManager.instance.globalDefaultProfile, resources.defaultVolumeProfile) &&
-                ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
-            m_OwnsVolumeManager = false;
-            if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
-            Release(RestoreGraphicsState);
-            if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);
-        }
-
-        static bool VolumeComponentActive(VolumeComponent component)
-        {
-            return GraphicsUtility.VolumeComponentActive(component);
-        }
-
-        // Per-camera support the registry cannot read from resources: temporal policy, diffusion profiles and RTAO
-        // readiness. RTAO is ready when the asset, frame settings, volume and UnifiedRayTracing environment allow it and
-        // the acceleration structure has instances; otherwise the reason is kept for the Rendering Debugger.
-        FeatureSupportContext ResolveFeatureSupport(CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings, in VolumeSnapshot volumes)
-        {
-            string rtaoReason = null;
-            if (!m_Settings.enableRayTrace)
-                rtaoReason = RtaoAssetDisabled;
-            else if (!frameSettings.IsEnabled(EFrameSetting.RayTracedAmbientOcclusion))
-                rtaoReason = RtaoFrameSettings;
-            else if (!VolumeComponentActive(volumes.rayTracingAmbientOcclusion))
-                rtaoReason = RtaoVolumeInactive;
-            else if (!InfinityRayTracingEnvironment.CanRecord(shaders))
-                rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? RtaoNotReady : InfinityRayTracingEnvironment.lastBlockReason;
-            else
-            {
-                var rayEnv = InfinityRayTracingEnvironment.current;
-                rayEnv.SyncGeometry(renderContext.sceneWorld.meshes);
-                if (rayEnv.InstanceCount == 0) rtaoReason = RtaoNoInstances;
-            }
-            InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
-            return new FeatureSupportContext
-            {
-                resourceReasons = resources.featureResourceReasons,
-                temporal = policy.temporal,
-                hasDiffusionProfiles = m_Settings.hasDiffusionProfiles,
-                rayTracedOcclusionReady = rtaoReason == null,
-                rayTracedOcclusionReason = rtaoReason,
-            };
         }
     }
 }

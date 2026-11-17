@@ -313,7 +313,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
             builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
 
-            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            InfinityRenderPipelineBase pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             if (pipeline == null || pipeline.renderContext == null || pipeline.renderContext.sceneWorld.lights.context == null)
             {
                 builder.Append("pipeline=null").AppendLine();
@@ -350,7 +350,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
             builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
 
-            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            InfinityRenderPipelineBase pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             if (pipeline == null || pipeline.renderContext == null)
             {
                 builder.Append("pipeline=null").AppendLine();

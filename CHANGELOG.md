@@ -79,6 +79,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - Root task ledger retired; active work uses conversation tasks.
 
 ### Added
+- `InfinityRenderPipelineBase` owns the render context and the frame; a pipeline derives it, passes `PipelineCapabilities` (recorded features, required producers, async compute) and overrides `RecordCamera`. `InfinityRenderPipeline` is the desktop pipeline on it and `TestRenderPipeline` (EditMode tests) a depth-only second one. Required producers come from the capabilities instead of a static list, a feature the pipeline does not record reports that reason, and `static_check pipelinebase` keeps the base and the contexts free of the desktop pipeline and its passes.
 - Stochastic screen-space reflections (Frostbite): tile classification into Hi-Z / linear / skip with indirect
   dispatch, half-resolution tracing, VNDF sampling with the blue-noise Sobol textures, ray-reuse resolve with
   filtered importance sampling, virtual-point temporal reprojection with per-pixel history age, optional a-trous pass,

@@ -125,7 +125,7 @@ namespace InfinityTech.Rendering.Editor
         [CliCommand("infinity_mesh_state", "Read current MeshWorld entity, element and pass-cache data for the selected Editor without altering it.")]
         public static object MeshState()
         {
-            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             if (pipeline == null) throw new InvalidOperationException("Infinity is not the active pipeline.");
             MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             var entities = new System.Collections.Generic.List<object>();

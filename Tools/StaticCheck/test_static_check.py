@@ -345,6 +345,27 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/Pipeline/Pass/B.cs:1', 'Runtime/Pipeline/Pass/C.cs:1', 'Runtime/Pipeline/Pass/D.cs:1'],
                          sorted(o[2].split(': ')[0] for o in out))
 
+    def test_pipeline_base_rejects_the_desktop_pipeline_and_its_passes_and_allows_listed_types(self):
+        self.write('Runtime/Pipeline/Pass/Geometry/DepthPass.cs', 'internal sealed class DepthPass { }\ninternal static class CameraCulling { }\n')
+        self.write('Runtime/Pipeline/InfinityRenderPipelineBase.cs',
+                   '// InfinityRenderPipeline and DepthPass in a comment are fine\n'
+                   'public abstract partial class InfinityRenderPipelineBase : RenderPipeline\n'
+                   '{\n'
+                   '    InfinityRenderPipelineResources resources; InfinityRenderPipelineAsset.Settings m_Settings;\n'
+                   '    void Cull() { CameraCulling.Context(camera, ref parameters); Shader.globalRenderPipeline = "InfinityRenderPipeline"; }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Context/ViewContext.cs', 'internal readonly struct ViewContext { }\n')
+        self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public class InfinityRenderPipeline : InfinityRenderPipelineBase { readonly DepthPass m_DepthPass; }\n')
+        out = []
+        static_check.check_pipeline_base(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/HDROutputState.cs',
+                   'public abstract partial class InfinityRenderPipelineBase\n{\n    void Inherit(InfinityRenderPipeline previous) { }\n}\n')
+        self.write('Runtime/Pipeline/Context/RenderContext.cs', 'internal sealed class RenderContext\n{\n    DepthPass m_DepthPass;\n}\n')
+        static_check.check_pipeline_base(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Context/RenderContext.cs:3', 'Runtime/Pipeline/HDROutputState.cs:3'],
+                         sorted(o[2].split(': ')[0] for o in out))
+
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
         out = []

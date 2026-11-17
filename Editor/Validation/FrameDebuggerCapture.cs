@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Editor
             s_ProfilerGuid = UnityEditorInternal.ProfilerDriver.connectedProfiler;
             s_PreviousLimit = Convert.ToInt32(s_Utility.GetProperty("limit", Static).GetValue(null));
             Camera camera = cameraName == null ? Validation.ValidationSceneUtility.RequireActiveGameCamera() : Camera.allCameras.Single(c => c.cameraType == CameraType.Game && c.isActiveAndEnabled && c.name == cameraName && c.gameObject.scene.name == sceneName);
-            var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipeline
+            var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipelineBase
                 ?? throw new InvalidOperationException("Frame tree requires an active Infinity render pipeline.");
             Pipeline.CameraStateTable cameraStates = pipeline.renderContext.cameras;
             string cameraSampler = CameraSamplerName(camera, cameraStates);

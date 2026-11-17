@@ -5,8 +5,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class FeatureRegistryTests
     {
+        static bool[] AllFeatures()
+        {
+            var mask = new bool[FrameFeatureSet.Count];
+            for (int i = 0; i < mask.Length; ++i) mask[i] = true;
+            return mask;
+        }
+
         static FeatureSupportContext NoShaders(bool temporal) => new FeatureSupportContext
         {
+            pipelineFeatures = AllFeatures(),
             resourceReasons = FeatureRegistry.ResolveResourceSupport(new PipelineKernels(new InfinityRenderPipelineRuntimeShaders()), new InfinityRenderPipelineRuntimeTextures()),
             temporal = temporal,
             rayTracedOcclusionReady = false,
@@ -65,6 +73,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.SSR));
             StringAssert.Contains("without history", features.GetUnsupportedReason(EFrameFeature.TAA));
             Assert.IsFalse(features.IsRequested(EFrameFeature.HiZ));
+        }
+
+        [Test]
+        public void FeatureOutsideThePipeline_DoesNotRecord()
+        {
+            var features = new FrameFeatureSet();
+            features.Request(EFrameFeature.Depth);
+            features.Request(EFrameFeature.Display);
+            FeatureSupportContext support = NoShaders(true);
+            support.pipelineFeatures[(int)EFrameFeature.Display] = false;
+            FeatureRegistry.Resolve(features, support);
+            Assert.IsTrue(features.ShouldRecord(EFrameFeature.Depth));
+            Assert.IsFalse(features.ShouldRecord(EFrameFeature.Display));
+            Assert.AreEqual("This pipeline does not record it.", features.GetUnsupportedReason(EFrameFeature.Display));
         }
 
         [Test]

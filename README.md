@@ -26,7 +26,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 
 ## What a frame records
 
-Recording follows `InfinityRenderPipeline.Render`. Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
+`InfinityRenderPipelineBase.Render` runs the frame and `InfinityRenderPipeline.RecordCamera` records each camera. Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - Mesh drawing through `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`, with nine pass caches owned by the mesh world
 - Deferred shading from a thin GBuffer, plus a forward surface route
