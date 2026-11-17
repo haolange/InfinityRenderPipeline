@@ -44,18 +44,36 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             return count;
         }
 
-        // The compiled producers as (reads, writes) columns of DescribeCompiledGraph.
-        static System.Collections.Generic.List<(string reads, string writes)> CompiledProducers(RGBuilder graph)
+        // The compiled passes of one sampler as (reads, writes) columns of DescribeCompiledGraph.
+        static System.Collections.Generic.List<(string reads, string writes)> CompiledPasses(RGBuilder graph, string samplerName)
         {
-            var producers = new System.Collections.Generic.List<(string, string)>();
+            var passes = new System.Collections.Generic.List<(string, string)>();
             string[] lines = graph.DescribeCompiledGraph().Split('\n');
             for (int i = 1; i < lines.Length; ++i)
             {
                 string[] fields = lines[i].Split('|');
-                if (fields.Length > 8 && fields[1] == "ComputeMeshDrawList") producers.Add((fields[7], fields[8]));
+                if (fields.Length > 8 && fields[1] == samplerName) passes.Add((fields[7], fields[8]));
             }
-            return producers;
+            return passes;
         }
+
+        // List producers and view producers.
+        static System.Collections.Generic.List<(string reads, string writes)> CompiledProducers(RGBuilder graph) => CompiledPasses(graph, "ComputeMeshDrawList");
+        static System.Collections.Generic.List<(string reads, string writes)> CompiledViewProducers(RGBuilder graph) => CompiledPasses(graph, "ComputeMeshView");
+
+        // The compiled position of the first pass of one sampler whose (reads, writes) columns match, or -1.
+        static int CompiledIndexOf(RGBuilder graph, string samplerName, System.Predicate<(string reads, string writes)> match)
+        {
+            string[] lines = graph.DescribeCompiledGraph().Split('\n');
+            for (int i = 1; i < lines.Length; ++i)
+            {
+                string[] fields = lines[i].Split('|');
+                if (fields.Length > 8 && fields[1] == samplerName && match((fields[7], fields[8]))) return i - 1;
+            }
+            return -1;
+        }
+
+        static RGBufferHandle Visibility(RGBuilder graph, in RGMeshViewHandle viewHandle) => Registry(graph).GetViewCopy(viewHandle.index).visibilityHandle;
 
         static string Column(RGTextureHandle textureHandle) => "Texture:" + textureHandle.handle.index + ",";
         static string Column(RGBufferHandle bufferHandle) => "Buffer:" + bufferHandle.handle.index + ",";
@@ -297,6 +315,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.IsFalse(record.build.isCreated, "A released CPU list never schedules its build.");
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", true), "The producer is culled with its consumer.");
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", true));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", true), "A view producer without a live list is culled with it.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -322,6 +341,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.IsNull(record.payload);
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", false));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false), "A view whose only list is empty declares no producer.");
+                    Assert.IsNull(registry.GetViewCopy(registry.ViewOfList(drawsHandle.index)).payload);
                     using (var commands = new CommandBuffer())
                     {
                         Assert.DoesNotThrow(() => registry.SubmitMeshDrawList(commands, drawsHandle));
@@ -339,6 +360,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Compile(graph);
                     Assert.AreEqual(EMeshDrawListState.Scheduled, Registry(graph).GetListCopy(drawsHandle.index).state);
                     Assert.AreEqual(1, CountPasses(graph, backend == EMeshDrawBackendPolicy.GPUIndirect ? "ComputeMeshDrawList" : "UploadMeshData", true));
+                    Assert.AreEqual(backend == EMeshDrawBackendPolicy.GPUIndirect ? 1 : 0, CountPasses(graph, "ComputeMeshView", true));
                 }
                 finally { MeshTestUtility.Release(graph); }
 
@@ -356,6 +378,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(EMeshDrawListState.Empty, Registry(graph).GetListCopy(drawsHandle.index).state);
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", false));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false));
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -384,6 +407,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(4, CountPasses(graph, ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow).name, true));
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", false));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false), "An empty cascade view dispatches nothing.");
+                    for (int i = 0; i < 4; ++i)
+                        Assert.IsNull(registry.GetViewCopy(i).payload, "An empty cascade view rents no culling context.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -411,6 +437,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.IsTrue(registry.GetListCopy(gbufferHandle.index).build.isCreated);
                     Assert.AreEqual(2, CountPasses(graph, "UploadMeshData", true), "One upload producer per live list.");
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false), "A view drawn only on the CPU declares no GPU producer.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -439,7 +466,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, Occluder(earlyHandle, false)),
                         "A history view has one remainder view, so an instance draws at most once per view and pass.");
                     Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.GBuffer),
-                        "A remainder list reads the drawn table of the same pass on the history view; GBuffer has no list there.");
+                        "A remainder list draws what the list of the same pass on the history view left; GBuffer has no list there.");
                     RGMeshDrawListHandle remainderHandle = graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.Depth);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, firstHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, cascadeHandle, true);
@@ -449,19 +476,30 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshViewRegistry registry = Registry(graph);
                     Assert.AreEqual(EMeshDrawListState.Scheduled, registry.GetListCopy(remainderHandle.index).state,
                         "What the history pyramid hid is left to the remainder view.");
-                    RGBufferHandle drawnHandle = registry.GetListCopy(firstHandle.index).drawnHandle;
-                    Assert.IsTrue(drawnHandle.IsValid(), "A GPU list of a history view records which candidates it drew.");
-                    Assert.IsFalse(registry.GetListCopy(cascadeHandle.index).drawnHandle.IsValid());
-                    Assert.IsFalse(registry.GetListCopy(remainderHandle.index).drawnHandle.IsValid());
-                    var producers = CompiledProducers(graph);
-                    Assert.AreEqual(3, producers.Count);
-                    Assert.AreEqual(1, producers.FindAll(p => p.writes.Contains(Column(drawnHandle))).Count, "The history list writes the drawn table.");
-                    Assert.AreEqual(1, producers.FindAll(p => p.reads.Contains(Column(drawnHandle))).Count, "Only the remainder list reads it.");
-                    Assert.AreEqual(1, producers.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "Only the remainder list tests the newer occluder.");
-                    string compiled = graph.DescribeCompiledGraph();
-                    int producer = compiled.IndexOf("|ComputeMeshDrawList|", System.StringComparison.Ordinal);
-                    Assert.GreaterOrEqual(producer, 0);
-                    Assert.Less(producer, compiled.IndexOf(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery).name, System.StringComparison.Ordinal));
+                    RGBufferHandle historyHandle = Visibility(graph, historyViewHandle);
+                    RGBufferHandle remainderVisibilityHandle = Visibility(graph, remainderViewHandle);
+                    RGBufferHandle cascadeVisibilityHandle = registry.GetViewCopy(registry.ViewOfList(cascadeHandle.index)).visibilityHandle;
+                    Assert.IsTrue(historyHandle.IsValid() && remainderVisibilityHandle.IsValid() && cascadeVisibilityHandle.IsValid());
+                    var views = CompiledViewProducers(graph);
+                    Assert.AreEqual(3, views.Count, "One producer per view with a GPU list.");
+                    Assert.AreEqual(1, views.FindAll(p => p.writes.Contains(Column(historyHandle))).Count, "The history view's producer writes its visibility.");
+                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(historyHandle))).Count, "Only the remainder view reads it as SRV_MeshViewDrawn.");
+                    Assert.IsTrue(views.Find(p => p.reads.Contains(Column(historyHandle))).writes.Contains(Column(remainderVisibilityHandle)));
+                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "Only the remainder view tests the newer occluder.");
+                    var lists = CompiledProducers(graph);
+                    Assert.AreEqual(3, lists.Count);
+                    Assert.AreEqual(0, lists.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "A list tests no occluder; its view did.");
+                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(historyHandle))).Count, "The history list reads its view's visibility.");
+                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(remainderVisibilityHandle))).Count, "The remainder list reads its own view's.");
+                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(cascadeVisibilityHandle))).Count);
+                    int historyView = CompiledIndexOf(graph, "ComputeMeshView", p => p.writes.Contains(Column(historyHandle)));
+                    int remainderView = CompiledIndexOf(graph, "ComputeMeshView", p => p.writes.Contains(Column(remainderVisibilityHandle)));
+                    int remainderList = CompiledIndexOf(graph, "ComputeMeshDrawList", p => p.reads.Contains(Column(remainderVisibilityHandle)));
+                    int recovery = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery).name);
+                    Assert.GreaterOrEqual(historyView, 0);
+                    Assert.Less(historyView, remainderView, "The remainder view's producer follows the history view's producer it reads.");
+                    Assert.Less(remainderView, remainderList);
+                    Assert.Less(remainderList, recovery);
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -521,8 +559,12 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshViewRegistry registry = Registry(graph);
                     Assert.AreEqual(EMeshDrawListState.Scheduled, registry.GetListCopy(depthHandle.index).state);
                     Assert.AreEqual(EMeshDrawListState.Scheduled, registry.GetListCopy(gbufferHandle.index).state);
-                    Assert.IsFalse(registry.GetListCopy(gbufferHandle.index).drawnHandle.IsValid(), "A list tested against this frame's depth tracks nothing.");
                     Assert.AreEqual(2, CountPasses(graph, "ComputeMeshDrawList", true));
+                    var views = CompiledViewProducers(graph);
+                    Assert.AreEqual(2, views.Count);
+                    RGBufferHandle frustumHandle = Visibility(graph, frustumViewHandle), occludedHandle = Visibility(graph, occludedViewHandle);
+                    Assert.IsFalse(views.Exists(p => p.reads.Contains(Column(frustumHandle)) || p.reads.Contains(Column(occludedHandle))),
+                        "Neither view is a remainder, so no view producer reads another view's visibility.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -569,6 +611,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(EMeshDrawListState.Empty, registry.GetListCopy(emptyHandle.index).state);
                     Assert.IsNull(registry.GetListCopy(emptyHandle.index).payload);
                     Assert.AreEqual(1, CountPasses(graph, "ComputeMeshDrawList", false));
+                    Assert.AreEqual(1, CountPasses(graph, "ComputeMeshView", false), "The nonempty list declared the view's producer.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -595,7 +638,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     AddConsumer(graph, shadowTargetHandle, CustomSamplerId.RasterCascadeShadow, cascadeShadowHandle, true);
                     AddConsumer(graph, shadowTargetHandle, CustomSamplerId.RasterLocalShadow, localShadowHandle, true);
                     Compile(graph);
-                    Assert.AreEqual(4, CountPasses(graph, "ComputeMeshDrawList", true), "Visibility is evaluated inside each list's producer.");
+                    Assert.AreEqual(4, CountPasses(graph, "ComputeMeshDrawList", true), "One producer per GPU list.");
+                    Assert.AreEqual(3, CountPasses(graph, "ComputeMeshView", true), "One producer per view: the main view's two lists share one.");
                     Assert.AreEqual(0, CountPasses(graph, "UploadMeshData", false));
                     int depth = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterDepth).name);
                     int gbuffer = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterGBuffer).name);
@@ -629,28 +673,37 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
+        // View independence: an occluder belongs to the view culled with it; a view culled with MeshOccluder.None in the same
+        // graph reads no other view's occluder. That light views are culled with MeshOccluder.None is guaranteed at their call
+        // sites (CascadeShadowPass, LocalShadowPass) and checked by static_check meshpasses.
         [Test]
-        public void LightView_IsNotTestedAgainstTheMainViewsOccluder()
+        public void Views_AreIndependent_AFrustumViewReadsNoOtherViewsOccluder()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "LightOccluder", EMeshDrawBackendPolicy.GPUIndirect);
+                RGBuilder graph = CreateGraph(fixture, "ViewIndependence", EMeshDrawBackendPolicy.GPUIndirect);
                 try
                 {
                     RGTextureHandle earlyHandle = WrittenTarget(graph);
                     RGMeshViewHandle mainViewHandle = graph.CullMeshView(new MeshViewDesc(MeshTestUtility.CameraContext(), default, Occluder(earlyHandle, false)));
                     RGMeshDrawListHandle mainHandle = graph.CreateMeshDrawList(mainViewHandle, InfinityMeshPasses.GBuffer);
-                    RGMeshDrawListHandle lightHandle = graph.CreateMeshDrawList(View(graph, LightContext(0)), InfinityMeshPasses.Shadow);
+                    RGMeshViewHandle lightViewHandle = View(graph, LightContext(0));
+                    RGMeshDrawListHandle lightHandle = graph.CreateMeshDrawList(lightViewHandle, InfinityMeshPasses.Shadow);
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterGBuffer, mainHandle, true);
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterCascadeShadow, lightHandle, true);
                     Compile(graph);
 
                     Assert.AreEqual(EMeshDrawListState.Scheduled, Registry(graph).GetListCopy(lightHandle.index).state);
-                    var producers = CompiledProducers(graph);
-                    Assert.AreEqual(2, producers.Count);
-                    Assert.AreEqual(1, producers.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count,
-                        "Only the main view's producer reads its occluder; the light view has none.");
+                    var views = CompiledViewProducers(graph);
+                    Assert.AreEqual(2, views.Count);
+                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count,
+                        "Only the main view's producer reads its occluder; the frustum view has none.");
+                    Assert.IsTrue(views.Find(p => p.reads.Contains(Column(earlyHandle))).writes.Contains(Column(Visibility(graph, mainViewHandle))));
+                    var lists = CompiledProducers(graph);
+                    Assert.AreEqual(2, lists.Count);
+                    Assert.AreEqual(0, lists.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "A list reads its view's visibility, never an occluder.");
+                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(Visibility(graph, lightViewHandle)))).Count);
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -687,17 +740,72 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreNotEqual(firstViewHandle.index, secondViewHandle.index);
                     Assert.AreEqual(registry.ViewOfList(firstDepthHandle.index), registry.ViewOfList(firstGBufferHandle.index));
                     Assert.AreEqual(registry.ViewOfList(secondDepthHandle.index), registry.ViewOfList(secondGBufferHandle.index));
+                    // Neither view became a remainder of the other: none reads another view's visibility (SRV_MeshViewDrawn).
+                    Assert.AreEqual(-1, registry.GetViewCopy(firstViewHandle.index).drawnView);
+                    Assert.AreEqual(-1, registry.GetViewCopy(secondViewHandle.index).drawnView);
+                    RGBufferHandle firstHandle = Visibility(graph, firstViewHandle), secondHandle = Visibility(graph, secondViewHandle);
+                    Assert.AreNotEqual(firstHandle.handle.index, secondHandle.handle.index, "Two views are two visibility products.");
+                    var views = CompiledViewProducers(graph);
+                    Assert.AreEqual(2, views.Count, "One producer per view, whatever order its lists were created in.");
+                    foreach ((string reads, string writes) view in views)
+                    {
+                        StringAssert.Contains(Column(occluderHandle), view.reads, "Each view tests its own occluder.");
+                        Assert.IsFalse(view.reads.Contains(Column(firstHandle)) || view.reads.Contains(Column(secondHandle)),
+                            "No view producer reads another view's visibility; neither view is a remainder.");
+                    }
                     var producers = CompiledProducers(graph);
                     Assert.AreEqual(4, producers.Count, "Every list of either view draws; none became a silent remainder.");
                     foreach (RGMeshDrawListHandle drawsHandle in listsHandle)
                     {
                         MeshDrawListRecord record = registry.GetListCopy(drawsHandle.index);
                         Assert.AreEqual(EMeshDrawListState.Scheduled, record.state);
-                        Assert.IsTrue(record.drawnHandle.IsValid(), "Each list of a history view tracks its own drawn candidates.");
-                        var producer = producers.Find(p => p.writes.Contains(Column(record.drawnHandle)));
-                        Assert.IsNotNull(producer.reads, "The list's producer writes its drawn table.");
-                        StringAssert.Contains(Column(occluderHandle), producer.reads, "Each list tests its view's occluder.");
+                        bool first = registry.ViewOfList(drawsHandle.index) == firstViewHandle.index;
+                        RGBufferHandle ownHandle = first ? firstHandle : secondHandle, otherHandle = first ? secondHandle : firstHandle;
+                        var producer = producers.Find(p => p.writes.Contains(Column(record.reads.producerOutputsHandle[2])));
+                        Assert.IsNotNull(producer.reads, "The list has its own producer.");
+                        StringAssert.Contains(Column(ownHandle), producer.reads, "Every list of a view reads that view's visibility.");
+                        Assert.IsFalse(producer.reads.Contains(Column(otherHandle)), "No list reads another view's visibility.");
+                        Assert.IsFalse(producer.reads.Contains(Column(occluderHandle)), "A list tests no occluder; its view did once.");
                     }
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        // Plan M2: a view's visibility is produced once for every list of it.
+        [Test]
+        public void OneView_ProducesItsVisibilityOnce_ForEveryListOfIt()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "ViewProducer", EMeshDrawBackendPolicy.GPUIndirect);
+                try
+                {
+                    RGMeshViewHandle viewHandle = View(graph, MeshTestUtility.CameraContext());
+                    RGTextureHandle targetHandle = Target(graph);
+                    RGMeshDrawListHandle depthHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.Depth);
+                    RGBufferHandle visibilityHandle = Visibility(graph, viewHandle);
+                    Assert.IsTrue(visibilityHandle.IsValid(), "The view's first nonempty GPU list declares its producer.");
+                    RGMeshDrawListHandle gbufferHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.GBuffer);
+                    RGMeshDrawListHandle shadowHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.Shadow);
+                    Assert.AreEqual(visibilityHandle.handle.index, Visibility(graph, viewHandle).handle.index, "Later lists reuse the view's visibility.");
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, depthHandle, true);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, shadowHandle, true);
+                    Compile(graph);
+
+                    MeshViewRecord view = Registry(graph).GetViewCopy(viewHandle.index);
+                    Assert.IsNotNull(view.payload, "The view rents its culling context.");
+                    Assert.AreEqual(math.max(1, fixture.world.entityHighWater), view.entityCount);
+                    var views = CompiledViewProducers(graph);
+                    Assert.AreEqual(1, views.Count, "One view producer for three lists.");
+                    StringAssert.Contains(Column(visibilityHandle), views[0].writes);
+                    var lists = CompiledProducers(graph);
+                    Assert.AreEqual(3, lists.Count);
+                    Assert.IsTrue(lists.TrueForAll(p => p.reads.Contains(Column(visibilityHandle))), "Every list reads the one visibility.");
+                    int producer = CompiledIndexOf(graph, "ComputeMeshView", p => true);
+                    Assert.Less(producer, CompiledIndexOf(graph, "ComputeMeshDrawList", p => true), "The view producer precedes every list producer.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -727,10 +835,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     string producer = gpu ? "ComputeMeshDrawList" : "UploadMeshData";
                     Assert.AreEqual(live ? 1 : 0, CountPasses(graph, producer, true));
                     Assert.AreEqual(0, CountPasses(graph, gpu ? "UploadMeshData" : "ComputeMeshDrawList", false));
+                    Assert.AreEqual(live && gpu ? 1 : 0, CountPasses(graph, "ComputeMeshView", true), "A GPU list's view is produced once, with it.");
                     if (!live) return;
 
                     string compiled = graph.DescribeCompiledGraph();
                     Assert.Less(compiled.IndexOf(producer, System.StringComparison.Ordinal), compiled.IndexOf("RasterGBuffer", System.StringComparison.Ordinal));
+                    if (gpu)
+                        Assert.Less(compiled.IndexOf("|ComputeMeshView|", System.StringComparison.Ordinal), compiled.IndexOf("|ComputeMeshDrawList|", System.StringComparison.Ordinal));
                     if (gpu)
                     {
                         Assert.IsNotNull(record.payload);
@@ -784,6 +895,36 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
+        public void ViewPayload_RetiredShellStaysOutOfThePoolUntilFlush()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshTestUtility.RequireGPUIndirect(fixture.world);
+                MeshDrawGPUBackend backend = fixture.world.gpuBackend;
+                MeshGPUViewPayload payload = backend.RentViewPayload(), other = null, again = null;
+                try
+                {
+                    backend.RetireViewPayload(payload);
+                    Assert.IsNotNull(payload.cullingContextHandle.buffer, "Retire is logical; the culling context stays with the view until flush.");
+                    other = backend.RentViewPayload();
+                    Assert.AreNotSame(payload, other, "A retired view payload is not handed out again before flush.");
+                    backend.RetireViewPayload(other);
+                    backend.FlushRetired(default);
+                    Assert.IsNull(payload.cullingContextHandle.buffer, "A pooled view payload is an empty shell.");
+                    Assert.IsNull(other.cullingContextHandle.buffer);
+                    again = backend.RentViewPayload();
+                    Assert.IsTrue(ReferenceEquals(again, payload) || ReferenceEquals(again, other));
+                    Assert.IsNotNull(again.cullingContextHandle.buffer);
+                }
+                finally
+                {
+                    backend.RetireViewPayload(again);
+                    backend.FlushRetired(default);
+                }
+            }
+        }
+
+        [Test]
         public void GpuLists_TwoViews_CancelThenRetryKeepPayloadsSeparate()
         {
             using (var fixture = new MeshWorldFixture())
@@ -805,11 +946,16 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshGPUDrawPayload secondPayload = registry.GetListCopy(secondHandle.index).payload;
                     Assert.AreNotSame(firstPayload, secondPayload);
                     Assert.AreNotSame(firstPayload.indirectArgsHandle.buffer, secondPayload.indirectArgsHandle.buffer);
+                    MeshGPUViewPayload firstView = registry.GetViewCopy(registry.ViewOfList(firstHandle.index)).payload;
+                    MeshGPUViewPayload secondView = registry.GetViewCopy(registry.ViewOfList(secondHandle.index)).payload;
+                    Assert.AreNotSame(firstView.cullingContextHandle.buffer, secondView.cullingContextHandle.buffer, "Each view owns its culling context.");
 
                     graph.ClearRecordedGraph();
                     fixture.world.gpuBackend.FlushRetired(default);
                     Assert.IsNull(firstPayload.indirectArgsHandle.buffer);
                     Assert.IsNull(secondPayload.indirectArgsHandle.buffer);
+                    Assert.IsNull(firstView.cullingContextHandle.buffer, "Clearing the graph retires its views' culling contexts.");
+                    Assert.IsNull(secondView.cullingContextHandle.buffer);
 
                     // The retry culls its views again: a view lives as long as the graph that recorded it.
                     targetHandle = Target(graph);

@@ -25,7 +25,8 @@ namespace InfinityTech.Rendering.Editor
             public string kernel;
             public int dispatches;
         }
-        [Serializable] sealed class MeshDrawListEvidence
+        // One mesh producer path (a view's ComputeMeshView or a list's ComputeMeshDrawList) and the dispatches under it.
+        [Serializable] sealed class MeshProducerEvidence
         {
             public string name;
             public int dispatches;
@@ -36,7 +37,8 @@ namespace InfinityTech.Rendering.Editor
             public string status, error, cleanupError, persistenceError, unity, camera, cameraEntity, cameraSampler, scene;
             public int nativeCount, eventCount;
             public List<EventEvidence> events = new List<EventEvidence>();
-            public List<MeshDrawListEvidence> meshDrawLists = new List<MeshDrawListEvidence>();
+            public List<MeshProducerEvidence> meshViews = new List<MeshProducerEvidence>();
+            public List<MeshProducerEvidence> meshDrawLists = new List<MeshProducerEvidence>();
         }
         static Type s_Utility, s_DataType;
         static string s_Directory;
@@ -228,17 +230,8 @@ namespace InfinityTech.Rendering.Editor
             evidence.error = error?.ToString();
             if (status == "Completed")
             {
-                evidence.meshDrawLists = evidence.events
-                    .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler)
-                        && e.name.Contains("/ComputeMeshDrawList/"))
-                    .GroupBy(e => e.name)
-                    .Select(group => new MeshDrawListEvidence
-                    {
-                        name = group.Key,
-                        dispatches = group.Count(),
-                        kernels = group.GroupBy(e => e.computeKernel)
-                            .Select(kernel => new KernelDispatchEvidence { kernel = kernel.Key, dispatches = kernel.Count() }).ToList()
-                    }).ToList();
+                evidence.meshViews = MeshProducers(evidence, "/ComputeMeshView/");
+                evidence.meshDrawLists = MeshProducers(evidence, "/ComputeMeshDrawList/");
             }
             // Unsubscribe before restoration so a failed native call cannot leave an active session.
             EditorApplication.update -= Tick;
@@ -292,6 +285,17 @@ namespace InfinityTech.Rendering.Editor
                 s_Evidence = null;
             }
         }
+        // Ready dispatches of the selected camera under one mesh producer pass name, grouped by event path and kernel.
+        static List<MeshProducerEvidence> MeshProducers(Evidence evidence, string scope) => evidence.events
+            .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler) && e.name.Contains(scope))
+            .GroupBy(e => e.name)
+            .Select(group => new MeshProducerEvidence
+            {
+                name = group.Key,
+                dispatches = group.Count(),
+                kernels = group.GroupBy(e => e.computeKernel)
+                    .Select(kernel => new KernelDispatchEvidence { kernel = kernel.Key, dispatches = kernel.Count() }).ToList()
+            }).ToList();
         static void Repaint() => typeof(EditorApplication).GetMethod("SetSceneRepaintDirty",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Invoke(null, null);
         static void Save() => File.WriteAllText(Path.Combine(s_Directory, "frame-tree.json"), JsonUtility.ToJson(s_Evidence, true));

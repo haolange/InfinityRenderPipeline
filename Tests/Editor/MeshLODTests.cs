@@ -251,7 +251,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 ComputeShader shader = Object.Instantiate(fixture.shader);
                 int count = world.entityHighWater;
                 uint2[] candidates = MeshTestUtility.LevelCandidates(count, 3);
-                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 3);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 3, count);
                 try
                 {
                     var levels = new HashSet<int>();
@@ -265,7 +265,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         string mode = lod.orthographic ? "orthographic" : "perspective";
                         MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
                         List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, context, true);
-                        List<MeshDrawnInstance> gpu = run.Build("BuildDrawList", context, dither: true);
+                        List<MeshDrawnInstance> gpu = run.Build(MeshProducerRun.CullView, context, dither: true);
+                        uint[] visibility = run.Visibility();
+                        CollectionAssert.AreEqual(MeshTestUtility.DrawnEntities(cpu, count), MeshProducerRun.Visible(visibility), $"{mode}: view visibility");
                         Assert.AreEqual(cpu.Count, gpu.Count, $"{mode}: instance count");
                         for (int i = 0; i < cpu.Count; ++i)
                         {
@@ -274,7 +276,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             Assert.AreEqual(cpu[i].command, gpu[i].command, $"{label}: level");
                             Assert.AreEqual(cpu[i].factor == 0, gpu[i].factor == 0, $"{label}: stable or in a band");
                             Assert.That(gpu[i].factor, Is.EqualTo(cpu[i].factor).Within(2.0f / 65534.0f), $"{label}: fade");
-                            if (cpu[i].factor >= 0) levels.Add(cpu[i].command);
+                            if (cpu[i].factor >= 0)
+                            {
+                                levels.Add(cpu[i].command);
+                                Assert.AreEqual(cpu[i].command, (int)((visibility[cpu[i].entity] >> 8) & 0xFFu), $"{label}: packed level");
+                            }
                             sawBand |= cpu[i].factor != 0;
                         }
                         sawCulled |= Array.IndexOf(MeshTestUtility.DrawnEntities(cpu, count), 0u) >= 0;

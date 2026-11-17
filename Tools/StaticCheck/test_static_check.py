@@ -439,6 +439,12 @@ class StaticCheckTests(unittest.TestCase):
         self.write(root + 'Graph/MeshGraphExtension.cs', 'RecordProducer MeshDrawProfiling.upload MeshDrawProfiling.production')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)
+        self.assertEqual(['Graph/MeshGraphExtension.cs: missing MeshDrawProfiling.viewProduction', 'Graph/MeshGraphExtension.cs: missing RecordViewProducer'],
+                         sorted(o[2] for o in out if 'MeshGraphExtension' in o[2]))
+        self.write(root + 'Graph/MeshGraphExtension.cs',
+                   'RecordViewProducer RecordProducer MeshDrawProfiling.viewProduction MeshDrawProfiling.upload MeshDrawProfiling.production')
+        out = []
+        static_check.check_mesh_submit(str(self.repo), out)
         self.assertEqual(1, len(out))
         self.assertIn('MeshDrawCPUBackend.cs: SubmitMeshDrawList calls SetBufferData', out[0][2])
 
@@ -458,6 +464,29 @@ class StaticCheckTests(unittest.TestCase):
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshDrawBackendPolicy')], out)
+
+    def test_light_views_are_culled_without_an_occluder(self):
+        cascade = 'Runtime/Pipeline/Pass/Shadow/CascadeShadowPass.cs'
+        local = 'Runtime/Pipeline/Pass/Shadow/LocalShadowPass.cs'
+        self.write(cascade, '// CullMeshView(new MeshViewDesc(c, default, occluder)) in a comment is ignored.\n'
+                            'var viewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(\n    CameraCulling.Context(camera, light, split), default, MeshOccluder.None));')
+        self.write(local, 'var sliceViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(CameraCulling.Context(a, b, c), default, MeshOccluder.None));')
+        out = []
+        static_check.check_mesh_passes(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write(cascade, 'var a = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), motion, earlyOccluder));\n'
+                            'var b = m_RGBuilder.CullMeshView(desc);\n'
+                            'var c = m_RGBuilder.CullMeshViewRemainder(a, MeshOccluder.None);')
+        self.write(local, 'var occluder = new MeshOccluder(furthestHandle, matrix, size, mips, false);\n'
+                          'var d = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), default, MeshOccluder.None));')
+        out = []
+        static_check.check_mesh_passes(str(self.repo), out)
+        self.assertEqual(['Shadow/CascadeShadowPass.cs:1: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/CascadeShadowPass.cs:2: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/CascadeShadowPass.cs:3: CullMeshViewRemainder of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/LocalShadowPass.cs:1: a shadow pass constructs a MeshOccluder'],
+                         sorted(o[2] for o in out))
+        self.assertTrue(all(o[1] == 'meshpasses' for o in out))
 
     def test_opaque_mesh_passes_dither_lod_transitions(self):
         dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'

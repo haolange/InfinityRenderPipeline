@@ -28,9 +28,9 @@ namespace InfinityTech.Rendering.Tests
             var timings = new InfinityDebugDisplaySettingsTimings();
             try
             {
-                CollectionAssert.AreEquivalent(new[] { "ComputeMeshDrawList", "UploadMeshData" }, MeshDrawProfiling.passes.Select(s => s.name));
-                CollectionAssert.AreEquivalent(new[] { MeshDrawProfiling.production, MeshDrawProfiling.upload }, MeshDrawProfiling.passes);
-                Assert.AreEqual(2, MeshDrawProfiling.passes.Distinct().Count());
+                CollectionAssert.AreEquivalent(new[] { "ComputeMeshView", "ComputeMeshDrawList", "UploadMeshData" }, MeshDrawProfiling.passes.Select(s => s.name));
+                CollectionAssert.AreEquivalent(new[] { MeshDrawProfiling.viewProduction, MeshDrawProfiling.production, MeshDrawProfiling.upload }, MeshDrawProfiling.passes);
+                Assert.AreEqual(3, MeshDrawProfiling.passes.Distinct().Count());
                 timings.recordPassTimings = true;
                 Assert.IsTrue(timings.recordPassTimings);
             }
@@ -59,6 +59,14 @@ namespace InfinityTech.Rendering.Tests
             Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.Shadow.index]).name);
             Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.TranslucentT1.index]).name);
             Assert.AreEqual("Slice2", MeshDrawProfiling.SliceSampler(2).name);
+        }
+
+        [Test]
+        public void ProducerScopes_NameTheirKernels()
+        {
+            Assert.AreEqual("CullMeshView", MeshDrawProfiling.cullMeshView.name);
+            Assert.AreEqual("InitializeIndirectArgs", MeshDrawProfiling.initializeIndirectArgs.name);
+            Assert.AreEqual("BuildDrawList", MeshDrawProfiling.buildDrawList.name);
         }
 
         [Test]

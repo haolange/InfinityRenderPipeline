@@ -9,21 +9,29 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
     /// The mesh module's layer in one builder (P5: the render graph knows it only as an <see cref="IRGGraphExtension"/> and
-    /// calls Contribute once per compile and Clear whenever the recorded graph is dropped). It declares each list's producer,
-    /// contributes live consumers at compile and records consumer reads; the per-graph state lives in its
+    /// calls Contribute once per compile and Clear whenever the recorded graph is dropped). It declares each view's and each
+    /// list's producer, contributes live consumers at compile and records consumer reads; the per-graph state lives in its
     /// <see cref="MeshViewRegistry"/>.
     /// </summary>
     internal sealed class MeshGraphExtension : IRGGraphExtension
     {
+        struct MeshViewProducerData
+        {
+            public MeshViewRegistry registry;
+            public int view;
+            public MeshCullInputs inputs;
+            public RGBufferHandle visibilityHandle;
+            public bool occluded;
+            public MeshOccluderInputs occluder;
+            public bool remainder;
+            public RGBufferHandle drawnHandle;
+        }
+
         struct MeshDrawProducerData
         {
             public MeshViewRegistry registry;
             public int index;
-            public MeshCullInputs inputs;
-            public bool occluded;
-            public MeshOccluderInputs occluder;
-            public RGBufferHandle drawnHandle;
-            public bool remainder;
+            public RGBufferHandle visibilityHandle;
         }
 
         struct MeshDrawUploadData
@@ -32,8 +40,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int index;
         }
 
+        static readonly RGComputePassExecuteAction<MeshViewProducerData> s_ProduceView = static (in MeshViewProducerData data, in RGComputeEncoder encoder)
+            => data.registry.ProduceView(data.view, encoder, data.inputs, data.visibilityHandle, data.occluded, data.occluder, data.remainder, data.drawnHandle);
         static readonly RGComputePassExecuteAction<MeshDrawProducerData> s_Produce = static (in MeshDrawProducerData data, in RGComputeEncoder encoder)
-            => data.registry.Produce(data.index, encoder, data.inputs, data.occluded, data.occluder, data.drawnHandle, data.remainder);
+            => data.registry.ProduceDrawList(data.index, encoder, data.visibilityHandle);
         static readonly RGTransferPassExecuteAction<MeshDrawUploadData> s_Upload = static (in MeshDrawUploadData data, in RGTransferEncoder encoder)
             => data.registry.Upload(data.index, encoder.m_Core.commands);
 
@@ -70,7 +80,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Records the list of one view and pass and declares its producer. A view holds one list per pass. A list of a
+        /// Records the list of one view and pass and declares its producer; the view's first nonempty GPU list also declares
+        /// the view's producer, so a view with no such list dispatches nothing. A view holds one list per pass. A list of a
         /// remainder view draws what the list of the same pass on its history view left, so that list must exist; on the CPU,
         /// which tests no occluder, the history list drew everything and the remainder is empty.
         /// </summary>
@@ -92,15 +103,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 EMeshDrawBackendPolicy backend = world.SelectBackend(pass);
                 bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
                 bool remainder = view.drawnView >= 0;
-                RGBufferHandle remainderDrawnHandle = default;
-                if (remainder)
+                if (remainder && registry.FindList(view.drawnView, pass) < 0)
                 {
-                    int drawnList = registry.FindList(view.drawnView, pass);
-                    if (drawnList < 0)
-                    {
-                        throw new InvalidOperationException($"The remainder list of '{cache.desc.lightMode}' needs a list of the same pass on the view whose rest it draws.");
-                    }
-                    remainderDrawnHandle = registry.GetListCopy(drawnList).drawnHandle;
+                    throw new InvalidOperationException($"The remainder list of '{cache.desc.lightMode}' needs a list of the same pass on the view whose rest it draws.");
                 }
                 bool empty = cache.memberCount == 0 || (remainder && !gpu);
                 RGMeshDrawListHandle drawsHandle = registry.CreateList(viewHandle.index, pass, cache, backend, empty);
@@ -126,7 +131,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                     record.tables.version.owner.Record(builder, record.tables.version, registry.scheduledVersions);
                     if (gpu)
                     {
-                        RecordProducer(builder, drawsHandle.index, view, remainderDrawnHandle);
+                        RGBufferHandle visibilityHandle = view.payload != null
+                            ? view.visibilityHandle
+                            : RecordViewProducer(builder, viewHandle.index, view, record.tables.entityCount);
+                        RecordProducer(builder, drawsHandle.index, visibilityHandle);
                     }
                     else
                     {
@@ -152,38 +160,38 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        // One compute producer per nonempty GPU list. The pass is declared, not appended: compile places it after its inputs
-        // and before its consumer's native group. The view decides the build variant: a list of a history view writes the
-        // drawn table, a list of a remainder view reads the one its history view's list wrote.
-        void RecordProducer(RGBuilder builder, int drawIndex, in MeshViewRecord view, RGBufferHandle remainderDrawnHandle)
+        // One compute producer per view with a nonempty GPU list, declared by the first such list. It evaluates eligibility,
+        // LOD, frustum and occluder once per entity slot; the view decides the kernel. A remainder view reads the visibility
+        // of its history view, whose list of the same pass exists and declared that view's producer first.
+        RGBufferHandle RecordViewProducer(RGBuilder builder, int viewIndex, in MeshViewRecord view, int entityHighWater)
         {
-            using (MeshCpuMarkers.s_RecordProducer.Auto())
+            using (MeshCpuMarkers.s_RecordViewProducer.Auto())
             {
-                MeshDrawListRecord record = registry.GetListCopy(drawIndex);
-                MeshGPUDrawPayload payload = record.payload;
                 MeshOccluder occluder = view.occluder;
                 bool occluded = occluder.isValid;
                 bool history = occluded && occluder.history;
-                RGBufferHandle instancesHandle = builder.ImportBuffer(payload.instanceToEntityHandle);
-                RGBufferHandle fadesHandle = builder.ImportBuffer(payload.instanceFadeHandle);
-                RGBufferHandle argsHandle = builder.ImportBuffer(payload.indirectArgsHandle);
-                RGBufferHandle writtenHandle = history
-                    ? builder.CreateBuffer(new BufferDescriptor(math.max(1, record.candidateCount), sizeof(uint)) { name = "MeshDrawnCandidates" })
-                    : default;
+                bool remainder = view.drawnView >= 0;
+                RGBufferHandle drawnHandle = remainder ? registry.GetViewCopy(view.drawnView).visibilityHandle : default;
+                if (remainder && !drawnHandle.IsValid())
                 {
-                    RGComputePassHandle<MeshDrawProducerData> passHandle = builder.DeclareComputePass<MeshDrawProducerData>(MeshDrawProfiling.production);
+                    throw new InvalidOperationException("A remainder view reads the visibility of its history view, which has no GPU producer.");
+                }
+                int entityCount = math.max(1, entityHighWater);
+                // MeshViewVisibility: one uint per entity slot, 0 when culled, else 1 | level << 8 | fade << 16 (the word
+                // MeshPackLODVisibility returns in Shaders/Library/MeshLOD.hlsl; fade 65535 is stable).
+                RGBufferHandle visibilityHandle = builder.CreateBuffer(new BufferDescriptor(entityCount, sizeof(uint)) { name = "MeshViewVisibility" });
+                MeshGPUViewPayload payload = world.gpuBackend.RentViewPayload();
+                registry.SetViewProducer(viewIndex, payload, visibilityHandle, entityCount);
+                {
+                    RGComputePassHandle<MeshViewProducerData> passHandle = builder.DeclareComputePass<MeshViewProducerData>(MeshDrawProfiling.viewProduction);
                     passHandle.KeepImportedWritesLocal();
-                    ref MeshDrawProducerData data = ref passHandle.GetPassData();
+                    ref MeshViewProducerData data = ref passHandle.GetPassData();
                     data = default;
                     data.registry = registry;
-                    data.index = drawIndex;
+                    data.view = viewIndex;
                     data.inputs = CullInputs(builder, passHandle);
-                    passHandle.ReadBuffer(builder.ImportBuffer(record.cache.candidateBufferHandle));
-                    passHandle.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBufferHandle));
                     passHandle.WriteBuffer(builder.ImportBuffer(payload.cullingContextHandle));
-                    passHandle.WriteBuffer(instancesHandle);
-                    passHandle.WriteBuffer(fadesHandle);
-                    passHandle.WriteBuffer(argsHandle);
+                    data.visibilityHandle = passHandle.WriteBuffer(visibilityHandle);
                     data.occluded = occluded;
                     if (occluded)
                     {
@@ -205,21 +213,51 @@ namespace InfinityTech.Rendering.MeshPipeline
                             data.occluder.currentGenerationsHandle = passHandle.ReadBuffer(builder.ImportBuffer(current.generationsHandle));
                             data.occluder.previousTransformsHandle = passHandle.ReadBuffer(builder.ImportBuffer(previous.matricesHandle));
                             data.occluder.previousGenerationsHandle = passHandle.ReadBuffer(builder.ImportBuffer(previous.generationsHandle));
-                            data.drawnHandle = passHandle.WriteBuffer(writtenHandle);
                         }
-                        else if (view.drawnView >= 0)
+                        else if (remainder)
                         {
-                            data.drawnHandle = passHandle.ReadBuffer(remainderDrawnHandle);
+                            data.drawnHandle = passHandle.ReadBuffer(drawnHandle);
                             data.remainder = true;
                         }
                     }
+                    passHandle.SetExecuteFunc(s_ProduceView);
+                }
+                return visibilityHandle;
+            }
+        }
+
+        // One compute producer per nonempty GPU list. The pass is declared, not appended: compile places it after its inputs
+        // (its view's producer among them) and before its consumer's native group. Every list of a view reads the same
+        // visibility; the pass only selects which level of each element draws and whether transitions dither.
+        void RecordProducer(RGBuilder builder, int drawIndex, RGBufferHandle visibilityHandle)
+        {
+            using (MeshCpuMarkers.s_RecordProducer.Auto())
+            {
+                MeshDrawListRecord record = registry.GetListCopy(drawIndex);
+                MeshGPUDrawPayload payload = record.payload;
+                RGBufferHandle instancesHandle = builder.ImportBuffer(payload.instanceToEntityHandle);
+                RGBufferHandle fadesHandle = builder.ImportBuffer(payload.instanceFadeHandle);
+                RGBufferHandle argsHandle = builder.ImportBuffer(payload.indirectArgsHandle);
+                {
+                    RGComputePassHandle<MeshDrawProducerData> passHandle = builder.DeclareComputePass<MeshDrawProducerData>(MeshDrawProfiling.production);
+                    passHandle.KeepImportedWritesLocal();
+                    ref MeshDrawProducerData data = ref passHandle.GetPassData();
+                    data = default;
+                    data.registry = registry;
+                    data.index = drawIndex;
+                    data.visibilityHandle = passHandle.ReadBuffer(visibilityHandle);
+                    passHandle.ReadBuffer(builder.ImportBuffer(record.cache.candidateBufferHandle));
+                    passHandle.ReadBuffer(builder.ImportBuffer(record.cache.commandMetaBufferHandle));
+                    passHandle.WriteBuffer(instancesHandle);
+                    passHandle.WriteBuffer(fadesHandle);
+                    passHandle.WriteBuffer(argsHandle);
                     passHandle.SetExecuteFunc(s_Produce);
                 }
                 RGBufferHandle[] outputsHandle = builder.GetRecordingArray<RGBufferHandle>(3);
                 outputsHandle[0] = instancesHandle;
                 outputsHandle[1] = fadesHandle;
                 outputsHandle[2] = argsHandle;
-                registry.SetProducerOutputs(drawIndex, outputsHandle, writtenHandle);
+                registry.SetProducerOutputs(drawIndex, outputsHandle);
             }
         }
 
@@ -244,7 +282,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 RGBufferHandle[] outputsHandle = builder.GetRecordingArray<RGBufferHandle>(2);
                 outputsHandle[0] = instancesHandle;
                 outputsHandle[1] = fadesHandle;
-                registry.SetProducerOutputs(drawIndex, outputsHandle, default);
+                registry.SetProducerOutputs(drawIndex, outputsHandle);
             }
         }
 
@@ -273,7 +311,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>
     /// Pass-facing mesh recording API, after Unity's <c>Cull</c> → <c>CullingResults</c> → <c>CreateRendererList</c> chain (R11):
     /// <see cref="CullMeshView"/> records a view, <see cref="CreateMeshDrawList"/> records the list of one view and pass and
-    /// declares its producer, which compile places. Submitting a list records its draw calls into the raster encoder. Native
+    /// declares its producer (and, for the view's first nonempty GPU list, the view's producer), which compile places. Submitting a list records its draw calls into the raster encoder. Native
     /// command-buffer submission keeps the words native submit and submission segment.
     /// </summary>
     public static class MeshGraphRecording

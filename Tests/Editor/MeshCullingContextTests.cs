@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 int count = world.entityHighWater;
                 uint2[] candidates = MeshTestUtility.LevelCandidates(count, 1);
                 ComputeShader shader = Object.Instantiate(fixture.shader);
-                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 1);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 1, count);
                 try
                 {
                     var orthographic = new MeshLODProjection { origin = new float3(4, 0, 0), scale = 0.5f, bias = 2f, orthographic = true };
@@ -93,7 +93,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         for (int c = 0; c < contexts.Length; ++c)
                         {
                             List<MeshDrawnInstance> expected = MeshTestUtility.GatherOnCpu(world, candidates, 1, contexts[c], false);
-                            List<MeshDrawnInstance> actual = run.Build("BuildDrawList", contexts[c]);
+                            List<MeshDrawnInstance> actual = run.Build(MeshProducerRun.CullView, contexts[c]);
+                            // Every entity has one level-0 element, so the CPU's drawn entities are its view visibility.
+                            CollectionAssert.AreEqual(MeshTestUtility.DrawnEntities(expected, count), MeshProducerRun.Visible(run.Visibility()),
+                                $"view visibility, context {c}, scene mask {scene:X}");
                             CollectionAssert.AreEqual(expected, actual, $"context {c}, scene mask {scene:X}");
                         }
                     }

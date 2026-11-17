@@ -319,20 +319,26 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     GraphicsBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
                     GraphicsBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
                     GraphicsBuffer contextBuffer = Upload(new[] { context }, System.Runtime.InteropServices.Marshal.SizeOf<MeshCullingContext>());
-                    int initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
+                    int entityCount = math.max(1, world.entityHighWater);
+                    GraphicsBuffer visibility = Upload(new uint[entityCount], sizeof(uint));
+                    int cull = shader.FindKernel("CullMeshView"), initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
                     using var commands = new CommandBuffer();
+                    commands.SetComputeIntParam(shader, "_EntityCount", entityCount);
+                    commands.SetComputeBufferParam(shader, cull, "_CullingContext", contextBuffer);
+                    BindColumns(commands, shader, cull, world);
+                    commands.SetComputeBufferParam(shader, cull, "UAV_MeshViewVisibility", visibility);
                     commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
                     commands.SetComputeIntParam(shader, "_CandidateCount", candidateCount);
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "SRV_MeshViewVisibility", visibility);
                     commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBufferHandle.buffer);
-                    commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
-                    BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceFade", fades);
+                    commands.DispatchCompute(shader, cull, (entityCount + 63) / 64, 1, 1);
                     commands.DispatchCompute(shader, initialize, (commandCount + 63) / 64, 1, 1);
                     commands.DispatchCompute(shader, compact, (candidateCount + 63) / 64, 1, 1);
                     Graphics.ExecuteCommandBuffer(commands);
@@ -402,18 +408,24 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = reusedMeta[i];
                     metaBuffer.SetData(metaValues);
                     contextBuffer.SetData(new[] { context });
+                    // The reused entity slot stays below the first fixture's high water, so the visibility buffer covers it.
+                    Assert.LessOrEqual(world.entityHighWater, entityCount);
+                    commands.SetComputeIntParam(shader, "_EntityCount", entityCount);
+                    commands.SetComputeBufferParam(shader, cull, "_CullingContext", contextBuffer);
+                    BindColumns(commands, shader, cull, world);
+                    commands.SetComputeBufferParam(shader, cull, "UAV_MeshViewVisibility", visibility);
                     commands.SetComputeIntParam(shader, "_CommandCount", commandCount);
                     commands.SetComputeIntParam(shader, "_CandidateCount", cache.candidates.Length);
                     commands.SetComputeIntParam(shader, "_DitherLod", 1);
                     commands.SetComputeBufferParam(shader, initialize, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, initialize, "_IndirectArgs", args);
+                    commands.SetComputeBufferParam(shader, compact, "SRV_MeshViewVisibility", visibility);
                     commands.SetComputeBufferParam(shader, compact, "_CandidateTable", cache.candidateBufferHandle.buffer);
-                    commands.SetComputeBufferParam(shader, compact, "_CullingContext", contextBuffer);
-                    BindColumns(commands, shader, compact, world);
                     commands.SetComputeBufferParam(shader, compact, "_CommandMeta", metaBuffer);
                     commands.SetComputeBufferParam(shader, compact, "_IndirectArgs", args);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceToEntity", instances);
                     commands.SetComputeBufferParam(shader, compact, "_InstanceFade", fades);
+                    commands.DispatchCompute(shader, cull, (entityCount + 63) / 64, 1, 1);
                     commands.DispatchCompute(shader, initialize, (commandCount + 63) / 64, 1, 1);
                     commands.DispatchCompute(shader, compact, (cache.candidates.Length + 63) / 64, 1, 1);
                     Graphics.ExecuteCommandBuffer(commands);
@@ -432,7 +444,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             }
         }
 
-        // The entity columns the build kernel reads, bound the way MeshDrawGPUBackend.Produce binds them.
+        // The entity columns the view kernel reads, bound the way MeshDrawGPUBackend.ProduceView binds them.
         static void BindColumns(CommandBuffer commands, ComputeShader shader, int kernel, MeshWorld world)
         {
             MeshWorldGPU gpu = world.gpu;

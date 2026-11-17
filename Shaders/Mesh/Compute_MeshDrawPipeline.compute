@@ -1,11 +1,12 @@
 // Mesh Drawing Pipeline kernels.
 // - Transform versions: every backend builds immutable per-entity transform tables from dirty-slot patches.
-// - GPU indirect draw lists: one producer per list. InitializeIndirectArgs, then BuildDrawList over the pass's candidate
-//   table (one thread per element slot): the element's entity is tested against the list's culling context (masks, LOD,
-//   frustum) and, for an occluded list, against the context's Hi-Z occluder; a passing element appends its entity to its
-//   command's stable or fading range. Visible counts are never read back.
-// - A list tested against the previous frame's pyramid records which candidates it drew; the later remainder list of the same
-//   context and pass, tested against this frame's pyramid, draws only the rest.
+// - GPU indirect views: one producer per view. A CullMeshView kernel (one thread per entity slot) tests the entity against
+//   the view's culling context (masks, LOD, frustum) and, for an occluded view, against the context's Hi-Z occluder, and
+//   writes one packed visibility word per entity. A view tested against the previous frame's pyramid has one remainder
+//   view; the remainder kernel, tested against this frame's pyramid, leaves culled every entity the history view drew.
+// - GPU indirect draw lists: one producer per list of a view. InitializeIndirectArgs, then BuildDrawList over the pass's
+//   candidate table (one thread per element slot): the element reads its entity's visibility in the view and appends the
+//   entity to its command's stable or fading range. Visible counts are never read back.
 //
 // Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
 // (per pass cache), instance (position in InstanceToEntity).
@@ -13,11 +14,12 @@
 #pragma kernel InitializeTransformVersion
 #pragma kernel CopyTransformVersion
 #pragma kernel PatchTransformVersion
+#pragma kernel CullMeshView
+#pragma kernel CullMeshViewOccluded
+#pragma kernel CullMeshViewOccludedHistory
+#pragma kernel CullMeshViewRemainder
 #pragma kernel InitializeIndirectArgs
 #pragma kernel BuildDrawList
-#pragma kernel BuildDrawListOccluded
-#pragma kernel BuildDrawListOccludedHistory
-#pragma kernel BuildDrawListRemainder
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
 #define MESH_COMMAND_MASK 0x00FFFFFFu
@@ -27,7 +29,7 @@
 #define MESH_ARGS_STRIDE 5u
 #include "../Library/MeshLOD.hlsl"
 
-// One list's culling context; mirrors MeshCullingContext in C#.
+// One view's culling context; mirrors MeshCullingContext in C#.
 struct MeshCullingContext
 {
     float4 plane0;
@@ -48,6 +50,7 @@ struct MeshCullingContext
     float lodOriginX, lodOriginY, lodOriginZ;
 };
 
+uint _EntityCount;
 uint _CommandCount;
 uint _CandidateCount;
 uint _DitherLod;
@@ -65,7 +68,16 @@ StructuredBuffer<uint2> _CandidateTable;
 RWStructuredBuffer<uint> _InstanceToEntity;
 RWStructuredBuffer<float> _InstanceFade;
 RWStructuredBuffer<uint> _IndirectArgs;
-RWStructuredBuffer<uint> _DrawnCandidates;
+
+// MeshViewVisibility: one view's packed visibility of one entity slot, written by the view's producer and read by every
+// list of the view; in C# the graph buffer MeshGraphExtension.RecordViewProducer creates, max(1, entity high water) uints.
+// 0 when the entity is culled, else 1 | level << 8 | fade << 16, the word MeshPackLODVisibility returns: bit 0 visible,
+// bits 8-15 the selected LOD level, bits 16-31 MESH_LOD_STABLE outside the cross-fade band or the band position quantized
+// to [0, 65534) inside it. One HLSL global is either RW or read-only, so the producer writes UAV_MeshViewVisibility, a list
+// reads SRV_MeshViewVisibility and a remainder view reads its history view's words as SRV_MeshViewDrawn.
+RWStructuredBuffer<uint> UAV_MeshViewVisibility;
+StructuredBuffer<uint> SRV_MeshViewVisibility;
+StructuredBuffer<uint> SRV_MeshViewDrawn;
 
 #include "MeshOcclusion.hlsl"
 
@@ -93,7 +105,7 @@ float4 MeshContextPlane(MeshCullingContext context, int index)
     return plane;
 }
 
-// Mirrors MeshDrawGatherJob.OutsidePlanes; precise keeps every list of a context on one answer.
+// Mirrors MeshDrawGatherJob.OutsidePlanes; precise keeps every view of a context on one answer.
 bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 {
     bool culled = false;
@@ -135,48 +147,64 @@ bool MeshElementRange(uint packed, uint elementLod, out uint range, out float fa
     return range != 2u;
 }
 
-// The flags are literals at each kernel, so a kernel binds only what it uses: the plain kernel no occluder and no drawn
-// table, a current-frame occluder no transform versions. A history list writes the drawn table; a remainder list reads it.
-void BuildDrawListCore(uint candidateIndex, bool occluded, bool history, bool remainder)
+// The flags are literals at each kernel, so a kernel binds only what it uses: the frustum kernel no occluder, a
+// current-frame occluder no transform versions. Only the remainder kernel reads the visibility its history view wrote.
+void CullMeshViewCore(uint entity, bool occluded, bool history, bool remainder)
 {
-    uint2 candidate = _CandidateTable[candidateIndex];
     bool drawn = false;
-    if (remainder) drawn = _DrawnCandidates[candidateIndex] != 0u;
-    bool append = false;
-    uint entity = candidate.x;
-    uint command = candidate.y & MESH_COMMAND_MASK;
-    uint range = 2u;
-    float factor = 0.0;
-    if (candidate.y != MESH_NO_COMMAND && !drawn && command < _CommandCount)
+    if (remainder) drawn = SRV_MeshViewDrawn[entity] != 0u;
+    uint packed = 0u;
+    if (!drawn)
     {
         MeshCullingContext context = _CullingContext[0];
         if (MeshEligible(entity, context))
         {
             float3 center = _EntityBoundsCenter[entity].xyz;
             float3 extent = _EntityBoundsExtent[entity].xyz;
-            uint packed = MeshPackLODVisibility(entity, center, extent, float3(context.lodOriginX, context.lodOriginY, context.lodOriginZ),
+            packed = MeshPackLODVisibility(entity, center, extent, float3(context.lodOriginX, context.lodOriginY, context.lodOriginZ),
                 context.lodScale, context.lodBias, context.lodOrthographic);
-            if (MeshElementRange(packed, candidate.y >> MESH_LOD_SHIFT, range, factor))
-                append = !MeshFrustumCulled(context, center, extent);
-            if (append && occluded)
+            // HLSL && does not short-circuit, so each test is nested under the ones that must pass first.
+            if (packed != 0u)
+            {
+                if (MeshFrustumCulled(context, center, extent)) packed = 0u;
+            }
+            if (packed != 0u && occluded)
             {
                 // The previous frame's pyramid proves nothing about an entity that moved since.
                 bool testable = true;
                 if (history) testable = MeshHasStableHistory(entity);
-                if (testable) append = !MeshOccluded(center, extent);
+                if (testable)
+                {
+                    if (MeshOccluded(center, extent)) packed = 0u;
+                }
             }
         }
     }
-    if (append)
-    {
-        uint slot;
-        uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
-        InterlockedAdd(_IndirectArgs[argsBase + 1u], 1u, slot);
-        uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
-        _InstanceToEntity[instance] = entity;
-        _InstanceFade[instance] = factor;
-    }
-    if (history) _DrawnCandidates[candidateIndex] = append ? 1u : 0u;
+    UAV_MeshViewVisibility[entity] = packed;
+}
+
+[numthreads(64, 1, 1)]
+void CullMeshView(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _EntityCount) CullMeshViewCore(id.x, false, false, false);
+}
+
+[numthreads(64, 1, 1)]
+void CullMeshViewOccluded(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, false, false);
+}
+
+[numthreads(64, 1, 1)]
+void CullMeshViewOccludedHistory(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, true, false);
+}
+
+[numthreads(64, 1, 1)]
+void CullMeshViewRemainder(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, false, true);
 }
 
 [numthreads(64, 1, 1)]
@@ -196,28 +224,27 @@ void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
     }
 }
 
+// One pass's list of a view: each element slot reads its entity's visibility in the view, and the pass's dither flag and
+// the element's level choose its command's stable or fading range.
 [numthreads(64, 1, 1)]
 void BuildDrawList(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, false, false, false);
-}
-
-[numthreads(64, 1, 1)]
-void BuildDrawListOccluded(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false, false);
-}
-
-[numthreads(64, 1, 1)]
-void BuildDrawListOccludedHistory(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, true, false);
-}
-
-[numthreads(64, 1, 1)]
-void BuildDrawListRemainder(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true, false, true);
+    if (id.x >= _CandidateCount) return;
+    uint2 candidate = _CandidateTable[id.x];
+    uint command = candidate.y & MESH_COMMAND_MASK;
+    if (candidate.y == MESH_NO_COMMAND || command >= _CommandCount) return;
+    uint entity = candidate.x;
+    uint range;
+    float factor;
+    if (MeshElementRange(SRV_MeshViewVisibility[entity], candidate.y >> MESH_LOD_SHIFT, range, factor))
+    {
+        uint slot;
+        uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
+        InterlockedAdd(_IndirectArgs[argsBase + 1u], 1u, slot);
+        uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
+        _InstanceToEntity[instance] = entity;
+        _InstanceFade[instance] = factor;
+    }
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

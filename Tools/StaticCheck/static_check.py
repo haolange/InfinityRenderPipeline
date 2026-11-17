@@ -22,7 +22,8 @@ Checks
   unityboundary    MeshComponent owns no native renderer lighting or state (Renderer, lightmap and probe settings)
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
-  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
+  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners; shadow passes cull
+                   every light view with MeshOccluder.None
   meshmechanism    the mesh mechanism names no pipeline concept: no shader IDs of the pipeline, capture or view kinds, and no
                    Camera outside the world's diagnostic counters
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
@@ -444,8 +445,9 @@ def without_strings(text):
 def check_scalar_uploads(repo, out):
     """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
     Counted per method and local function (nested bodies count only toward the inner function, never twice).
-    The threshold stays > 8: the largest per-dispatch caller today is MeshDrawGPUBackend.Produce at 8 calls,
-    whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20 and ComputeBloom had 9."""
+    The threshold stays > 8: MeshDrawGPUBackend.ProduceView makes 6 calls and ProduceDrawList 3 (Produce made 8 before
+    views produced their own visibility), whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20
+    and ComputeBloom had 9."""
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel in SCALAR_UPLOAD_DEFINITIONS:
@@ -860,7 +862,8 @@ def check_mesh_submit(repo, out):
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):
         text = without_comments(read(extension))
-        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'RecordProducer'):
+        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'MeshDrawProfiling.viewProduction', 'RecordProducer',
+                      'RecordViewProducer'):
             if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
 
 
@@ -869,6 +872,48 @@ MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting
                    'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs', 'Translucent/TranslucentPass.cs')
 MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
+# Light views (cascades, local faces) never see a camera occluder: these files cull each view from an inline MeshViewDesc
+# whose occluder is MeshOccluder.None, and construct no occluder and no remainder view.
+MESH_LIGHT_VIEW_FILES = ('Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
+MESH_VIEW_CALL = re.compile(r'\b(CullMeshView\w*)\s*\(')
+
+
+def call_arguments(text, open_paren):
+    """The text inside the parentheses that open at open_paren, or None when they do not close."""
+    depth = 0
+    for index in range(open_paren, len(text)):
+        if text[index] == '(':
+            depth += 1
+        elif text[index] == ')':
+            depth -= 1
+            if depth == 0: return text[open_paren + 1:index]
+    return None
+
+
+def top_level_arguments(arguments):
+    parts, depth, start = [], 0, 0
+    for index, char in enumerate(arguments):
+        if char in '([{': depth += 1
+        elif char in ')]}': depth -= 1
+        elif char == ',' and depth == 0:
+            parts.append(arguments[start:index].strip())
+            start = index + 1
+    parts.append(arguments[start:].strip())
+    return parts
+
+
+def light_view_errors(rel, text):
+    errors = []
+    for match in MESH_VIEW_CALL.finditer(text):
+        line = text.count('\n', 0, match.start()) + 1
+        arguments = call_arguments(text, match.end() - 1) or ''
+        desc = re.match(r'\s*new\s+MeshViewDesc\s*\(', arguments)
+        occluder = top_level_arguments(call_arguments(arguments, desc.end() - 1) or '')[-1] if desc else None
+        if match.group(1) != 'CullMeshView' or occluder != 'MeshOccluder.None':
+            errors.append(('ERROR', 'meshpasses', f'{rel}:{line}: {match.group(1)} of a light view must pass new MeshViewDesc(..., MeshOccluder.None)'))
+    for match in re.finditer(r'\bnew\s+MeshOccluder\s*\(', text):
+        errors.append(('ERROR', 'meshpasses', f'{rel}:{text.count(chr(10), 0, match.start()) + 1}: a shadow pass constructs a MeshOccluder'))
+    return errors
 
 
 def check_mesh_passes(repo, out):
@@ -878,6 +923,8 @@ def check_mesh_passes(repo, out):
         text = without_comments(read(path))
         for token in MESH_PASS_FORBIDDEN:
             if token in text: out.append(('ERROR', 'meshpasses', f'{rel} references {token}'))
+        if rel in MESH_LIGHT_VIEW_FILES:
+            out.extend(light_view_errors(rel, without_strings(text)))
 
 
 MESH_MECHANISM = ('World', 'Pass', 'View', 'DrawList', 'Backend')

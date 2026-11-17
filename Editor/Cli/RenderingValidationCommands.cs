@@ -141,6 +141,7 @@ namespace InfinityTech.Rendering.Editor
                 passes.Add(new { pass = cache.desc.ToString(), members = cache.memberCount, commands = cache.commandCount });
             return new { entityCount = world.entityCount, elementCount = world.elementCount, dynamicCount = world.dynamicEntityCount,
                 lastRecordedCamera = world.stats.camera != null ? world.stats.camera.name : null,
+                lastCameraRecordedViewProductions = world.stats.viewProductions,
                 lastCameraRecordedDrawListProductions = world.stats.drawListProductions,
                 lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches, entities, passes };
         }

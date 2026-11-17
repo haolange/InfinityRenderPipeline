@@ -58,7 +58,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         Empty = 4
     }
 
-    /// <summary>One culled view: its descriptor and, for a remainder view, the history view whose rest it draws.</summary>
+    /// <summary>
+    /// One culled view: its descriptor, for a remainder view the history view whose rest it draws, and, once its first nonempty
+    /// GPU list declares it, the view's producer state: the culling-context buffer it rents and the visibility it writes.
+    /// </summary>
     internal struct MeshViewRecord
     {
         public MeshCullingContext cullingContext;
@@ -68,6 +71,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int drawnView;
         // A history view's remainder view, or -1. There is at most one, so an instance draws at most once per view and pass.
         public int remainderView;
+        // GPU producer: null and invalid until the view's first nonempty GPU list, and for a view drawn only on the CPU.
+        public MeshGPUViewPayload payload;
+        public RGBufferHandle visibilityHandle;
+        public int entityCount;
     }
 
     /// <summary>Graph handles every consumer of a list reads: the frozen tables and the producer's outputs.</summary>
@@ -88,8 +95,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         // The pass cache revision the list was recorded against; execution rejects any other.
         public uint cacheRevision;
         public MeshDrawListReads reads;
-        // The candidates a GPU list of a history view drew; the list of the same pass on its remainder view reads them.
-        public RGBufferHandle drawnHandle;
         // CPU direct
         public MeshDrawListBuild build;
         public BufferHandle cpuInstancesHandle;
@@ -134,6 +139,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             => drawsHandle.registry == this && drawsHandle.generation == m_GraphGeneration && (uint)drawsHandle.index < (uint)m_Lists.Count;
 
         internal MeshDrawListRecord GetListCopy(int index) => m_Lists[index];
+
+        internal MeshViewRecord GetViewCopy(int index) => m_Views[index];
 
         /// <summary>The view a list draws.</summary>
         internal int ViewOfList(int index) => m_ListKeys[index].x;
@@ -267,12 +274,25 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Lists[index] = record;
         }
 
-        internal void SetProducerOutputs(int index, RGBufferHandle[] outputsHandle, RGBufferHandle drawnHandle)
+        internal void SetProducerOutputs(int index, RGBufferHandle[] outputsHandle)
         {
             MeshDrawListRecord record = m_Lists[index];
             record.reads.producerOutputsHandle = outputsHandle;
-            record.drawnHandle = drawnHandle;
             m_Lists[index] = record;
+        }
+
+        /// <summary>
+        /// Gives a view without a producer its GPU producer state: the culling-context buffer it rents, the visibility buffer its
+        /// producer writes and the entity slots it covers. The payload joins the view before the producer pass is declared, so
+        /// <see cref="ReleaseAll"/> retires it whatever fails after.
+        /// </summary>
+        internal void SetViewProducer(int view, MeshGPUViewPayload payload, RGBufferHandle visibilityHandle, int entityCount)
+        {
+            MeshViewRecord record = m_Views[view];
+            record.payload = payload;
+            record.visibilityHandle = visibilityHandle;
+            record.entityCount = entityCount;
+            m_Views[view] = record;
         }
 
         internal void ClearConsumers()
@@ -357,18 +377,25 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Lists[index] = record;
         }
 
-        internal void Produce(int index, in RGComputeEncoder encoder, in MeshCullInputs inputs, bool occluded, in MeshOccluderInputs occluder,
-            RGBufferHandle drawnHandle, bool remainder)
+        /// <summary>The view's producer: its visibility of every entity slot, read by every GPU list of the view.</summary>
+        internal void ProduceView(int view, in RGComputeEncoder encoder, in MeshCullInputs inputs, RGBufferHandle visibilityHandle, bool occluded,
+            in MeshOccluderInputs occluder, bool remainder, RGBufferHandle drawnHandle)
+        {
+            MeshViewRecord record = m_Views[view];
+            m_World.gpuBackend.ProduceView(encoder, record.payload, record.entityCount, record.cullingContext, inputs, visibilityHandle,
+                occluded, occluder, remainder, drawnHandle, m_World.stats);
+        }
+
+        internal void ProduceDrawList(int index, in RGComputeEncoder encoder, RGBufferHandle visibilityHandle)
         {
             MeshDrawListRecord record = m_Lists[index];
             RequireUnchanged(record);
-            MeshViewRecord view = m_Views[ViewOfList(index)];
             ProfilingSampler consumer = record.cache.passSampler;
             encoder.BeginSample(consumer);
             try
             {
-                m_World.gpuBackend.Produce(encoder, record.payload, record.cache, record.commandCount, record.candidateCount,
-                    view.cullingContext, inputs, occluded, occluder, drawnHandle, remainder, m_World.stats);
+                m_World.gpuBackend.ProduceDrawList(encoder, record.payload, record.cache, record.commandCount, record.candidateCount,
+                    visibilityHandle, m_World.stats);
             }
             finally
             {
@@ -401,12 +428,23 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Logical cleanup only: completes and frees CPU build jobs and retires payloads, instance buffers and
+        /// Logical cleanup only: completes and frees CPU build jobs and retires list and view payloads, instance buffers and
         /// transform-version references, then drops the views. Physical return happens after native submit.
         /// </summary>
         internal void ReleaseAll()
         {
             List<Exception> failures = null;
+            for (int i = 0; i < m_Views.Count; ++i)
+            {
+                try
+                {
+                    m_World.gpuBackend.RetireViewPayload(m_Views[i].payload);
+                }
+                catch (Exception error)
+                {
+                    (failures ??= new List<Exception>()).Add(error);
+                }
+            }
             for (int i = 0; i < m_Lists.Count; ++i)
             {
                 MeshDrawListRecord record = m_Lists[i];

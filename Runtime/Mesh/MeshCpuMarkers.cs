@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static readonly ProfilerMarker s_CanWriteBuffer = Define("Mesh.CanWriteBuffer");
         internal static readonly ProfilerMarker s_RecreateColumns = Define("Mesh.RecreateColumns");
         internal static readonly ProfilerMarker s_DeclareList = Define("Mesh.DeclareList");
+        internal static readonly ProfilerMarker s_RecordViewProducer = Define("Mesh.RecordViewProducer");
         internal static readonly ProfilerMarker s_RecordProducer = Define("Mesh.RecordProducer");
     }
 }

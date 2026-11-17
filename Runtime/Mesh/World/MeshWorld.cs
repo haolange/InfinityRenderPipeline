@@ -17,7 +17,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int passCacheCount;
         public int commandCount;
         public int passCacheBuilds;
-        // GPU draw-list producers recorded for the last camera, and the kernels they dispatch.
+        // GPU view producers recorded for the last camera (one kernel each), GPU draw-list producers and the kernels they dispatch.
+        public int viewProductions;
         public int drawListProductions;
         public int drawListKernelDispatches;
         public long uploadedBytes;
@@ -26,6 +27,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void BeginCamera(Camera camera)
         {
             this.camera = camera;
+            viewProductions = 0;
             drawListProductions = 0;
             drawListKernelDispatches = 0;
         }
@@ -65,7 +67,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             get;
         }
-        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, draw-list producers on GPU indirect.</summary>
+        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, view and draw-list producers on GPU indirect.</summary>
         internal ComputeShader meshDrawShader
         {
             get;
