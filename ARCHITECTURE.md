@@ -309,6 +309,7 @@ Mixed lighting supports baked indirect and shadowmask. Distance shadowmask is th
 ### Contracts
 
 - Cached depth-atlas tile copies stay raster: Unity `CopyTexture` forbids a partial depth-only copy.
+- `ShadowCasterBounds` addresses a slot by light id and scene mask. A slot that was not queried for more than one frame is dropped. The live slot count stays within the queried lights times the scene masks used. A hit still requires the structural revision, the transform revision, and the light's own masks and pose.
 
 ## 11. Screen-space shading and subsurface
 

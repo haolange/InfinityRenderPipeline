@@ -92,14 +92,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                         update.Commit();
                     }
-                    var bounds = new ShadowCasterBounds(); bounds.Collect(world);
+                    var bounds = new ShadowCasterBounds(); bounds.Collect(world, 0);
                     var record = new LightRecord { flags = shapeFlags | LightRecordFlags.EnableShadow,
                         positionRange = new Vector4(0, 0, 0, 20), forward = new Vector4(0, 0, 1, .7f),
                         right = new Vector4(1, 0, 0, 0), area = new Vector4(2, 2, 0, 0) };
                     Assert.IsTrue(bounds.TryGetBounds(light, camera, out _), "Caster is eligible before local frustum filtering.");
                     Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3), "Behind emitter cannot occupy local shadow budget.");
                     world.WriteEntityPose(entity, float4x4.identity, new BoundingBox(new float3(0, 0, 5), new float3(.25f)));
-                    bounds.Collect(world);
+                    bounds.Collect(world, 0);
                     Assert.IsTrue(bounds.HasLocalCaster(record, light, camera, 128, 3));
                     light.cullingMask = 2;
                     Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
@@ -111,20 +111,68 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         update.SetEntityDesc(entity, MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1, sceneCullingMask: 0));
                         update.Commit();
                     }
-                    bounds.Collect(world);
+                    bounds.Collect(world, 0);
                     Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
                     using (MeshWorldUpdate update = world.BeginUpdate())
                     {
                         update.SetEntityDesc(entity, MeshTestUtility.Desc(EMeshEntityFlags.Visible, layerMask: 1));
                         update.Commit();
                     }
-                    bounds.Collect(world);
+                    bounds.Collect(world, 0);
                     Assert.IsFalse(bounds.TryGetBounds(light, camera, out _), "Only Shadow-pass members are casters.");
                 }
             }
             finally
             {
                 Object.DestroyImmediate(cameraObject); Object.DestroyImmediate(lightObject);
+            }
+        }
+
+        [Test]
+        public void BoundsSlots_DropLightsNotQueriedForMoreThanOneFrame()
+        {
+            var lights = new GameObject[100];
+            GameObject cameraObject = null;
+            try
+            {
+                using (var fixture = new MeshWorldFixture())
+                {
+                    cameraObject = new GameObject("Slot bound camera");
+                    Camera camera = cameraObject.AddComponent<Camera>();
+                    var bounds = new ShadowCasterBounds();
+                    bounds.Collect(fixture.world, 1);
+                    for (int i = 0; i < lights.Length; ++i)
+                    {
+                        lights[i] = new GameObject("Slot bound light " + i);
+                        Light light = lights[i].AddComponent<Light>();
+                        light.type = LightType.Point;
+                        Assert.IsFalse(bounds.TryGetBounds(light, camera, out _));
+                    }
+                    Assert.AreEqual(100, bounds.BoundsSlotCount);
+                    for (int i = 10; i < lights.Length; ++i)
+                    {
+                        Object.DestroyImmediate(lights[i]);
+                        lights[i] = null;
+                    }
+                    bounds.Collect(fixture.world, 3);
+                    for (int i = 0; i < 10; ++i)
+                    {
+                        Assert.IsFalse(bounds.TryGetBounds(lights[i].GetComponent<Light>(), camera, out _));
+                    }
+                    Assert.LessOrEqual(bounds.BoundsSlotCount, 10);
+                    Assert.AreEqual(0, bounds.LocalSlotCount);
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < lights.Length; ++i)
+                {
+                    if (lights[i] != null)
+                    {
+                        Object.DestroyImmediate(lights[i]);
+                    }
+                }
+                Object.DestroyImmediate(cameraObject);
             }
         }
     }

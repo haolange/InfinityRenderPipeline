@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_CollectCasters.Auto())
             {
-                m_MeshCasters.Collect(meshWorld);
+                m_MeshCasters.Collect(meshWorld, Time.frameCount);
             }
             Reset();
 

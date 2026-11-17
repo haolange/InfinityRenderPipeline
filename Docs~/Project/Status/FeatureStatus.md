@@ -2,6 +2,10 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Caster slots — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
+
+`ShadowCasterAllocationTests` 8 passed. One hundred queried lights leave 100 slots. After 90 are destroyed and the frame advances by 2, the live slot count is at most 10.
+
 ### Record placement — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
 
 Parent `Inl_RecordRG`, Scene_Spazon, MainCamera, GPU Indirect, camera still, Release. Warmup 300, mean of the next 300. A is `d0724f4` with a temporary parent recorder that was not committed. B is `62bd0cb`. A is 1.015 ms then 0.315 ms. B is 0.316 ms then 0.310 ms. The repeated pair is within 2%. The first A sample followed that commit's domain reload and ran near 9 fps; it does not repeat. There is no Record regression to attribute. On B, `RG.Compile.Place` is 0.054 ms and 0.053 ms, and `Mesh.DeclareList` is 0.080 ms and 0.077 ms at 13 calls. Place does not exist on A, and it does not account for a positive parent delta, so the nested scan was not replaced. `d0724f4` clears no rented array; the repeated parent times do not show that clear as a regression.
