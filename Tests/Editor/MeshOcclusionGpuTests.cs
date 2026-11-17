@@ -72,13 +72,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build("BuildDrawListOccludedHistory", context)));
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, run.DrawnCandidates(), "The history list records what it drew.");
 
-                // A later list of the same context and pass draws what the history occluder hid and the current one does not.
+                // The list of the same pass on the remainder view draws what the history occluder hid and the current one does not.
                 run.SetOccluder(current, Matrix4x4.identity, Width, Height, mips);
                 var expectedRemainder = new uint[Count]; expectedRemainder[0] = 1;
                 expectedRemainder[9] = currentHole ? 0u : 1u;
                 CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build("BuildDrawListRemainder", context)));
 
-                // Another pass tests its first list against the current occluder alone.
+                // A list of a view culled against the current occluder alone.
                 var expectedCurrent = new uint[] {1,1,1,1,1,1,0,0,1,currentHole ? 0u : 1u,1};
                 CollectionAssert.AreEqual(expectedCurrent, Drawn(run.Build("BuildDrawListOccluded", context)));
 

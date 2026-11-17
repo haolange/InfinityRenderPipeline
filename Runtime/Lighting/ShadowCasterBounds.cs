@@ -9,7 +9,8 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    // Shadow casters are the entities with members in the Shadow pass cache; no second transform, bounds or filter registry.
+    // Shadow casters are the entities with members in the shadow caster pass the pipeline names; no second transform, bounds
+    // or filter registry.
     // The caster index list follows the world's structural revision. Bounds and local-frustum answers also follow the
     // transform revision and the light, so a static world does not walk the entities again. A slot is addressed by
     // light id and scene mask. A slot that was not queried for more than one frame is dropped, so the live count stays
@@ -18,6 +19,7 @@ namespace InfinityTech.Rendering.LightPipeline
     {
         readonly List<int> m_Casters = new List<int>(256);
         MeshWorld m_World;
+        MeshPassId m_ShadowPass;
         int m_Structural = int.MinValue;
         BoundsSlot[] m_Bounds = System.Array.Empty<BoundsSlot>();
         int m_BoundsCount;
@@ -40,7 +42,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 && shadowmaskMode == ShadowmaskMode.Shadowmask;
         }
 
-        internal void Collect(MeshWorld world, int frame)
+        // shadowPass is the pipeline's shadow caster pass in the world's pass table.
+        internal void Collect(MeshWorld world, MeshPassId shadowPass, int frame)
         {
             if (frame != m_Frame)
             {
@@ -48,18 +51,19 @@ namespace InfinityTech.Rendering.LightPipeline
                 CompactBounds(frame);
                 CompactLocal(frame);
             }
-            if (m_World == world && m_Structural == world.structuralRevision)
+            if (m_World == world && m_ShadowPass.index == shadowPass.index && m_Structural == world.structuralRevision)
             {
                 return;
             }
             m_World = world;
+            m_ShadowPass = shadowPass;
             m_Structural = world.structuralRevision;
             m_BoundsCount = 0;
             m_LocalCount = 0;
             m_BoundsMap.Clear();
             m_LocalMap.Clear();
             m_Casters.Clear();
-            NativeArray<int> members = world.GetPassMembers(MeshPassTable.Shadow);
+            NativeArray<int> members = world.GetPassMembers(shadowPass);
             NativeArray<MeshEntity> entities = world.entities;
             for (int entity = 0; entity < members.Length; ++entity)
             {

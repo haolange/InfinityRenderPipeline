@@ -20,11 +20,17 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_TranslucentDepthMeshPass, m_TranslucentT0MeshPass, m_TranslucentT1MeshPass, m_TranslucentT2MeshPass;
 
-        internal TranslucentPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        internal TranslucentPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId translucentDepthMeshPass,
+            MeshPassId translucentT0MeshPass, MeshPassId translucentT1MeshPass, MeshPassId translucentT2MeshPass)
         {
             m_RGBuilder = graph;
             m_Settings = settings;
+            m_TranslucentDepthMeshPass = translucentDepthMeshPass;
+            m_TranslucentT0MeshPass = translucentT0MeshPass;
+            m_TranslucentT1MeshPass = translucentT1MeshPass;
+            m_TranslucentT2MeshPass = translucentT2MeshPass;
         }
 
         struct TranslucentDepthPassData
@@ -49,9 +55,9 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle translucentDepthHandle;
         }
 
-        internal void RasterTranslucentDepth(in ViewContext context)
+        internal void RasterTranslucentDepth(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterTranslucentDepthPass));
+            RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_TranslucentDepthMeshPass);
             TextureDescriptor translucentDepthDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 translucentDepthDsc.name = TranslucentPassUtilityData.DepthTextureName;
@@ -80,26 +86,27 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal void RasterTranslucentT0(in ViewContext context)
+        internal void RasterTranslucentT0(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
+            RasterTranslucentColor(context, viewHandle, m_TranslucentT0MeshPass, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
-        internal void RasterTranslucentT1(in ViewContext context)
+        internal void RasterTranslucentT1(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
+            RasterTranslucentColor(context, viewHandle, m_TranslucentT1MeshPass, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
-        internal void RasterTranslucentT2(in ViewContext context)
+        internal void RasterTranslucentT2(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RasterTranslucentColor(context, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
+            RasterTranslucentColor(context, viewHandle, m_TranslucentT2MeshPass, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }
 
         // MeshComponent content is drawn back to front before the native renderer list in the same pass. The two lists are
         // sorted separately: there is no distance order between MeshComponent and native translucent renderers.
-        void RasterTranslucentColor(in ViewContext context, ShaderTagId lightMode, CustomSamplerId samplerId, bool bindFog, bool bindPyramid)
+        void RasterTranslucentColor(in ViewContext context, in RGMeshViewHandle viewHandle, MeshPassId meshPass, ShaderTagId lightMode,
+            CustomSamplerId samplerId, bool bindFog, bool bindPyramid)
         {
-            RGMeshDrawListHandle meshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, lightMode));
+            RGMeshDrawListHandle meshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, meshPass);
             RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool writeReactive = context.features.ShouldRecord(EFrameFeature.TAA);

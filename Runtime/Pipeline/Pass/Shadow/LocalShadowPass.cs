@@ -29,13 +29,16 @@ namespace InfinityTech.Rendering.Pipeline
         readonly InfinityRenderPipelineResources m_Resources;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
         readonly LocalShadowCache m_LocalShadowCache;
+        readonly MeshPassId m_ShadowMeshPass;
 
-        internal LocalShadowPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings, LocalShadowCache localShadowCache)
+        internal LocalShadowPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings,
+            LocalShadowCache localShadowCache, MeshPassId shadowMeshPass)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
             m_Settings = settings;
             m_LocalShadowCache = localShadowCache;
+            m_ShadowMeshPass = shadowMeshPass;
         }
 
         struct LocalShadowPassData
@@ -178,8 +181,10 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                sliceMeshDrawListsHandle[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
-                    CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass));
+                // Each face is its own light view: no camera occluder and no motion reach it.
+                RGMeshViewHandle sliceViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(
+                    CameraCulling.Context(context.camera, shadowLight, local.splitData), default, MeshOccluder.None));
+                sliceMeshDrawListsHandle[slice] = m_RGBuilder.CreateMeshDrawList(sliceViewHandle, m_ShadowMeshPass);
 
                 if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {

@@ -2,7 +2,7 @@
 
 `MeshComponent` objects are drawn by the pipeline's own mesh path instead of Unity renderer lists. Native `MeshRenderer`, `SkinnedMeshRenderer`, terrain and particles keep Unity culling and renderer lists, including lightmaps and light probes. The implementation is [ARCHITECTURE.md §7](../../ARCHITECTURE.md#7-mesh-drawing-pipeline).
 
-A pass records `new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass)` with `CreateMeshDrawList`, consumes it with `UseMeshDrawList`, and submits it with `SubmitMeshDrawList`. The list is `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. The world creates the nine pass caches with itself.
+A pass creates its list from the mesh view it receives and its pass id with `CreateMeshDrawList`, consumes it with `UseMeshDrawList`, and submits it with `SubmitMeshDrawList`; the pipeline culls the camera's views with `CullMeshView`. The list is `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. The world creates one pass cache per entry of the pipeline's mesh pass table with itself; the desktop pipeline has nine.
 
 ## Authoring
 

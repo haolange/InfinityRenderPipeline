@@ -11,7 +11,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         ResourcePool m_ResourcePool;
         MeshDrawCPUBackend m_CPUBackend;
         MeshDrawGPUBackend m_GPUBackend;
+        // One cache per entry of the pass table, at the same index.
         readonly List<MeshPassCache> m_PassCaches = new List<MeshPassCache>(16);
+        readonly MeshPassDesc[] m_Passes;
         // Backend the owner requests for the current camera: a diagnostics override, then the Rendering Debugger, then the asset.
         internal EMeshDrawBackendPolicy requestedBackend;
 
@@ -21,25 +23,52 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal MeshDrawGPUBackend gpuBackend => m_GPUBackend;
         internal MeshTransformVersionCache transformVersions => m_Gpu.transformVersions;
         internal IReadOnlyList<MeshPassCache> passCaches => m_PassCaches;
+        /// <summary>The pass table the world was built with; a <see cref="MeshPassId"/> indexes it.</summary>
+        internal ReadOnlySpan<MeshPassDesc> passes => m_Passes;
 
-        void InternPresets()
+        // The highest Unity render queue.
+        const int MaxRenderQueue = 5000;
+
+        // Runs before any allocation, so an invalid table leaves nothing to release. The table is the pipeline's data; the
+        // world reads it and never writes it.
+        static MeshPassDesc[] ValidatePasses(MeshPassDesc[] passes)
         {
-            foreach (MeshPassDesc preset in MeshPassTable.all)
+            if (passes == null || passes.Length == 0)
             {
-                CreatePassCache(preset);
+                throw new ArgumentException("A mesh world draws at least one pass.", nameof(passes));
+            }
+            for (int i = 0; i < passes.Length; ++i)
+            {
+                MeshPassDesc desc = passes[i];
+                if (string.IsNullOrEmpty(desc.lightMode) || string.IsNullOrEmpty(desc.token))
+                {
+                    throw new ArgumentException($"Mesh pass {i} has no LightMode or marker token.", nameof(passes));
+                }
+                if (desc.queueMin < 0 || desc.queueMin > desc.queueMax || desc.queueMax > MaxRenderQueue)
+                {
+                    throw new ArgumentException($"Mesh pass '{desc.lightMode}' has the queue range [{desc.queueMin}, {desc.queueMax}]; a range lies inside [0, {MaxRenderQueue}].", nameof(passes));
+                }
+                for (int j = 0; j < i; ++j)
+                {
+                    if (string.Equals(passes[j].lightMode, desc.lightMode, StringComparison.Ordinal))
+                    {
+                        throw new ArgumentException($"Mesh pass '{desc.lightMode}' appears twice in the pass table.", nameof(passes));
+                    }
+                }
+            }
+            return passes;
+        }
+
+        void CreatePassCaches()
+        {
+            foreach (MeshPassDesc desc in m_Passes)
+            {
+                CreatePassCache(desc);
             }
         }
 
-        /// <summary>The nine pass caches created with the world. A desc that is not one of them throws.</summary>
-        internal MeshPassCache GetPassCache(in MeshPassDesc desc)
-        {
-            foreach (MeshPassCache existing in m_PassCaches)
-                if (existing.desc.Equals(desc))
-                {
-                    return existing;
-                }
-            throw new ArgumentException($"'{desc.lightMode}' is not one of the nine mesh passes.");
-        }
+        /// <summary>The cache of one pass of the table, created with the world.</summary>
+        internal MeshPassCache GetPassCache(MeshPassId pass) => m_PassCaches[pass.index];
 
         void CreatePassCache(in MeshPassDesc desc)
         {
@@ -65,17 +94,21 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>Entity slots with at least one member element in the pass (for example shadow casters).</summary>
-        internal Unity.Collections.NativeArray<int> GetPassMembers(in MeshPassDesc desc) => GetPassCache(desc).entityMemberCount;
+        internal Unity.Collections.NativeArray<int> GetPassMembers(MeshPassId pass) => GetPassCache(pass).entityMemberCount;
 
         public void BeginCamera(Camera camera) => stats.BeginCamera(camera);
 
+        /// <summary>Backend for the draw lists of one pass; see <see cref="SelectBackend(EMeshSortKey)"/>.</summary>
+        internal EMeshDrawBackendPolicy SelectBackend(MeshPassId pass) => SelectBackend(m_Passes[pass.index].sortKey);
+
         /// <summary>
-        /// Backend for one draw list. Auto and GPU Indirect follow device capability. A pass with
-        /// <see cref="MeshPassDesc.cpuBackend"/> records on the CPU.
+        /// Backend for passes with one sort key. A translucent color key needs strict back-to-front order, which the GPU
+        /// backend's atomic append does not keep, so those passes record on the CPU. Every other key follows the requested
+        /// policy and device capability (P6: the choice changes cost, not the image).
         /// </summary>
-        internal EMeshDrawBackendPolicy SelectBackend(in MeshPassDesc desc)
+        internal EMeshDrawBackendPolicy SelectBackend(EMeshSortKey sortKey)
         {
-            bool gpu = !desc.cpuBackend && requestedBackend != EMeshDrawBackendPolicy.CPUDirect && m_GPUBackend.isSupported;
+            bool gpu = sortKey != EMeshSortKey.TranslucentColor && requestedBackend != EMeshDrawBackendPolicy.CPUDirect && m_GPUBackend.isSupported;
             return gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
         }
 

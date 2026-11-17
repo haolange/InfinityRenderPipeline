@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.Pipeline;
 using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -131,7 +132,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         // Builds the world's draw list for one pass and returns (entity order, runs). Entity i sits at distance depth from the
         // LOD origin under a context without planes; an invisible spec has no layer the context accepts.
-        static void Build(MeshWorldFixture fixture, in MeshPassDesc desc, Material[] materials, DrawSpec[] specs,
+        static void Build(MeshWorldFixture fixture, MeshPassId pass, Material[] materials, DrawSpec[] specs,
             out int[] entities, out (int command, int offset, int count)[] runs, out int[] commandOfMaterial)
         {
             MeshWorld world = fixture.world;
@@ -148,7 +149,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 }
                 update.Commit();
             }
-            MeshPassCache cache = world.GetPassCache(desc);
+            MeshPassCache cache = world.GetPassCache(pass);
             commandOfMaterial = new int[materials.Length];
             for (int i = 0; i < specs.Length; ++i)
                 commandOfMaterial[specs[i].material] = (int)(cache.candidates[(int)elements[i].Index].y & MeshPassCache.CommandMask);
@@ -187,7 +188,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     new DrawSpec(0, 0, 5f), new DrawSpec(1, 0, 20f), new DrawSpec(0, 0, 10f),
                     new DrawSpec(0, -1, 1f), new DrawSpec(0, 1, 50f), new DrawSpec(0, 0, 30f, visible: false)
                 };
-                Build(fixture, MeshPassTable.TranslucentT0, materials, specs, out int[] order, out var runs, out int[] commands);
+                Build(fixture, InfinityMeshPasses.TranslucentT0, materials, specs, out int[] order, out var runs, out int[] commands);
 
                 CollectionAssert.AreEqual(new[] { 3, 1, 2, 0, 4 }, order);
                 // Translucent passes do not dither, so the three visible members of command 0 are one run.
@@ -202,8 +203,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(0, 0) };
                 DrawSpec[] specs = { new DrawSpec(0, 0, 12f), new DrawSpec(1, 0, 2f), new DrawSpec(0, 0, 2.05f), new DrawSpec(1, 0, 0.5f) };
-                Build(fixture, MeshPassTable.Depth, materials, specs, out int[] order, out var runs, out int[] commandOfMaterial);
-                MeshPassCache cache = fixture.world.GetPassCache(MeshPassTable.Depth);
+                Build(fixture, InfinityMeshPasses.Depth, materials, specs, out int[] order, out var runs, out int[] commandOfMaterial);
+                MeshPassCache cache = fixture.world.GetPassCache(InfinityMeshPasses.Depth);
 
                 Assert.AreEqual(2, runs.Length, "One command is one run across distances.");
                 int firstMaterial = cache.commands[commandOfMaterial[0]].stateKey <= cache.commands[commandOfMaterial[1]].stateKey ? 0 : 1;
@@ -267,7 +268,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
                 world.UpdateResidency();
-                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
+                MeshPassCache cache = world.GetPassCache(InfinityMeshPasses.GBuffer);
                 Assert.IsTrue(cache.desc.ditherLODTransitions);
                 Assert.IsNotNull(cache.candidateBufferHandle.buffer, "Residency uploads the candidate table.");
                 int commandCount = cache.commandHighWater, candidateCount = cache.candidates.Length;

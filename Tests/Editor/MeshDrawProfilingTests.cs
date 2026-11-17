@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void PassDomain_SelectsDrawNames()
         {
-            foreach (MeshPassDesc pass in MeshPassTable.all)
+            foreach (MeshPassDesc pass in InfinityMeshPasses.all)
             {
                 string domain = pass.lightMode == "RasterShadowPass" ? "Shadows" : "RenderLoop";
                 Assert.AreEqual(domain + ".DrawMeshDirect", MeshDrawProfiling.DrawSampler(pass, false).name, pass.lightMode);
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Tests
         public void Production_IsNotWrappedInTheConsumerSampler()
         {
             string source = File.ReadAllText("Packages/com.infinity.render-pipeline/Runtime/Mesh/Graph/MeshGraphExtension.cs");
-            int start = source.IndexOf("internal RGMeshDrawListHandle Create(", StringComparison.Ordinal);
+            int start = source.IndexOf("internal RGMeshDrawListHandle CreateDrawList(", StringComparison.Ordinal);
             int end = source.IndexOf("internal void UseDrawList", StringComparison.Ordinal);
             Assert.GreaterOrEqual(start, 0);
             Assert.Greater(end, start);
@@ -54,10 +54,10 @@ namespace InfinityTech.Rendering.Tests
         [Test]
         public void ConsumerNames_FollowThePass()
         {
-            Assert.AreEqual("Depth", MeshDrawProfiling.PassSampler(MeshPassTable.Depth).name);
-            Assert.AreEqual("GBuffer", MeshDrawProfiling.PassSampler(MeshPassTable.GBuffer).name);
-            Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler(MeshPassTable.Shadow).name);
-            Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler(MeshPassTable.TranslucentT1).name);
+            Assert.AreEqual("Depth", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.Depth.index]).name);
+            Assert.AreEqual("GBuffer", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.GBuffer.index]).name);
+            Assert.AreEqual("Shadow", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.Shadow.index]).name);
+            Assert.AreEqual("TranslucentT1", MeshDrawProfiling.PassSampler(InfinityMeshPasses.all[InfinityMeshPasses.TranslucentT1.index]).name);
             Assert.AreEqual("Slice2", MeshDrawProfiling.SliceSampler(2).name);
         }
 

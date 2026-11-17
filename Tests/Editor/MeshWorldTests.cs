@@ -121,7 +121,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.SetElementPriority(keptFirst, 9);
                     update.SetEntityDesc(kept, MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 4));
                     // The same material id with a new state edits the shared material record.
-                    update.SetElementMaterial(keptFirst, 1, new MeshMaterialState(MeshPassTable.TranslucentQueueMax + 2, 0, 0, 0));
+                    update.SetElementMaterial(keptFirst, 1, new MeshMaterialState(InfinityMeshPasses.TranslucentQueueMax + 2, 0, 0, 0));
                     update.RemoveEntity(removed);
                     created = MeshTestUtility.CreateEntity(update, new float3(4, 0, 0));
                     update.AddElement(created, 100, 0, 0, 1, s_Unrouted, 0);
@@ -471,21 +471,24 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void SelectBackend_FollowsRequestAndCapability_AndRecordsCpuPassesOnCpu()
+        public void SelectBackend_FollowsRequestAndCapability_AndRecordsBackToFrontPassesOnCpu()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
                 EMeshDrawBackendPolicy indirect = world.gpuBackend.isSupported ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect;
                 world.requestedBackend = EMeshDrawBackendPolicy.GPUIndirect;
-                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer));
-                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0), "A pass that records on the CPU stays there.");
-                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.TranslucentDepth), "Translucent depth follows device capability.");
+                Assert.AreEqual(indirect, world.SelectBackend(InfinityMeshPasses.GBuffer));
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(InfinityMeshPasses.TranslucentT0),
+                    "Strict back-to-front order is a CPU sort; the GPU append does not keep it.");
+                Assert.AreEqual(indirect, world.SelectBackend(InfinityMeshPasses.TranslucentDepth), "Translucent depth follows device capability.");
+                Assert.AreEqual(indirect, world.SelectBackend(EMeshSortKey.State));
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(EMeshSortKey.TranslucentColor));
                 world.requestedBackend = EMeshDrawBackendPolicy.CPUDirect;
-                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.GBuffer));
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(InfinityMeshPasses.GBuffer));
                 world.requestedBackend = EMeshDrawBackendPolicy.Auto;
-                Assert.AreEqual(indirect, world.SelectBackend(MeshPassTable.GBuffer), "Auto follows device capability.");
-                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(MeshPassTable.TranslucentT0));
+                Assert.AreEqual(indirect, world.SelectBackend(InfinityMeshPasses.GBuffer), "Auto follows device capability.");
+                Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, world.SelectBackend(InfinityMeshPasses.TranslucentT0));
             }
         }
     }

@@ -30,10 +30,12 @@ namespace InfinityTech.Rendering.Scene
 
         readonly List<MeshEntityId> m_PendingRemovals = new List<MeshEntityId>(64);
 
-        public SceneWorld(ResourcePool resourcePool, ComputeShader meshDrawShader)
+        /// <param name="meshPasses">The pipeline's mesh pass table; the mesh world builds one pass cache per entry.</param>
+        /// <param name="shadowCasterPass">The entry of that table whose members cast shadows.</param>
+        public SceneWorld(ResourcePool resourcePool, ComputeShader meshDrawShader, MeshPassDesc[] meshPasses, MeshPassId shadowCasterPass)
         {
-            meshes = new MeshWorld(resourcePool, meshDrawShader);
-            lights = new LightModule(resourcePool);
+            meshes = new MeshWorld(resourcePool, meshDrawShader, meshPasses);
+            lights = new LightModule(resourcePool, shadowCasterPass);
             probes = new ProbeModule(resourcePool);
             decals = new DecalModule();
             terrains = new TerrainModule();

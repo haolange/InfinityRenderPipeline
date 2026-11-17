@@ -18,12 +18,14 @@ namespace InfinityTech.Rendering.Pipeline
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_MotionMeshPass;
 
-        internal MotionPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
+        internal MotionPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings, MeshPassId motionMeshPass)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
             m_Settings = settings;
+            m_MotionMeshPass = motionMeshPass;
         }
 
         struct ObjectMotionPassData
@@ -38,13 +40,14 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        internal void RasterMotion(in ViewContext context)
+        // viewHandle carries the camera's mesh motion, which the motion pass requires.
+        internal void RasterMotion(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
             if (!context.features.ShouldRecord(EFrameFeature.Motion))
             {
                 return;
             }
-            RGMeshDrawListHandle motionMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterMotionPass));
+            RGMeshDrawListHandle motionMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_MotionMeshPass);
 
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 

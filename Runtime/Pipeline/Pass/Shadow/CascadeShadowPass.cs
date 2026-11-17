@@ -24,11 +24,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_ShadowMeshPass;
 
-        internal CascadeShadowPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        internal CascadeShadowPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId shadowMeshPass)
         {
             m_RGBuilder = graph;
             m_Settings = settings;
+            m_ShadowMeshPass = shadowMeshPass;
         }
 
         struct CascadeShadowPassData
@@ -88,8 +90,10 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         continue;
                     }
-                    cascadeMeshDrawListsHandle[cascade] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
-                        CameraCulling.Context(context.camera, shadowLight, slice.splitData), InfinityPassIDs.RasterShadowPass));
+                    // Each cascade is its own light view: no camera occluder and no motion reach it.
+                    RGMeshViewHandle cascadeViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(
+                        CameraCulling.Context(context.camera, shadowLight, slice.splitData), default, MeshOccluder.None));
+                    cascadeMeshDrawListsHandle[cascade] = m_RGBuilder.CreateMeshDrawList(cascadeViewHandle, m_ShadowMeshPass);
                     if (!hasNativeCasters)
                     {
                         continue;

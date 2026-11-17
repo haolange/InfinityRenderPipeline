@@ -10,6 +10,7 @@ Every item below passed the static gate (tree-sitter C# syntax under four define
 - Measurement: one record per `Render` call with its camera types and native-submit allocations, Editor and Development only. Verify: `infinity_cpu_markers_start` with `includeSceneView` true and false; `infinity_runtime_probe_start` reports `nativeSubmitAllocations`.
 - Scene world: component registries are the authority; `SceneWorld` prepares the mesh, light, probe, decal and terrain tables, commits them together and rolls every table back when one fails. Verify: `SceneWorldTransactionTests`, `DecalContextRegistrationTests`, `MeshComponentRegistrationTests`, `TerrainAuthoringContractTests`; replace the pipeline asset in Play and confirm local lights still render.
 - Frame derivation: features resolve in `FrameFeatureSet.ResolveFrame`/`ResolveContent`; scene-color stages come from `SceneColorKeys`; SSR and SSGI record once. Verify: `FogTranslucentFeatureTests`, `FeatureRegistryTests`, `RGScoperTests`; DisplayColor captures with and without SSR/SSGI, fog, TAA and SR match the previous baseline; on Metal (no async compute) the RG pass order shows SSR/SSGI before the shadow group and the image is unchanged.
+- Mesh explicit views: the pipeline's mesh pass table reaches the world through `PipelineCapabilities`; passes create lists from an `RGMeshViewHandle` they receive (`CullMeshView`, `CullMeshViewRemainder`, `CreateMeshDrawList(view, MeshPassId)`); two-stage occlusion is the depth, recovery and main views of `MeshMainViews`; the backend derives from the pass's sort key. HLSL is unchanged. Verify, all TODO(UNVERIFIED): compilation of Runtime, Editor and Tests; `MeshDrawListLifetimeTests`, `MeshPassCacheTests`, `MeshWorldTests`, `MeshDrawListTests`, `MeshLodTests`, `MeshDrawProfilingTests`, `MeshComponentRegistrationTests`, `ShadowCasterAllocationTests`, `PipelineCapabilitiesTests`, `MeshOcclusionIntegrationTests` and `MeshOcclusionGpuTests`; on Scene_Spazon and Matrix the DisplayColor capture with two-stage occlusion, shadows and translucent stages matches the previous baseline; the RG pass order keeps `ComputeEarlyFurthestHiZ` before `RasterDepthRecovery` and every producer before its consumer's native group; `Record.CullMainMeshViews`, `Record.CreateMeshEarlyOccluder`, `Record.CullEarlyMeshViews` and `Mesh.DeclareList` against the B11a baseline; `frameAllocations` stays 0 for the Game view.
 
 ### Residency scratch — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
 
@@ -159,7 +160,7 @@ Note: these results predate `54062f7`, which replaced the per-view mesh names be
 
 Editor acceptance of the mesh drawing pipeline on an independent Example mirror. Unity 6000.6.0f1, Metal, Apple M3 Max. The user's Editor stayed on the original Example project. Numbers are in [History/MeshDrawing-2026-11-08/Results.md](../../Record/History/MeshDrawing-2026-11-08/Results.md).
 
-`MeshWorld`, interned pass caches, per-view LOD selection, CPU and GPU draw-list backends and the render-graph extension are the implementation in [ARCHITECTURE.md §7](../../../ARCHITECTURE.md#7-mesh-drawing-pipeline). `MeshComponent` draws a `MeshAsset`. The user Example's `Scene_Spazon`, `BoxMatix_MeshPipeline` and `MeshGroup_64000-1` hold `asset` on their drawn mesh components.
+`MeshWorld`, its pass caches, per-view LOD selection, CPU and GPU draw-list backends and the render-graph extension are the implementation in [ARCHITECTURE.md §7](../../../ARCHITECTURE.md#7-mesh-drawing-pipeline). `MeshComponent` draws a `MeshAsset`. The user Example's `Scene_Spazon`, `BoxMatix_MeshPipeline` and `MeshGroup_64000-1` hold `asset` on their drawn mesh components.
 
 Compile on this Editor: zero C# errors. `Compute_MeshDrawPipeline` initially failed Metal compile because `MeshLOD.hlsl` indexed `float4` with a variable. `dbe6b62` selects the component explicitly. A following Play frame on GPU indirect did not log `Kernel at index is invalid`. `CS0414` on unused `m_Disposed` and `m_UpdateInit` was already present at the `a814a40` baseline.
 
@@ -566,7 +567,7 @@ history/depth and sharpened display in one dispatch. The runtime Sharpen kernel
 and two TAA history-copy passes are removed. MeshDraw compaction/upload are
 explicit graph producers; disjoint batch ranges prevent later preparation from
 overwriting earlier output. The unused CPU immediate-submit entry was removed;
-callers submit through MeshDrawListRegistry. Neutral functional scopes and MeshDraw markers
+callers submit through the mesh graph extension's registry. Neutral functional scopes and MeshDraw markers
 leave Unity's own batching labels intact.
 
 Unity 6000.6.0f1 / OSXEditor / Metal / Apple M3 Max. Final script recompile:

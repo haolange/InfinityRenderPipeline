@@ -22,11 +22,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_GBufferMeshPass;
 
-        internal GBufferPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        internal GBufferPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId gbufferMeshPass)
         {
             m_RGBuilder = graph;
             m_Settings = settings;
+            m_GBufferMeshPass = gbufferMeshPass;
         }
 
         struct GBufferPassData
@@ -41,10 +43,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle dBufferCHandle;
         }
 
-        internal void RasterGBuffer(in ViewContext context)
+        internal void RasterGBuffer(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.GBuffer);
-            RGMeshDrawListHandle gbufferMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterGBufferPass));
+            RGMeshDrawListHandle gbufferMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_GBufferMeshPass);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor gbufferADsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);

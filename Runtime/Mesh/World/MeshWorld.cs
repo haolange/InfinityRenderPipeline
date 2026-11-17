@@ -32,9 +32,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// The mesh world: entity, element, section and material tables, their GPU residency, the interned pass caches and the
-    /// draw backends. One world per render context. Structural edits go through <see cref="MeshWorldUpdate"/>; poses
-    /// (transform and bounds) are written outside transactions and do not take part in undo.
+    /// The mesh world: entity, element, section and material tables, their GPU residency, one pass cache per entry of the
+    /// pass table its owner hands it, and the draw backends. One world per render context. Structural edits go through
+    /// <see cref="MeshWorldUpdate"/>; poses (transform and bounds) are written outside transactions and do not take part in
+    /// undo.
     /// </summary>
     public sealed partial class MeshWorld : IDisposable
     {
@@ -98,8 +99,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal NativeArray<MeshSection> sections => m_Sections.Items;
         internal NativeArray<MeshMaterial> materials => m_Materials.Items;
 
-        public MeshWorld(ResourcePool resourcePool, ComputeShader meshDrawShader)
+        /// <param name="passes">The pipeline's pass table (R1: data of the pipeline, not of the mesh mechanism). LightModes are
+        /// unique and queue ranges lie inside the render queues; a <see cref="MeshPassId"/> indexes it.</param>
+        internal MeshWorld(ResourcePool resourcePool, ComputeShader meshDrawShader, MeshPassDesc[] passes)
         {
+            m_Passes = ValidatePasses(passes);
             if (resourcePool == null)
             {
                 throw new ArgumentNullException(nameof(resourcePool));
@@ -129,7 +133,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ResourcePool = resourcePool;
             m_CPUBackend = new MeshDrawCPUBackend(resourcePool);
             m_GPUBackend = new MeshDrawGPUBackend(resourcePool, meshDrawShader);
-            InternPresets();
+            CreatePassCaches();
         }
 
         public bool IsAlive(MeshEntityId id) => id.IsValid && m_Entities.IsLive((int)id.Index, id.Generation);

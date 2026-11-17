@@ -291,7 +291,7 @@ namespace InfinityTech.Rendering.LightPipeline
             SceneTable<InfinityAdditionalLightData> lights,
             Camera camera,
             in ShadowAllocatorSettings settings,
-            int2 screenSize, MeshPipeline.MeshWorld meshWorld, int frame, LocalShadowCache shadowCache = null)
+            int2 screenSize, MeshPipeline.MeshWorld meshWorld, MeshPipeline.MeshPassId shadowPass, int frame, LocalShadowCache shadowCache = null)
         {
             NativeArray<VisibleLight> visibleLights;
             Light sun;
@@ -441,7 +441,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
             }
-            m_ShadowAllocator.Allocate(m_Records, cullingResults, m_AdditionalData, camera, settings, meshWorld, frame, shadowCache);
+            m_ShadowAllocator.Allocate(m_Records, cullingResults, m_AdditionalData, camera, settings, meshWorld, shadowPass, frame, shadowCache);
             using (LightCpuMarkers.s_EnsureCapacity.Auto())
             {
                 EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));

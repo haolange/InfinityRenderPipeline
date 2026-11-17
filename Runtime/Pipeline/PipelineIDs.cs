@@ -2,6 +2,7 @@ using UnityEngine;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Rendering;
 using UnityEngine.Profiling;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -186,6 +187,41 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
         public static readonly ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
         public static readonly ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
+    }
+
+    // The desktop pipeline's mesh pass table (R1: data of the pipeline). InfinityRenderPipeline hands it to the base through
+    // its capabilities; each id indexes all, and the pipeline hands every mesh pass class the ids it draws.
+    internal static class InfinityMeshPasses
+    {
+        internal const int OpaqueQueueMax = 2999;
+        internal const int TranslucentQueueMin = 3000;
+        internal const int TranslucentQueueMax = 5000;
+
+        internal static readonly MeshPassDesc[] all =
+        {
+            new MeshPassDesc("RasterDepthPass", "Depth", 0, OpaqueQueueMax),
+            new MeshPassDesc("RasterGBufferPass", "GBuffer", 0, OpaqueQueueMax),
+            new MeshPassDesc("RasterForwardPass", "Forward", 0, OpaqueQueueMax),
+            new MeshPassDesc("RasterMotionPass", "Motion", 0, OpaqueQueueMax, EMeshEntityFlags.ObjectMotion, requirePreviousTransforms: true),
+            new MeshPassDesc("RasterShadowPass", "Shadow", 0, OpaqueQueueMax, EMeshEntityFlags.CastShadow),
+            new MeshPassDesc("RasterTranslucentDepthPass", "TranslucentDepth", TranslucentQueueMin, TranslucentQueueMax),
+            new MeshPassDesc("RasterTranslucentT0Pass", "TranslucentT0", TranslucentQueueMin, TranslucentQueueMax,
+                requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor),
+            new MeshPassDesc("RasterTranslucentT1Pass", "TranslucentT1", TranslucentQueueMin, TranslucentQueueMax,
+                requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor),
+            new MeshPassDesc("RasterTranslucentT2Pass", "TranslucentT2", TranslucentQueueMin, TranslucentQueueMax,
+                requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor)
+        };
+
+        internal static readonly MeshPassId Depth = new MeshPassId(0);
+        internal static readonly MeshPassId GBuffer = new MeshPassId(1);
+        internal static readonly MeshPassId Forward = new MeshPassId(2);
+        internal static readonly MeshPassId Motion = new MeshPassId(3);
+        internal static readonly MeshPassId Shadow = new MeshPassId(4);
+        internal static readonly MeshPassId TranslucentDepth = new MeshPassId(5);
+        internal static readonly MeshPassId TranslucentT0 = new MeshPassId(6);
+        internal static readonly MeshPassId TranslucentT1 = new MeshPassId(7);
+        internal static readonly MeshPassId TranslucentT2 = new MeshPassId(8);
     }
 
     public static class InfinityRenderQueue

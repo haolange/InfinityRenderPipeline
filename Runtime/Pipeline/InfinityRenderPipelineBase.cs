@@ -241,7 +241,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
                 m_UpdateInit = true;
-                renderContext = new RenderContext(m_Settings, shaders.meshDrawPipelineCS, capabilities.asyncCompute);
+                renderContext = new RenderContext(m_Settings, shaders.meshDrawPipelineCS, capabilities);
             }
             catch (Exception constructionFailure)
             {
@@ -587,7 +587,7 @@ namespace InfinityTech.Rendering.Pipeline
                         }
                     }
                     lightContext.Build(cullingResults, sceneWorld.lights.table, camera, shadowSettings, setup.dimensions.internalSize, sceneWorld.meshes,
-                        frameContext.frame, sceneWorld.lights.shadowCache);
+                        sceneWorld.lights.shadowCasterPass, frameContext.frame, sceneWorld.lights.shadowCache);
                     using (PipelineCpuMarkers.s_ProcessLightResolveCookies.Auto())
                     {
                         sceneWorld.lights.cookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
@@ -662,7 +662,8 @@ namespace InfinityTech.Rendering.Pipeline
             world.BeginCamera(camera);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             debug.requestedBackend = world.requestedBackend;
-            debug.actualBackend = world.SelectBackend(MeshPassTable.Depth);
+            // The backend of every pass that does not need strict back-to-front order; translucent color is always CPU.
+            debug.actualBackend = world.SelectBackend(EMeshSortKey.State);
             debug.backendReason = world.requestedBackend == EMeshDrawBackendPolicy.CPUDirect ? "Requested CPU Direct"
                 : world.gpuBackend.isSupported ? "Indirect drawing supported" : "Indirect drawing unsupported; CPU Direct";
             debug.entityCount = world.entityCount;

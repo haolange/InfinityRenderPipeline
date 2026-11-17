@@ -20,11 +20,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_ForwardMeshPass;
 
-        internal ForwardPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        internal ForwardPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId forwardMeshPass)
         {
             m_RGBuilder = graph;
             m_Settings = settings;
+            m_ForwardMeshPass = forwardMeshPass;
         }
 
         struct ForwardPassData
@@ -71,9 +73,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal void RasterForward(in ViewContext context)
+        internal void RasterForward(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterForwardPass));
+            RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_ForwardMeshPass);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,

@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.LightPipeline
             in CullingResults cullingResults,
             InfinityAdditionalLightData[] additionalData,
             Camera camera,
-            in ShadowAllocatorSettings settings, MeshWorld meshWorld, int frame, LocalShadowCache shadowCache = null)
+            in ShadowAllocatorSettings settings, MeshWorld meshWorld, MeshPassId shadowPass, int frame, LocalShadowCache shadowCache = null)
         {
             if (camera == null)
             {
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_CollectCasters.Auto())
             {
-                m_MeshCasters.Collect(meshWorld, frame);
+                m_MeshCasters.Collect(meshWorld, shadowPass, frame);
             }
             Reset();
 

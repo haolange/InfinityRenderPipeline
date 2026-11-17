@@ -9,11 +9,12 @@ namespace InfinityTech.Rendering.Pipeline
     // The desktop deferred pipeline: every frame feature, deferred shading, async compute where the device has it.
     public class InfinityRenderPipeline : InfinityRenderPipelineBase
     {
-        // Every EFrameFeature; each camera produces depth, the G-buffer, deferred shading and the display.
+        // Every EFrameFeature; each camera produces depth, the G-buffer, deferred shading and the display. Every mesh pass of
+        // InfinityMeshPasses, with Shadow as the shadow caster pass.
         internal static readonly PipelineCapabilities s_Capabilities = new PipelineCapabilities(
             (EFrameFeature[])Enum.GetValues(typeof(EFrameFeature)),
             new[] { EFrameFeature.Depth, EFrameFeature.GBuffer, EFrameFeature.DeferredShading, EFrameFeature.Display },
-            asyncCompute: true);
+            asyncCompute: true, meshPasses: InfinityMeshPasses.all, shadowCasterPass: InfinityMeshPasses.Shadow);
 
         // One instance per pass for the pipeline's lifetime, built from the render context's services at construction (R3).
         readonly LightUploadPass m_LightUploadPass;
@@ -75,11 +76,11 @@ namespace InfinityTech.Rendering.Pipeline
                 m_AtmosphericLUTPass = new AtmosphericLUTPass(graph, resources, renderContext.atmosphereCache);
                 m_TemporalColorSourcePass = new TemporalColorSourcePass(graph, resources);
                 m_HiZPass = new HiZPass(graph, resources);
-                m_MeshOcclusionPass = new MeshOcclusionPass(graph, m_HiZPass);
-                m_DepthPass = new DepthPass(graph, settings);
+                m_MeshOcclusionPass = new MeshOcclusionPass(graph, m_HiZPass, InfinityMeshPasses.Depth);
+                m_DepthPass = new DepthPass(graph, settings, InfinityMeshPasses.Depth);
                 m_DBufferPass = new DBufferPass(graph, settings);
-                m_GBufferPass = new GBufferPass(graph, settings);
-                m_MotionPass = new MotionPass(graph, resources, settings);
+                m_GBufferPass = new GBufferPass(graph, settings, InfinityMeshPasses.GBuffer);
+                m_MotionPass = new MotionPass(graph, resources, settings, InfinityMeshPasses.Motion);
                 m_HalfResDownsamplePass = new HalfResDownsamplePass(graph, resources);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 m_RenderCapturePass = new RenderCapturePass(graph, resources);
@@ -99,16 +100,17 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
                     );
                 m_ShadowCasterCulling = new ShadowCasterCulling();
-                m_CascadeShadowPass = new CascadeShadowPass(graph, settings);
-                m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache);
+                m_CascadeShadowPass = new CascadeShadowPass(graph, settings, InfinityMeshPasses.Shadow);
+                m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache, InfinityMeshPasses.Shadow);
                 m_ShadowMomentPass = new ShadowMomentPass(graph, resources, settings);
                 m_DeferredShadingPass = new DeferredShadingPass(graph, resources);
-                m_ForwardPass = new ForwardPass(graph, settings);
+                m_ForwardPass = new ForwardPass(graph, settings, InfinityMeshPasses.Forward);
                 m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources);
                 m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
                 m_SubsurfacePass = new SubsurfacePass(graph, resources, settings, renderContext.resourcePool);
                 m_AtmosphericSkyFogPass = new AtmosphericSkyFogPass(graph, resources);
-                m_TranslucentPass = new TranslucentPass(graph, settings);
+                m_TranslucentPass = new TranslucentPass(graph, settings, InfinityMeshPasses.TranslucentDepth,
+                    InfinityMeshPasses.TranslucentT0, InfinityMeshPasses.TranslucentT1, InfinityMeshPasses.TranslucentT2);
                 m_VolumetricCloudPass = new VolumetricCloudPass(graph, resources);
                 m_VolumetricFogPass = new VolumetricFogPass(graph, resources);
                 m_FogCompositePass = new FogCompositePass(graph, resources);
@@ -182,42 +184,38 @@ namespace InfinityTech.Rendering.Pipeline
                 m_TemporalColorSourcePass.ComputeTemporalColorPyramid(context);
             }
 
-            // PHASE 1: geometry raster (shared depth attachment chain). Each pass creates its own draw list. Compile
-            // places the producer before that pass's native group, so the producer does not split the group.
+            // PHASE 1: geometry raster (shared depth attachment chain). Each pass creates its draw list from the mesh view it
+            // receives (R18: the dependency is a parameter). Compile places the producer before that pass's native group, so
+            // the producer does not split the group.
             MeshMotionBinding meshMotion;
             using (PipelineCpuMarkers.s_RecordPrepareMeshMotion.Auto())
             {
                 meshMotion = context.state.meshMotionHistory.Prepare(context.meshes.transformVersions.current);
             }
-            using (PipelineCpuMarkers.s_RecordSetMeshMotion.Auto())
+            MeshMainViews meshViews;
+            using (PipelineCpuMarkers.s_RecordCullMainMeshViews.Auto())
             {
-                renderContext.graph.SetMeshMotion(meshMotion);
+                meshViews = m_MeshOcclusionPass.CullMainViews(context, meshMotion);
             }
-            bool twoStageMesh;
-            using (PipelineCpuMarkers.s_RecordRegisterMeshHistoryOccluder.Auto())
+            using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
             {
-                twoStageMesh = m_MeshOcclusionPass.RegisterMeshHistoryOccluder(context, meshMotion);
+                m_DepthPass.RasterDepth(context, meshViews.depthViewHandle);
             }
-            if (twoStageMesh)
+            // The early views test the Hi-Z of the depth just recorded, so they follow it.
+            if (meshViews.twoStage)
             {
-                using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
+                MeshOccluder earlyOccluder;
+                using (PipelineCpuMarkers.s_RecordCreateMeshEarlyOccluder.Auto())
                 {
-                    m_DepthPass.RasterDepth(context);
+                    earlyOccluder = m_MeshOcclusionPass.CreateEarlyOccluder(context);
                 }
-                using (PipelineCpuMarkers.s_RecordRegisterMeshEarlyOccluder.Auto())
+                using (PipelineCpuMarkers.s_RecordCullEarlyMeshViews.Auto())
                 {
-                    m_MeshOcclusionPass.RegisterMeshEarlyOccluder(context);
+                    meshViews = m_MeshOcclusionPass.CullEarlyViews(context, meshMotion, meshViews, earlyOccluder);
                 }
                 using (PipelineCpuMarkers.s_RecordRasterDepthRecovery.Auto())
                 {
-                    m_MeshOcclusionPass.RasterDepthRecovery(context);
-                }
-            }
-            else
-            {
-                using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
-                {
-                    m_DepthPass.RasterDepth(context);
+                    m_MeshOcclusionPass.RasterDepthRecovery(meshViews.recoveryViewHandle);
                 }
             }
             using (PipelineCpuMarkers.s_RecordRasterDBuffer.Auto())
@@ -226,11 +224,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
             using (PipelineCpuMarkers.s_RecordRasterGBuffer.Auto())
             {
-                m_GBufferPass.RasterGBuffer(context);
+                m_GBufferPass.RasterGBuffer(context, meshViews.mainViewHandle);
             }
             using (PipelineCpuMarkers.s_RecordRasterMotion.Auto())
             {
-                m_MotionPass.RasterMotion(context);
+                m_MotionPass.RasterMotion(context, meshViews.mainViewHandle);
             }
 
             // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
@@ -304,7 +302,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
             using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
             {
-                m_ForwardPass.RasterForward(context);
+                m_ForwardPass.RasterForward(context, meshViews.mainViewHandle);
             }
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
             {
@@ -338,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
             // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
             using (PipelineCpuMarkers.s_RecordRasterTranslucentDepth.Auto())
             {
-                m_TranslucentPass.RasterTranslucentDepth(context);
+                m_TranslucentPass.RasterTranslucentDepth(context, meshViews.mainViewHandle);
             }
             using (PipelineCpuMarkers.s_RecordComputeVolumetricCloud.Auto())
             {
@@ -362,7 +360,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT0.Auto())
             {
-                m_TranslucentPass.RasterTranslucentT0(context);
+                m_TranslucentPass.RasterTranslucentT0(context, meshViews.mainViewHandle);
             }
             using (PipelineCpuMarkers.s_RecordComputeColorPyramid.Auto())
             {
@@ -370,11 +368,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT1.Auto())
             {
-                m_TranslucentPass.RasterTranslucentT1(context);
+                m_TranslucentPass.RasterTranslucentT1(context, meshViews.mainViewHandle);
             }
             using (PipelineCpuMarkers.s_RecordRasterTranslucentT2.Auto())
             {
-                m_TranslucentPass.RasterTranslucentT2(context);
+                m_TranslucentPass.RasterTranslucentT2(context, meshViews.mainViewHandle);
             }
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)

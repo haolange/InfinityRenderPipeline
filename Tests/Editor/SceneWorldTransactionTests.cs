@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ReplacementWorld_RebuildsTheLightTableFromTheRegistry()
         {
             GameObject go = null;
-            SceneWorld previous = new SceneWorld(m_Pool, m_MeshShader), replacement = null;
+            SceneWorld previous = new SceneWorld(m_Pool, m_MeshShader, InfinityMeshPasses.all, InfinityMeshPasses.Shadow), replacement = null;
             try
             {
                 go = CreateLight("SceneWorld.Light", out ulong lightId);
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 SceneWorldTestUtility.Dispose(previous);
                 previous = null;
 
-                replacement = new SceneWorld(m_Pool, m_MeshShader);
+                replacement = new SceneWorld(m_Pool, m_MeshShader, InfinityMeshPasses.all, InfinityMeshPasses.Shadow);
                 SceneWorldTestUtility.UpdateOwn(replacement);
                 Assert.IsTrue(replacement.lights.table.TryGet(lightId, out _),
                     "A replaced pipeline's world still knows a light enabled before it existed.");
@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void Tables_PublishOnlyAtUpdate_AndAdvanceTheirRevisionOnce()
         {
             GameObject go = null;
-            var world = new SceneWorld(m_Pool, m_MeshShader);
+            var world = new SceneWorld(m_Pool, m_MeshShader, InfinityMeshPasses.all, InfinityMeshPasses.Shadow);
             try
             {
                 SceneWorldTestUtility.UpdateOwn(world);
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             GameObject light = null, mesh = null;
             Material material = null;
             MeshAsset asset = null;
-            var world = new SceneWorld(m_Pool, m_MeshShader);
+            var world = new SceneWorld(m_Pool, m_MeshShader, InfinityMeshPasses.all, InfinityMeshPasses.Shadow);
             try
             {
                 SceneWorldTestUtility.UpdateOwn(world);

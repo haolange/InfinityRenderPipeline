@@ -362,8 +362,10 @@ class StaticCheckTests(unittest.TestCase):
         self.write('Runtime/Pipeline/HDROutputState.cs',
                    'public abstract partial class InfinityRenderPipelineBase\n{\n    void Inherit(InfinityRenderPipeline previous) { }\n}\n')
         self.write('Runtime/Pipeline/Context/RenderContext.cs', 'internal sealed class RenderContext\n{\n    DepthPass m_DepthPass;\n}\n')
+        self.write('Runtime/Pipeline/Context/PipelineCapabilities.cs', 'internal readonly struct PipelineCapabilities\n{\n    MeshPassId shadow = InfinityMeshPasses.Shadow;\n}\n')
         static_check.check_pipeline_base(str(self.repo), out)
-        self.assertEqual(['Runtime/Pipeline/Context/RenderContext.cs:3', 'Runtime/Pipeline/HDROutputState.cs:3'],
+        self.assertEqual(['Runtime/Pipeline/Context/PipelineCapabilities.cs:3', 'Runtime/Pipeline/Context/RenderContext.cs:3',
+                          'Runtime/Pipeline/HDROutputState.cs:3'],
                          sorted(o[2].split(': ')[0] for o in out))
 
     def test_agents_over_limit_fails_and_at_limit_passes(self):
@@ -415,13 +417,17 @@ class StaticCheckTests(unittest.TestCase):
     def test_mesh_mechanism_names_no_pipeline_concept(self):
         self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { void BeginCamera(Camera camera) { } }')
         self.write('Runtime/Mesh/View/MeshCullingContext.cs', '// A camera adapts into this context.\nstruct MeshCullingContext { }')
+        self.write('Runtime/Mesh/DrawList/MeshDrawListBuild.cs', 'struct MeshDrawListBuild { MeshViewDesc desc; RGMeshViewHandle viewHandle; }')
         out = []
         static_check.check_mesh_mechanism(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Mesh/Pass/MeshPassCache.cs', 'class MeshPassCache { Camera camera; }')
         self.write('Runtime/Mesh/Backend/Gpu.cs', 'class Gpu { int id = InfinityShaderIDs.DepthBuffer; }')
+        self.write('Runtime/Mesh/View/MeshViews.cs', 'enum EMeshViewKind { Main }')
+        self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { MeshPassId id = InfinityMeshPasses.Depth; }')
         static_check.check_mesh_mechanism(str(self.repo), out)
-        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera'],
+        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera',
+                          'Runtime/Mesh/View/MeshViews.cs names EMeshViewKind', 'Runtime/Mesh/World/MeshWorld.cs names InfinityMeshPasses'],
                          sorted(o[2] for o in out))
 
     def test_mesh_submit_only_draws(self):
@@ -448,7 +454,7 @@ class StaticCheckTests(unittest.TestCase):
 
     def test_mesh_pass_files_leave_backend_choice_to_the_world(self):
         self.write('Runtime/Pipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshDrawBackendPolicy.GPUIndirect) {}')
-        self.write('Runtime/Pipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));')
+        self.write('Runtime/Pipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(viewHandle, m_GBufferMeshPass);')
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshDrawBackendPolicy')], out)

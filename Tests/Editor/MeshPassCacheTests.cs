@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -107,30 +108,30 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.Commit();
                 }
 
-                var expected = new Dictionary<MeshPassDesc, int[]>
+                var expected = new (MeshPassId pass, int[] members)[]
                 {
-                    { MeshPassTable.Depth, new[] { 0, 1, 5 } },
-                    { MeshPassTable.GBuffer, new[] { 0, 1, 5 } },
-                    { MeshPassTable.Forward, new[] { 1 } },
-                    { MeshPassTable.Motion, new[] { 1 } },
-                    { MeshPassTable.Shadow, new[] { 1 } },
-                    { MeshPassTable.TranslucentDepth, new[] { 2 } },
-                    { MeshPassTable.TranslucentT0, new int[0] },
-                    { MeshPassTable.TranslucentT1, new[] { 2 } },
-                    { MeshPassTable.TranslucentT2, new int[0] }
+                    (InfinityMeshPasses.Depth, new[] { 0, 1, 5 }),
+                    (InfinityMeshPasses.GBuffer, new[] { 0, 1, 5 }),
+                    (InfinityMeshPasses.Forward, new[] { 1 }),
+                    (InfinityMeshPasses.Motion, new[] { 1 }),
+                    (InfinityMeshPasses.Shadow, new[] { 1 }),
+                    (InfinityMeshPasses.TranslucentDepth, new[] { 2 }),
+                    (InfinityMeshPasses.TranslucentT0, new int[0]),
+                    (InfinityMeshPasses.TranslucentT1, new[] { 2 }),
+                    (InfinityMeshPasses.TranslucentT2, new int[0])
                 };
-                foreach (KeyValuePair<MeshPassDesc, int[]> pass in expected)
+                foreach ((MeshPassId pass, int[] members) in expected)
                 {
-                    MeshPassCache cache = world.GetPassCache(pass.Key);
-                    var members = new List<int>();
+                    MeshPassCache cache = world.GetPassCache(pass);
+                    var actual = new List<int>();
                     for (int i = 0; i < entities.Length; ++i)
-                        if (cache.entityMemberCount[(int)entities[i].Index] > 0) members.Add(i);
-                    CollectionAssert.AreEqual(pass.Value, members, pass.Key.ToString());
+                        if (cache.entityMemberCount[(int)entities[i].Index] > 0) actual.Add(i);
+                    CollectionAssert.AreEqual(members, actual, cache.desc.ToString());
                     AssertMatchesRule(world, cache);
                 }
 
-                MeshPassCache shadow = world.GetPassCache(MeshPassTable.Shadow);
-                MeshPassCache gbuffer = world.GetPassCache(MeshPassTable.GBuffer);
+                MeshPassCache shadow = world.GetPassCache(InfinityMeshPasses.Shadow);
+                MeshPassCache gbuffer = world.GetPassCache(InfinityMeshPasses.GBuffer);
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     update.SetEntityDesc(entities[0], MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow));
@@ -226,13 +227,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.Greater(rollbacks, 0);
                 Assert.Greater(world.elementCount, 0);
 
-                foreach (MeshPassDesc desc in MeshPassTable.all)
+                for (int pass = 0; pass < world.passes.Length; ++pass)
                 {
-                    var fresh = new MeshPassCache(desc);
+                    var fresh = new MeshPassCache(world.passes[pass]);
                     try
                     {
                         fresh.Build(world);
-                        AssertSameContent(world, world.GetPassCache(desc), fresh);
+                        AssertSameContent(world, world.GetPassCache(new MeshPassId(pass)), fresh);
                     }
                     finally { fresh.Dispose(); }
                 }
@@ -297,25 +298,59 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void PassCaches_AreTheNinePasses_AndRejectAnythingElse()
+        public void PassCaches_FollowThePipelinesTable_AndTheWorldRejectsAnInvalidTable()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 MeshWorld world = fixture.world;
-                Assert.AreEqual(MeshPassTable.all.Length, world.stats.passCacheCount, "The nine passes exist at construction.");
-                var equal = new MeshPassDesc(new string("RasterGBufferPass".ToCharArray()), "GBuffer", 0, MeshPassTable.OpaqueQueueMax);
+                Assert.AreEqual(InfinityMeshPasses.all.Length, world.passes.Length);
+                Assert.AreEqual(InfinityMeshPasses.all.Length, world.stats.passCacheCount, "Every pass of the table exists at construction.");
+                for (int pass = 0; pass < world.passes.Length; ++pass)
+                    Assert.AreEqual(InfinityMeshPasses.all[pass].lightMode, world.GetPassCache(new MeshPassId(pass)).desc.lightMode, "A pass id indexes the table.");
                 int builds = world.stats.passCacheBuilds;
-                Assert.AreSame(world.GetPassCache(MeshPassTable.GBuffer), world.GetPassCache(equal), "Field-level equality is the identity.");
-                Assert.AreEqual(builds, world.stats.passCacheBuilds, "Looking up an existing pass does not build another cache.");
-
-                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("UnknownLightMode", "Unknown", 0, 10)));
-                Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", "Depth", 20, 10)));
+                Assert.AreSame(world.GetPassCache(InfinityMeshPasses.GBuffer), world.GetPassCache(InfinityMeshPasses.GBuffer));
+                Assert.AreEqual(builds, world.stats.passCacheBuilds, "Looking up a pass does not build another cache.");
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    Assert.AreSame(world.GetPassCache(MeshPassTable.Depth), world.GetPassCache(MeshPassTable.Depth));
-                    Assert.Throws<ArgumentException>(() => world.GetPassCache(new MeshPassDesc("RasterDepthPass", "Depth", 0, 7)));
+                    Assert.AreSame(world.GetPassCache(InfinityMeshPasses.Depth), world.GetPassCache(InfinityMeshPasses.Depth));
                 }
+                Assert.Throws<ArgumentOutOfRangeException>(() => world.GetPassCache(new MeshPassId(InfinityMeshPasses.all.Length)));
             }
+
+            ComputeShader shader = MeshTestUtility.LoadMeshDrawShader();
+            var pool = new ResourcePool();
+            try
+            {
+                var depth = new MeshPassDesc("RasterDepthPass", "Depth", 0, InfinityMeshPasses.OpaqueQueueMax);
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, null));
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, new MeshPassDesc[0]));
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, new[] { depth, new MeshPassDesc("RasterDepthPass", "DepthAgain", 0, 10) }),
+                    "A LightMode appears once in a table.");
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, new[] { new MeshPassDesc("RasterDepthPass", "Depth", 20, 10) }));
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, new[] { new MeshPassDesc("RasterDepthPass", "Depth", -1, 10) }));
+                Assert.Throws<ArgumentException>(() => new MeshWorld(pool, shader, new[] { new MeshPassDesc("RasterDepthPass", "Depth", 0, 5001) }));
+            }
+            finally { pool.Dispose(); }
+            // The route authority rejects a LightMode it does not route, before the cache allocates anything.
+            Assert.Catch<ArgumentException>(() => new MeshPassCache(new MeshPassDesc("UnknownLightMode", "Unknown", 0, 10)));
+        }
+
+        [Test]
+        public void InfinityMeshPassIds_IndexTheirDescriptors()
+        {
+            var expected = new (MeshPassId pass, string lightMode)[]
+            {
+                (InfinityMeshPasses.Depth, "RasterDepthPass"), (InfinityMeshPasses.GBuffer, "RasterGBufferPass"),
+                (InfinityMeshPasses.Forward, "RasterForwardPass"), (InfinityMeshPasses.Motion, "RasterMotionPass"),
+                (InfinityMeshPasses.Shadow, "RasterShadowPass"), (InfinityMeshPasses.TranslucentDepth, "RasterTranslucentDepthPass"),
+                (InfinityMeshPasses.TranslucentT0, "RasterTranslucentT0Pass"), (InfinityMeshPasses.TranslucentT1, "RasterTranslucentT1Pass"),
+                (InfinityMeshPasses.TranslucentT2, "RasterTranslucentT2Pass")
+            };
+            Assert.AreEqual(expected.Length, InfinityMeshPasses.all.Length);
+            foreach ((MeshPassId pass, string lightMode) in expected)
+                Assert.AreEqual(lightMode, InfinityMeshPasses.all[pass.index].lightMode);
+            foreach (MeshPassDesc desc in InfinityMeshPasses.all)
+                Assert.AreEqual(desc.queueMax < InfinityMeshPasses.TranslucentQueueMin, desc.ditherLODTransitions, desc.lightMode);
         }
 
         [Test]
@@ -341,8 +376,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                     update.Commit();
                 }
-                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
-                MeshPassCache shadow = world.GetPassCache(MeshPassTable.Shadow);
+                MeshPassCache cache = world.GetPassCache(InfinityMeshPasses.GBuffer);
+                MeshPassCache shadow = world.GetPassCache(InfinityMeshPasses.Shadow);
                 uint shadowRevision = shadow.revision;
                 Assert.AreEqual(1, cache.commandCount);
                 Assert.AreEqual(3, cache.memberCount);
@@ -431,7 +466,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                     update.Commit();
                 }
-                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
+                MeshPassCache cache = world.GetPassCache(InfinityMeshPasses.GBuffer);
                 uint revision = cache.revision;
                 int entities = world.entityCount, structural = world.structuralRevision;
 

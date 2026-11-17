@@ -145,7 +145,7 @@ namespace InfinityTech.Component
             SyncState current = m_Staged ? m_Next : m_State;
             bool alive = IsPublishedIn(world, current);
             bool drawable = isActiveAndEnabled && asset != null && materials != null && m_Geometry != null;
-            if (drawable && !TryValidate(out string error))
+            if (drawable && !TryValidate(world, out string error))
             {
                 Debug.LogError($"MeshComponent '{name}' is not drawn: {error}", this);
                 drawable = false;
@@ -296,7 +296,7 @@ namespace InfinityTech.Component
         /// slot selects must route through Infinity surface routing, read entity data through the mesh instancing interface
         /// and declare each pass its route enables.
         /// </summary>
-        bool TryValidate(out string error)
+        bool TryValidate(MeshWorld world, out string error)
         {
             error = null;
             try
@@ -345,7 +345,7 @@ namespace InfinityTech.Component
                     error = exception.Message;
                     return false;
                 }
-                foreach (MeshPassDesc pass in MeshPassTable.all)
+                foreach (MeshPassDesc pass in world.passes)
                 {
                     if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode))
                     {

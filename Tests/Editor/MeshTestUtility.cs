@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// A material state that no preset accepts: opaque presets end at queue 2999 and translucent presets require a
         /// translucent stage. World bookkeeping tests use it so that commits never resolve Unity objects.
         /// </summary>
-        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(MeshPassTable.TranslucentQueueMax + 1, 0, 0, 0);
+        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(InfinityMeshPasses.TranslucentQueueMax + 1, 0, 0, 0);
 
         internal static ComputeShader LoadMeshDrawShader()
         {
@@ -357,7 +357,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         {
             shader = MeshTestUtility.LoadMeshDrawShader();
             pool = new ResourcePool();
-            try { world = new MeshWorld(pool, shader); }
+            try { world = new MeshWorld(pool, shader, InfinityMeshPasses.all); }
             catch
             {
                 pool.Dispose();

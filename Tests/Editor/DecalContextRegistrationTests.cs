@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         SceneWorld OwnWorld()
         {
-            var world = new SceneWorld(m_Pool, m_MeshShader);
+            var world = new SceneWorld(m_Pool, m_MeshShader, InfinityMeshPasses.all, InfinityMeshPasses.Shadow);
             m_Worlds.Add(world);
             return world;
         }

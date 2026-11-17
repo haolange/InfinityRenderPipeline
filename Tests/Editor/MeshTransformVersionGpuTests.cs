@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var sample = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/MeshTransformVersionTests.compute");
             if (build == null) Assert.Ignore("Compute_MeshDrawPipeline is not available.");
             Assert.IsNotNull(sample);
-            var pool = new ResourcePool(); var world = new MeshWorld(pool, build);
+            var pool = new ResourcePool(); var world = new MeshWorld(pool, build, InfinityMeshPasses.all);
             var a = new MeshMotionHistory(); var b = new MeshMotionHistory();
             try
             {

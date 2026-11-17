@@ -9,6 +9,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.Pipeline;
 using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -97,7 +98,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                     update.Commit();
                 }
-                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
+                MeshPassCache cache = world.GetPassCache(InfinityMeshPasses.GBuffer);
                 for (int i = 0; i < chains.Length; ++i)
                 {
                     ulong materialId = MeshTestUtility.Id(materials[i]);
@@ -192,9 +193,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshLODSelection.Select(chain, MeshTestUtility.Bound(float3.zero), context.ReadLODProjection(), out byte level, out float fade);
                 Assert.AreEqual(0, level);
                 Assert.That(fade, Is.EqualTo(0.5f).Within(1e-4f));
-                var opaqueDraws = Build(world, MeshPassTable.GBuffer, context);
+                var opaqueDraws = Build(world, InfinityMeshPasses.GBuffer, context);
                 CollectionAssert.AreEquivalent(new[] { (true, fade), (true, -fade) }, opaqueDraws, "Opaque passes cross-fade both levels.");
-                var translucentDraws = Build(world, MeshPassTable.TranslucentT0, context);
+                var translucentDraws = Build(world, InfinityMeshPasses.TranslucentT0, context);
                 CollectionAssert.AreEqual(new[] { (false, 0f) }, translucentDraws, "Translucent passes draw the selected level only.");
             }
         }
@@ -208,9 +209,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         // Builds one pass under a context on the CPU backend and returns (fading, factor) per instance.
-        static List<(bool fading, float fade)> Build(MeshWorld world, in MeshPassDesc desc, in MeshCullingContext context)
+        static List<(bool fading, float fade)> Build(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
         {
-            MeshPassCache cache = world.GetPassCache(desc);
+            MeshPassCache cache = world.GetPassCache(pass);
             MeshDrawListBuild build = MeshDrawListBuild.Schedule(cache, world, context);
             try
             {

@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var shader = MeshTestUtility.LoadMeshDrawShader();
             m_Pool = new ResourcePool();
-            m_World = new MeshWorld(m_Pool, shader);
+            m_World = new MeshWorld(m_Pool, shader, InfinityMeshPasses.all);
         }
 
         [TearDown]
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void WorldIdentityRejectsAnotherWorldsAcceptedVersion()
         {
             Create(1); var first = PrepareReference(); m_A.Prepare(first); m_A.Commit();
-            var other = new MeshWorld(m_Pool, MeshTestUtility.LoadMeshDrawShader());
+            var other = new MeshWorld(m_Pool, MeshTestUtility.LoadMeshDrawShader(), InfinityMeshPasses.all);
             try
             {
                 other.UpdateResidency(); Assert.IsNull(m_A.Prepare(other.transformVersions.current).previous);

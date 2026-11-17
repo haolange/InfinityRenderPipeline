@@ -270,7 +270,7 @@ def sequential_offsets(types):
 
 HANDLE_NAME_TYPES = (
     'RGTransferPassHandle', 'RGComputePassHandle', 'RGRayTracingPassHandle', 'RGRasterPassHandle',
-    'RGMeshDrawListHandle', 'RGRendererListHandle', 'RGConstantsHandle', 'RGResourceHandle',
+    'RGMeshDrawListHandle', 'RGMeshViewHandle', 'RGRendererListHandle', 'RGConstantsHandle', 'RGResourceHandle',
     'RGTextureHandle', 'RGBufferHandle', 'TextureHandle', 'BufferHandle',
 )
 HANDLE_NAME_TYPE = re.compile(r'\b(' + '|'.join(HANDLE_NAME_TYPES) + r')\b')
@@ -864,8 +864,9 @@ def check_mesh_submit(repo, out):
             if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
 
 
+# Passes that create mesh draw lists; the world derives each list's backend from the pass (MeshWorld.SelectBackend).
 MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
-                   'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
+                   'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs', 'Translucent/TranslucentPass.cs')
 MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
 
@@ -880,7 +881,8 @@ def check_mesh_passes(repo, out):
 
 
 MESH_MECHANISM = ('World', 'Pass', 'View', 'DrawList', 'Backend')
-MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|RenderCapture\w*|ECaptureBuffer|EMeshViewKind|MeshView)\b')
+# A mesh view is a mechanism concept (MeshViewDesc, RGMeshViewHandle); a pipeline's kind of view is not.
+MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|InfinityMeshPasses|RenderCapture\w*|ECaptureBuffer|EMeshViewKind)\b')
 MESH_CAMERA = re.compile(r'\bCamera\b')
 
 
@@ -1265,7 +1267,8 @@ def check_pipeline_base(repo, out):
     pass_classes = set()
     for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
         pass_classes.update(re.findall(r'\b(?:class|struct|enum)\s+(\w+)', code_only(read(p))))
-    names = sorted((pass_classes - PIPELINE_BASE_PASS_TYPES) | {'InfinityRenderPipeline'}, key=len, reverse=True)
+    # The desktop pipeline and its mesh pass table belong to a pipeline built on the base, like its passes.
+    names = sorted((pass_classes - PIPELINE_BASE_PASS_TYPES) | {'InfinityRenderPipeline', 'InfinityMeshPasses'}, key=len, reverse=True)
     pattern = re.compile(r'\b(?:' + '|'.join(re.escape(name) for name in names) + r')\b')
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace('\\', '/')

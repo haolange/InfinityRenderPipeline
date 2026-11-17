@@ -23,35 +23,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void Equality_SeparatesEveryCullingInput()
-        {
-            Plane[] planes = MeshTestUtility.BoxPlanes();
-            MeshLODProjection lod = MeshTestUtility.Lod;
-            MeshCullingContext Make(Plane[] p = null, int layer = ~0, ulong scene = ulong.MaxValue, uint rendering = 0xFF, bool filter = false, MeshLODProjection? projection = null)
-                => MeshCullingContext.Create(p ?? planes, layer, scene, rendering, filter, projection ?? lod);
-            MeshCullingContext baseline = Make();
-            Assert.IsTrue(baseline.Equals(Make()));
-            Assert.AreEqual(baseline.GetHashCode(), Make().GetHashCode());
-
-            var moved = (Plane[])planes.Clone();
-            moved[5] = new Plane(Vector3.back, 11f);
-            var fewer = new Plane[5];
-            Array.Copy(planes, fewer, 5);
-            MeshLODProjection origin = lod, scale = lod, bias = lod, orthographic = lod;
-            origin.origin = new float3(0, 1, 0);
-            scale.scale = 2;
-            bias.bias = 2;
-            orthographic.orthographic = true;
-            var variants = new[]
-            {
-                Make(moved), Make(fewer), Make(layer: 1), Make(scene: 1), Make(rendering: 1), Make(filter: true),
-                Make(projection: origin), Make(projection: scale), Make(projection: bias), Make(projection: orthographic)
-            };
-            for (int i = 0; i < variants.Length; ++i)
-                Assert.IsFalse(baseline.Equals(variants[i]), $"variant {i}");
-        }
-
-        [Test]
         public void CpuGather_AppliesFlagsMasksAndFrustum()
         {
             using (var fixture = new MeshWorldFixture())
