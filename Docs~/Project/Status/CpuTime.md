@@ -19,7 +19,7 @@ Nothing was rewritten as a Burst job. The loops that remain run only when the ca
 - What bounds those entities have under this light's masks. That walk is another pass over the same list.
 - Whether a local light's shadow frustum contains any of them. That walk is local lights, times faces, times entities.
 
-The answers do not change when only the camera moves. The code still recomputed them. On a large entity set this is the multi-millisecond `ProcessLight` cost.
+The answers do not change when only the camera moves. The code still recomputed them.
 
 Separately, a moving camera misses the atmosphere view lookup almost every frame. Recording that pass constructed a new `AtmosphereProduction` object. The profiler showed that as a `GC.Alloc` under `RecordCamera`, about one allocation per frame.
 
@@ -27,7 +27,7 @@ Separately, a moving camera misses the atmosphere view lookup almost every frame
 
 ### Caster list
 
-`ShadowCasterBounds` keeps the entity index list. It rebuilds the list only when `MeshWorld.structuralRevision` changes. That revision moves when entities are created or destroyed, when a membership flag such as `CastShadow` changes, and when a layer, rendering, or scene mask changes.
+`ShadowCasterBounds` keeps the entity index list. It rebuilds the list only when `MeshWorld.structuralRevision` changes. [ARCHITECTURE](../../../ARCHITECTURE.md) defines that revision and who reads it.
 
 Same world, same revision: `Collect` returns. It does not scan entities.
 
@@ -71,6 +71,6 @@ Three names, three jobs:
 
 Release, Play mode, Game view only, one Game camera. Warm up 300 frames, then average 300. Matrix moves the camera on a 40 m circle. Spazon leaves the camera still.
 
-On Matrix GPU Indirect, `Shadow.CollectCasters` went from 0.022 ms to 0.0004 ms, and `ProcessLight` from 0.058 ms to 0.039 ms. A larger caster set saves more, because the skipped work grows with entity count and with local lights times faces.
+A larger caster set saves more, because the skipped work grows with entity count and with local lights times faces. The measured times are in Feature status.
 
-Moving Matrix, both mesh backends, and still Spazon: `frameAllocations` inside `Render` is 0 in all three 100-frame windows after the observer reuse. Before that change the moving camera sat near one allocation per frame.
+Moving Matrix, both mesh backends, and still Spazon stop allocating inside `Render` after the observer reuse. Before that change the moving camera allocated while recording the atmosphere observer. The window counts are in Feature status.

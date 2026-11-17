@@ -9,9 +9,9 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
-- Shadow caster indexes follow the mesh world's structural revision, and per-light bounds follow that revision, the transform revision and the light. A layer, rendering or scene mask change is a structural edit. A static world does not walk casters every frame. Cascade fitting is not reused across frames: temporal anti-aliasing changes the projection every frame. Mesh transform upload is unchanged because those markers do not run on a static world. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
-- A camera that regenerates the atmosphere view LUT reuses one queue observer instead of allocating `AtmosphereProduction` every frame.
-- CPU profiling is three `ProfilerMarker` tables. `Record.<method>` and `ProcessLight.<stage>` time the pipeline record. `Light.<stage>` and `Shadow.<stage>` time light build and shadow allocation. `Mesh.<stage>` times mesh residency and draw-list recording. `RG.Compile.<stage>` and `RG.Execute.<stage>` time graph compile and execute. A pass `ProfilingSampler` stays the GPU and execute name. The B11a means are in FeatureStatus.
+- Shadow caster answers follow the mesh world's revisions, so a static world is not walked every frame. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
+- A moving camera reuses one atmosphere queue observer. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
+- CPU time is recorded with separate pipeline, lighting, mesh and render-graph markers. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
 - macOS player validation uses one `BuildPipeline.BuildPlayer` path. Development keeps `Development | AllowDebugging`. Release omits both. The default evidence directory is the project's `intermediate/player-build`.
 - `IntegrateAtmosphereRay` returns zero luminance when `Atmo_SunIlluminance` is zero, so the unit-illuminance `MultiScatteringLUT` contributes nothing on a camera without a directional light and the sky and sky irradiance are black.
 - The `scalarupload` static check counts scalar `SetCompute*Param` calls per method and local function instead of per file, keeping the threshold at 8.
