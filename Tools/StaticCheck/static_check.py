@@ -41,6 +41,7 @@ Checks
   physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
   rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
   redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
+  framealloc       frame- and camera-rate methods build no managed array, collection, string or package class (AGENTS R17)
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -464,6 +465,84 @@ def check_scalar_uploads(repo, out):
                 out.append(('ERROR', 'scalarupload', f'{rel}:{line}: {name} makes {counts[index]} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
         if unscoped > SCALAR_UPLOAD_LIMIT:
             out.append(('ERROR', 'scalarupload', f'{rel}: {unscoped} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
+
+FRAME_ALLOC_ROOTS = ('Runtime/Pipeline/', 'Runtime/Mesh/', 'Runtime/Lighting/', 'Runtime/RenderGraph/', 'Runtime/Atmosphere/', 'Runtime/GPUResource/')
+FRAME_ALLOC_EXEMPT_FILES = re.compile(r'^Runtime/(?:Validation|Pipeline/Capture|Pipeline/Debug|Pipeline/Settings|Mesh/MeshComponent|Mesh/MeshAsset)')
+# Methods that run at frame or camera rate. Growth, construction and disposal run at change rate and are not scanned.
+FRAME_ALLOC_METHOD = re.compile(r'^(?:Record|Raster|Compute|Copy|Trace|Cull|Upload|Produce|Submit|Render|Prepare|Update|Execute|'
+                                r'Allocate|Assign|Pack|Collect|Declare|Use|Place|Compile|Query|Begin|End|Apply|Drain|Process|Schedule|Build|Configure|Resolve|'
+                                r'Evaluate|Request|Add|Read|Write|Import|Bind)')
+FRAME_ALLOC_CAPACITY = re.compile(r'\bif\s*\(.*(?:Length|Count|Capacity|capacity|size|Size)\b.*[<>]|\bif\s*\(.*[<>].*(?:Length|Count|Capacity)\b|'
+                                  r'\bif\s*\(\s*!.*\b(?:Pull|TryGet\w*|TryPop|TryTake|Contains\w*)\s*\(')
+FRAME_ALLOC_IDIOM = re.compile(r'\.(?:Pop|TryPop|Dequeue)\s*\(|\?\?=')
+FRAME_ALLOC_GROWTH = re.compile(r'^(?:Ensure|Grow|Resize|Reserve|Recreate|Rent|Create|Dispose|Release|Retire|Flush|Rebuild|Resolve\w*Support|BuildTable)')
+FRAME_ALLOC_PATTERNS = (
+    (re.compile(r'\bnew\s+[A-Za-z_][\w.]*(?:<[^;()]*?>)?\s*\[\s*[^\]\s]'), 'a managed array'),
+    (re.compile(r'\bnew\s+(?:[\w.]+\.)?(?:List|Dictionary|HashSet|Queue|Stack|SortedList|SortedDictionary|LinkedList)\s*<'), 'a managed collection'),
+    (re.compile(r'\bArrayPool\b'), 'ArrayPool'),
+    (re.compile(r'\$"'), 'an interpolated string'),
+    (re.compile(r'"\s*\+(?!\+)|(?<!\+)\+\s*"'), 'string concatenation'),
+)
+
+
+def check_frame_allocations(repo, out):
+    """AGENTS R17: scratch at evaluation rate never touches the managed heap. Scans frame- and camera-rate methods
+    (named by FRAME_ALLOC_METHOD; growth paths such as Ensure*/Grow*/Create* run at change rate) for managed arrays,
+    collections, ArrayPool, string building and `new` of a class declared in the package. Change-rate idioms inside
+    those methods are not evaluation-rate scratch: growth guarded by a capacity test on the line before, a pool miss
+    (`Pop()` or `new`), first-use creation (`??=`), a static table built for a static readonly initializer, and an
+    exception built by a `throw` statement. Diagnostics blocks exist only in Editor and Development builds."""
+    classes = set()
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        classes.update(re.findall(r'\bclass\s+([A-Z]\w*)', without_comments(read(p))))
+    class_new = re.compile(r'\bnew\s+(' + '|'.join(sorted(classes, key=len, reverse=True)) + r')\s*[({]') if classes else None
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        if not rel.startswith(FRAME_ALLOC_ROOTS) or FRAME_ALLOC_EXEMPT_FILES.match(rel):
+            continue
+        raw = without_comments(read(p))
+        text = without_strings(raw)
+        declared = set(re.findall(r'\b(?:class|struct)\s+([A-Z]\w*)', text))
+        guarded = {number for number, _, is_guarded in diagnostic_guarded_lines(text) if is_guarded}
+        bodies = csharp_method_bodies(text)
+        lines = text.split('\n')
+        static_tables = set(re.findall(r'\bstatic\s+readonly\s+[^=;]+=\s*(\w+)\s*\(', text))
+        throwing = set()
+        for number, line in enumerate(lines, 1):
+            if re.search(r'\bthrow\b', line):
+                cursor = number
+                while cursor <= len(lines) and ';' not in lines[cursor - 1]:
+                    throwing.add(cursor)
+                    cursor += 1
+                throwing.add(cursor)
+        reported = set()
+        for name, start, end in bodies:
+            if name in declared or name in static_tables or FRAME_ALLOC_GROWTH.match(name) or not FRAME_ALLOC_METHOD.match(name):
+                continue
+            inner = [(s, e) for n, s, e in bodies if start < s and e <= end and (n in declared or FRAME_ALLOC_GROWTH.match(n))]
+            first = text.count('\n', 0, start) + 1
+            last = text.count('\n', 0, end) + 1
+            for number in range(first, last + 1):
+                if number in guarded or number in reported:
+                    continue
+                line = lines[number - 1]
+                if number in throwing or FRAME_ALLOC_IDIOM.search(line):
+                    continue
+                previous = next((lines[k].strip() for k in range(number - 2, max(-1, number - 4), -1) if lines[k].strip() not in ('', '{')), '')
+                if FRAME_ALLOC_CAPACITY.search(previous) or FRAME_ALLOC_CAPACITY.search(line):
+                    continue
+                offset = sum(len(l) + 1 for l in lines[:number - 1])
+                if any(s <= offset < e for s, e in inner):
+                    continue
+                found = [what for pattern, what in FRAME_ALLOC_PATTERNS if pattern.search(line)]
+                if class_new is not None:
+                    m = class_new.search(line)
+                    if m and not m.group(1).endswith('Exception'):
+                        found.append('a ' + m.group(1))
+                if found:
+                    reported.add(number)
+                    out.append(('ERROR', 'framealloc', f'{rel}:{number}: {name} allocates {found[0]} at evaluation rate (AGENTS R17)'))
+
 
 def check_cbuffer_member_ids(repo, out):
     """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member
@@ -1071,7 +1150,7 @@ LAYERS = {
     'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
 }
 # The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
-for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList'):
+for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList', 'Graph'):
     LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
 
 

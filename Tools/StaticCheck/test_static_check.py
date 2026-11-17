@@ -31,6 +31,59 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
+    def test_frame_rate_allocation_fails_and_change_rate_idioms_pass(self):
+        self.write('Runtime/Pipeline/Pass/Observer.cs', 'internal sealed class Observer { }\n')
+        self.write('Runtime/Pipeline/Pass/Clean.cs',
+                   'class Clean {\n'
+                   '    static readonly int[] s_Table = BuildTable();\n'
+                   '    static int[] BuildTable() { return new int[4]; }\n'
+                   '    Observer m_Observer;\n'
+                   '    int[] m_Upload = new int[0];\n'
+                   '    void RecordShadow(int count) {\n'
+                   '        if (m_Upload.Length < count)\n'
+                   '        {\n'
+                   '            m_Upload = new int[count];\n'
+                   '        }\n'
+                   '        m_Observer ??= new Observer();\n'
+                   '        Observer pooled = m_Free.Count > 0 ? m_Free.Pop() : new Observer();\n'
+                   '        if (count < 0)\n'
+                   '            throw new System.ArgumentException(\n'
+                   '                $"count {count} is negative");\n'
+                   '#if UNITY_EDITOR || DEVELOPMENT_BUILD\n'
+                   '        UnityEngine.Debug.Log($"record {count}");\n'
+                   '#endif\n'
+                   '    }\n'
+                   '    void EnsureCapacity(int count) { m_Upload = new int[count]; }\n'
+                   '    Clean() { m_Observer = new Observer(); }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Settings/Asset.cs', 'class Asset { void RecordName() { var n = "a" + name; } }\n')
+        out = []
+        static_check.check_frame_allocations(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Lighting/Leaky.cs',
+                   'class Leaky {\n'
+                   '    void ResolveSampling(int count) {\n'
+                   '        var result = new int[count];\n'
+                   '        var names = new System.Collections.Generic.List<int>();\n'
+                   '        string label = name + "BlurTemp";\n'
+                   '        string reason = $"Depends on {count}";\n'
+                   '        var observer = new Observer();\n'
+                   '    }\n'
+                   '}\n')
+        static_check.check_frame_allocations(str(self.repo), out)
+        self.assertEqual(['framealloc'] * 5, [o[1] for o in out])
+        self.assertEqual(['Runtime/Lighting/Leaky.cs:3', 'Runtime/Lighting/Leaky.cs:4', 'Runtime/Lighting/Leaky.cs:5',
+                          'Runtime/Lighting/Leaky.cs:6', 'Runtime/Lighting/Leaky.cs:7'], [o[2].split(': ')[0] for o in out])
+
+    def test_mesh_graph_names_no_pipeline(self):
+        self.write('Runtime/Mesh/Graph/MeshGraphExtension.cs', 'using InfinityTech.Rendering.RenderGraph;\nclass MeshGraphExtension { }\n')
+        out = []
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/Graph/Leak.cs', 'using InfinityTech.Rendering.Pipeline;\nclass Leak { }\n')
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual(['layering'], [o[1] for o in out])
+
     def test_pass_uploading_parameters_one_by_one_fails(self):
         eight = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
         five = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(5))
