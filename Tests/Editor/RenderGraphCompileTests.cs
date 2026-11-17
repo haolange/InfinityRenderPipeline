@@ -1,8 +1,12 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using UnityEngine.TestTools;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 
@@ -350,6 +354,143 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int[] again = pool.GetRecordingArray<int>(2);
             Assert.AreSame(recording, again);
             Assert.AreEqual(0, again[0]);
+        }
+
+        struct ArrayPassData
+        {
+            public RGBuilder graph;
+            public int length;
+        }
+
+        static readonly ProfilingSampler s_KeepSampler = new ProfilingSampler("Keep");
+        static readonly ProfilingSampler s_ExtraSampler = new ProfilingSampler("Extra");
+        static readonly RGComputePassExecuteAction<ArrayPassData> s_RentTemp = RentTemp;
+        static int[] s_Recording;
+        static int[] s_ExtraRecording;
+
+        static void RentTemp(in ArrayPassData data, in RGComputeEncoder commands)
+        {
+            int[] temp = data.graph.GetTempArray<int>(data.length);
+            temp[0] = -1;
+        }
+
+        static void RecordArrayGraph(RGBuilder graph, int length, bool extra)
+        {
+            RGComputePassHandle<ArrayPassData> keepHandle = graph.AddComputePass<ArrayPassData>(s_KeepSampler);
+            keepHandle.EnablePassCulling(false);
+            ref ArrayPassData data = ref keepHandle.GetPassData();
+            int[] recorded = graph.GetRecordingArray<int>(length);
+            recorded[0] = 42;
+            recorded[length - 1] = length;
+            s_Recording = recorded;
+            data.graph = graph;
+            data.length = length;
+            keepHandle.SetExecuteFunc(s_RentTemp);
+            s_ExtraRecording = null;
+            if (!extra)
+            {
+                return;
+            }
+            RGComputePassHandle<ArrayPassData> moreHandle = graph.AddComputePass<ArrayPassData>(s_ExtraSampler);
+            moreHandle.EnablePassCulling(false);
+            int[] other = graph.GetRecordingArray<int>(4);
+            other[0] = 4;
+            ref ArrayPassData extraData = ref moreHandle.GetPassData();
+            extraData.graph = graph;
+            extraData.length = 4;
+            moreHandle.SetExecuteFunc(s_RentTemp);
+            s_ExtraRecording = other;
+        }
+
+        static void RequireRecordingIntact(int length)
+        {
+            if (s_Recording == null || s_Recording.Length != length || s_Recording[0] != 42 || s_Recording[length - 1] != length)
+            {
+                throw new InvalidOperationException("The recording array changed.");
+            }
+            if (s_ExtraRecording != null && (s_ExtraRecording.Length != 4 || s_ExtraRecording[0] != 4))
+            {
+                throw new InvalidOperationException("The extra recording array changed.");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RecordingArrays_TwoGraphsAndLengths_AllocateNothingAfterWarmup()
+        {
+            var graph = Graph();
+            var commands = new CommandBuffer();
+            Exception failure = null;
+            bool executed = false;
+            void Render(ScriptableRenderContext context, List<Camera> cameras)
+            {
+                if (executed)
+                {
+                    return;
+                }
+                executed = true;
+                try
+                {
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        int length = (i & 1) == 0 ? 3 : 7;
+                        RecordArrayGraph(graph, length, (i & 1) == 0);
+                        RequireRecordingIntact(length);
+                        graph.Execute(context, commands);
+                        RequireRecordingIntact(length);
+                    }
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    for (int i = 0; i < 100; ++i)
+                    {
+                        int length = (i & 1) == 0 ? 3 : 7;
+                        RecordArrayGraph(graph, length, (i & 1) == 0);
+                        RequireRecordingIntact(length);
+                        graph.Execute(context, commands);
+                        RequireRecordingIntact(length);
+                    }
+                    long after = GC.GetAllocatedBytesForCurrentThread();
+                    if (after != before)
+                    {
+                        throw new InvalidOperationException("allocated " + (after - before).ToString());
+                    }
+                }
+                catch (Exception error)
+                {
+                    failure = error;
+                }
+            }
+            Action<ScriptableRenderContext, List<Camera>> render = Render;
+            RenderPipelineManager.beginContextRendering += render;
+            EditorWindow gameView = null;
+            UnityEngine.Object[] windows = Resources.FindObjectsOfTypeAll(typeof(EditorWindow));
+            for (int i = 0; i < windows.Length; ++i)
+            {
+                if (windows[i].GetType().FullName == "UnityEditor.GameView")
+                {
+                    gameView = (EditorWindow)windows[i];
+                    break;
+                }
+            }
+            try
+            {
+                double deadline = EditorApplication.timeSinceStartup + 15;
+                while (!executed && EditorApplication.timeSinceStartup < deadline)
+                {
+                    gameView?.Repaint();
+                    EditorApplication.QueuePlayerLoopUpdate();
+                    yield return null;
+                }
+                if (failure != null)
+                {
+                    throw failure;
+                }
+                Assert.IsTrue(executed, "The Game view did not render a context.");
+            }
+            finally
+            {
+                RenderPipelineManager.beginContextRendering -= render;
+                commands.Dispose();
+                graph.Dispose();
+            }
         }
 
         [Test]

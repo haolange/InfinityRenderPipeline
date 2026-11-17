@@ -2,6 +2,14 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Arena reuse — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
+
+`RenderGraphCompileTests` 15 passed, including `RecordingArrays_TwoGraphsAndLengths_AllocateNothingAfterWarmup`: after warmup, 100 alternations of two graphs with lengths 3 and 7 allocated 0 bytes, and the recorded values were still there after Execute. `RenderGraphFailureTests` 6 passed. Static checks 0 errors.
+
+Game view only, Scene_Spazon, MainCamera, GPU Indirect, camera still, Release. Warmup 300, mean of the next 300. `Inl_RecordRG` is 0.311 ms. The same window on `62bd0cb` before this change was 0.316 ms and 0.310 ms.
+
+Scene view and Game view both rendering, Record 2.00 calls per frame: `frameAllocations` is 7, 7, 7. The count does not fall after warmup. The multi-camera 0 target is not met.
+
 ### B11d and B11e — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 Still Spazon after the caster cache: `Shadow.FitCascade` 0.053 ms, `Light.Registry` 0.0035 ms once, `Light.Pack` 0.011 ms, `Light.ZBin` 0.013 ms, `Light.Sort` 0.0001 ms, `Light.TileRect` 0 calls. One Game camera, so the light snapshot is not rebuilt per camera and was not hoisted. Pack, tile, sort and z-bin are not the head, so they stay managed. A cascade-fit reuse keyed on the camera matrices was compiled and measured: TAA changes the projection every frame, the key missed, and `Shadow.FitCascade` rose to 0.077 ms. That reuse was removed.

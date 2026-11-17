@@ -133,6 +133,8 @@ namespace InfinityTech.Rendering.RenderGraph
         internal bool IsCulled(int passIndex) => m_PassCompileInfos[passIndex].culled;
         internal T[] GetRecordingArray<T>(int count) => m_ObjectPool.GetRecordingArray<T>(count);
 
+        internal T[] GetTempArray<T>(int count) => m_ObjectPool.GetTempArray<T>(count);
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Set by a diagnostics session; null otherwise.
         internal static IRGExecutionObserver executionObserver;
