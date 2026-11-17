@@ -2,6 +2,10 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Residency scratch — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
+
+Scene_Spazon, MainCamera, GPU Indirect, camera still, Release. Warmup 300, mean of the next 300. The scene has 4 dynamic entities, so `Mesh.PrepareTransformVersion` and `Mesh.UploadColumns` run once per frame (1.003 calls). `frameAllocations` is 0.11, 0, 0. The last two windows are 0 while those stages run. `MeshWorldTests` 10 passed, including a second static residency update and a second pose update at 0 managed bytes. The transform-version GPU test passed. `MeshMotionHistoryTests` 8 passed.
+
 ### Caster slots — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
 
 `ShadowCasterAllocationTests` 8 passed. One hundred queried lights leave 100 slots. After 90 are destroyed and the frame advances by 2, the live slot count is at most 10.

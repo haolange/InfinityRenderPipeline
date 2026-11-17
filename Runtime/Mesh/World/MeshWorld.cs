@@ -57,6 +57,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         NativeList<int> m_DynamicToEntity;
         NativeList<BoundingBox> m_DynamicLocalBounds;
         NativeList<byte> m_DynamicChanged;
+        NativeArray<int> m_DynamicChangedCount;
 
         bool m_Disposed;
 
@@ -126,6 +127,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_DynamicToEntity = new NativeList<int>(256, Allocator.Persistent);
             m_DynamicLocalBounds = new NativeList<BoundingBox>(256, Allocator.Persistent);
             m_DynamicChanged = new NativeList<byte>(256, Allocator.Persistent);
+            m_DynamicChangedCount = new NativeArray<int>(1, Allocator.Persistent);
             InitializeTransaction();
             m_Gpu = new MeshWorldGPU(this, resourcePool);
             m_ResourcePool = resourcePool;
@@ -269,34 +271,27 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             m_DynamicChanged.ResizeUninitialized(count);
-            var changedCount = new NativeArray<int>(1, Allocator.TempJob);
-            try
+            m_DynamicChangedCount[0] = 0;
+            JobHandle handle = new MeshDynamicPoseJob
             {
-                JobHandle handle = new MeshDynamicPoseJob
-                {
-                    dynamicToEntity = m_DynamicToEntity.AsArray(),
-                    localBounds = m_DynamicLocalBounds.AsArray(),
-                    entityTransforms = m_EntityTransforms.AsArray(),
-                    entityBounds = m_EntityBounds.AsArray(),
-                    changed = m_DynamicChanged.AsArray()
-                }.ScheduleReadOnly(m_DynamicTransforms, 64);
-                handle = new MeshDynamicDirtyJob
-                {
-                    changed = m_DynamicChanged.AsArray(),
-                    dynamicToEntity = m_DynamicToEntity.AsArray(),
-                    transformWords = m_TransformDirty.Words(m_Entities.HighWater),
-                    entityWords = m_EntityDirty.Words(m_Entities.HighWater),
-                    changedCount = changedCount
-                }.Schedule(handle);
-                handle.Complete();
-                if (changedCount[0] > 0)
-                {
-                    transformRevision++;
-                }
-            }
-            finally
+                dynamicToEntity = m_DynamicToEntity.AsArray(),
+                localBounds = m_DynamicLocalBounds.AsArray(),
+                entityTransforms = m_EntityTransforms.AsArray(),
+                entityBounds = m_EntityBounds.AsArray(),
+                changed = m_DynamicChanged.AsArray()
+            }.ScheduleReadOnly(m_DynamicTransforms, 64);
+            handle = new MeshDynamicDirtyJob
             {
-                changedCount.Dispose();
+                changed = m_DynamicChanged.AsArray(),
+                dynamicToEntity = m_DynamicToEntity.AsArray(),
+                transformWords = m_TransformDirty.Words(m_Entities.HighWater),
+                entityWords = m_EntityDirty.Words(m_Entities.HighWater),
+                changedCount = m_DynamicChangedCount
+            }.Schedule(handle);
+            handle.Complete();
+            if (m_DynamicChangedCount[0] > 0)
+            {
+                transformRevision++;
             }
         }
 
@@ -402,6 +397,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_DynamicToEntity.Dispose();
             m_DynamicLocalBounds.Dispose();
             m_DynamicChanged.Dispose();
+            if (m_DynamicChangedCount.IsCreated)
+            {
+                m_DynamicChangedCount.Dispose();
+            }
             if (failures.Count == 1)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();

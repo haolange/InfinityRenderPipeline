@@ -48,6 +48,7 @@ On conflict: P1–P4, then P5–P6, then P7, then local readability. P8 decides 
 | R14 | Setup-time facts (kernel index, property ID, keyword, sampler, pass index) are resolved once into a table when resources change. | A string lookup in record or execute. |
 | R15 | Classify code without callers before acting: in-development feature: keep, off other hot paths; duplicate of a dependency, remnant of a replaced design, unowned vendored code, unused parameter or write-only field: delete; meaningful but unwired: wire it; read only by tests: test the real path; diagnostics: R16. | — |
 | R16 | Diagnostics and validation exist only in Editor and Development builds; a release build has no branch to them. | A validation, capture or debug symbol reachable in a release build. |
+| R17 | Evaluation-rate scratch is stack memory, or one persistent container cleared by count. It grows only past its high water. | `new` of an array, list or native container, or `ArrayPool.Rent`, at frame rate. |
 
 ## 3. Conventions
 
@@ -88,7 +89,7 @@ Verification: a check must be able to fail for a meaningful error; cover a mecha
 
 Living documents: after a change, update `AGENTS.md` and `ARCHITECTURE.md`: add what became true, delete what is no longer true, rewrite what changed. No iteration log. A fact appears in one document only. `AGENTS.md` stays the shortest. `DESIGN.md` is absent on purpose: this package has no visual design system.
 
-Intermediate data lives in `<Unity project root>/intermediate/<task-id>/<run-id>/` (the Example project's, git-ignored), never in the package root, `/tmp` or home, and is never committed. Before a large capture record path, owner and estimated size, check free space and bound the count. After a task, stop producers and drain readbacks (GPU drain and disk cleanup are separate checks), keep the required summary, delete the task's paths and the empty task directory; data stays only for a named next consumer. Keep failure evidence unchanged while diagnosis needs it; a raw archive exists only on a separate user requirement. Moving files is not cleanup. Delete by recorded task path only, never a shared `intermediate/` recursively, user source, baked data, `Library`, caches, logs or another task's files. The delivery note states removed paths, reclaimed space and any blocker.
+Intermediate data lives in `<Unity project root>/intermediate/<task-id>/<run-id>/` (the Example project's, git-ignored), never in the package root, `/tmp` or home, and is never committed. Before a large capture, record path, owner and size, check free space and bound the count. After a task, stop producers, drain readbacks, keep the required summary and delete that task's paths. Keep failure evidence while diagnosis needs it. Delete by recorded task path only, never a shared `intermediate/` recursively, user source, baked data, `Library`, caches, logs or another task's files. Moving is not cleanup. The delivery note states removed paths, reclaimed space and any blocker.
 
 Track active work in the conversation task list, not a repository ledger. Branch only when asked or prescribed by the session. `Docs~/Record/History` authorizes no work.
 

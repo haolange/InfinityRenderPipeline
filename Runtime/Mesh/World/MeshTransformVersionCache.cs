@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Collections;
@@ -73,6 +72,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly Stack<MeshTransformVersion> m_FreeVersions = new Stack<MeshTransformVersion>();
         readonly HashSet<MeshTransformVersion> m_Versions = new HashSet<MeshTransformVersion>();
         readonly List<MeshTransformVersion> m_Retired = new List<MeshTransformVersion>();
+        readonly NativeList<int> m_PatchIndices = new NativeList<int>(16, Allocator.Persistent);
         MeshTransformVersion m_Current;
         bool m_Disposed;
         internal MeshTransformVersion current => m_Current;
@@ -127,83 +127,71 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             var source = m_Current;
             bool mergePending = source != null && !source.queued && source.references == 1;
-            var indices = new NativeList<int>(math.max(1, mergePending ? source.changeCount : 0), Allocator.Temp);
-            MeshTransformPatch[] patchArray = null;
-            int patchCount;
-            try
+            m_PatchIndices.Clear();
+            // Fold an unsubmitted version with no view references into the next dirty set.
+            // Only slot indices need merging: the CPU world owns their latest values.
+            if (mergePending)
             {
-                // Fold an unsubmitted version with no view references into the next dirty set.
-                // Only slot indices need merging: the CPU world owns their latest values.
-                if (mergePending)
+                for (int i = 0; i < source.changeCount; ++i)
                 {
-                    for (int i = 0; i < source.changeCount; ++i)
-                    {
-                        indices.Add((int)source.changes[i].index);
-                    }
-                    source = source.source;
+                    m_PatchIndices.Add((int)source.changes[i].index);
                 }
-                if (m_Current == null)
-                    for (int i = 0; i < world.entityHighWater; ++i)
-                    {
-                        indices.Add(i);
-                    }
-                else
-                    foreach (int2 run in dirtyRuns)
-                        for (int i = run.x; i < math.min(run.y, world.entityHighWater); ++i)
-                        {
-                            indices.Add(i);
-                        }
-                indices.AsArray().Sort();
-                int count = 0;
-                for (int i = 0; i < indices.Length; ++i)
-                    if (i == 0 || indices[i] != indices[i - 1])
-                    {
-                        count++;
-                    }
-                patchCount = count;
-                patchArray = count == 0 ? Array.Empty<MeshTransformPatch>() : ArrayPool<MeshTransformPatch>.Shared.Rent(count);
-                var matrices = world.entityTransforms;
-                var generations = world.entityGenerations;
-                int destination = 0;
-                for (int i = 0; i < indices.Length; ++i)
+                source = source.source;
+            }
+            if (m_Current == null)
+                for (int i = 0; i < world.entityHighWater; ++i)
                 {
-                    if (i > 0 && indices[i] == indices[i - 1])
+                    m_PatchIndices.Add(i);
+                }
+            else
+                foreach (int2 run in dirtyRuns)
+                    for (int i = run.x; i < math.min(run.y, world.entityHighWater); ++i)
                     {
-                        continue;
+                        m_PatchIndices.Add(i);
                     }
-                    int index = indices[i];
-                    patchArray[destination++] = new MeshTransformPatch
-                    {
-                        index = (uint)index, objectToWorld = matrices[index], generation = generations[index]
-                    };
-                }
-            }
-            catch
-            {
-                if (patchArray != null && patchArray.Length > 0)
+            m_PatchIndices.AsArray().Sort();
+            int patchCount = 0;
+            for (int i = 0; i < m_PatchIndices.Length; ++i)
+                if (i == 0 || m_PatchIndices[i] != m_PatchIndices[i - 1])
                 {
-                    ArrayPool<MeshTransformPatch>.Shared.Return(patchArray);
+                    patchCount++;
                 }
-                throw;
-            }
-            finally
-            {
-                indices.Dispose();
-            }
             if (m_Current != null && patchCount == 0)
                 throw new InvalidOperationException("Transform revision advanced without dirty slot data.");
             int capacity = math.max(16, math.ceilpow2(math.max(1, world.entityHighWater)));
-            var next = m_FreeVersions.Count > 0 ? m_FreeVersions.Pop() : new MeshTransformVersion();
+            bool recycle = mergePending;
+            MeshTransformVersion next = recycle ? m_Current
+                : m_FreeVersions.Count > 0 ? m_FreeVersions.Pop() : new MeshTransformVersion();
+            EnsureChanges(next, patchCount);
+            var matrices = world.entityTransforms;
+            var generations = world.entityGenerations;
+            int destination = 0;
+            for (int i = 0; i < m_PatchIndices.Length; ++i)
+            {
+                if (i > 0 && m_PatchIndices[i] == m_PatchIndices[i - 1])
+                {
+                    continue;
+                }
+                int index = m_PatchIndices[i];
+                next.changes[destination++] = new MeshTransformPatch
+                {
+                    index = (uint)index, objectToWorld = matrices[index], generation = generations[index]
+                };
+            }
             next.owner = this;
             next.source = source;
             next.revision = world.transformRevision;
             next.worldId = world.worldId;
             next.count = world.entityHighWater;
-            next.changes = patchArray;
             next.changeCount = patchCount;
-            next.references = 1;
             next.queued = false;
             next.submitted = false;
+            if (recycle)
+            {
+                EnsureVersionBuffers(next, capacity, patchCount);
+                return;
+            }
+            next.references = 1;
             try
             {
                 next.matricesHandle = m_Pool.GetBuffer(new BufferDescriptor(capacity, 64) { name = "MeshTransformVersion" });
@@ -272,11 +260,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     }
                     patchesHandle = passHandle.WriteBuffer(graph.ImportBuffer(version.patchesHandle));
                     passHandle.GetPassData().version = version;
-                    passHandle.SetExecuteFunc((in UploadData data, in RGTransferEncoder commands) =>
-                    {
-                        var v = data.version;
-                        commands.SetBufferData(v.patchesHandle.buffer, v.changes, 0, 0, v.changeCount);
-                    });
+                    passHandle.SetExecuteFunc(s_WritePatches);
                 }
             }
             {
@@ -303,29 +287,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     data.patchesHandle = passHandle.ReadBuffer(patchesHandle);
                 }
                 passHandle.SetQueueObserver(version);
-                passHandle.SetExecuteFunc((in BuildData data, in RGComputeEncoder commands) =>
-                {
-                    var v = data.version;
-                    var shader = data.shader;
-                    commands.SetComputeIntParam(shader, ID_TransformVersionCount, v.count);
-                    commands.SetComputeIntParam(shader, ID_TransformSourceCount, v.source != null ? v.source.count : 0);
-                    if (data.sourceMatricesHandle.IsValid())
-                    {
-                        commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformSourceMatrices, data.sourceMatricesHandle);
-                        commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformSourceGenerations, data.sourceGenerationsHandle);
-                    }
-                    commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformVersionMatrices, data.matricesHandle);
-                    commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformVersionGenerations, data.generationsHandle);
-                    commands.DispatchCompute(shader, data.copyKernel, (v.count + 63) / 64, 1, 1);
-                    if (data.patchesHandle.IsValid())
-                    {
-                        commands.SetComputeIntParam(shader, ID_TransformPatchCount, v.changeCount);
-                        commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformChanges, data.patchesHandle);
-                        commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformVersionMatrices, data.matricesHandle);
-                        commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformVersionGenerations, data.generationsHandle);
-                        commands.DispatchCompute(shader, data.patchKernel, (v.changeCount + 63) / 64, 1, 1);
-                    }
-                });
+                passHandle.SetExecuteFunc(s_BuildVersion);
             }
         }
 
@@ -399,13 +361,80 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Retired.Clear();
         }
 
+        static readonly RGTransferPassExecuteAction<UploadData> s_WritePatches = WritePatches;
+        static readonly RGComputePassExecuteAction<BuildData> s_BuildVersion = BuildVersion;
+
+        static void WritePatches(in UploadData data, in RGTransferEncoder commands)
+        {
+            MeshTransformVersion version = data.version;
+            commands.SetBufferData(version.patchesHandle.buffer, version.changes, 0, 0, version.changeCount);
+        }
+
+        static void BuildVersion(in BuildData data, in RGComputeEncoder commands)
+        {
+            MeshTransformVersion version = data.version;
+            ComputeShader shader = data.shader;
+            commands.SetComputeIntParam(shader, ID_TransformVersionCount, version.count);
+            commands.SetComputeIntParam(shader, ID_TransformSourceCount, version.source != null ? version.source.count : 0);
+            if (data.sourceMatricesHandle.IsValid())
+            {
+                commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformSourceMatrices, data.sourceMatricesHandle);
+                commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformSourceGenerations, data.sourceGenerationsHandle);
+            }
+            commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformVersionMatrices, data.matricesHandle);
+            commands.SetComputeBufferParam(shader, data.copyKernel, ID_TransformVersionGenerations, data.generationsHandle);
+            commands.DispatchCompute(shader, data.copyKernel, (version.count + 63) / 64, 1, 1);
+            if (data.patchesHandle.IsValid())
+            {
+                commands.SetComputeIntParam(shader, ID_TransformPatchCount, version.changeCount);
+                commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformChanges, data.patchesHandle);
+                commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformVersionMatrices, data.matricesHandle);
+                commands.SetComputeBufferParam(shader, data.patchKernel, ID_TransformVersionGenerations, data.generationsHandle);
+                commands.DispatchCompute(shader, data.patchKernel, (version.changeCount + 63) / 64, 1, 1);
+            }
+        }
+
+        static void EnsureChanges(MeshTransformVersion version, int count)
+        {
+            if (count <= 0)
+            {
+                return;
+            }
+            if (version.changes != null && version.changes.Length >= count)
+            {
+                return;
+            }
+            int capacity = version.changes == null ? count : math.max(count, version.changes.Length * 2);
+            version.changes = new MeshTransformPatch[capacity];
+        }
+
+        void EnsureVersionBuffers(MeshTransformVersion version, int capacity, int patchCount)
+        {
+            if (version.matricesHandle.buffer == null || version.matricesHandle.descriptor.count < capacity)
+            {
+                if (version.matricesHandle.buffer != null)
+                {
+                    m_Pool.ReleaseBuffer(version.matricesHandle);
+                }
+                if (version.generationsHandle.buffer != null)
+                {
+                    m_Pool.ReleaseBuffer(version.generationsHandle);
+                }
+                version.matricesHandle = m_Pool.GetBuffer(new BufferDescriptor(capacity, 64) { name = "MeshTransformVersion" });
+                version.generationsHandle = m_Pool.GetBuffer(new BufferDescriptor(capacity, 4) { name = "MeshTransformGenerations" });
+            }
+            if (patchCount > 0 && (version.patchesHandle.buffer == null || version.patchesHandle.descriptor.count < patchCount))
+            {
+                if (version.patchesHandle.buffer != null)
+                {
+                    m_Pool.ReleaseBuffer(version.patchesHandle);
+                }
+                version.patchesHandle = m_Pool.GetBuffer(new BufferDescriptor(patchCount, Marshal.SizeOf<MeshTransformPatch>()) { name = "MeshTransformChanges" });
+            }
+        }
+
         static void ReturnChanges(MeshTransformVersion version)
         {
-            if (version.changeCount > 0)
-            {
-                ArrayPool<MeshTransformPatch>.Shared.Return(version.changes);
-            }
-            version.changes = Array.Empty<MeshTransformPatch>();
             version.changeCount = 0;
         }
 
@@ -416,6 +445,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             m_Disposed = true;
+            if (m_PatchIndices.IsCreated)
+            {
+                m_PatchIndices.Dispose();
+            }
             foreach (var version in m_Versions)
             {
                 m_Pool.ReleaseBuffer(version.matricesHandle);

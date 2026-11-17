@@ -381,6 +381,44 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
+        public void ResidencyScratch_SecondUpdateAllocatesNothing()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshWorld world = fixture.world;
+                MeshEntityId entity;
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    entity = MeshTestUtility.CreateEntity(update, float3.zero);
+                    update.Commit();
+                }
+                world.UpdateResidency();
+                MeshTransformVersion version = world.transformVersions.current;
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                world.UpdateResidency();
+                Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread() - before);
+                Assert.AreSame(version, world.transformVersions.current, "A static world does not build another transform version.");
+
+                world.WriteEntityPose(entity, float4x4.Translate(new float3(1, 0, 0)), MeshTestUtility.Bound(new float3(1, 0, 0)));
+                world.UpdateResidency();
+                world.WriteEntityPose(entity, float4x4.Translate(new float3(2, 0, 0)), MeshTestUtility.Bound(new float3(2, 0, 0)));
+                before = GC.GetAllocatedBytesForCurrentThread();
+                world.UpdateResidency();
+                Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread() - before);
+                MeshTransformVersion current = world.transformVersions.current;
+                bool found = false;
+                for (int i = 0; i < current.changeCount; ++i)
+                {
+                    if (current.changes[i].index == (uint)entity.Index)
+                    {
+                        found = true;
+                    }
+                }
+                Assert.IsTrue(found, "The second pose stays in the reused patch array.");
+            }
+        }
+
+        [Test]
         public void DynamicEntities_RegisterAtCommit_AndReadTheirTransformEachUpdate()
         {
             using (var fixture = new MeshWorldFixture())

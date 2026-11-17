@@ -39,6 +39,11 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         readonly MeshWorld m_World;
         readonly ResourcePool m_Pool;
+        readonly NativeList<int2> m_DirtyRuns;
+        NativeArray<float4> m_Centers, m_Extents;
+        NativeArray<uint> m_Flags, m_Layers, m_Rendering;
+        NativeArray<uint2> m_Scenes;
+        NativeArray<MeshLODChain> m_Chains;
         internal readonly MeshTransformVersionCache transformVersions;
         int m_Capacity;
 
@@ -49,6 +54,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_World = world;
             m_Pool = pool;
+            m_DirtyRuns = new NativeList<int2>(8, Allocator.Persistent);
             transformVersions = new MeshTransformVersionCache(pool, world.meshDrawShader);
         }
 
@@ -63,57 +69,49 @@ namespace InfinityTech.Rendering.MeshPipeline
             using (MeshCpuMarkers.s_UpdateMeshWorldGPU.Auto())
             using (MeshCpuMarkers.s_ResidencyGate.Auto())
             {
-                var runs = new NativeList<int2>(8, Allocator.Temp);
-                try
+                if (transformVersions.current == null || transformVersions.current.revision != m_World.transformRevision)
                 {
-                    if (transformVersions.current == null || transformVersions.current.revision != m_World.transformRevision)
+                    using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
                     {
-                        using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
-                        {
-                            m_World.CollectTransformDirtyRuns(runs);
-                        }
-                        using (MeshCpuMarkers.s_PrepareTransformVersion.Auto())
-                        {
-                            transformVersions.Prepare(m_World, runs);
-                        }
+                        m_World.CollectTransformDirtyRuns(m_DirtyRuns);
                     }
-                    m_World.ClearTransformDirty();
+                    using (MeshCpuMarkers.s_PrepareTransformVersion.Auto())
+                    {
+                        transformVersions.Prepare(m_World, m_DirtyRuns);
+                    }
+                }
+                m_World.ClearTransformDirty();
 
-                    int needed = math.max(64, m_World.entityHighWater);
-                    bool recreate = m_Capacity < needed || renderingLayersHandle.buffer == null;
-                    if (!recreate && m_World.hasEntityDirty)
-                    {
-                        using (MeshCpuMarkers.s_CanWriteBuffer.Auto())
-                        {
-                            recreate = !m_Pool.CanWriteBuffer(boundsCenterHandle) || !m_Pool.CanWriteBuffer(boundsExtentHandle) || !m_Pool.CanWriteBuffer(flagsHandle)
-                                || !m_Pool.CanWriteBuffer(layerMaskHandle) || !m_Pool.CanWriteBuffer(sceneCullingMaskHandle) || !m_Pool.CanWriteBuffer(renderingLayersHandle)
-                                || !m_Pool.CanWriteBuffer(lodChainsHandle);
-                        }
-                    }
-                    if (recreate)
-                    {
-                        using (MeshCpuMarkers.s_RecreateColumns.Auto())
-                        {
-                            Recreate(math.max(needed, m_Capacity));
-                        }
-                    }
-                    else if (m_World.hasEntityDirty)
-                    {
-                        using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
-                        {
-                            m_World.CollectEntityDirtyRuns(runs);
-                        }
-                        foreach (int2 run in runs)
-                        {
-                            Upload(run.x, run.y);
-                        }
-                    }
-                    m_World.ClearEntityDirty();
-                }
-                finally
+                int needed = math.max(64, m_World.entityHighWater);
+                bool recreate = m_Capacity < needed || renderingLayersHandle.buffer == null;
+                if (!recreate && m_World.hasEntityDirty)
                 {
-                    runs.Dispose();
+                    using (MeshCpuMarkers.s_CanWriteBuffer.Auto())
+                    {
+                        recreate = !m_Pool.CanWriteBuffer(boundsCenterHandle) || !m_Pool.CanWriteBuffer(boundsExtentHandle) || !m_Pool.CanWriteBuffer(flagsHandle)
+                            || !m_Pool.CanWriteBuffer(layerMaskHandle) || !m_Pool.CanWriteBuffer(sceneCullingMaskHandle) || !m_Pool.CanWriteBuffer(renderingLayersHandle)
+                            || !m_Pool.CanWriteBuffer(lodChainsHandle);
+                    }
                 }
+                if (recreate)
+                {
+                    using (MeshCpuMarkers.s_RecreateColumns.Auto())
+                    {
+                        Recreate(math.max(needed, m_Capacity));
+                    }
+                }
+                else if (m_World.hasEntityDirty)
+                {
+                    using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
+                    {
+                        m_World.CollectEntityDirtyRuns(m_DirtyRuns);
+                    }
+                    foreach (int2 run in m_DirtyRuns)
+                    {
+                        Upload(run.x, run.y);
+                    }
+                }
+                m_World.ClearEntityDirty();
             }
         }
 
@@ -173,57 +171,78 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             using (MeshCpuMarkers.s_UploadColumns.Auto())
             {
-                var centers = new NativeArray<float4>(count, Allocator.Temp);
-                var extents = new NativeArray<float4>(count, Allocator.Temp);
-                var flagValues = new NativeArray<uint>(count, Allocator.Temp);
-                var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
-                var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
-                var renderingMasks = new NativeArray<uint>(count, Allocator.Temp);
-                var chains = new NativeArray<MeshLODChain>(count, Allocator.Temp);
-                try
+                EnsureColumnScratch(count);
+                var entities = m_World.entities;
+                var bounds = m_World.entityBounds;
+                for (int i = begin; i < end; ++i)
                 {
-                    var entities = m_World.entities;
-                    var bounds = m_World.entityBounds;
-                    for (int i = begin; i < end; ++i)
+                    int local = i - begin;
+                    if (!m_World.IsEntitySlotLive(i))
                     {
-                        int local = i - begin;
-                        if (!m_World.IsEntitySlotLive(i))
-                        {
-                            continue;
-                        }
-                        MeshEntityDesc desc = entities[i].desc;
-                        centers[local] = new float4(bounds[i].center, 0);
-                        extents[local] = new float4(bounds[i].extents, 0);
-                        flagValues[local] = (uint)desc.flags;
-                        layerMasks[local] = (uint)desc.layerMask;
-                        sceneMasks[local] = new uint2((uint)desc.sceneCullingMask, (uint)(desc.sceneCullingMask >> 32));
-                        renderingMasks[local] = desc.renderingLayerMask;
-                        chains[local] = entities[i].lod;
+                        m_Centers[local] = default;
+                        m_Extents[local] = default;
+                        m_Flags[local] = 0;
+                        m_Layers[local] = 0;
+                        m_Scenes[local] = default;
+                        m_Rendering[local] = 0;
+                        m_Chains[local] = default;
+                        continue;
                     }
-                    boundsCenterHandle.buffer.SetData(centers, 0, begin, count);
-                    boundsExtentHandle.buffer.SetData(extents, 0, begin, count);
-                    flagsHandle.buffer.SetData(flagValues, 0, begin, count);
-                    layerMaskHandle.buffer.SetData(layerMasks, 0, begin, count);
-                    sceneCullingMaskHandle.buffer.SetData(sceneMasks, 0, begin, count);
-                    renderingLayersHandle.buffer.SetData(renderingMasks, 0, begin, count);
-                    lodChainsHandle.buffer.SetData(chains, 0, begin, count);
-                    m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLODChain>());
+                    MeshEntityDesc desc = entities[i].desc;
+                    m_Centers[local] = new float4(bounds[i].center, 0);
+                    m_Extents[local] = new float4(bounds[i].extents, 0);
+                    m_Flags[local] = (uint)desc.flags;
+                    m_Layers[local] = (uint)desc.layerMask;
+                    m_Scenes[local] = new uint2((uint)desc.sceneCullingMask, (uint)(desc.sceneCullingMask >> 32));
+                    m_Rendering[local] = desc.renderingLayerMask;
+                    m_Chains[local] = entities[i].lod;
                 }
-                finally
-                {
-                    centers.Dispose();
-                    extents.Dispose();
-                    flagValues.Dispose();
-                    layerMasks.Dispose();
-                    sceneMasks.Dispose();
-                    renderingMasks.Dispose();
-                    chains.Dispose();
-                }
+                boundsCenterHandle.buffer.SetData(m_Centers, 0, begin, count);
+                boundsExtentHandle.buffer.SetData(m_Extents, 0, begin, count);
+                flagsHandle.buffer.SetData(m_Flags, 0, begin, count);
+                layerMaskHandle.buffer.SetData(m_Layers, 0, begin, count);
+                sceneCullingMaskHandle.buffer.SetData(m_Scenes, 0, begin, count);
+                renderingLayersHandle.buffer.SetData(m_Rendering, 0, begin, count);
+                lodChainsHandle.buffer.SetData(m_Chains, 0, begin, count);
+                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLODChain>());
             }
+        }
+
+        void EnsureColumnScratch(int count)
+        {
+            if (m_Centers.IsCreated && m_Centers.Length >= count)
+            {
+                return;
+            }
+            int capacity = math.max(count, m_Centers.IsCreated ? m_Centers.Length * 2 : count);
+            DisposeColumnScratch();
+            m_Centers = new NativeArray<float4>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Extents = new NativeArray<float4>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Flags = new NativeArray<uint>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Layers = new NativeArray<uint>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Scenes = new NativeArray<uint2>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Rendering = new NativeArray<uint>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            m_Chains = new NativeArray<MeshLODChain>(capacity, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+        }
+
+        void DisposeColumnScratch()
+        {
+            if (m_Centers.IsCreated) m_Centers.Dispose();
+            if (m_Extents.IsCreated) m_Extents.Dispose();
+            if (m_Flags.IsCreated) m_Flags.Dispose();
+            if (m_Layers.IsCreated) m_Layers.Dispose();
+            if (m_Scenes.IsCreated) m_Scenes.Dispose();
+            if (m_Rendering.IsCreated) m_Rendering.Dispose();
+            if (m_Chains.IsCreated) m_Chains.Dispose();
         }
 
         internal void Dispose()
         {
+            if (m_DirtyRuns.IsCreated)
+            {
+                m_DirtyRuns.Dispose();
+            }
+            DisposeColumnScratch();
             transformVersions.Dispose();
             Release(boundsCenterHandle);
             Release(boundsExtentHandle);
