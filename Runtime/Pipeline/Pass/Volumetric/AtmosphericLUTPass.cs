@@ -168,7 +168,8 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
-        AtmosphereProduction m_AtmosphereProduction;
+        // One observer for the pipeline's lifetime; each record rewrites its fields before the graph queues it.
+        readonly AtmosphereProduction m_AtmosphereProduction = new AtmosphereProduction();
 
         sealed class AtmosphereProduction : IRGPassQueueObserver
         {
@@ -264,10 +265,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             {
                 RGComputePassHandle<AtmosphericLUTPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT));
-                if (m_AtmosphereProduction == null)
-                {
-                    m_AtmosphereProduction = new AtmosphereProduction();
-                }
                 m_AtmosphereProduction.shared = m_AtmosphereSharedCache;
                 m_AtmosphereProduction.view = context.state.atmosphereViewCache;
                 m_AtmosphereProduction.generateShared = generateShared;

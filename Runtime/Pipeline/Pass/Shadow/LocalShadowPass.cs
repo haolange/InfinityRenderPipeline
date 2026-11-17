@@ -43,6 +43,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sourceHandle;
         }
 
+        // One observer for the pipeline's lifetime: the graph that queues it is executed and cleared before the next
+        // camera records and rewrites its fields.
+        readonly CachedShadowProduction m_CachedShadowProduction = new CachedShadowProduction();
+
         sealed class CachedShadowProduction : IRGPassQueueObserver
         {
             public LocalShadowCache cache;
@@ -300,8 +304,12 @@ namespace InfinityTech.Rendering.Pipeline
             // Depth-only resources cannot use region CopyTexture. Keep each direction in its own raster pass:
             // sampling and attaching the same physical atlas in one pass would be a feedback hazard.
             if (saveCount > 0)
-                RecordShadowDepthCopies(shadowMapTextureHandle, cacheAtlasHandle, frameRects, cacheRects, 0, saveCount, shaderPass,
-                    new CachedShadowProduction { cache = m_LocalShadowCache, keys = keys, count = saveCount });
+            {
+                m_CachedShadowProduction.cache = m_LocalShadowCache;
+                m_CachedShadowProduction.keys = keys;
+                m_CachedShadowProduction.count = saveCount;
+                RecordShadowDepthCopies(shadowMapTextureHandle, cacheAtlasHandle, frameRects, cacheRects, 0, saveCount, shaderPass, m_CachedShadowProduction);
+            }
             if (loadCount > 0)
                 RecordShadowDepthCopies(cacheAtlasHandle, shadowMapTextureHandle, cacheRects, frameRects, saveCount, loadCount, shaderPass, null);
         }

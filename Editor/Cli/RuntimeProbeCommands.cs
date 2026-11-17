@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Editor
     {
         public float endSeconds;
         public int frames;
-        public RuntimeProbeStat frameMs, proxyMs, transformMs, applyMs, frameAllocations, proxyAllocations;
+        public RuntimeProbeStat frameMs, proxyMs, transformMs, applyMs, frameAllocations, proxyAllocations, nativeSubmitAllocations;
         public long monoUsedBytes, monoHeapBytes, liveSetBytes, totalAllocatedBytes, totalReservedBytes, graphicsDriverBytes;
         public long poolTextureAllocatedBytes, poolTextureIdleBytes, poolTextureRetiredBytes, poolBufferAllocatedBytes, poolBufferIdleBytes, poolBufferRetiredBytes;
         public int gcGen0, gcGen1, gcGen2;
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.Editor
         readonly bool m_PreviousRunInBackground;
         readonly bool m_PreviousMeasurement;
         readonly MeshPipeline.EMeshDrawBackendPolicy? m_PreviousBackend;
-        readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations;
+        readonly double[] m_FrameMs, m_ProxyMs, m_TransformMs, m_ApplyMs, m_FrameAllocations, m_ProxyAllocations, m_SubmitAllocations;
         readonly double[] m_Scratch;
         int m_Frame, m_WindowSamples, m_WindowIndex;
         double m_WindowsStarted;
@@ -156,6 +156,7 @@ namespace InfinityTech.Rendering.Editor
             int capacity = Mathf.CeilToInt(longest * 1000.0f) + 16;
             m_FrameMs = new double[capacity]; m_ProxyMs = new double[capacity]; m_TransformMs = new double[capacity];
             m_ApplyMs = new double[capacity]; m_FrameAllocations = new double[capacity]; m_ProxyAllocations = new double[capacity];
+            m_SubmitAllocations = new double[capacity];
             m_Scratch = new double[capacity];
 
             Directory.CreateDirectory(request.outputDirectory);
@@ -204,6 +205,7 @@ namespace InfinityTech.Rendering.Editor
                     int i = m_WindowSamples++;
                     m_FrameMs[i] = PipelineFrameMeasurement.frameTicks * ticksToMs;
                     m_FrameAllocations[i] = PipelineFrameMeasurement.frameAllocations;
+                    m_SubmitAllocations[i] = PipelineFrameMeasurement.nativeSubmitAllocations;
                     m_ProxyMs[i] = m_PendingProxyMs;
                     m_TransformMs[i] = m_PendingTransformMs;
                     m_ApplyMs[i] = m_PendingApplyMs;
@@ -289,7 +291,7 @@ namespace InfinityTech.Rendering.Editor
                 endSeconds = m_Request.windowsSeconds[m_WindowIndex],
                 frames = m_WindowSamples,
                 frameMs = Stat(m_FrameMs), proxyMs = Stat(m_ProxyMs), transformMs = Stat(m_TransformMs), applyMs = Stat(m_ApplyMs),
-                frameAllocations = Stat(m_FrameAllocations), proxyAllocations = Stat(m_ProxyAllocations),
+                frameAllocations = Stat(m_FrameAllocations), proxyAllocations = Stat(m_ProxyAllocations), nativeSubmitAllocations = Stat(m_SubmitAllocations),
                 monoUsedBytes = used, monoHeapBytes = heap, liveSetBytes = live,
                 totalAllocatedBytes = Profiler.GetTotalAllocatedMemoryLong(), totalReservedBytes = Profiler.GetTotalReservedMemoryLong(),
                 graphicsDriverBytes = Profiler.GetAllocatedMemoryForGraphicsDriver(),

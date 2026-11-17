@@ -290,7 +290,9 @@ namespace InfinityTech.Rendering.Pipeline
             bool submitted = false;
             bool frameValid = false;
 
-            using (new PipelineFrameMeasurement.Scope(false))
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using (new PipelineFrameMeasurement.Scope(false, PipelineFrameMeasurement.enabled ? PipelineFrameMeasurement.CameraTypesOf(cameras) : 0))
+#endif
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
                 m_ResourcePool.BeginFrame();
@@ -521,11 +523,13 @@ namespace InfinityTech.Rendering.Pipeline
                 state.hasResolvedBackbufferFormat, state.lastResolvedBackbufferFormat);
             state.lastResolvedBackbufferFormat = decision.backbufferFormat;
             state.hasResolvedBackbufferFormat = decision.backbufferFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (!state.loggedOutputDecision)
             {
                 Debug.Log($"[InfinityRP] Present camera={camera.name} type={camera.cameraType} format={decision.backbufferFormat} colorSpace={decision.colorSpace} policy={decision.policy} authority={(decision.displayTransferAuthority ? "DisplayTransferCapability" : "TextureFormat")}");
                 state.loggedOutputDecision = true;
             }
+#endif
             return decision;
         }
 
@@ -1178,7 +1182,9 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeProxyUpdate()
         {
-            using (new PipelineFrameMeasurement.Scope(true))
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using (new PipelineFrameMeasurement.Scope(true, 0))
+#endif
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
             {
                 RenderTaskQueue.ProcessTasks(renderContext);
@@ -1228,7 +1234,9 @@ namespace InfinityTech.Rendering.Pipeline
             bool ownsSharedResources = s_GlobalStateOwner == this;
             if (ownsSharedResources)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 PipelineFrameMeasurement.Dispose();
+#endif
                 Release(RestoreHdrTonemapping);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

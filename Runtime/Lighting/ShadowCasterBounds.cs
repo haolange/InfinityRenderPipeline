@@ -23,8 +23,9 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_BoundsCount;
         LocalSlot[] m_Local = System.Array.Empty<LocalSlot>();
         int m_LocalCount;
-        SlotMap m_BoundsMap;
-        SlotMap m_LocalMap;
+        // Slot index by (light id, scene mask). A value tuple key neither boxes nor allocates on lookup.
+        readonly Dictionary<(ulong, ulong), int> m_BoundsMap = new Dictionary<(ulong, ulong), int>();
+        readonly Dictionary<(ulong, ulong), int> m_LocalMap = new Dictionary<(ulong, ulong), int>();
         int m_Frame = int.MinValue;
 
         internal int BoundsSlotCount => m_BoundsCount;
@@ -90,7 +91,7 @@ namespace InfinityTech.Rendering.LightPipeline
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             ulong lightId = UnityEntityId.ToUInt64(light);
             ulong transform = m_World.transformRevision;
-            int slot = m_BoundsMap.Find(lightId, sceneMask);
+            int slot = m_BoundsMap.TryGetValue((lightId, sceneMask), out int boundsSlot) ? boundsSlot : -1;
             if (slot >= 0 && SameBounds(m_Bounds[slot], m_Structural, light, renderingMask, transform))
             {
                 m_Bounds[slot].frame = m_Frame;
@@ -126,7 +127,7 @@ namespace InfinityTech.Rendering.LightPipeline
             else
             {
                 Add(ref m_Bounds, ref m_BoundsCount, stored);
-                m_BoundsMap.Insert(lightId, sceneMask, m_BoundsCount - 1);
+                m_BoundsMap.Add((lightId, sceneMask), m_BoundsCount - 1);
             }
             return found;
         }
@@ -138,7 +139,7 @@ namespace InfinityTech.Rendering.LightPipeline
             ulong sceneMask = CameraSceneCulling.Mask(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
             ulong lightId = UnityEntityId.ToUInt64(light);
-            int slot = m_LocalMap.Find(lightId, sceneMask);
+            int slot = m_LocalMap.TryGetValue((lightId, sceneMask), out int localSlot) ? localSlot : -1;
             if (slot >= 0 && SameLocal(m_Local[slot], record, light, renderingMask, tileResolution, guardTexels))
             {
                 m_Local[slot].frame = m_Frame;
@@ -178,7 +179,7 @@ namespace InfinityTech.Rendering.LightPipeline
             else
             {
                 Add(ref m_Local, ref m_LocalCount, stored);
-                m_LocalMap.Insert(lightId, sceneMask, m_LocalCount - 1);
+                m_LocalMap.Add((lightId, sceneMask), m_LocalCount - 1);
             }
             return found;
         }
@@ -227,7 +228,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_BoundsMap.Clear();
             for (int i = 0; i < write; ++i)
             {
-                m_BoundsMap.Insert(m_Bounds[i].lightId, m_Bounds[i].sceneMask, i);
+                m_BoundsMap.Add((m_Bounds[i].lightId, m_Bounds[i].sceneMask), i);
             }
         }
 
@@ -245,100 +246,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalMap.Clear();
             for (int i = 0; i < write; ++i)
             {
-                m_LocalMap.Insert(m_Local[i].lightId, m_Local[i].sceneMask, i);
-            }
-        }
-
-        struct SlotMap
-        {
-            ulong[] m_Light;
-            ulong[] m_Mask;
-            int[] m_Slot;
-            int m_Capacity;
-            int m_Count;
-
-            public int Find(ulong light, ulong mask)
-            {
-                if (m_Capacity == 0)
-                {
-                    return -1;
-                }
-                int index = Hash(light, mask) & (m_Capacity - 1);
-                for (int n = 0; n < m_Capacity; ++n)
-                {
-                    int slot = m_Slot[index];
-                    if (slot < 0)
-                    {
-                        return -1;
-                    }
-                    if (m_Light[index] == light && m_Mask[index] == mask)
-                    {
-                        return slot;
-                    }
-                    index = (index + 1) & (m_Capacity - 1);
-                }
-                return -1;
-            }
-
-            public void Insert(ulong light, ulong mask, int slot)
-            {
-                if (m_Count * 2 >= m_Capacity)
-                {
-                    Grow();
-                }
-                int index = Hash(light, mask) & (m_Capacity - 1);
-                while (m_Slot[index] >= 0)
-                {
-                    index = (index + 1) & (m_Capacity - 1);
-                }
-                m_Light[index] = light;
-                m_Mask[index] = mask;
-                m_Slot[index] = slot;
-                m_Count++;
-            }
-
-            public void Clear()
-            {
-                for (int i = 0; i < m_Capacity; ++i)
-                {
-                    m_Slot[i] = -1;
-                }
-                m_Count = 0;
-            }
-
-            void Grow()
-            {
-                int capacity = m_Capacity == 0 ? 4 : m_Capacity * 2;
-                var light = new ulong[capacity];
-                var mask = new ulong[capacity];
-                var slot = new int[capacity];
-                for (int i = 0; i < capacity; ++i)
-                {
-                    slot[i] = -1;
-                }
-                ulong[] oldLight = m_Light;
-                ulong[] oldMask = m_Mask;
-                int[] oldSlot = m_Slot;
-                int oldCapacity = m_Capacity;
-                m_Light = light;
-                m_Mask = mask;
-                m_Slot = slot;
-                m_Capacity = capacity;
-                m_Count = 0;
-                for (int i = 0; i < oldCapacity; ++i)
-                {
-                    if (oldSlot[i] >= 0)
-                    {
-                        Insert(oldLight[i], oldMask[i], oldSlot[i]);
-                    }
-                }
-            }
-
-            static int Hash(ulong light, ulong mask)
-            {
-                ulong mixed = light * 0x9E3779B185EBCA87UL ^ (mask + 0xC2B2AE3D27D4EB4FUL);
-                mixed ^= mixed >> 33;
-                return (int)mixed;
+                m_LocalMap.Add((m_Local[i].lightId, m_Local[i].sceneMask), i);
             }
         }
 

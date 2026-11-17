@@ -31,6 +31,9 @@ namespace InfinityTech.Rendering.Editor
         public bool moveCamera = true;
         public float cameraPathRadius = 4f;
         public bool captureAllocations = true;
+        // false: a Scene view camera rendering during the probe fails it. true: Scene view Render calls are measured too,
+        // and allocations are reported per camera type of each Render call.
+        public bool includeSceneView;
     }
 
     // Reads the CPU ProfilerMarker tables outside the pipeline. It does not allocate during the sampled frames.
@@ -75,6 +78,8 @@ namespace InfinityTech.Rendering.Editor
     {
         const string ReloadHolder = "infinity_cpu_markers";
         const int WindowCount = 3;
+        // Allocation buckets by the camera types of one Render call: Game, SceneView, and any other combination.
+        static readonly string[] s_CameraTypeBuckets = { "Game", "SceneView", "Other" };
         const int SampleCapacity = 512;
         static readonly ProfilerRecorderOptions s_Options = ProfilerRecorderOptions.CollectOnlyOnCurrentThread | ProfilerRecorderOptions.WrapAroundWhenCapacityReached;
         static readonly FieldInfo s_InlineMarker = typeof(ProfilingSampler).GetField("m_InlineMarker", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -98,7 +103,9 @@ namespace InfinityTech.Rendering.Editor
         readonly long[] m_ParentCalls;
         readonly ProfilerRecorder[] m_Parents;
         readonly long[] m_WindowAllocations;
+        readonly long[] m_WindowSubmitAllocations;
         readonly int[] m_WindowFrames;
+        long m_ReadSequence;
         int m_Frame;
         int m_Sampled;
         int m_AllocFrames;
@@ -150,8 +157,9 @@ namespace InfinityTech.Rendering.Editor
             m_CoverageTimeNs = new long[4];
             m_ParentTimeNs = new long[4];
             m_ParentCalls = new long[4];
-            m_WindowAllocations = new long[WindowCount];
-            m_WindowFrames = new int[WindowCount];
+            m_WindowAllocations = new long[WindowCount * s_CameraTypeBuckets.Length];
+            m_WindowSubmitAllocations = new long[WindowCount * s_CameraTypeBuckets.Length];
+            m_WindowFrames = new int[WindowCount * s_CameraTypeBuckets.Length];
             m_UpdateIndex = names.IndexOf("UpdateMeshWorldGPU");
             for (int i = 0; i < markers.Count; ++i)
             {
@@ -240,19 +248,28 @@ namespace InfinityTech.Rendering.Editor
 
         void OnBeginContextRendering(ScriptableRenderContext context, List<Camera> cameras)
         {
-            if (Finished || !cameras.Contains(m_Camera))
+            if (Finished)
             {
                 return;
             }
-            for (int i = 0; i < cameras.Count; ++i)
+            if (!m_Request.includeSceneView)
             {
-                if (cameras[i].cameraType == CameraType.SceneView)
+                for (int i = 0; i < cameras.Count; ++i)
                 {
-                    Stop("Failed", new InvalidOperationException("A Scene view camera rendered during the probe. Close Scene views and leave only the Game view."));
-                    return;
+                    if (cameras[i].cameraType == CameraType.SceneView)
+                    {
+                        Stop("Failed", new InvalidOperationException("A Scene view camera rendered during the probe. Close Scene views, or set includeSceneView."));
+                        return;
+                    }
                 }
             }
-            if (!m_Sampling)
+            // The previous Render call completed its record before this call began; read it once, by its camera types.
+            if (m_Sampling && !m_Allocating && m_Sampled < m_Request.sampleFrames && PipelineFrameMeasurement.sequence != m_ReadSequence)
+            {
+                AccumulateRenderRecord();
+            }
+            m_ReadSequence = PipelineFrameMeasurement.sequence;
+            if (!m_Sampling || !cameras.Contains(m_Camera))
             {
                 return;
             }
@@ -264,15 +281,24 @@ namespace InfinityTech.Rendering.Editor
             m_HasPending = true;
         }
 
-        void Accumulate()
+        int CurrentWindow()
         {
             int window = m_Sampled / (m_Request.sampleFrames / WindowCount);
-            if (window >= WindowCount)
-            {
-                window = WindowCount - 1;
-            }
-            m_WindowAllocations[window] += PipelineFrameMeasurement.frameAllocations;
-            m_WindowFrames[window]++;
+            return window >= WindowCount ? WindowCount - 1 : window;
+        }
+
+        void AccumulateRenderRecord()
+        {
+            int types = PipelineFrameMeasurement.frameCameraTypes;
+            int bucket = types == (int)CameraType.Game ? 0 : types == (int)CameraType.SceneView ? 1 : 2;
+            int index = bucket * WindowCount + CurrentWindow();
+            m_WindowAllocations[index] += PipelineFrameMeasurement.frameAllocations;
+            m_WindowSubmitAllocations[index] += PipelineFrameMeasurement.nativeSubmitAllocations;
+            m_WindowFrames[index]++;
+        }
+
+        void Accumulate()
+        {
             long updateTime = 0;
             int updateCalls = 0;
             for (int i = 0; i < m_Recorders.Length; ++i)
@@ -406,9 +432,13 @@ namespace InfinityTech.Rendering.Editor
             }
         }
 
-        static void Pump()
+        void Pump()
         {
             EditorApplication.QueuePlayerLoopUpdate();
+            if (m_Request.includeSceneView)
+            {
+                SceneView.RepaintAll();
+            }
             Type gameView = Type.GetType("UnityEditor.GameView, UnityEditor");
             if (gameView == null)
             {
@@ -460,13 +490,22 @@ namespace InfinityTech.Rendering.Editor
                 text.Append(", \"gap\": ").Append(gap.ToString("R", CultureInfo.InvariantCulture)).Append(" }");
                 text.Append(i + 1 == parents.Length ? "\n" : ",\n");
             }
-            text.Append("  ],\n  \"windows\": [\n");
-            for (int i = 0; i < WindowCount; ++i)
+            text.Append("  ],\n  \"includeSceneView\": ").Append(m_Request.includeSceneView ? "true" : "false");
+            text.Append(",\n  \"windowsByCameraType\": [\n");
+            for (int bucket = 0; bucket < s_CameraTypeBuckets.Length; ++bucket)
             {
-                double mean = m_WindowFrames[i] == 0 ? 0 : (double)m_WindowAllocations[i] / m_WindowFrames[i];
-                text.Append("    { \"frames\": ").Append(m_WindowFrames[i].ToString(CultureInfo.InvariantCulture));
-                text.Append(", \"frameAllocationsMean\": ").Append(mean.ToString("R", CultureInfo.InvariantCulture)).Append(" }");
-                text.Append(i + 1 == WindowCount ? "\n" : ",\n");
+                text.Append("    { \"cameraTypes\": \"").Append(s_CameraTypeBuckets[bucket]).Append("\", \"windows\": [");
+                for (int window = 0; window < WindowCount; ++window)
+                {
+                    int i = bucket * WindowCount + window;
+                    double mean = m_WindowFrames[i] == 0 ? 0 : (double)m_WindowAllocations[i] / m_WindowFrames[i];
+                    double submit = m_WindowFrames[i] == 0 ? 0 : (double)m_WindowSubmitAllocations[i] / m_WindowFrames[i];
+                    text.Append(" { \"renderCalls\": ").Append(m_WindowFrames[i].ToString(CultureInfo.InvariantCulture));
+                    text.Append(", \"frameAllocationsMean\": ").Append(mean.ToString("R", CultureInfo.InvariantCulture));
+                    text.Append(", \"nativeSubmitAllocationsMean\": ").Append(submit.ToString("R", CultureInfo.InvariantCulture)).Append(" }");
+                    text.Append(window + 1 == WindowCount ? " " : ",");
+                }
+                text.Append(bucket + 1 == s_CameraTypeBuckets.Length ? "] }\n" : "] },\n");
             }
             text.Append("  ],\n  \"markers\": [\n");
             for (int i = 0; i < m_Names.Length; ++i)
@@ -502,7 +541,16 @@ namespace InfinityTech.Rendering.Editor
                 var children = new List<int>(64);
                 var path = new List<string>(32);
                 var totals = new Dictionary<string, double>();
-                Walk(view, view.GetRootItemID(), children, path, totals);
+                // Each camera records under its own sampler, named after the camera, so a path names its camera.
+                var sceneCameras = new HashSet<string>();
+                foreach (object sceneView in SceneView.sceneViews)
+                {
+                    if (sceneView is SceneView open && open.camera != null)
+                    {
+                        sceneCameras.Add(open.camera.name);
+                    }
+                }
+                Walk(view, view.GetRootItemID(), children, path, totals, sceneCameras);
                 var rows = new List<KeyValuePair<string, double>>(totals);
                 rows.Sort((a, b) => b.Value.CompareTo(a.Value));
                 for (int i = 0; i < rows.Count; ++i)
@@ -513,7 +561,7 @@ namespace InfinityTech.Rendering.Editor
             File.WriteAllText(Path.Combine(m_Request.outputDirectory, "alloc-stacks.txt"), text.ToString());
         }
 
-        static void Walk(HierarchyFrameDataView view, int id, List<int> children, List<string> path, Dictionary<string, double> totals)
+        static void Walk(HierarchyFrameDataView view, int id, List<int> children, List<string> path, Dictionary<string, double> totals, HashSet<string> sceneCameras)
         {
             string name = view.GetItemName(id);
             path.Add(name);
@@ -521,7 +569,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 double bytes = view.GetItemColumnDataAsDouble(id, HierarchyFrameDataView.columnGcMemory);
                 string stack = view.ResolveItemCallstack(id);
-                string key = (Interests(path) ? "record-or-execute" : "other") + "\n" + string.Join(" > ", path) + "\n" + stack;
+                string key = (Interests(path) ? "record-or-execute" : "other") + " " + CameraTypeOf(path, sceneCameras) + "\n" + string.Join(" > ", path) + "\n" + stack;
                 totals.TryGetValue(key, out double sum);
                 totals[key] = sum + bytes;
             }
@@ -534,9 +582,21 @@ namespace InfinityTech.Rendering.Editor
             }
             for (int i = 0; i < ids.Length; ++i)
             {
-                Walk(view, ids[i], children, path, totals);
+                Walk(view, ids[i], children, path, totals, sceneCameras);
             }
             path.RemoveAt(path.Count - 1);
+        }
+
+        static string CameraTypeOf(List<string> path, HashSet<string> sceneCameras)
+        {
+            for (int i = 0; i < path.Count; ++i)
+            {
+                if (sceneCameras.Contains(path[i]))
+                {
+                    return "SceneView";
+                }
+            }
+            return "Game-or-shared";
         }
 
         static bool Interests(List<string> path)

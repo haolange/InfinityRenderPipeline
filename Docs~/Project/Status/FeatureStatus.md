@@ -2,6 +2,13 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Architecture convergence, static gate only — 2026-11-18 (no Editor)
+
+Every item below passed the static gate (tree-sitter C# syntax under four define sets, `static_check` 0 errors, its tests, repository-wide consumer closure) and nothing else. Compilation, tests, images and timings are TODO(UNVERIFIED).
+
+- Allocation: `framealloc` passes. Local shadow allocation keeps cached sampling and budget scratch in `Allocator.Temp`; `ResolveSampling` writes a caller span. Shadow-moment blur names are constants, the cached-shadow and atmosphere observers live with the pipeline, dependency reasons are composed once per pair. Mesh residency scratch is Temp, dynamic-pose counters TempJob. Verify: `LocalShadowCacheTests`, `ShadowBudgetTests`, `ShadowCasterAllocationTests`, `MeshWorldTests`, and a Play window with `frameAllocations` 0 for Game view only.
+- Measurement: one record per `Render` call with its camera types and native-submit allocations, Editor and Development only. Verify: `infinity_cpu_markers_start` with `includeSceneView` true and false; `infinity_runtime_probe_start` reports `nativeSubmitAllocations`.
+
 ### Residency scratch — 2026-11-18 (macOS Metal, Unity 6000.6.0f1)
 
 Scene_Spazon, MainCamera, GPU Indirect, camera still, Release. Warmup 300, mean of the next 300. The scene has 4 dynamic entities, so `Mesh.PrepareTransformVersion` and `Mesh.UploadColumns` run once per frame (1.003 calls). `frameAllocations` is 0.11, 0, 0. The last two windows are 0 while those stages run. `MeshWorldTests` 10 passed, including a second static residency update and a second pose update at 0 managed bytes. The transform-version GPU test passed. `MeshMotionHistoryTests` 8 passed.

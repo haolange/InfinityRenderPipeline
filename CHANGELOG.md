@@ -9,6 +9,8 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Frame-rate scratch follows AGENTS R17: local shadow allocation, mesh residency and dynamic poses use `Allocator.Temp`/`TempJob`, the cached-shadow and atmosphere observers live with the pipeline, and `static_check framealloc` rejects managed allocation in frame- and camera-rate methods. Shadow caster slots are indexed by a `Dictionary` keyed on light and scene mask.
+- Frame measurement exists only in Editor and Development builds and records each `Render` call with its camera types and native-submit allocations; `infinity_cpu_markers_start` accepts `includeSceneView` and reports allocations per camera type.
 - Shadow caster answers follow the mesh world's revisions, so a static world is not walked every frame. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
 - A moving camera reuses one atmosphere queue observer. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).
 - CPU time is recorded with separate pipeline, lighting, mesh and render-graph markers. The plain account is [CPU time](Docs~/Project/Status/CpuTime.md).

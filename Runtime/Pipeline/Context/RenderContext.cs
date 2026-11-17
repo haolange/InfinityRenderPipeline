@@ -179,7 +179,9 @@ namespace InfinityTech.Rendering.Pipeline
         /// <summary>Explicit static pose notifications, written after the structural transaction.</summary>
         internal void ApplyMeshTransforms()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             using var measurement = new PipelineFrameMeasurement.Section(1);
+#endif
             foreach (MeshComponent mesh in s_TransformUpdates)
                 if (mesh)
                 {
@@ -190,7 +192,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void UpdateDynamicMeshPoses()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             using var measurement = new PipelineFrameMeasurement.Section(0);
+#endif
             m_MeshWorld.UpdateDynamicPoses();
         }
 

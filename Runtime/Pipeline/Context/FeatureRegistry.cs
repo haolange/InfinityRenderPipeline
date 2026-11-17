@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -209,6 +210,31 @@ namespace InfinityTech.Rendering.Pipeline
             return table;
         }
 
+        // Every reason is a literal or a resource reason resolved when resources load, so a dependency's composed reason is
+        // built once per distinct pair and then read from this table (AGENTS R14, R17).
+        static readonly Dictionary<string, string>[] s_DependsOnReasons = CreateDependsOnReasonTables();
+
+        static Dictionary<string, string>[] CreateDependsOnReasonTables()
+        {
+            var tables = new Dictionary<string, string>[Enum.GetValues(typeof(EFrameFeature)).Length];
+            for (int i = 0; i < tables.Length; ++i)
+            {
+                tables[i] = new Dictionary<string, string>(StringComparer.Ordinal);
+            }
+            return tables;
+        }
+
+        static string DependsOnReason(EFrameFeature dependency, string dependencyReason)
+        {
+            Dictionary<string, string> table = s_DependsOnReasons[(int)dependency];
+            if (!table.TryGetValue(dependencyReason, out string reason))
+            {
+                reason = "Depends on " + dependency + ": " + dependencyReason;
+                table.Add(dependencyReason, reason);
+            }
+            return reason;
+        }
+
         static string BlueNoiseSupport(InfinityRenderPipelineRuntimeTextures textures)
         {
             return textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures.";
@@ -317,7 +343,7 @@ namespace InfinityTech.Rendering.Pipeline
                     string dependencyReason = Evaluate(dependency, context, reasons, evaluated);
                     if (dependencyReason != null)
                     {
-                        reason = $"Depends on {dependency}: {dependencyReason}";
+                        reason = DependsOnReason(dependency, dependencyReason);
                         break;
                     }
                 }

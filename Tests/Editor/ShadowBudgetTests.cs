@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Unity.Collections;
 using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
@@ -7,10 +8,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         static int Select(float[] scores, int[] records, int[] faces, int maxLights, int tileBudget, out int[] accepted, out int tiles, out int dropped)
         {
-            var buffer = new int[System.Math.Min(maxLights, scores.Length)];
-            int count = ShadowAllocator.SelectWithinBudget(scores, records, faces, maxLights, tileBudget, buffer, out tiles, out dropped);
+            using var scoreArray = new NativeArray<float>(scores, Allocator.Temp);
+            using var recordArray = new NativeArray<int>(records, Allocator.Temp);
+            using var faceArray = new NativeArray<int>(faces, Allocator.Temp);
+            using var buffer = new NativeArray<int>(System.Math.Max(1, System.Math.Min(maxLights, scores.Length)), Allocator.Temp);
+            int count = ShadowAllocator.SelectWithinBudget(scoreArray, recordArray, faceArray, maxLights, tileBudget, buffer, scores.Length, out tiles, out dropped);
             accepted = new int[count];
-            System.Array.Copy(buffer, accepted, count);
+            NativeArray<int>.Copy(buffer, accepted, count);
             return count;
         }
 

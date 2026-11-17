@@ -1108,7 +1108,7 @@ DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession
                                 r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
                                 r'RecordDeferredLightingCapture|captureSession|displayProbe|'
                                 r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
-                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend)\b')
+                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend|PipelineFrameMeasurement)\b')
 DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
 
 
@@ -1288,7 +1288,7 @@ def main():
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
                      ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
-                     ('redundantparam', check_redundant_parameters)):
+                     ('redundantparam', check_redundant_parameters), ('framealloc', check_frame_allocations)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

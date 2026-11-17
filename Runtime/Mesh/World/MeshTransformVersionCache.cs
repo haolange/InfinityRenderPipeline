@@ -72,7 +72,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly Stack<MeshTransformVersion> m_FreeVersions = new Stack<MeshTransformVersion>();
         readonly HashSet<MeshTransformVersion> m_Versions = new HashSet<MeshTransformVersion>();
         readonly List<MeshTransformVersion> m_Retired = new List<MeshTransformVersion>();
-        readonly NativeList<int> m_PatchIndices = new NativeList<int>(16, Allocator.Persistent);
         MeshTransformVersion m_Current;
         bool m_Disposed;
         internal MeshTransformVersion current => m_Current;
@@ -127,32 +126,33 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             var source = m_Current;
             bool mergePending = source != null && !source.queued && source.references == 1;
-            m_PatchIndices.Clear();
+            // Patch indices live until this call returns (AGENTS R17: Temp).
+            using var patchIndices = new NativeList<int>(16, Allocator.Temp);
             // Fold an unsubmitted version with no view references into the next dirty set.
             // Only slot indices need merging: the CPU world owns their latest values.
             if (mergePending)
             {
                 for (int i = 0; i < source.changeCount; ++i)
                 {
-                    m_PatchIndices.Add((int)source.changes[i].index);
+                    patchIndices.Add((int)source.changes[i].index);
                 }
                 source = source.source;
             }
             if (m_Current == null)
                 for (int i = 0; i < world.entityHighWater; ++i)
                 {
-                    m_PatchIndices.Add(i);
+                    patchIndices.Add(i);
                 }
             else
                 foreach (int2 run in dirtyRuns)
                     for (int i = run.x; i < math.min(run.y, world.entityHighWater); ++i)
                     {
-                        m_PatchIndices.Add(i);
+                        patchIndices.Add(i);
                     }
-            m_PatchIndices.AsArray().Sort();
+            patchIndices.AsArray().Sort();
             int patchCount = 0;
-            for (int i = 0; i < m_PatchIndices.Length; ++i)
-                if (i == 0 || m_PatchIndices[i] != m_PatchIndices[i - 1])
+            for (int i = 0; i < patchIndices.Length; ++i)
+                if (i == 0 || patchIndices[i] != patchIndices[i - 1])
                 {
                     patchCount++;
                 }
@@ -166,13 +166,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             var matrices = world.entityTransforms;
             var generations = world.entityGenerations;
             int destination = 0;
-            for (int i = 0; i < m_PatchIndices.Length; ++i)
+            for (int i = 0; i < patchIndices.Length; ++i)
             {
-                if (i > 0 && m_PatchIndices[i] == m_PatchIndices[i - 1])
+                if (i > 0 && patchIndices[i] == patchIndices[i - 1])
                 {
                     continue;
                 }
-                int index = m_PatchIndices[i];
+                int index = patchIndices[i];
                 next.changes[destination++] = new MeshTransformPatch
                 {
                     index = (uint)index, objectToWorld = matrices[index], generation = generations[index]
@@ -445,10 +445,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             m_Disposed = true;
-            if (m_PatchIndices.IsCreated)
-            {
-                m_PatchIndices.Dispose();
-            }
             foreach (var version in m_Versions)
             {
                 m_Pool.ReleaseBuffer(version.matricesHandle);

@@ -56,8 +56,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         TransformAccessArray m_DynamicTransforms;
         NativeList<int> m_DynamicToEntity;
         NativeList<BoundingBox> m_DynamicLocalBounds;
-        NativeList<byte> m_DynamicChanged;
-        NativeArray<int> m_DynamicChangedCount;
 
         bool m_Disposed;
 
@@ -126,8 +124,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_DynamicTransforms = new TransformAccessArray(256);
             m_DynamicToEntity = new NativeList<int>(256, Allocator.Persistent);
             m_DynamicLocalBounds = new NativeList<BoundingBox>(256, Allocator.Persistent);
-            m_DynamicChanged = new NativeList<byte>(256, Allocator.Persistent);
-            m_DynamicChangedCount = new NativeArray<int>(1, Allocator.Persistent);
             InitializeTransaction();
             m_Gpu = new MeshWorldGPU(this, resourcePool);
             m_ResourcePool = resourcePool;
@@ -270,29 +266,32 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            m_DynamicChanged.ResizeUninitialized(count);
-            m_DynamicChangedCount[0] = 0;
+            // Both live until the jobs complete inside this call (AGENTS R17: TempJob across scheduled jobs).
+            var changed = new NativeArray<byte>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var changedCount = new NativeArray<int>(1, Allocator.TempJob);
             JobHandle handle = new MeshDynamicPoseJob
             {
                 dynamicToEntity = m_DynamicToEntity.AsArray(),
                 localBounds = m_DynamicLocalBounds.AsArray(),
                 entityTransforms = m_EntityTransforms.AsArray(),
                 entityBounds = m_EntityBounds.AsArray(),
-                changed = m_DynamicChanged.AsArray()
+                changed = changed
             }.ScheduleReadOnly(m_DynamicTransforms, 64);
             handle = new MeshDynamicDirtyJob
             {
-                changed = m_DynamicChanged.AsArray(),
+                changed = changed,
                 dynamicToEntity = m_DynamicToEntity.AsArray(),
                 transformWords = m_TransformDirty.Words(m_Entities.HighWater),
                 entityWords = m_EntityDirty.Words(m_Entities.HighWater),
-                changedCount = m_DynamicChangedCount
+                changedCount = changedCount
             }.Schedule(handle);
             handle.Complete();
-            if (m_DynamicChangedCount[0] > 0)
+            if (changedCount[0] > 0)
             {
                 transformRevision++;
             }
+            changed.Dispose();
+            changedCount.Dispose();
         }
 
         void RegisterDynamic(int entity, Transform transform, in BoundingBox localBounds)
@@ -396,11 +395,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             m_DynamicToEntity.Dispose();
             m_DynamicLocalBounds.Dispose();
-            m_DynamicChanged.Dispose();
-            if (m_DynamicChangedCount.IsCreated)
-            {
-                m_DynamicChangedCount.Dispose();
-            }
             if (failures.Count == 1)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();

@@ -58,7 +58,9 @@ namespace InfinityTech.Rendering.Pipeline
         public CombineLutCache combineLutCache;
         public bool executeSucceeded;
         public bool requiresHistoryReset;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         public bool loggedOutputDecision;
+#endif
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
         internal bool acceptedHiZ;
@@ -125,7 +127,6 @@ namespace InfinityTech.Rendering.Pipeline
             atmosphereViewCache = new AtmosphereViewCache(pool);
             combineLutCache = new CombineLutCache(pool);
             m_Transactions = new IFrameTransaction[] { historyCache, atmosphereViewCache, combineLutCache };
-            loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
         }
