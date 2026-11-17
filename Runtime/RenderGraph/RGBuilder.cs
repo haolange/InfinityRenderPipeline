@@ -577,22 +577,31 @@ namespace InfinityTech.Rendering.RenderGraph
             System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
             try
             {
-                if (cmdBuffer.sizeInBytes != 0)
+                using (RGCpuMarkers.s_ExecutePrepare.Auto())
                 {
-                    QueueGraphics(scriptableRenderContext, cmdBuffer);
-                    cmdBuffer.Clear();
+                    if (cmdBuffer.sizeInBytes != 0)
+                    {
+                        QueueGraphics(scriptableRenderContext, cmdBuffer);
+                        cmdBuffer.Clear();
+                    }
+                    m_Resources.BeginRender();
                 }
-                m_Resources.BeginRender();
                 CompilePass();
-                if (RGDebugSession.captureEnabled)
+                using (RGCpuMarkers.s_ExecuteRendererLists.Auto())
                 {
-                    RGDebugSession.Publish(CaptureDebugSnapshot());
+                    if (RGDebugSession.captureEnabled)
+                    {
+                        RGDebugSession.Publish(CaptureDebugSnapshot());
+                    }
+                    if (m_RendererListRecords.LiveCount > 0)
+                    {
+                        m_RendererListRecords.CreateLive(new RGContextRendererListCreator(scriptableRenderContext));
+                    }
                 }
-                if (m_RendererListRecords.LiveCount > 0)
+                using (RGCpuMarkers.s_ExecuteSubmit.Auto())
                 {
-                    m_RendererListRecords.CreateLive(new RGContextRendererListCreator(scriptableRenderContext));
+                    ExecutePass(ref graphContext);
                 }
-                ExecutePass(ref graphContext);
             }
             catch (Exception exception)
             {
@@ -604,7 +613,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 CommandBufferPool.Release(graphCommands);
                 try
                 {
-                    ClearPass();
+                    using (RGCpuMarkers.s_ExecuteClear.Auto())
+                    {
+                        ClearPass();
+                    }
                 }
                 catch (Exception cleanupError)
                 {

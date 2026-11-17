@@ -408,22 +408,49 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void CompilePass()
         {
-            PlaceDeclaredPasses();
-            RunLiveness();
-            if (!m_ExtensionContributed)
+            using (RGCpuMarkers.s_CompilePlace.Auto())
             {
-                extension?.Contribute(this);
-                m_ExtensionContributed = true;
+                PlaceDeclaredPasses();
             }
-            CompileRendererLists();
-            UpdateResource();
-            BuildNativeGroups();
-            BuildSegments();
-            ConformGroupsToSegments();
-            HoistGroupCreates();
-            ApplyMemoryless();
-            BakeProfileMarkers();
-            ValidateGraph();
+            using (RGCpuMarkers.s_CompileCull.Auto())
+            {
+                RunLiveness();
+            }
+            using (RGCpuMarkers.s_CompileContribute.Auto())
+            {
+                if (!m_ExtensionContributed)
+                {
+                    extension?.Contribute(this);
+                    m_ExtensionContributed = true;
+                }
+            }
+            using (RGCpuMarkers.s_CompileRendererLists.Auto())
+            {
+                CompileRendererLists();
+            }
+            using (RGCpuMarkers.s_CompileLifetime.Auto())
+            {
+                UpdateResource();
+            }
+            using (RGCpuMarkers.s_CompileNativeGroups.Auto())
+            {
+                BuildNativeGroups();
+            }
+            using (RGCpuMarkers.s_CompileSegments.Auto())
+            {
+                BuildSegments();
+                ConformGroupsToSegments();
+                HoistGroupCreates();
+                ApplyMemoryless();
+            }
+            using (RGCpuMarkers.s_CompileProfile.Auto())
+            {
+                BakeProfileMarkers();
+            }
+            using (RGCpuMarkers.s_CompileValidate.Auto())
+            {
+                ValidateGraph();
+            }
         }
 
         void RunLiveness()

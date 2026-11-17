@@ -291,96 +291,120 @@ namespace InfinityTech.Rendering.LightPipeline
             Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup,
             Camera camera,
             in ShadowAllocatorSettings settings,
-            int2 screenSize, MeshPipeline.MeshWorld meshWorld, LocalShadowCache shadowCache = null)
+            int2 screenSize, MeshPipeline.MeshWorld meshWorld,             LocalShadowCache shadowCache = null)
         {
-            Clear();
-            m_HasShadowmask = false;
-            m_ScreenSize = math.max(screenSize, new int2(1, 1));
+            NativeArray<VisibleLight> visibleLights;
+            Light sun;
+            Vector3 cameraPosition;
+            Matrix4x4 worldToView;
+            Matrix4x4 gpuProjection;
+            bool orthographic;
+            float near;
+            float far;
+            using (LightCpuMarkers.s_Setup.Auto())
+            {
+                Clear();
+                m_HasShadowmask = false;
+                m_ScreenSize = math.max(screenSize, new int2(1, 1));
 
-            NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
-            Light sun = RenderSettings.sun;
-            Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
-            Matrix4x4 worldToView = camera != null ? camera.worldToCameraMatrix : Matrix4x4.identity;
-            Matrix4x4 gpuProjection = camera != null ? Pipeline.GraphicsUtility.GetComputeGpuProjection(camera) : Matrix4x4.identity;
-            bool orthographic = camera != null && camera.orthographic;
-            float near = camera != null ? camera.nearClipPlane : 0.1f;
-            m_WorldToView = worldToView;
-            m_GpuProjection = gpuProjection;
-            m_Orthographic = orthographic;
-            m_Near = near;
-            float far = camera != null ? camera.farClipPlane : 1000.0f;
-            m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
+                visibleLights = cullingResults.visibleLights;
+                sun = RenderSettings.sun;
+                cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
+                worldToView = camera != null ? camera.worldToCameraMatrix : Matrix4x4.identity;
+                gpuProjection = camera != null ? Pipeline.GraphicsUtility.GetComputeGpuProjection(camera) : Matrix4x4.identity;
+                orthographic = camera != null && camera.orthographic;
+                near = camera != null ? camera.nearClipPlane : 0.1f;
+                m_WorldToView = worldToView;
+                m_GpuProjection = gpuProjection;
+                m_Orthographic = orthographic;
+                m_Near = near;
+                far = camera != null ? camera.farClipPlane : 1000.0f;
+                m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
+            }
 
             // The registry is the only source: InfinityAdditionalLightData registers itself before the frame's proxy update.
-            if (m_AdditionalData.Length < visibleLights.Length)
+            using (LightCpuMarkers.s_Registry.Auto())
             {
-                m_AdditionalData = new InfinityAdditionalLightData[math.ceilpow2(visibleLights.Length)];
-            }
-            for (int i = 0; i < visibleLights.Length; ++i)
-            {
-                Light light = visibleLights[i].light;
-                m_AdditionalData[i] = null;
-                if (light != null)
+                if (m_AdditionalData.Length < visibleLights.Length)
                 {
-                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
+                    m_AdditionalData = new InfinityAdditionalLightData[math.ceilpow2(visibleLights.Length)];
                 }
-            }
-
-            for (int i = 0; i < visibleLights.Length; ++i)
-            {
-                VisibleLight visible = visibleLights[i];
-                Light light = visible.light;
-                if (light == null || !light.enabled)
+                for (int i = 0; i < visibleLights.Length; ++i)
                 {
-                    continue;
-                }
-
-                if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
-                {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    m_UnsupportedShapeCount++;
-#endif
-                    continue;
-                }
-
-                InfinityAdditionalLightData ext = m_AdditionalData[i];
-
-                LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
-                if (!LightRecordPack.TryPack(visible, light, ext, shape, i, cameraPosition, out LightRecord record))
-                {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    if (LightShapeUtility.IsValid(shape))
+                    Light light = visibleLights[i].light;
+                    m_AdditionalData[i] = null;
+                    if (light != null)
                     {
-                        m_DistanceCulledCount++;
+                        worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out m_AdditionalData[i]);
                     }
-                    else
+                }
+            }
+
+            using (LightCpuMarkers.s_Pack.Auto())
+            {
+                for (int i = 0; i < visibleLights.Length; ++i)
+                {
+                    VisibleLight visible = visibleLights[i];
+                    Light light = visible.light;
+                    if (light == null || !light.enabled)
                     {
+                        continue;
+                    }
+
+                    if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
+                    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                         m_UnsupportedShapeCount++;
-                    }
 #endif
-                    continue;
-                }
-
-                m_HasShadowmask |= IsBakedShadowmaskLight(light);
-                if (record.IsDirectional)
-                {
-                    if (sun != null && light == sun)
-                    {
-                        m_SunRecordIndex = m_Records.Length;
+                        continue;
                     }
-                    m_Records.Add(record);
-                    m_DirectionalCount++;
-                    continue;
-                }
 
-                Vector3 centerVS = worldToView.MultiplyPoint3x4(new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z));
-                float radius = math.max(record.positionRange.w, 0.01f);
-                if (!LightBinning.TryComputeTileRect(centerVS, radius, gpuProjection, orthographic, near, m_ScreenSize, out int4 rect))
-                {
-                    m_OffscreenCount++;
-                    continue;
+                    InfinityAdditionalLightData ext = m_AdditionalData[i];
+
+                    LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
+                    if (!LightRecordPack.TryPack(visible, light, ext, shape, i, cameraPosition, out LightRecord record))
+                    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (LightShapeUtility.IsValid(shape))
+                        {
+                            m_DistanceCulledCount++;
+                        }
+                        else
+                        {
+                            m_UnsupportedShapeCount++;
+                        }
+#endif
+                        continue;
+                    }
+
+                    m_HasShadowmask |= IsBakedShadowmaskLight(light);
+                    if (record.IsDirectional)
+                    {
+                        if (sun != null && light == sun)
+                        {
+                            m_SunRecordIndex = m_Records.Length;
+                        }
+                        m_Records.Add(record);
+                        m_DirectionalCount++;
+                        continue;
+                    }
+
+                    Vector3 centerVS = worldToView.MultiplyPoint3x4(new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z));
+                    float radius = math.max(record.positionRange.w, 0.01f);
+                    bool tiled;
+                    using (LightCpuMarkers.s_TileRect.Auto())
+                    {
+                        tiled = LightBinning.TryComputeTileRect(centerVS, radius, gpuProjection, orthographic, near, m_ScreenSize, out int4 rect);
+                        if (tiled)
+                        {
+                            m_LocalCandidates.Add(new LocalCandidate { record = record, depth = -centerVS.z, tileRect = rect });
+                        }
+                    }
+                    if (!tiled)
+                    {
+                        m_OffscreenCount++;
+                    }
                 }
-                m_LocalCandidates.Add(new LocalCandidate { record = record, depth = -centerVS.z, tileRect = rect });
             }
 
             if (m_LocalCandidates.Count > LightBinning.MaxLocalLights)
@@ -388,28 +412,40 @@ namespace InfinityTech.Rendering.LightPipeline
                 throw new InvalidOperationException($"InfinityRP: {m_LocalCandidates.Count} visible local lights exceed the light-list limit of {LightBinning.MaxLocalLights}.");
             }
 
-            m_LocalCandidates.Sort(s_ByDepth);
-            var depthRanges = new NativeArray<float2>(math.max(1, m_LocalCandidates.Count), Allocator.Temp);
-            for (int i = 0; i < m_LocalCandidates.Count; ++i)
+            using (LightCpuMarkers.s_Sort.Auto())
             {
-                LocalCandidate candidate = m_LocalCandidates[i];
-                float radius = math.max(candidate.record.positionRange.w, 0.01f);
-                depthRanges[i] = new float2(math.max(candidate.depth - radius, near), math.max(candidate.depth + radius, near));
-                m_Records.Add(candidate.record);
-                m_TileRects.Add(candidate.tileRect);
+                m_LocalCandidates.Sort(s_ByDepth);
             }
-            m_LocalCount = m_LocalCandidates.Count;
-            LightBinning.BuildZBins(depthRanges, m_LocalCount, m_ZBinParams, m_ZBins);
-            depthRanges.Dispose();
-
-            if (m_SunRecordIndex < 0 && m_DirectionalCount > 0)
+            using (LightCpuMarkers.s_ZBin.Auto())
             {
-                m_SunRecordIndex = 0;
+                var depthRanges = new NativeArray<float2>(math.max(1, m_LocalCandidates.Count), Allocator.Temp);
+                for (int i = 0; i < m_LocalCandidates.Count; ++i)
+                {
+                    LocalCandidate candidate = m_LocalCandidates[i];
+                    float radius = math.max(candidate.record.positionRange.w, 0.01f);
+                    depthRanges[i] = new float2(math.max(candidate.depth - radius, near), math.max(candidate.depth + radius, near));
+                    m_Records.Add(candidate.record);
+                    m_TileRects.Add(candidate.tileRect);
+                }
+                m_LocalCount = m_LocalCandidates.Count;
+                LightBinning.BuildZBins(depthRanges, m_LocalCount, m_ZBinParams, m_ZBins);
+                depthRanges.Dispose();
+
+                if (m_SunRecordIndex < 0 && m_DirectionalCount > 0)
+                {
+                    m_SunRecordIndex = 0;
+                }
             }
 
-            m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
+            using (LightCpuMarkers.s_Contact.Auto())
+            {
+                m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
+            }
             m_ShadowAllocator.Allocate(m_Records, cullingResults, m_AdditionalData, camera, settings, meshWorld, shadowCache);
-            EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
+            using (LightCpuMarkers.s_EnsureCapacity.Auto())
+            {
+                EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
+            }
         }
 
         // Builds this camera's reflection probe list from Unity's visible probes (already sorted by importance, then size),

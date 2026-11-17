@@ -289,10 +289,17 @@ namespace InfinityTech.Rendering.RenderGraph
                     graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(producer.fence);
             }
 
-            foreach (int buffer in passCompileInfo.resourceCreateList[(int)ERGResourceType.Buffer])
-                m_Resources.CreateBufferResource(ref graphContext, buffer, passCompileInfo.enableAsyncCompute);
-            foreach (int texture in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
-                m_Resources.CreateTextureResource(ref graphContext, texture, passCompileInfo.enableAsyncCompute);
+            using (RGCpuMarkers.s_ExecuteCreate.Auto())
+            {
+                foreach (int buffer in passCompileInfo.resourceCreateList[(int)ERGResourceType.Buffer])
+                {
+                    m_Resources.CreateBufferResource(ref graphContext, buffer, passCompileInfo.enableAsyncCompute);
+                }
+                foreach (int texture in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
+                {
+                    m_Resources.CreateTextureResource(ref graphContext, texture, passCompileInfo.enableAsyncCompute);
+                }
+            }
             foreach (RGConstantsHandle constantsHandle in passCompileInfo.pass.constants)
                 m_Resources.constants.Upload(graphContext.cmdBuffer, m_Resources.ResolveBuffer(constantsHandle.bufferHandle).resource, constantsHandle);
 
@@ -581,7 +588,10 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < passes.Count; ++i)
             {
                 m_PassCompileInfos[passes[i]].pass.queueObserver?.OnQueued();
-                ReleasePassResources(ref m_PassCompileInfos[passes[i]]);
+                using (RGCpuMarkers.s_ExecuteRelease.Auto())
+                {
+                    ReleasePassResources(ref m_PassCompileInfos[passes[i]]);
+                }
             }
         }
 

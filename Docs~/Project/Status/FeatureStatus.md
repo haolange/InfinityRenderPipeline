@@ -1,5 +1,21 @@
 # Feature status
 
+### B11a CPU marker baseline — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
+
+Editor Code Optimization Release. Play mode, Game view only, one Game camera. Warmup 300 frames, mean of the next 300. Matrix (`BoxMatix_MeshPipeline`) moves the camera on a 40 m circle. Spazon keeps the camera still. `frameAllocations` is the mean `GC.Alloc` count inside `Render` for three 100-frame windows.
+
+Direct-child coverage against the parent is under 10% on every run. Calls per frame are 1.00 for `Inl_RecordRG`, `Inl_ExecuteRG` and `Inl_ProcessLight`, so those stages run once per camera.
+
+| Run | RecordRG | ExecuteRG | ProcessLight | UpdateMeshWorldGPU | frameAllocations |
+|---|---|---|---|---|---|
+| Matrix GPU Indirect | 0.191 ms, gap 1.9% | 0.375 ms, gap 0.6% | 0.058 ms, gap 3.8% | 0.008 ms, gap 4.0% | 1.00, 0.99, 1.00 |
+| Matrix CPU Direct | 0.161 ms, gap 2.1% | 1.458 ms, gap 0.2% | 0.055 ms, gap 4.0% | 0.007 ms, gap 3.6% | 1.00, 0.99, 0.99 |
+| Spazon GPU Indirect | 1.000 ms, gap 1.8% | 2.072 ms, gap 0.7% | 0.169 ms, gap 4.8% | 0.020 ms, gap 3.5% | 0, 0, 0 |
+
+Matrix GPU Indirect, largest children: `RG.Execute.Submit` 0.236 ms, `Mesh.DeclareList` 0.044 ms (9 calls), `RG.Compile.Segments` 0.032 ms, `Record.RasterDepth` 0.026 ms, `Shadow.CollectCasters` 0.022 ms (1 call). `Light.TileRect` is 0 calls. `Mesh.PrepareTransformVersion`, `Mesh.UploadColumns`, `Mesh.CanWriteBuffer` and `Mesh.RecreateColumns` are 0 calls. CPU Direct moves the time into `RG.Execute.Submit` at 1.303 ms; `RG.Execute.Create` and `RG.Execute.Release` run 23 times. Spazon's largest record child is `Record.RasterCascadeShadow` at 0.137 ms, and `Shadow.FitCascade` is 0.067 ms.
+
+One Matrix GPU Indirect frame with allocation call stacks attributes every `GC.Alloc` under `RecordCamera` to `AtmosphericLUTPass.cs:265` (`new AtmosphereProduction`), 868, 453, 289, 40, 17 and 17 bytes. Spazon, camera still, allocates nothing in `Render`.
+
 ### B10 final gate — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 Branch `refactor/convergence-b10`. Image baseline `1a357c0`. EditMode 882 tests: 870 passed, 11 failed (10 `ShaderStrippingTests` on `attempt to write a readonly database`, `VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True)`), 1 skipped. Static checks 0 errors; 47 static-check tests pass. `frameAllocations` is 0 in three Play windows (2 s, 4 s, 6 s) after warmup, GPU indirect, Scene_Spazon.

@@ -168,7 +168,10 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 throw new ArgumentNullException(nameof(meshWorld));
             }
-            m_MeshCasters.Collect(meshWorld);
+            using (LightCpuMarkers.s_CollectCasters.Auto())
+            {
+                m_MeshCasters.Collect(meshWorld);
+            }
             Reset();
 
             int cascadeRes = math.max(1, settings.cascadeMapResolution);
@@ -185,8 +188,14 @@ namespace InfinityTech.Rendering.LightPipeline
                 return;
             }
 
-            AllocateCascade(records, cullingResults, camera, settings, cascadeRes);
-            AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
+            using (LightCpuMarkers.s_FitCascade.Auto())
+            {
+                AllocateCascade(records, cullingResults, camera, settings, cascadeRes);
+            }
+            using (LightCpuMarkers.s_AllocateLocal.Auto())
+            {
+                AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
+            }
         }
 
         // Local shadow budget: candidates in descending score (record order on ties) are accepted while both the light

@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Mathematics;
-using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.MeshPipeline
@@ -40,7 +39,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         readonly MeshWorld m_World;
         readonly ResourcePool m_Pool;
-        readonly ProfilingSampler m_Sampler = new ProfilingSampler("UpdateMeshWorldGPU");
         internal readonly MeshTransformVersionCache transformVersions;
         int m_Capacity;
 
@@ -62,31 +60,49 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new System.InvalidOperationException("GPU residency cannot observe an open MeshWorldUpdate.");
             }
-            using (new ProfilingScope(m_Sampler))
+            using (MeshCpuMarkers.s_UpdateMeshWorldGPU.Auto())
+            using (MeshCpuMarkers.s_ResidencyGate.Auto())
             {
                 var runs = new NativeList<int2>(8, Allocator.Temp);
                 try
                 {
                     if (transformVersions.current == null || transformVersions.current.revision != m_World.transformRevision)
                     {
-                        m_World.CollectTransformDirtyRuns(runs);
-                        transformVersions.Prepare(m_World, runs);
+                        using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
+                        {
+                            m_World.CollectTransformDirtyRuns(runs);
+                        }
+                        using (MeshCpuMarkers.s_PrepareTransformVersion.Auto())
+                        {
+                            transformVersions.Prepare(m_World, runs);
+                        }
                     }
                     m_World.ClearTransformDirty();
 
                     int needed = math.max(64, m_World.entityHighWater);
                     bool recreate = m_Capacity < needed || renderingLayersHandle.buffer == null;
                     if (!recreate && m_World.hasEntityDirty)
-                        recreate = !m_Pool.CanWriteBuffer(boundsCenterHandle) || !m_Pool.CanWriteBuffer(boundsExtentHandle) || !m_Pool.CanWriteBuffer(flagsHandle)
-                            || !m_Pool.CanWriteBuffer(layerMaskHandle) || !m_Pool.CanWriteBuffer(sceneCullingMaskHandle) || !m_Pool.CanWriteBuffer(renderingLayersHandle)
-                            || !m_Pool.CanWriteBuffer(lodChainsHandle);
+                    {
+                        using (MeshCpuMarkers.s_CanWriteBuffer.Auto())
+                        {
+                            recreate = !m_Pool.CanWriteBuffer(boundsCenterHandle) || !m_Pool.CanWriteBuffer(boundsExtentHandle) || !m_Pool.CanWriteBuffer(flagsHandle)
+                                || !m_Pool.CanWriteBuffer(layerMaskHandle) || !m_Pool.CanWriteBuffer(sceneCullingMaskHandle) || !m_Pool.CanWriteBuffer(renderingLayersHandle)
+                                || !m_Pool.CanWriteBuffer(lodChainsHandle);
+                        }
+                    }
                     if (recreate)
                     {
-                        Recreate(math.max(needed, m_Capacity));
+                        using (MeshCpuMarkers.s_RecreateColumns.Auto())
+                        {
+                            Recreate(math.max(needed, m_Capacity));
+                        }
                     }
                     else if (m_World.hasEntityDirty)
                     {
-                        m_World.CollectEntityDirtyRuns(runs);
+                        using (MeshCpuMarkers.s_CollectDirtyRuns.Auto())
+                        {
+                            m_World.CollectEntityDirtyRuns(runs);
+                        }
                         foreach (int2 run in runs)
                         {
                             Upload(run.x, run.y);
@@ -155,6 +171,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
+            using (MeshCpuMarkers.s_UploadColumns.Auto())
+            {
             var centers = new NativeArray<float4>(count, Allocator.Temp);
             var extents = new NativeArray<float4>(count, Allocator.Temp);
             var flagValues = new NativeArray<uint>(count, Allocator.Temp);
@@ -200,6 +218,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 sceneMasks.Dispose();
                 renderingMasks.Dispose();
                 chains.Dispose();
+            }
             }
         }
 

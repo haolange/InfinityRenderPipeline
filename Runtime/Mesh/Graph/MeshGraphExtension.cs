@@ -169,6 +169,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal RGMeshDrawListHandle Create(RGBuilder builder, in MeshCullingContext context, in MeshPassDesc desc)
         {
+            using (MeshCpuMarkers.s_DeclareList.Auto())
+            {
             MeshPassCache cache = world.GetPassCache(desc);
             cache.EnsureShaderBindings();
             if (desc.requirePreviousTransforms && !m_Motion.isValid)
@@ -228,6 +230,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Repeats[repeat] = entry;
             }
             return drawsHandle;
+            }
         }
 
         MeshCullInputs CullInputs<TPassData>(RGBuilder builder, RGComputePassHandle<TPassData> passHandle) where TPassData : struct
@@ -250,6 +253,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         // list reads the one it is given.
         RGBufferHandle RecordProducer(RGBuilder builder, int drawIndex, bool occluded, in MeshOccluder occluder, RGBufferHandle remainderDrawnHandle, bool remainder)
         {
+            using (MeshCpuMarkers.s_RecordProducer.Auto())
+            {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
             MeshGPUDrawPayload payload = record.payload;
             RGBufferHandle instancesHandle = builder.ImportBuffer(payload.instanceToEntityHandle);
@@ -312,11 +317,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             outputsHandle[2] = argsHandle;
             drawLists.SetProducerOutputs(drawIndex, outputsHandle);
             return writtenHandle;
+            }
         }
 
         // One upload producer per nonempty CPU list; its build job is scheduled at compile when the list is live.
         void RecordUpload(RGBuilder builder, int drawIndex)
         {
+            using (MeshCpuMarkers.s_RecordProducer.Auto())
+            {
             MeshDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
             RGBufferHandle instancesHandle = builder.ImportBuffer(record.cpuInstancesHandle);
             RGBufferHandle fadesHandle = builder.ImportBuffer(record.cpuFadesHandle);
@@ -334,6 +342,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             outputsHandle[0] = instancesHandle;
             outputsHandle[1] = fadesHandle;
             drawLists.SetProducerOutputs(drawIndex, outputsHandle);
+            }
         }
 
         // The pass records the draw-list index; compile reads it back to find live consumers.

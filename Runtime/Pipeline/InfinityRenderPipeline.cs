@@ -595,19 +595,34 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowSettings.cascadeCount = m_Settings.cascadeCount;
                     shadowSettings.cascadeBlendWidth = m_Settings.cascadeBlendWidth;
                     shadowSettings.filterGuardTexels = m_Settings.shadowFilter.pcfRadius + 1;
-                    m_LocalShadowCache.Configure(m_Settings.cachedShadowAtlasWidth,
-                        m_Settings.localShadowMapResolution, Mathf.Max(1, m_Settings.localShadowMapResolution / 4));
-                    if (m_LocalShadowCache.SlotCount > 0) m_LocalShadowCache.GetAtlas();
+                    using (PipelineCpuMarkers.s_ProcessLightShadowCache.Auto())
+                    {
+                        m_LocalShadowCache.Configure(m_Settings.cachedShadowAtlasWidth,
+                            m_Settings.localShadowMapResolution, Mathf.Max(1, m_Settings.localShadowMapResolution / 4));
+                        if (m_LocalShadowCache.SlotCount > 0)
+                        {
+                            m_LocalShadowCache.GetAtlas();
+                        }
+                    }
                     LightContext lightContext = renderContext.lightContext;
                     lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, setup.dimensions.internalSize, renderContext.meshWorld, m_LocalShadowCache);
-                    m_LightCookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
-                    // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
-                    lightContext.ResolveCookies(setup.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
-                        cullingResults, Time.frameCount);
-                    m_ReflectionProbeAtlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
-                    lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
-                        cullingResults, Time.frameCount);
-                    ConfigureContentFeatures(setup);
+                    using (PipelineCpuMarkers.s_ProcessLightResolveCookies.Auto())
+                    {
+                        m_LightCookieAtlas.Configure(m_Settings.cookieAtlasResolution, m_Settings.cookieMaxSize);
+                        // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
+                        lightContext.ResolveCookies(setup.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
+                            cullingResults, Time.frameCount);
+                    }
+                    using (PipelineCpuMarkers.s_ProcessLightResolveProbes.Auto())
+                    {
+                        m_ReflectionProbeAtlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
+                        lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
+                            cullingResults, Time.frameCount);
+                    }
+                    using (PipelineCpuMarkers.s_ProcessLightContentFeatures.Auto())
+                    {
+                        ConfigureContentFeatures(setup);
+                    }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                     lightingDebug.lastDirectionalCount = lightContext.DirectionalLightCount;
@@ -617,8 +632,11 @@ namespace InfinityTech.Rendering.Pipeline
                     lightingDebug.lastDistanceCulledCount = lightContext.DistanceCulledCount;
 #endif
 
-                    scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                    cmdBuffer.Clear();
+                    using (PipelineCpuMarkers.s_ProcessLightExecuteCommandBuffer.Auto())
+                    {
+                        scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
+                        cmdBuffer.Clear();
+                    }
                 }
 
                 VFXCameraXRSettings cameraXRSettings;
@@ -633,106 +651,266 @@ namespace InfinityTech.Rendering.Pipeline
             return new CameraScene(cullingResults, mainCulling);
         }
 
-        // The camera's pass list in submission order.
+        // The camera's pass list in submission order. Each record call has its own CPU marker.
         void RecordCamera(in CameraRecordContext context)
         {
             // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
             // so the whole geometry raster window can overlap them.
-            UploadLightData(renderContext.lightContext);
-            ComputeLightCookies(context);
-            ComputeReflectionProbes(context);
-            ComputeCombineLuts(context, CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading));
-            ComputeAtmosphericLUT(context);
-
-            ComputeTemporalColorPyramid(context);
+            using (PipelineCpuMarkers.s_RecordUploadLightData.Auto())
+            {
+                UploadLightData(renderContext.lightContext);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeLightCookies.Auto())
+            {
+                ComputeLightCookies(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeReflectionProbes.Auto())
+            {
+                ComputeReflectionProbes(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeCombineLuts.Auto())
+            {
+                ComputeCombineLuts(context, CombineLutParameterUtility.FromVolumeStack(context.volumes.filmTonemap, context.volumes.colorGrading));
+            }
+            using (PipelineCpuMarkers.s_RecordComputeAtmosphericLUT.Auto())
+            {
+                ComputeAtmosphericLUT(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeTemporalColorPyramid.Auto())
+            {
+                ComputeTemporalColorPyramid(context);
+            }
 
             // PHASE 1: geometry raster (shared depth attachment chain). Each pass creates its own draw list. Compile
             // places the producer before that pass's native group, so the producer does not split the group.
-            MeshMotionBinding meshMotion = context.state.meshMotionHistory.Prepare(renderContext.meshWorld.transformVersions.current);
-            m_RGBuilder.SetMeshMotion(meshMotion);
-            bool twoStageMesh = RegisterMeshHistoryOccluder(context, meshMotion);
+            MeshMotionBinding meshMotion;
+            using (PipelineCpuMarkers.s_RecordPrepareMeshMotion.Auto())
+            {
+                meshMotion = context.state.meshMotionHistory.Prepare(renderContext.meshWorld.transformVersions.current);
+            }
+            using (PipelineCpuMarkers.s_RecordSetMeshMotion.Auto())
+            {
+                m_RGBuilder.SetMeshMotion(meshMotion);
+            }
+            bool twoStageMesh;
+            using (PipelineCpuMarkers.s_RecordRegisterMeshHistoryOccluder.Auto())
+            {
+                twoStageMesh = RegisterMeshHistoryOccluder(context, meshMotion);
+            }
             if (twoStageMesh)
             {
-                RasterDepth(context);
-                RegisterMeshEarlyOccluder(context);
-                RasterDepthRecovery(context);
+                using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
+                {
+                    RasterDepth(context);
+                }
+                using (PipelineCpuMarkers.s_RecordRegisterMeshEarlyOccluder.Auto())
+                {
+                    RegisterMeshEarlyOccluder(context);
+                }
+                using (PipelineCpuMarkers.s_RecordRasterDepthRecovery.Auto())
+                {
+                    RasterDepthRecovery(context);
+                }
             }
             else
             {
-                RasterDepth(context);
+                using (PipelineCpuMarkers.s_RecordRasterDepth.Auto())
+                {
+                    RasterDepth(context);
+                }
             }
-            RasterDBuffer(context);
-            RasterGBuffer(context);
-            RasterMotion(context);
+            using (PipelineCpuMarkers.s_RecordRasterDBuffer.Auto())
+            {
+                RasterDBuffer(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterGBuffer.Auto())
+            {
+                RasterGBuffer(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterMotion.Auto())
+            {
+                RasterMotion(context);
+            }
 
             // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
-            ComputeHiZ(context);
-            ComputeHalfResDownsample(context);
-            ComputeLightTileMask(context);
+            using (PipelineCpuMarkers.s_RecordComputeHiZ.Auto())
+            {
+                ComputeHiZ(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeHalfResDownsample.Auto())
+            {
+                ComputeHalfResDownsample(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeLightTileMask.Auto())
+            {
+                ComputeLightTileMask(context);
+            }
 
             // Dispatch near-deadline AO/contact before the longer previous-color effects.
             // Their graphics-independent results can overlap the shadow raster window.
-            TraceOcclusion(context);
-            ComputeGroundTruthOcclusion(context);
-            ComputeContactShadow(context);
+            using (PipelineCpuMarkers.s_RecordTraceOcclusion.Auto())
+            {
+                TraceOcclusion(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeGroundTruthOcclusion.Auto())
+            {
+                ComputeGroundTruthOcclusion(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeContactShadow.Auto())
+            {
+                ComputeContactShadow(context);
+            }
             if (SystemInfo.supportsAsyncCompute)
             {
-                ComputeScreenSpaceReflection(context);
-                ComputeScreenSpaceIndirect(context);
+                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
+                {
+                    ComputeScreenSpaceReflection(context);
+                }
+                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
+                {
+                    ComputeScreenSpaceIndirect(context);
+                }
             }
 
             // PHASE 3: shadow raster (longest ROP window).
-            CullShadowCasterSplits(context);
-            RasterCascadeShadow(context);
-            RasterLocalShadow(context);
-            ComputeShadowMoments(context);
+            using (PipelineCpuMarkers.s_RecordCullShadowCasterSplits.Auto())
+            {
+                CullShadowCasterSplits(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterCascadeShadow.Auto())
+            {
+                RasterCascadeShadow(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterLocalShadow.Auto())
+            {
+                RasterLocalShadow(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeShadowMoments.Auto())
+            {
+                ComputeShadowMoments(context);
+            }
 
             // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
-            ComputeDeferredShading(context);
+            using (PipelineCpuMarkers.s_RecordComputeDeferredShading.Auto())
+            {
+                ComputeDeferredShading(context);
+            }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            RecordDeferredLightingCapture(context);
+            using (PipelineCpuMarkers.s_RecordRecordDeferredLightingCapture.Auto())
+            {
+                RecordDeferredLightingCapture(context);
+            }
 #endif
-            RasterForward(context);
+            using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
+            {
+                RasterForward(context);
+            }
             if (!SystemInfo.supportsAsyncCompute)
             {
-                ComputeScreenSpaceReflection(context);
-                ComputeScreenSpaceIndirect(context);
+                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
+                {
+                    ComputeScreenSpaceReflection(context);
+                }
+                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
+                {
+                    ComputeScreenSpaceIndirect(context);
+                }
             }
-            ComputeScreenSpaceComposite(context);
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
+            {
+                ComputeScreenSpaceComposite(context);
+            }
             // History copies stay after the shadow window; an early graphics copy
             // would join the async effects before independent shadow rasterization.
-            CopyHistorySSR(context);
-            CopyHistorySSGI(context);
-            ComputeBurleySubsurface(context);
-            ComputeAtmosphericSkyAndFog(context);
+            using (PipelineCpuMarkers.s_RecordCopyHistorySSR.Auto())
+            {
+                CopyHistorySSR(context);
+            }
+            using (PipelineCpuMarkers.s_RecordCopyHistorySSGI.Auto())
+            {
+                CopyHistorySSGI(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeBurleySubsurface.Auto())
+            {
+                ComputeBurleySubsurface(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeAtmosphericSkyAndFog.Auto())
+            {
+                ComputeAtmosphericSkyAndFog(context);
+            }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            RecordLightingCapture(context);
+            using (PipelineCpuMarkers.s_RecordRecordLightingCapture.Auto())
+            {
+                RecordLightingCapture(context);
+            }
 #endif
 
             // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
-            RasterTranslucentDepth(context);
-            ComputeVolumetricCloud(context);
-            CopyHistoryVolumetricCloud(context);
-            ComputeVolumetricFog(context);
-            CopyHistoryVolumetricFog(context);
-            ComputeFogComposite(context);
-            RasterTranslucentT0(context);
-            ComputeColorPyramid(context);
-            RasterTranslucentT1(context);
-            RasterTranslucentT2(context);
+            using (PipelineCpuMarkers.s_RecordRasterTranslucentDepth.Auto())
+            {
+                RasterTranslucentDepth(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeVolumetricCloud.Auto())
+            {
+                ComputeVolumetricCloud(context);
+            }
+            using (PipelineCpuMarkers.s_RecordCopyHistoryVolumetricCloud.Auto())
+            {
+                CopyHistoryVolumetricCloud(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeVolumetricFog.Auto())
+            {
+                ComputeVolumetricFog(context);
+            }
+            using (PipelineCpuMarkers.s_RecordCopyHistoryVolumetricFog.Auto())
+            {
+                CopyHistoryVolumetricFog(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeFogComposite.Auto())
+            {
+                ComputeFogComposite(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterTranslucentT0.Auto())
+            {
+                RasterTranslucentT0(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeColorPyramid.Auto())
+            {
+                ComputeColorPyramid(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterTranslucentT1.Auto())
+            {
+                RasterTranslucentT1(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterTranslucentT2.Auto())
+            {
+                RasterTranslucentT2(context);
+            }
 
             // PHASE 8: temporal resolve + post (TAA after fog/translucents)
             // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
             if (context.temporalResolve == ETemporalResolve.SuperResolution)
             {
-                ComputeSuperResolution(context);
+                using (PipelineCpuMarkers.s_RecordComputeSuperResolution.Auto())
+                {
+                    ComputeSuperResolution(context);
+                }
             }
             else if (context.temporalResolve == ETemporalResolve.TAA)
             {
-                ComputeAntiAliasing(context);
+                using (PipelineCpuMarkers.s_RecordComputeAntiAliasing.Auto())
+                {
+                    ComputeAntiAliasing(context);
+                }
             }
-            RecordCameraOutput(context);
-            context.features.EnsureRequiredProducers(context.temporalResolve);
+            using (PipelineCpuMarkers.s_RecordRecordCameraOutput.Auto())
+            {
+                RecordCameraOutput(context);
+            }
+            using (PipelineCpuMarkers.s_RecordEnsureRequiredProducers.Auto())
+            {
+                context.features.EnsureRequiredProducers(context.temporalResolve);
+            }
         }
 
         void BeginMeshCamera(Camera camera, EMeshDrawBackendPolicy assetPolicy)
