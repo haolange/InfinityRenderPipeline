@@ -1047,7 +1047,7 @@ def check_legacy_residue(repo, out):
 
 
 # Types created by Unity or by reflection have no textual caller.
-UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|BaseComponent|RenderPipelineAsset|'
+UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|RenderPipelineAsset|'
                                r'RenderPipelineGlobalSettings|IRenderPipelineResources|IRenderPipelineGraphicsSettings|InfinityVolumeComponent)\b')
 # In-development features (AGENTS R15) keep types that have no caller yet.
 UNUSED_TYPE_DIRECTORIES = ('Runtime/Terrain/',)

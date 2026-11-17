@@ -78,7 +78,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
 
             m_Sections.CopyFrom(sections);
-            //sections = null;
         }
 
         public void ProcessLOD(in int numQuad, in float3 viewOrigin, in float4x4 projectionMatrix)

@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class RenderContext : IDisposable
+    public class RenderContext : IDisposable
     {
         private static readonly List<MeshComponent> s_DirtyMeshList = new List<MeshComponent>(256);
         private static readonly List<MeshComponent> s_TransformUpdates = new List<MeshComponent>(256);

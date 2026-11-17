@@ -8,7 +8,6 @@ using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
 {
-    //[ExecuteInEditMode]
 #if UNITY_EDITOR
     [CanEditMultipleObjects]
 #endif

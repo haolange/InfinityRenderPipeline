@@ -11,7 +11,7 @@ namespace InfinityTech.Component
     [RequireComponent(typeof(Light))]
     [AddComponentMenu("InfinityRenderer/Additional Light Data")]
     [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "lights.md")]
-    public sealed class InfinityAdditionalLightData : BaseComponent
+    public sealed class InfinityAdditionalLightData : EntityComponent
     {
         Light m_UnityLight;
         ulong m_RegisteredLightId;
