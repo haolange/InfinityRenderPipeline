@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static IReadOnlyList<string> Names => s_Names;
         internal static IReadOnlyList<ProfilerMarker> Markers => s_Markers;
 
+        internal static readonly ProfilerMarker s_RecordUploadCameraUniforms = Define("Record.UploadCameraUniforms");
         internal static readonly ProfilerMarker s_RecordUploadLightData = Define("Record.UploadLightData");
         internal static readonly ProfilerMarker s_RecordComputeLightCookies = Define("Record.ComputeLightCookies");
         internal static readonly ProfilerMarker s_RecordComputeReflectionProbes = Define("Record.ComputeReflectionProbes");

@@ -1251,6 +1251,11 @@ PIPELINE_BASE_PASS_TYPES = {
     'CameraCulling',           # CullCamera builds the camera's main mesh culling context
     'ScreenSpaceModeUtility',  # FrameFeatureSet.ResolveFrame requests SSR and SSGI from the volumes
     'CombineLutCache',         # CameraFrameState owns the camera's combine-LUT frame transaction
+    'ShadowUniform',           # CameraFrameState owns the camera's shadow constant buffer (ARCHITECTURE §16)
+    'LightLoopUniform',        # CameraFrameState owns the camera's light-loop constant buffer (ARCHITECTURE §16)
+    'TemporalColorView',       # CameraFrameState keeps the accepted temporal color between frames
+    'OutputTransformDecision', # CameraSetup carries the camera's output transform
+    'EOutputMode', 'EScreenSpaceMode',  # inputs of the output decision and the feature request
 }
 
 def check_pipeline_base(repo, out):
@@ -1259,7 +1264,7 @@ def check_pipeline_base(repo, out):
     listed types the frame itself reads."""
     pass_classes = set()
     for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
-        pass_classes.update(re.findall(r'\bclass\s+(\w+)', code_only(read(p))))
+        pass_classes.update(re.findall(r'\b(?:class|struct|enum)\s+(\w+)', code_only(read(p))))
     names = sorted((pass_classes - PIPELINE_BASE_PASS_TYPES) | {'InfinityRenderPipeline'}, key=len, reverse=True)
     pattern = re.compile(r'\b(?:' + '|'.join(re.escape(name) for name in names) + r')\b')
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):

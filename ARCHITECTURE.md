@@ -435,6 +435,7 @@ These are properties of the current implementation that no subsystem section sta
 - Hi-Z, half-resolution geometry, lookup tables, light masks and the screen-space producers are async-eligible where the device allows. Overlap has not been measured.
 - Ray-traced ambient occlusion Player shader load is unverified.
 - A pipeline whose capabilities record neither TAA nor super resolution still jitters a temporal camera and lets history features record: `CameraRenderPolicy.temporal` decides jitter and history, not the capabilities. Only the desktop pipeline runs today.
+- `CameraFrameState` in the frame infrastructure owns the desktop pipeline's shadow and light-loop constant buffers (`ShadowUniform`, `LightLoopUniform`) and its combine-LUT cache, so every derived pipeline allocates them per camera; per-camera state of a derived pipeline has no slot of its own yet. `pipelinebase` lists these as the allowed exceptions.
 - Combine LUT writes Rec.709 linear and dispatches only when the grading key changes. The key holds only film and grading parameters: no output setting reaches the LUT shader.
 - Image-regression baselines are per graphics API, not per GPU vendor, and are absent until recorded on a verified Editor.
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is not established.

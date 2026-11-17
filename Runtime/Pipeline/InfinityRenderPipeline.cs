@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
@@ -130,18 +131,15 @@ namespace InfinityTech.Rendering.Pipeline
             catch (Exception constructionFailure)
             {
                 // The pass-owned diffusion buffer returns to the pool before the base releases the render context.
-                try
+                var failures = new List<Exception> { constructionFailure };
+                if (m_SubsurfacePass != null)
                 {
-                    try
-                    {
-                        if (m_SubsurfacePass != null) m_SubsurfacePass.Dispose();
-                    }
-                    finally
-                    {
-                        ReleaseOwnedResources();
-                    }
+                    try { m_SubsurfacePass.Dispose(); }
+                    catch (Exception cleanupFailure) { failures.Add(cleanupFailure); }
                 }
-                catch (Exception cleanupFailure) { throw new AggregateException(constructionFailure, cleanupFailure); }
+                try { ReleaseOwnedResources(); }
+                catch (Exception cleanupFailure) { failures.Add(cleanupFailure); }
+                if (failures.Count > 1) throw new AggregateException(failures);
                 throw;
             }
         }
@@ -151,8 +149,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             // Shadow and light-loop constants are final once CullCamera built the lights; every pass of the
             // camera reads them from these two uniforms, uploaded ahead of the graph.
-            context.state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
-            context.state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
+            using (PipelineCpuMarkers.s_RecordUploadCameraUniforms.Auto())
+            {
+                context.state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
+                context.state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
+            }
 
             // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
             // so the whole geometry raster window can overlap them.
@@ -401,13 +402,23 @@ namespace InfinityTech.Rendering.Pipeline
         // The pass-owned diffusion buffer returns to the pool before the base disposes the render context.
         protected override void Dispose(bool disposing)
         {
+            Exception passFailure = null;
+            if (disposing)
+            {
+                try { m_SubsurfacePass.Dispose(); }
+                catch (Exception error) { passFailure = error; }
+            }
             try
             {
-                if (disposing) m_SubsurfacePass.Dispose();
-            }
-            finally
-            {
                 base.Dispose(disposing);
+            }
+            catch (Exception baseFailure) when (passFailure != null)
+            {
+                throw new AggregateException(passFailure, baseFailure);
+            }
+            if (passFailure != null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(passFailure).Throw();
             }
         }
     }
