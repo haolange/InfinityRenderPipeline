@@ -1,5 +1,13 @@
 # Feature status
 
+### B10 final gate — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
+
+Branch `refactor/convergence-b10`. Image baseline `1a357c0`. EditMode 882 tests: 870 passed, 11 failed (10 `ShaderStrippingTests` on `attempt to write a readonly database`, `VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True)`), 1 skipped. Static checks 0 errors; 47 static-check tests pass. `frameAllocations` is 0 in three Play windows (2 s, 4 s, 6 s) after warmup, GPU indirect, Scene_Spazon.
+
+A/B is four 300-frame runs, A = `1a357c0`, B = this branch. Frame CPU is 1.601 ms then 1.476 ms on A, and 1.822 ms then 1.516 ms on B (+13.8% and +2.7%). Pass GPU sum is +5.6% and +2.7%. `Inl_RecordRG` is 0.341 ms then 0.301 ms on A, and 0.401 ms then 0.339 ms on B (+17.7% and +12.6%). The return rule needs both frame pairs slower by more than 5% and the gap on this branch. The second frame pair is 2.7%. `1a357c0` is 24 commits before the branch point, so the `RecordRG` gap is not isolated to the arena.
+
+Players are Mono, Scene_Spazon only, 1445×813. Development and release both succeed. The 432 build-report errors are `attempt to write a readonly database`; there are no script or shader errors. Release stripping keeps 10751 variants and 319 compute variants. The release player has no `Unity.RenderPipelines.Infinity.Validation.dll`. Its Runtime DLL has no `RenderCaptureService`, `ComputeDebugView`, `RenderFaultValidation`, `PipelineDiagnostics` or `InfinityDebugDisplaySettings`. With the player in front, release content means are 21.34 and 21.37, development 21.66 and 21.51, and the Editor Game crop is 20.94. Release against development is mean absolute difference 0.83 with 2.3% of pixels above 8. Editor against release is 1.74 and 4.1%, inside the Editor's own 8 s change (2.88 and 13.2%). `Player.log` has no thrown exception. An unfocused player pauses, so an early frame repeated at 15 s and 30 s is not a render result. D3D12 and Vulkan remain TODO(UNVERIFIED); they are not available on this Mac.
+
 ### Refactor final gate — 2026-11-15 (macOS Metal, Unity 6000.6.0f1)
 
 Branch `claude/kind-knuth-d599st`, gate passed at `10d2360`; image baseline `1a357c0`. Results measured at `e818357` carry over because the later commits change only the release player paths and the Editor regression below.
