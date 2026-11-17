@@ -1,5 +1,11 @@
 # Feature status
 
+### B11d and B11e — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
+
+Still Spazon after the caster cache: `Shadow.FitCascade` 0.053 ms, `Light.Registry` 0.0035 ms once, `Light.Pack` 0.011 ms, `Light.ZBin` 0.013 ms, `Light.Sort` 0.0001 ms, `Light.TileRect` 0 calls. One Game camera, so the light snapshot is not rebuilt per camera and was not hoisted. Pack, tile, sort and z-bin are not the head, so they stay managed. A cascade-fit reuse keyed on the camera matrices was compiled and measured: TAA changes the projection every frame, the key missed, and `Shadow.FitCascade` rose to 0.077 ms. That reuse was removed.
+
+`Mesh.PrepareTransformVersion`, `Mesh.UploadColumns` and `Mesh.CanWriteBuffer` are 0 calls on Matrix and Spazon. The worlds are static, so `UpdateMeshWorldGPU` stays the residency gate (Matrix 0.008 ms, Spazon 0.020 ms in B11a). No Burst job and no upload merge.
+
 ### B11c caster cache — 2026-11-17 (macOS Metal, Unity 6000.6.0f1)
 
 `Shadow.CollectCasters` on moving Matrix GPU Indirect is 0.0004 ms, from 0.022 ms in B11a. The caster index list follows `structuralRevision`. Bounds and local-frustum answers also follow `transformRevision` and the light, so a camera move with a static world does not walk entities. `ProcessLight` is 0.039 ms, from 0.058 ms, gap 6.3%. A mask-only entity desc change now advances `structuralRevision`. The miss path stays the managed loop: these scenes do not show a recalc cost, so it is not a Burst job. `ShadowCasterAllocationTests` 7 passed. `MeshWorldTests` 9 passed.
