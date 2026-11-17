@@ -80,39 +80,5 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        [Test]
-        public void MoveTexture_UnregistersSource()
-        {
-            var scoper = new RGScoper(null);
-            try
-            {
-                scoper.RegisterTexture(1, new RGTextureHandle(10, 1));
-                scoper.MoveTexture(1, 2);
-                Assert.IsFalse(scoper.TryQueryTexture(1, out _));
-                Assert.IsTrue(scoper.TryQueryTexture(2, out RGTextureHandle movedHandle));
-                Assert.IsTrue(movedHandle.IsValid());
-                Assert.AreEqual(10, movedHandle.handle.index);
-            }
-            finally
-            {
-                scoper.Dispose();
-            }
-        }
-
-        [Test]
-        public void MoveTexture_TargetAlreadyOwned_Throws()
-        {
-            var scoper = new RGScoper(null);
-            try
-            {
-                scoper.RegisterTexture(1, new RGTextureHandle(10, 1));
-                scoper.RegisterTexture(2, new RGTextureHandle(20, 1));
-                Assert.Throws<InvalidOperationException>(() => scoper.MoveTexture(1, 2));
-            }
-            finally
-            {
-                scoper.Dispose();
-            }
-        }
     }
 }

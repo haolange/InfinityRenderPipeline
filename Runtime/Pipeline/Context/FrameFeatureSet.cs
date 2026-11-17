@@ -36,6 +36,28 @@ namespace InfinityTech.Rendering.Pipeline
         SubsurfaceScattering
     }
 
+    // Every input of a camera's frame-phase request (R2): ResolveFrame is a function of these alone.
+    internal struct FrameFeatureInputs
+    {
+        public ResolvedFrameSettings frameSettings;
+        public ETemporalResolve temporalResolve;
+        public VolumeSnapshot volumes;
+        // Published decal count of this frame's scene transaction.
+        public int decalCount;
+        public FeatureSupportContext support;
+    }
+
+    // Every input of the content phase: what the camera's visible lights need, after LightContext.Build.
+    internal struct ContentFeatureInputs
+    {
+        public bool localLightList;
+        // Contact shadows need the frame setting, an active volume and a light that casts them.
+        public bool contactShadowsEnabled, contactShadowVolume, contactShadowCasters;
+        public bool lightCookies;
+        public bool reflectionProbes;
+        public bool shadowMoments;
+    }
+
     public class FrameFeatureSet
     {
         struct FeatureState
@@ -144,6 +166,93 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new InvalidOperationException($"InfinityRP: required producer {feature} did not record this frame.");
             }
+        }
+
+        // The frame phase, before culling: what the camera asks for from its settings and volumes, then what can record
+        // (FeatureRegistry: kernels, dependencies, camera policy, with the reason for anything that cannot).
+        internal void ResolveFrame(in FrameFeatureInputs inputs)
+        {
+            Reset();
+            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
+            {
+                Request(feature);
+            }
+            Request(EFrameFeature.Motion);
+            Request(EFrameFeature.HiZ);
+            Request(EFrameFeature.ColorPyramid);
+            Request(EFrameFeature.PostProcess);
+            ResolvedFrameSettings frameSettings = inputs.frameSettings;
+            VolumeSnapshot volumes = inputs.volumes;
+            if (inputs.decalCount > 0 && frameSettings.IsEnabled(EFrameSetting.Decals))
+            {
+                Request(EFrameFeature.DBuffer);
+            }
+            // Without a temporal resolve post processing reads the fogged scene color directly.
+            if (inputs.temporalResolve == ETemporalResolve.SuperResolution)
+            {
+                Request(EFrameFeature.SuperResolution);
+            }
+            else if (inputs.temporalResolve == ETemporalResolve.TAA)
+            {
+                Request(EFrameFeature.TAA);
+            }
+            if (GraphicsUtility.VolumeComponentActive(volumes.subsurfaceScattering))
+            {
+                Request(EFrameFeature.SubsurfaceScattering);
+            }
+            // RTAO owns ambient occlusion when it can record; otherwise GTAO does, when requested.
+            if (inputs.support.rayTracedOcclusionReady)
+            {
+                Request(EFrameFeature.RTAO);
+            }
+            else if (frameSettings.IsEnabled(EFrameSetting.AmbientOcclusion) && ScreenSpaceModeUtility.ShouldRequestGTAO(volumes.screenSpaceAmbientOcclusion))
+            {
+                Request(EFrameFeature.GTAO);
+            }
+            EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(volumes.screenSpaceReflection, volumes.screenSpaceIndirectDiffuse);
+            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceReflection))
+            {
+                Request(EFrameFeature.SSR);
+            }
+            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceGlobalIllumination))
+            {
+                Request(EFrameFeature.SSGI);
+            }
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricFog) && GraphicsUtility.VolumeComponentActive(volumes.volumetricFog))
+            {
+                Request(EFrameFeature.VolumetricFog);
+            }
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricClouds) && GraphicsUtility.VolumeComponentActive(volumes.volumetricCloud))
+            {
+                Request(EFrameFeature.VolumetricCloud);
+            }
+            FeatureRegistry.Resolve(this, inputs.support);
+        }
+
+        // The content phase: what the visible lights add, resolved again with the frame phase's support.
+        internal void ResolveContent(in ContentFeatureInputs inputs, in FeatureSupportContext support)
+        {
+            if (inputs.localLightList)
+            {
+                Request(EFrameFeature.LocalLightList);
+            }
+            if (inputs.contactShadowsEnabled && inputs.contactShadowVolume && inputs.contactShadowCasters)
+            {
+                Request(EFrameFeature.ContactShadow);
+            }
+            if (inputs.lightCookies)
+            {
+                Request(EFrameFeature.LightCookies);
+            }
+            if (inputs.reflectionProbes)
+            {
+                Request(EFrameFeature.ReflectionProbes);
+            }
+            if (inputs.shadowMoments)
+            {
+                Request(EFrameFeature.ShadowMoments);
+            }
+            FeatureRegistry.Resolve(this, support);
         }
 
         static int Index(EFrameFeature feature)

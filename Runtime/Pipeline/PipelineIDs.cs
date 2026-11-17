@@ -76,6 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey IndirectDiffuseBuffer = new RGResourceKey("IndirectDiffuseBuffer");
         public static readonly RGResourceKey IndirectSpecularBuffer = new RGResourceKey("IndirectSpecularBuffer");
         public static readonly RGResourceKey PreDebugColorBuffer = new RGResourceKey("_PreDebugColorTexture");
+        public static readonly RGResourceKey DebugViewBuffer = new RGResourceKey("_DebugViewTexture");
         public static readonly RGResourceKey DisplayDepthBuffer = new RGResourceKey("_DisplayDepthTexture");
         public static readonly RGResourceKey DepthBuffer = new RGResourceKey("_DepthTexture");
         public static readonly RGResourceKey HiZClosestBuffer = new RGResourceKey("_HiZClosestTexture");
@@ -144,10 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey TemporalColorMipBuffer = new RGResourceKey("_TemporalColorMipTexture");
         public static readonly RGResourceKey TemporalColorSourceBuffer = new RGResourceKey("_TemporalColorSourceTexture");
         public static readonly RGResourceKey TemporalColorDepthBuffer = new RGResourceKey("_TemporalColorDepthTexture");
-        public static readonly RGResourceKey OpaqueSceneColorBuffer = new RGResourceKey("_OpaqueSceneColorTexture");
         public static readonly RGResourceKey FoggedSceneColorBuffer = new RGResourceKey("_FoggedSceneColorTexture");
-        // Role: scene color after fog, translucency and temporal resolve. Its latest producer publishes it; post reads it.
-        public static readonly RGResourceKey ResolvedSceneColor = new RGResourceKey("ResolvedSceneColor");
         public static readonly RGResourceKey ReactiveMaskBuffer = new RGResourceKey("_ReactiveMaskTexture");
         public static readonly RGResourceKey HistoryVolumetricFogBuffer = new RGResourceKey("_HistoryVolumetricFogTexture");
         public static readonly RGResourceKey HistoryVolumetricCloudBuffer = new RGResourceKey("_HistoryVolumetricCloudTexture");

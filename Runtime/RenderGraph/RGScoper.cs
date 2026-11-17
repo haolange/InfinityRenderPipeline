@@ -132,29 +132,6 @@ namespace InfinityTech.Rendering.RenderGraph
             m_TextureMap.Set(handle, textureHandle);
         }
 
-        // A role (for example the scene color that post processing reads) names whatever its latest producer published:
-        // each producer in order replaces it, and a consumer reads the one role instead of probing producers.
-        public void PublishTextureRole(int role, in RGTextureHandle textureHandle)
-        {
-            if (!textureHandle.IsValid())
-            {
-                throw new InvalidOperationException($"RGScoper.PublishTextureRole: {RGResourceKey.NameOf(role)} needs a valid texture.");
-            }
-            m_TextureMap.Set(role, textureHandle);
-        }
-
-        public void MoveTexture(int from, int to)
-        {
-            if (from == to)
-            {
-                return;
-            }
-
-            RGTextureHandle textureHandle = QueryTexture(from);
-            RegisterTexture(to, textureHandle);
-            m_TextureMap.Remove(from);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureHandle CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
         {

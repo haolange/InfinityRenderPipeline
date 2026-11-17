@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     // One table describing, for every EFrameFeature, which compute kernels it needs, which features it depends on and
     // whether it needs a temporal camera. ResolveResourceSupport evaluates kernels and textures once when resources
-    // load; ConfigureFrameFeatures only states what the camera wants; Resolve turns that into the recorded set,
+    // load; FrameFeatureSet.ResolveFrame and ResolveContent state what the camera wants; Resolve turns that into the recorded set,
     // requests dependencies, and keeps a readable reason for everything that cannot record (shown in the Rendering
     // Debugger). A pass that records trusts the table and does not check its kernels again.
     internal static class FeatureRegistry

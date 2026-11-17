@@ -86,8 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
             context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
             var sharpened = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
-            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
-            var input = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            var input = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
             ComputeKernel temporalKernel = kernels.temporalAntiAliasing;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // A debug view or a confidence capture reads the diagnostics kernel's extra outputs.

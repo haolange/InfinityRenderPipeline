@@ -101,6 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
         internal readonly FrameFeatureSet features;
+        internal readonly SceneColorKeys sceneColor;
         internal readonly HistoryCache historyCache;
         internal readonly CameraUniform cameraUniform;
         internal readonly CullingResults cullingResults;
@@ -132,6 +133,11 @@ namespace InfinityTech.Rendering.Pipeline
             volumes = setup.volumes;
             atmosphere = setup.atmosphere;
             features = setup.state.features;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve, setup.debugView != EDebugView.None);
+#else
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve);
+#endif
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;
             cullingResults = scene.cullingResults;

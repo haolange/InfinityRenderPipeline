@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RasterTranslucentColor(in ViewContext context, ShaderTagId lightMode, CustomSamplerId samplerId, bool bindFog, bool bindPyramid)
         {
             RGMeshDrawListHandle meshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, lightMode));
-            RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
+            RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool writeReactive = context.features.ShouldRecord(EFrameFeature.TAA);
             bool initializeReactive = false;

@@ -491,7 +491,17 @@ namespace InfinityTech.Rendering.Pipeline
             atmosphere.ThrowIfInvalid();
             state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
 
-            FeatureSupportContext featureSupport = ConfigureFrameFeatures(state, policy, frameSettings, temporalResolve, volumes);
+            FeatureSupportContext featureSupport = ResolveFeatureSupport(policy, frameSettings, volumes);
+            state.features.ResolveFrame(new FrameFeatureInputs
+            {
+                frameSettings = frameSettings, temporalResolve = temporalResolve, volumes = volumes,
+                decalCount = renderContext.sceneWorld.decals.table.count, support = featureSupport
+            });
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            InfinityDebugDisplaySettings.current.rendering.lastFeatures = state.features;
+            InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
+            InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
+#endif
             // Unity keeps previous object transforms only for a camera that declares motion vectors. Declare them once,
             // before camera setup and culling; the flag stays on the camera.
             const DepthTextureMode motionOutputs = DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
@@ -610,7 +620,17 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     using (PipelineCpuMarkers.s_ProcessLightContentFeatures.Auto())
                     {
-                        ConfigureContentFeatures(setup);
+                        ShadowAllocator shadowAllocator = lightContext.ShadowAllocator;
+                        setup.state.features.ResolveContent(new ContentFeatureInputs
+                        {
+                            localLightList = lightContext.HasLocalLightList(),
+                            contactShadowsEnabled = setup.frameSettings.IsEnabled(EFrameSetting.ContactShadows),
+                            contactShadowVolume = VolumeComponentActive(setup.volumes.contactShadow),
+                            contactShadowCasters = lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0,
+                            lightCookies = lightContext.CookieCount > 0,
+                            reflectionProbes = lightContext.ReflectionProbeCount > 0,
+                            shadowMoments = shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0,
+                        }, setup.featureSupport);
                     }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
@@ -749,16 +769,16 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ComputeContactShadow(context);
             }
-            if (SystemInfo.supportsAsyncCompute)
+            // Previous-color effects. They read depth, Hi-Z, the G-buffer and the previous frame's color only, so one
+            // position serves both queues: async compute overlaps them with shadows, and a device without it runs them
+            // here on the graphics queue.
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
             {
-                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
-                {
-                    ComputeScreenSpaceReflection(context);
-                }
-                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
-                {
-                    ComputeScreenSpaceIndirect(context);
-                }
+                ComputeScreenSpaceReflection(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
+            {
+                ComputeScreenSpaceIndirect(context);
             }
 
             // PHASE 3: shadow raster (longest ROP window).
@@ -793,17 +813,6 @@ namespace InfinityTech.Rendering.Pipeline
             using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
             {
                 RasterForward(context);
-            }
-            if (!SystemInfo.supportsAsyncCompute)
-            {
-                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
-                {
-                    ComputeScreenSpaceReflection(context);
-                }
-                using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
-                {
-                    ComputeScreenSpaceIndirect(context);
-                }
             }
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
             {
@@ -1215,47 +1224,17 @@ namespace InfinityTech.Rendering.Pipeline
             return GraphicsUtility.VolumeComponentActive(component);
         }
 
-        // States what this camera wants to record. FeatureRegistry.Resolve decides what can record (kernels,
-        // dependencies, camera policy), requests dependencies and keeps the reason for anything that cannot.
-        FeatureSupportContext ConfigureFrameFeatures(CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
-            ETemporalResolve temporalResolve, in VolumeSnapshot volumes)
+        // Per-camera support the registry cannot read from resources: temporal policy, diffusion profiles and RTAO
+        // readiness. RTAO is ready when the asset, frame settings, volume and UnifiedRayTracing environment allow it and
+        // the acceleration structure has instances; otherwise the reason is kept for the Rendering Debugger.
+        FeatureSupportContext ResolveFeatureSupport(CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings, in VolumeSnapshot volumes)
         {
-            FrameFeatureSet features = state.features;
-            features.Reset();
-            bool temporal = policy.temporal;
-
-            foreach (EFrameFeature feature in FeatureRegistry.RequiredProducers)
-            {
-                features.Request(feature);
-            }
-            features.Request(EFrameFeature.Motion);
-            features.Request(EFrameFeature.HiZ);
-            features.Request(EFrameFeature.ColorPyramid);
-            features.Request(EFrameFeature.PostProcess);
-            if (renderContext.sceneWorld.decals.table.count > 0 && frameSettings.IsEnabled(EFrameSetting.Decals))
-            {
-                features.Request(EFrameFeature.DBuffer);
-            }
-
-            // Without a temporal resolve PostProcess reads FoggedSceneColor directly.
-            if (temporalResolve == ETemporalResolve.SuperResolution)
-            {
-                features.Request(EFrameFeature.SuperResolution);
-            }
-            else if (temporalResolve == ETemporalResolve.TAA)
-            {
-                features.Request(EFrameFeature.TAA);
-            }
-
-            if (VolumeComponentActive(volumes.subsurfaceScattering)) features.Request(EFrameFeature.SubsurfaceScattering);
-
-            var rtao = volumes.rayTracingAmbientOcclusion;
             string rtaoReason = null;
             if (!m_Settings.enableRayTrace)
                 rtaoReason = RtaoAssetDisabled;
             else if (!frameSettings.IsEnabled(EFrameSetting.RayTracedAmbientOcclusion))
                 rtaoReason = RtaoFrameSettings;
-            else if (!VolumeComponentActive(rtao))
+            else if (!VolumeComponentActive(volumes.rayTracingAmbientOcclusion))
                 rtaoReason = RtaoVolumeInactive;
             else if (!InfinityRayTracingEnvironment.CanRecord(shaders))
                 rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? RtaoNotReady : InfinityRayTracingEnvironment.lastBlockReason;
@@ -1266,84 +1245,14 @@ namespace InfinityTech.Rendering.Pipeline
                 if (rayEnv.InstanceCount == 0) rtaoReason = RtaoNoInstances;
             }
             InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
-
-            // RTAO owns AO when it can record; otherwise GTAO does (if requested).
-            if (rtaoReason == null)
-            {
-                features.Request(EFrameFeature.RTAO);
-            }
-            else if (frameSettings.IsEnabled(EFrameSetting.AmbientOcclusion) && ScreenSpaceModeUtility.ShouldRequestGTAO(volumes.screenSpaceAmbientOcclusion))
-            {
-                features.Request(EFrameFeature.GTAO);
-            }
-
-            EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
-                volumes.screenSpaceReflection,
-                volumes.screenSpaceIndirectDiffuse);
-            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceReflection))
-            {
-                features.Request(EFrameFeature.SSR);
-            }
-            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceGlobalIllumination))
-            {
-                features.Request(EFrameFeature.SSGI);
-            }
-
-            if (frameSettings.IsEnabled(EFrameSetting.VolumetricFog) && VolumeComponentActive(volumes.volumetricFog))
-            {
-                features.Request(EFrameFeature.VolumetricFog);
-            }
-            if (frameSettings.IsEnabled(EFrameSetting.VolumetricClouds) && VolumeComponentActive(volumes.volumetricCloud))
-            {
-                features.Request(EFrameFeature.VolumetricCloud);
-            }
-
-            var support = new FeatureSupportContext
+            return new FeatureSupportContext
             {
                 resourceReasons = resources.featureResourceReasons,
-                temporal = temporal,
+                temporal = policy.temporal,
                 hasDiffusionProfiles = m_Settings.hasDiffusionProfiles,
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,
             };
-            FeatureRegistry.Resolve(features, support);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            InfinityDebugDisplaySettings.current.rendering.lastFeatures = features;
-            InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
-            InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
-#endif
-            return support;
-        }
-
-        // Second phase, after culling and LightContext.Build: features whose recording depends on scene content.
-        void ConfigureContentFeatures(in CameraSetup setup)
-        {
-            FrameFeatureSet features = setup.state.features;
-            if (renderContext.sceneWorld.lights.context.HasLocalLightList())
-            {
-                features.Request(EFrameFeature.LocalLightList);
-            }
-            LightContext lightContext = renderContext.sceneWorld.lights.context;
-            if (setup.frameSettings.IsEnabled(EFrameSetting.ContactShadows)
-                && (lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0)
-                && VolumeComponentActive(setup.volumes.contactShadow))
-            {
-                features.Request(EFrameFeature.ContactShadow);
-            }
-            if (lightContext.CookieCount > 0)
-            {
-                features.Request(EFrameFeature.LightCookies);
-            }
-            if (lightContext.ReflectionProbeCount > 0)
-            {
-                features.Request(EFrameFeature.ReflectionProbes);
-            }
-            ShadowAllocator shadowAllocator = renderContext.sceneWorld.lights.context.ShadowAllocator;
-            if (shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0)
-            {
-                features.Request(EFrameFeature.ShadowMoments);
-            }
-            FeatureRegistry.Resolve(features, setup.featureSupport);
         }
     }
 }

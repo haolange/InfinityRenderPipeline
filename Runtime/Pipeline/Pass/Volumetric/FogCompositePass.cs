@@ -51,15 +51,13 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasCloud = context.features.ShouldRecord(EFrameFeature.VolumetricCloud);
             RGTextureHandle volumetricFogTextureHandle = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
             RGTextureHandle volumetricCloudTextureHandle = hasCloud ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricCloudBuffer) : default;
-            if (!TranslucentFeatureUtility.ShouldRecordFogComposite(hasFog, hasCloud))
+            // Without fog or clouds the opaque scene color is the fogged one (SceneColorKeys.fogged).
+            if (!hasFog && !hasCloud)
             {
-                // No fog to composite: the opaque scene color is the fogged scene color.
-                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, InfinityShaderIDs.FoggedSceneColorBuffer);
-                m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer));
                 return;
             }
 
-            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.opaque);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
             var volFog = context.volumes.volumetricFog;
@@ -122,7 +120,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, passData.kernel.index, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
-            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, foggedSceneColorHandle);
         }
     }
 }

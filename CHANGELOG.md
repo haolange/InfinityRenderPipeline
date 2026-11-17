@@ -9,6 +9,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Scene color stages are derived, not republished: `SceneColorKeys` (opaque, fogged, resolved, display) follows the features that record, producers write only their fixed keys, and the debug view writes `DebugViewBuffer` instead of replacing the post-process key. A capture of `PostProcess` now holds the post output, not the debug view. Screen-space reflection and indirect diffuse record at one position on every device; without async compute they now run before the shadow passes on the graphics queue.
 - `RenderContext` is the pipeline-lifetime root (resource pool, scene world, render graph, atmosphere cache, Adaptive Probe Volumes, camera states, frame transactions). Passes never reach it; external tools read `pipeline.renderContext` instead of the removed `resourcePool` accessor and reflection on private pipeline fields.
 - Scene registration: each authoring component (mesh, light, reflection probe, decal, terrain) registers in its own process-lifetime `ComponentRegistry`. A pipeline's `SceneWorld` derives one table per module from those registries and publishes every module in one transaction (prepare, commit, roll back together). Terrain LOD runs per view in `TerrainModule.ProcessView`, unchanged.
 - Frame-rate scratch follows AGENTS R17: local shadow allocation, mesh residency and dynamic poses use `Allocator.Temp`/`TempJob`, the cached-shadow and atmosphere observers live with the pipeline, and `static_check framealloc` rejects managed allocation in frame- and camera-rate methods. Shadow caster slots are indexed by a `Dictionary` keyed on light and scene mask.
@@ -320,6 +321,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 - `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
 
 ### Removed
+- `RGScoper.MoveTexture` and `RGScoper.PublishTextureRole`; the `OpaqueSceneColorBuffer` and `ResolvedSceneColor` keys; `TranslucentFeatureUtility`.
 - `RenderTaskQueue` (`AddTask`, `ClearTasks`) and the `RenderTask` delegate; the light, decal and terrain registries on `RenderContext` (`GetWorldLight`, `WorldDecalCount`, `Add/RemoveWorldTerrain`); the decal reconciliation that searched every loaded object on pipeline creation; `BaseComponent` (merged into `EntityComponent`).
 - The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
 - Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.

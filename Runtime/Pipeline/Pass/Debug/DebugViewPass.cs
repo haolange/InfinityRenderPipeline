@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle motionTextureHandle;
             public RGTextureHandle sceneColorTextureHandle;
             public RGTextureHandle optionalTextureHandle;
-            public RGTextureHandle postProcessTextureHandle;
+            public RGTextureHandle debugViewTextureHandle;
         }
 
         void ComputeDebugView(in ViewContext context)
@@ -186,7 +186,7 @@ namespace InfinityTech.Rendering.Pipeline
                     motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
                     break;
                 case EDebugViewKernel.SceneColor:
-                    sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
+                    sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.resolved);
                     break;
                 case EDebugViewKernel.LightLoop:
                     parameters.y = Mathf.Max(1, lightingDebug.complexityRange);
@@ -201,8 +201,9 @@ namespace InfinityTech.Rendering.Pipeline
             debugDescriptor.name = "DebugDisplayTexture";
             debugDescriptor.colorFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat;
             debugDescriptor.enableRandomWrite = true;
-            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
-            postProcessTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
+            // The image under the debug view keeps its stage key; the view writes its own (SceneColorKeys.display).
+            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.PreDebugColorBuffer, postProcessTextureHandle);
+            RGTextureHandle debugViewTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DebugViewBuffer, debugDescriptor);
 
             {
                 RGComputePassHandle<DebugViewPassData> passHandle = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView));
@@ -244,7 +245,7 @@ namespace InfinityTech.Rendering.Pipeline
                         break;
                 }
 
-                passData.postProcessTextureHandle = passHandle.WriteTexture(postProcessTextureHandle);
+                passData.debugViewTextureHandle = passHandle.WriteTexture(debugViewTextureHandle);
 
                 passHandle.EnablePassCulling(false);
                 passHandle.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
@@ -281,7 +282,7 @@ namespace InfinityTech.Rendering.Pipeline
                             break;
                     }
 
-                    cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTextureHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.debugViewTextureHandle);
                     cmdEncoder.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }

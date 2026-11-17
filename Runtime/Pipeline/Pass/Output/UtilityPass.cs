@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RasterWireOverlay(in ViewContext context)
         {
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-            RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+            RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.display);
 
             RendererList wireOverlayRendererList = context.scriptableRenderContext.CreateWireOverlayRendererList(context.camera);
 
@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-                RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+                RGTextureHandle colorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.display);
 
                 RendererList gizmosRendererList = context.scriptableRenderContext.CreateGizmoRendererList(context.camera, GizmoSubset.PostImageEffects);
 
@@ -191,7 +191,7 @@ namespace InfinityTech.Rendering.Pipeline
                     RasterGizmos(context);
                 }
 #endif
-                m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer));
+                m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGBuilder.scoper.QueryTexture(context.sceneColor.display));
                 if (plan.uiOverlay)
                 {
                     RasterUIOverlay(context, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), false);

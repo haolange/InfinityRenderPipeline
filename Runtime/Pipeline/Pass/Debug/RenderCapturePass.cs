@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             // Capture the final opaque lighting before ownership moves to scene-color stages.
-            RecordCaptureTransfer(context, session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RecordCaptureTransfer(context, session, "Lighting", context.sceneColor.opaque);
         }
 
         void RecordDeferredLightingCapture(in ViewContext context)
@@ -315,7 +315,7 @@ namespace InfinityTech.Rendering.Pipeline
                         id = InfinityShaderIDs.SSGIBuffer;
                         break;
                     case "SceneColor":
-                        id = InfinityShaderIDs.FoggedSceneColorBuffer;
+                        id = context.sceneColor.fogged;
                         break;
                     case "AntiAliasing":
                         id = InfinityShaderIDs.AntiAliasingBuffer;

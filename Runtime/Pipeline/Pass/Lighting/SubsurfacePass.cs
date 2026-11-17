@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
             int2 halfSize = (size + 1) / 2;
             var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, 2);
             RGTextureHandle filteredHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
-            RGTextureHandle colorHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle colorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.opaque);
             {
                 RGComputePassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface));
                 ref SubsurfacePassData passData = ref passHandle.GetPassData();

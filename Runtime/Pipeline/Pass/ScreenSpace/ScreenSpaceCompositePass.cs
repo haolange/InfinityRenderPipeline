@@ -55,10 +55,9 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasSSGI = context.features.ShouldRecord(EFrameFeature.SSGI);
             RGTextureHandle ssrTextureHandle = hasSSR ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSRBuffer) : default;
             RGTextureHandle ssgiTextureHandle = hasSSGI ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer) : default;
+            // Without SSR or SSGI the deferred lighting is the opaque scene color (SceneColorKeys.opaque).
             if (!hasSSR && !hasSSGI)
             {
-                // Nothing to composite: the deferred lighting is the opaque scene color.
-                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
                 return;
             }
 
@@ -149,7 +148,6 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
     }
 }

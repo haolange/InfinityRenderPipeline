@@ -143,7 +143,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
-            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ResolvedSceneColor);
+            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.resolved);
 
             if (!context.postProcessingEnabled)
             {
