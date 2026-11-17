@@ -173,52 +173,52 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             using (MeshCpuMarkers.s_UploadColumns.Auto())
             {
-            var centers = new NativeArray<float4>(count, Allocator.Temp);
-            var extents = new NativeArray<float4>(count, Allocator.Temp);
-            var flagValues = new NativeArray<uint>(count, Allocator.Temp);
-            var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
-            var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
-            var renderingMasks = new NativeArray<uint>(count, Allocator.Temp);
-            var chains = new NativeArray<MeshLODChain>(count, Allocator.Temp);
-            try
-            {
-                var entities = m_World.entities;
-                var bounds = m_World.entityBounds;
-                for (int i = begin; i < end; ++i)
+                var centers = new NativeArray<float4>(count, Allocator.Temp);
+                var extents = new NativeArray<float4>(count, Allocator.Temp);
+                var flagValues = new NativeArray<uint>(count, Allocator.Temp);
+                var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
+                var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
+                var renderingMasks = new NativeArray<uint>(count, Allocator.Temp);
+                var chains = new NativeArray<MeshLODChain>(count, Allocator.Temp);
+                try
                 {
-                    int local = i - begin;
-                    if (!m_World.IsEntitySlotLive(i))
+                    var entities = m_World.entities;
+                    var bounds = m_World.entityBounds;
+                    for (int i = begin; i < end; ++i)
                     {
-                        continue;
+                        int local = i - begin;
+                        if (!m_World.IsEntitySlotLive(i))
+                        {
+                            continue;
+                        }
+                        MeshEntityDesc desc = entities[i].desc;
+                        centers[local] = new float4(bounds[i].center, 0);
+                        extents[local] = new float4(bounds[i].extents, 0);
+                        flagValues[local] = (uint)desc.flags;
+                        layerMasks[local] = (uint)desc.layerMask;
+                        sceneMasks[local] = new uint2((uint)desc.sceneCullingMask, (uint)(desc.sceneCullingMask >> 32));
+                        renderingMasks[local] = desc.renderingLayerMask;
+                        chains[local] = entities[i].lod;
                     }
-                    MeshEntityDesc desc = entities[i].desc;
-                    centers[local] = new float4(bounds[i].center, 0);
-                    extents[local] = new float4(bounds[i].extents, 0);
-                    flagValues[local] = (uint)desc.flags;
-                    layerMasks[local] = (uint)desc.layerMask;
-                    sceneMasks[local] = new uint2((uint)desc.sceneCullingMask, (uint)(desc.sceneCullingMask >> 32));
-                    renderingMasks[local] = desc.renderingLayerMask;
-                    chains[local] = entities[i].lod;
+                    boundsCenterHandle.buffer.SetData(centers, 0, begin, count);
+                    boundsExtentHandle.buffer.SetData(extents, 0, begin, count);
+                    flagsHandle.buffer.SetData(flagValues, 0, begin, count);
+                    layerMaskHandle.buffer.SetData(layerMasks, 0, begin, count);
+                    sceneCullingMaskHandle.buffer.SetData(sceneMasks, 0, begin, count);
+                    renderingLayersHandle.buffer.SetData(renderingMasks, 0, begin, count);
+                    lodChainsHandle.buffer.SetData(chains, 0, begin, count);
+                    m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLODChain>());
                 }
-                boundsCenterHandle.buffer.SetData(centers, 0, begin, count);
-                boundsExtentHandle.buffer.SetData(extents, 0, begin, count);
-                flagsHandle.buffer.SetData(flagValues, 0, begin, count);
-                layerMaskHandle.buffer.SetData(layerMasks, 0, begin, count);
-                sceneCullingMaskHandle.buffer.SetData(sceneMasks, 0, begin, count);
-                renderingLayersHandle.buffer.SetData(renderingMasks, 0, begin, count);
-                lodChainsHandle.buffer.SetData(chains, 0, begin, count);
-                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLODChain>());
-            }
-            finally
-            {
-                centers.Dispose();
-                extents.Dispose();
-                flagValues.Dispose();
-                layerMasks.Dispose();
-                sceneMasks.Dispose();
-                renderingMasks.Dispose();
-                chains.Dispose();
-            }
+                finally
+                {
+                    centers.Dispose();
+                    extents.Dispose();
+                    flagValues.Dispose();
+                    layerMasks.Dispose();
+                    sceneMasks.Dispose();
+                    renderingMasks.Dispose();
+                    chains.Dispose();
+                }
             }
         }
 
