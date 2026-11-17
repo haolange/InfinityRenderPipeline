@@ -149,6 +149,9 @@ namespace InfinityTech.Rendering.RenderGraph
         int[] m_DeclaredInsertAt = Array.Empty<int>();
         int[] m_DeclaredGroupLimit = Array.Empty<int>();
         int[] m_DeclaredOrder = Array.Empty<int>();
+        int[] m_DeclaredEdgeBefore = Array.Empty<int>();
+        int[] m_DeclaredEdgeAfter = Array.Empty<int>();
+        int m_DeclaredEdgeCount;
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;

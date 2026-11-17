@@ -165,6 +165,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         // Declared passes stay out of the recorded sequence. Each one is inserted after every pass that writes an
         // input, at the start of the native group that contains its first consumer, so it does not split that group.
+        // Passes that share that insertion point are ordered by their own read/write edges. Creation order breaks ties.
         // A pass with no consumer is inserted after its inputs and then follows ordinary culling.
         void PlaceDeclaredPasses()
         {
@@ -271,7 +272,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 int limit = m_DeclaredGroupLimit[i];
                                 if (limit >= 0)
                                 {
-                                    if (m_DeclaredInsertAt[j] > limit || (m_DeclaredInsertAt[j] == limit && j > i))
+                                    if (m_DeclaredInsertAt[j] > limit)
                                     {
                                         throw new InvalidOperationException(
                                             $"'{PassLabel(pass)}' reads '{m_Resources.GetResourceName(handle)}' written by '{PassLabel(m_DeclaredPasses[j])}', which cannot be placed before the native group of '{PassLabel(pass)}'s first consumer.");
@@ -313,6 +314,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 m_DeclaredOrder[j + 1] = key;
             }
+            RecordDeclaredEdges(declared);
+            OrderDeclaredDependencies(declared);
 
             int end = sequenced;
             for (int i = 0; i < declared; ++i)
@@ -353,6 +356,115 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_PassList.Add(pass);
             }
             m_DeclaredPasses.Clear();
+        }
+
+        // A dependency whose passes share an insertion point is ordered here. Creation order remains the order when
+        // there is no dependency. A writer that cannot sit at or before the reader's group limit has already thrown.
+        void RecordDeclaredEdges(int declared)
+        {
+            m_DeclaredEdgeCount = 0;
+            for (int i = 0; i < declared; ++i)
+            {
+                if (m_DeclaredGroupLimit[i] < 0)
+                {
+                    continue;
+                }
+                IRGPass pass = m_DeclaredPasses[i];
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+                {
+                    List<RGResourceHandle> reads = pass.resourceReadLists[type];
+                    for (int r = 0; r < reads.Count; ++r)
+                    {
+                        RGResourceHandle handle = reads[r];
+                        for (int j = 0; j < declared; ++j)
+                        {
+                            if (j == i || m_DeclaredInsertAt[j] != m_DeclaredInsertAt[i] || !PassTouches(m_DeclaredPasses[j].resourceWriteLists, handle))
+                            {
+                                continue;
+                            }
+                            AddDeclaredEdge(j, i);
+                        }
+                    }
+                }
+            }
+        }
+
+        void AddDeclaredEdge(int before, int after)
+        {
+            for (int edge = 0; edge < m_DeclaredEdgeCount; ++edge)
+            {
+                if (m_DeclaredEdgeBefore[edge] == before && m_DeclaredEdgeAfter[edge] == after)
+                {
+                    return;
+                }
+            }
+            int count = m_DeclaredEdgeCount + 1;
+            Ensure(ref m_DeclaredEdgeBefore, count);
+            Ensure(ref m_DeclaredEdgeAfter, count);
+            m_DeclaredEdgeBefore[m_DeclaredEdgeCount] = before;
+            m_DeclaredEdgeAfter[m_DeclaredEdgeCount] = after;
+            m_DeclaredEdgeCount = count;
+        }
+
+        void OrderDeclaredDependencies(int declared)
+        {
+            int start = 0;
+            while (start < declared)
+            {
+                int at = m_DeclaredInsertAt[m_DeclaredOrder[start]];
+                int end = start + 1;
+                while (end < declared && m_DeclaredInsertAt[m_DeclaredOrder[end]] == at)
+                {
+                    end++;
+                }
+                if (end - start > 1)
+                {
+                    OrderOneInsertPoint(start, end);
+                }
+                start = end;
+            }
+        }
+
+        void OrderOneInsertPoint(int start, int end)
+        {
+            int span = end - start;
+            for (int guard = 0; guard < span * span; ++guard)
+            {
+                bool moved = false;
+                for (int edge = 0; edge < m_DeclaredEdgeCount; ++edge)
+                {
+                    int before = DeclaredPosition(m_DeclaredEdgeBefore[edge], start, end);
+                    int after = DeclaredPosition(m_DeclaredEdgeAfter[edge], start, end);
+                    if (before < 0 || after < 0 || before <= after)
+                    {
+                        continue;
+                    }
+                    int value = m_DeclaredOrder[before];
+                    for (int i = before; i > after; --i)
+                    {
+                        m_DeclaredOrder[i] = m_DeclaredOrder[i - 1];
+                    }
+                    m_DeclaredOrder[after] = value;
+                    moved = true;
+                }
+                if (!moved)
+                {
+                    return;
+                }
+            }
+            throw new InvalidOperationException("Declared passes read each other's outputs in a cycle.");
+        }
+
+        int DeclaredPosition(int declaredIndex, int start, int end)
+        {
+            for (int i = start; i < end; ++i)
+            {
+                if (m_DeclaredOrder[i] == declaredIndex)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         RGNativePassGroup RentProvisionalGroup()

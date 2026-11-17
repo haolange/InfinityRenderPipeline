@@ -190,6 +190,44 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void DeclaredPasses_AtOneInsertPoint_FollowDependenciesNotCreationOrder()
+        {
+            var graph = new RGBuilder("DeclaredOrder", null, true);
+            try
+            {
+                RGBufferHandle inputHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "In" });
+                RGBufferHandle outputHandle = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)) { name = "Out" });
+                RGTextureHandle colorHandle = graph.CreateTexture(Color("Shared"));
+                {
+                    RGComputePassHandle<PassData> passHandle = graph.DeclareComputePass<PassData>(new ProfilingSampler("ConsumerProducer"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.ReadBuffer(inputHandle);
+                    passHandle.WriteBuffer(outputHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                {
+                    RGComputePassHandle<PassData> passHandle = graph.DeclareComputePass<PassData>(new ProfilingSampler("InputProducer"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.WriteBuffer(inputHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
+                }
+                {
+                    RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("Shade"));
+                    passHandle.EnablePassCulling(false);
+                    passHandle.SetColorAttachment(colorHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                    passHandle.ReadBuffer(outputHandle);
+                    passHandle.SetExecuteFunc((in PassData data, in RGRasterEncoder commands) => { });
+                }
+                Compile(graph);
+                RGGraphSnapshot snapshot = graph.CaptureDebugSnapshot();
+                Assert.AreEqual("InputProducer", snapshot.passes[0].name);
+                Assert.AreEqual("ConsumerProducer", snapshot.passes[1].name);
+                Assert.AreEqual("Shade", snapshot.passes[2].name);
+            }
+            finally { graph.Dispose(); }
+        }
+
+        [Test]
         public void DeclaredPass_WhoseInputIsWrittenInsideTheConsumerGroup_Fails()
         {
             var graph = new RGBuilder("DeclaredConflict", null, false);
