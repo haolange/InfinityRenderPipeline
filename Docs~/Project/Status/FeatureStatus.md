@@ -12,7 +12,15 @@ EditMode, Infinity assemblies, 897 tests: first run 886 passed, 10 failed, 1 ski
 
 Scene_Spazon Play, MainCamera, 993×1330, Metal, Apple M3 Max. DisplayColor `R16G16B16A16_SFloat` captured (`intermediate/arch-convergence-verify/run1/capture-spazon`). The frame shows the cloister, banners, stained glass and cast shadows. It is not compared with `155c2ef`. The compiled graph places `ComputeScreenSpaceReflection` and `ComputeScreenSpaceIndirect` on the graphics queue before `RasterCascadeShadow`. Seven `ComputeMeshView` passes: five before `RasterDepth` (the depth view and four cascade slices) and two after `ComputeEarlyFurthestHiZ` (recovery and main). `RasterDepth` is native group 0; `RasterDepthRecovery` and `RasterGBuffer` share group 1; object and camera motion share group 2; T1 and T2 share group 8. `ComputeMeshDrawList` sits immediately before the raster group that consumes it.
 
-Not run yet: Matrix, the `155c2ef` image pair, feature on/off captures, CPU-marker windows, the shadow-slice dispatch cost, pipeline-asset replacement, and the coincident-spot regression.
+Round 2, same Editor and mirror, evidence in `intermediate/arch-convergence-verify/run2/`. History-locked frame 1, motion behaviours disabled, `timeScale` 0, 993×1330, against a worktree of `155c2ef` loaded in the same Editor.
+
+Scene_Spazon DisplayColor, PostProcess, CascadeShadow, LocalShadow, SSR, SSGI, Depth and TAAConfidence are byte-identical to `155c2ef` (mean absolute difference 0). PostProcess and DisplayColor are also identical to each other on this frame; the Game view has no UI that would separate them. BoxMatix_MeshPipeline depth, cascade shadow, local shadow and TAA confidence are identical. Its DisplayColor mean absolute difference is 1.26e-5, and 60 pixels (0.0045%) differ by more than 8/255, scattered across the frame rather than in one object. Matrix does not enable SSR, SSGI, fog or cloud, so those buffers were not requested. A Spazon capture after 30 successful frames without the history lock (`Time.frameCount` still 1) has identical depth and DisplayColor mean absolute difference 0.00216, with 1.85% of pixels above 8/255; SSR mean absolute difference is 0.00075 and 0.26% of pixels are above 8/255. That is temporal shading on unchanged depth, not a missing caster.
+
+Coincident light views: `CoincidentLightViews_EachDrawTheSameCasters` and `CoincidentLightViews_BothDrawTheSameInstances` passed (`190d0be`). The atlas image of two identical spots was not captured.
+
+Spazon, Game view only, GPU Indirect, camera still, Release, warmup 300, sample 300. `Inl_RecordRG` 0.929 ms, `Inl_ExecuteRG` 1.723 ms, `Inl_ProcessLight` 0.155 ms, `UpdateMeshWorldGPU` 0.017 ms. `Mesh.DeclareList` 0.218 ms at 13 calls, `Mesh.RecordViewProducer` 0.063 ms at 7 calls, `RG.Compile.Place` 0.155 ms. Game `frameAllocations` windows are 0.109, 0, 0. The first window is `ProfilerSession.EnablePlaymode` and `NativeInputSystem.NotifyBeforeUpdate`, tagged Game-or-shared, not a render-path allocation. The last two windows are 0. `nativeSubmitAllocations` is 0.
+
+Not run yet: a moving camera, debug views, fog and cloud enabled, super resolution, an LOD band, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
 
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 
