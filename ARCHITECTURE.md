@@ -48,7 +48,7 @@ Runtime code is grouped by owner: Core, Scene, Mesh, Terrain, Material, Lighting
 | `lights` (`LightModule`) | light table by light entity id, cookie atlas, cached local shadow atlas | `LightContext`, rebuilt from the camera's visible lights |
 | `probes` (`ProbeModule`) | probe table by `ReflectionProbe` entity id, probe atlas | the probe list `LightContext` resolves |
 | `decals` (`DecalModule`) | decal table | the DBuffer feature request |
-| `terrains` (`TerrainModule`, in development) | terrain table | per-camera section LOD; no pass draws it yet |
+| `terrains` (`TerrainModule`, in development) | terrain table | per-camera section LOD for a component that has a live sector and TerrainData; no pass draws it yet |
 
 - A component registers itself, once per enable and without a closure, in its type's `ComponentRegistry` (`Runtime/Core/`). That registry is the single authority for which components exist. It lives as long as the process, like the Unity objects it mirrors, and holds no work aimed at any world. Mesh components additionally queue their registration epochs, removals (each naming the world that holds the entity), syncs and static poses on `MeshComponent`; the world that consumes a removal applies it only when it holds the entity.
 - A module table is a `SceneTable` (`Runtime/Core/`): a rebuild is staged when its registry's version changed since the published table. `SceneWorld.Update` is one transaction: every table stages, the mesh world applies the structural edits in its own transaction, and only then do the tables publish and advance their revision. A failure rolls every module back and keeps the queued work. A new world rebuilds every module from the registries, so a replaced pipeline loses no light, probe, decal or terrain.

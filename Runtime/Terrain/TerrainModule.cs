@@ -33,6 +33,12 @@ namespace InfinityTech.Rendering.TerrainPipeline
             float3 viewOrigin = camera.transform.position;
             foreach (TerrainComponent terrain in table.components)
             {
+                // Registration means the component is enabled. A sector and TerrainData exist only after authoring;
+                // a destroyed TerrainData is not a view. No pass reads this layer yet.
+                if (terrain == null || terrain.terrainSector == null || terrain.terrainData == null)
+                {
+                    continue;
+                }
                 terrain.ProcessLOD(viewOrigin, projection);
 #if UNITY_EDITOR
                 if (Handles.ShouldRenderGizmos())
