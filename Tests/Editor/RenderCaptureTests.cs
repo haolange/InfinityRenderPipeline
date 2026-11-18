@@ -14,9 +14,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderCaptureTests
     {
-        static CameraSetup Setup(Camera camera, CameraFrameState state) => new CameraSetup(camera, state,
+        static CameraSetup Setup(Camera camera, CameraFrameState state, int frame = 0) => new CameraSetup(camera, state,
             CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, ETemporalResolve.None, true, true, EDebugView.None,
-            default, default, default, default, 0);
+            default, default, default, default, frame);
 
         static RenderCaptureRequest Request(string directory) => new RenderCaptureRequest
         {
@@ -123,7 +123,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(Setup(camera, state));
+                int producerFrame = Time.frameCount;
+                session.PrepareCamera(Setup(camera, state, producerFrame));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -148,6 +149,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsTrue(staging.evidence.submitted);
                 Assert.IsTrue(staging.evidence.readbackTerminal);
                 Assert.IsTrue(staging.evidence.retired);
+                Assert.AreEqual(producerFrame, staging.evidence.producerFrame);
+                Assert.GreaterOrEqual(staging.evidence.completionFrame, staging.evidence.producerFrame);
                 Assert.AreEqual(0, staging.evidence.statistics.nonFinite);
                 Assert.AreEqual(0.25, staging.evidence.statistics.mean, 0.0001);
                 StringAssert.Contains("Cancelled", File.ReadAllText(Path.Combine(directory, "capture.json")));

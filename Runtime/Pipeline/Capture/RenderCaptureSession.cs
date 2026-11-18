@@ -509,7 +509,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             try
             {
-                staging.evidence.completionFrame = m_Frame;
+                // Readback completion is the callback's clock. It is not the recorded frame (m_Frame).
+                staging.evidence.completionFrame = Time.frameCount;
                 if (readback.hasError)
                 {
                     throw new InvalidOperationException("GPU readback failed without data substitution.");

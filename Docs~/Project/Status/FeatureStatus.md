@@ -24,7 +24,9 @@ Round 3. Play was not paused: at one sample `Time.frameCount` was 4732 and `time
 
 Matrix CPU Direct, history locked, both sides frame 35, jitter 0, depth identical. DisplayColor still differs: mean absolute difference 1.41e-5, 80 pixels above 8/255. `gameTime` was 2.42 on this branch and 1.10 on `155c2ef`, so the pair is not the same moment. The GPU list kernel does append with `InterlockedAdd`, but this pair does not show that the 60 GPU pixels are only that order. Evidence: `intermediate/arch-convergence-verify/run3/`.
 
-Not run yet: a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
+Round 4, same Editor and mirror. `completionFrame` is `Time.frameCount` at the readback callback. Matrix Play, Main Camera, 993×1330, Metal: evidence, producer and submission frame 17, completion frame 19 (`intermediate/arch-convergence-verify/run4/clock-capture`). `RenderCaptureTests` 13 passed, including `completionFrame >= producerFrame` (`run4/tests-capture-clock`).
+
+Not run yet: removing `CameraSetup.frame`, a time-locked Matrix pair, a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
 
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 
