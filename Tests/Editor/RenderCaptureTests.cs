@@ -14,9 +14,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderCaptureTests
     {
-        static CameraSetup Setup(Camera camera, CameraFrameState state, int frame = 0) => new CameraSetup(camera, state,
+        static CameraSetup Setup(Camera camera, CameraFrameState state) => new CameraSetup(camera, state,
             CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, ETemporalResolve.None, true, true, EDebugView.None,
-            default, default, default, default, frame);
+            default, default, default, default);
 
         static RenderCaptureRequest Request(string directory) => new RenderCaptureRequest
         {
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
                 int producerFrame = Time.frameCount;
-                session.PrepareCamera(Setup(camera, state, producerFrame));
+                session.PrepareCamera(producerFrame, Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -196,7 +196,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(Setup(camera, state));
+                session.PrepareCamera(0, Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D
@@ -270,7 +270,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 request.scene = scene.name; request.camera = camera.name;
                 request.warmupFrames = 0;
                 session = new RenderCaptureSession(request);
-                session.PrepareCamera(Setup(camera, state));
+                session.PrepareCamera(0, Setup(camera, state));
                 var staging = session.Reserve("Lighting", "LifecycleFixture", new TextureDescriptor(1, 1)
                 {
                     colorFormat = GraphicsFormat.R32_SFloat, dimension = TextureDimension.Tex2D

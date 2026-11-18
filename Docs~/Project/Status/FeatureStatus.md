@@ -26,7 +26,9 @@ Matrix CPU Direct, history locked, both sides frame 35, jitter 0, depth identica
 
 Round 4, same Editor and mirror. `completionFrame` is `Time.frameCount` at the readback callback. Matrix Play, Main Camera, 993×1330, Metal: evidence, producer and submission frame 17, completion frame 19 (`intermediate/arch-convergence-verify/run4/clock-capture`). `RenderCaptureTests` 13 passed, including `completionFrame >= producerFrame` (`run4/tests-capture-clock`).
 
-Not run yet: removing `CameraSetup.frame`, a time-locked Matrix pair, a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
+`CameraSetup` no longer stores a frame. `PipelineDiagnostics.BeforeCamera` takes the `FrameContext` and capture reads `frameContext.frame`. After that compile, the same Matrix capture recorded evidence, producer and submission frame 19 and completion frame 21 (`run4/clock-after-framesource`). `RenderCaptureTests` 13 passed again (`run4/tests-frame-source`). `static_check` 0 errors, 51 static-check tests passed. The scene was not saved.
+
+Not run yet: a time-locked Matrix pair, a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
 
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 

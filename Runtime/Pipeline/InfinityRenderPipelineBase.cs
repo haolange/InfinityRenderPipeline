@@ -498,9 +498,9 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.current.ResolveDebugView(camera),
 #endif
-                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport, frameContext.frame);
+                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            PipelineDiagnostics.BeforeCamera(setup);
+            PipelineDiagnostics.BeforeCamera(frameContext, setup);
 #endif
             return setup;
         }

@@ -25,8 +25,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
         internal readonly FeatureSupportContext featureSupport;
-        // Copied from FrameContext.frame. Capture and the view read this value; they do not call Time.frameCount again.
-        internal readonly int frame;
 
         internal bool resetsHistory => historyReset != EHistoryReset.None;
 
@@ -37,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             EDebugView debugView,
 #endif
             in OutputTransformDecision outputDecision, in VolumeSnapshot volumes, in AtmosphereParameter atmosphere,
-            in FeatureSupportContext featureSupport, int frame)
+            in FeatureSupportContext featureSupport)
         {
             this.camera = camera;
             this.state = state;
@@ -55,7 +53,6 @@ namespace InfinityTech.Rendering.Pipeline
             this.volumes = volumes;
             this.atmosphere = atmosphere;
             this.featureSupport = featureSupport;
-            this.frame = frame;
         }
     }
 

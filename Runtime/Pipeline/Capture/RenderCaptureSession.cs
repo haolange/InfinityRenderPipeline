@@ -199,7 +199,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new ArgumentException("TAA reprojection capture requires diagnostics for this frame.");
         }
 
-        internal void PrepareCamera(in CameraSetup setup)
+        // frame is FrameContext.frame. BeforeCamera passes that value; this session does not read Time.frameCount here.
+        internal void PrepareCamera(int frame, in CameraSetup setup)
         {
             Camera camera = setup.camera;
             CameraFrameState state = setup.state;
@@ -229,12 +230,12 @@ namespace InfinityTech.Rendering.Pipeline
             m_CameraAssigned = true;
             m_CountThisFrame = false;
             // A Game view repaint renders again inside the same player frame. Count and capture that frame once.
-            if (m_HasCountedFrame && setup.frame == m_CountedFrame)
+            if (m_HasCountedFrame && frame == m_CountedFrame)
             {
                 return;
             }
             m_CountThisFrame = true;
-            m_Frame = setup.frame;
+            m_Frame = frame;
             m_CaptureIndex++;
             if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || InfinityDebugDisplaySettings.current.debugView != EDebugView.None)
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
