@@ -259,18 +259,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_ContactShadowPass.ComputeContactShadow(context);
             }
-            // Previous-color effects. They read depth, Hi-Z, the G-buffer and the previous frame's color only, so one
-            // position serves both queues: async compute overlaps them with shadows, and a device without it runs them
-            // here on the graphics queue.
-            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
-            {
-                m_SSRPass.ComputeScreenSpaceReflection(context);
-            }
-            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
-            {
-                m_SSGIPass.ComputeScreenSpaceIndirect(context);
-            }
-
             // PHASE 3: shadow raster (longest ROP window).
             using (PipelineCpuMarkers.s_RecordCullShadowCasterSplits.Auto())
             {
@@ -303,6 +291,18 @@ namespace InfinityTech.Rendering.Pipeline
             using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
             {
                 m_ForwardPass.RasterForward(context, meshViews.mainViewHandle);
+            }
+            // Previous-color effects, recorded once right before the composite that consumes them. Recorded ahead of
+            // the shadows, a device without async compute ran them on the graphics queue there and Scene_Spazon cost
+            // about 7 ms more GPU time on Apple M3 Max (FeatureStatus, 2026-11-18). Hoisting async-eligible work is the
+            // graph compiler's choice, not a second record position.
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
+            {
+                m_SSRPass.ComputeScreenSpaceReflection(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
+            {
+                m_SSGIPass.ComputeScreenSpaceIndirect(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
             {
