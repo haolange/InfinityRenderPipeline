@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -6,6 +7,8 @@ namespace InfinityTech.Rendering.Pipeline
     // Per-camera inputs the registry needs to decide whether a requested feature can record this frame.
     internal struct FeatureSupportContext
     {
+        // PipelineCapabilities.featureMask: the features the pipeline records, indexed by EFrameFeature.
+        public bool[] pipelineFeatures;
         // InfinityRenderPipelineResources.featureResourceReasons: support that depends only on resources.
         public string[] resourceReasons;
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
@@ -33,20 +36,21 @@ namespace InfinityTech.Rendering.Pipeline
 
     // One table describing, for every EFrameFeature, which compute kernels it needs, which features it depends on and
     // whether it needs a temporal camera. ResolveResourceSupport evaluates kernels and textures once when resources
-    // load; ConfigureFrameFeatures only states what the camera wants; Resolve turns that into the recorded set,
+    // load; FrameFeatureSet.ResolveFrame and ResolveContent state what the camera wants; Resolve turns that into the recorded set,
     // requests dependencies, and keeps a readable reason for everything that cannot record (shown in the Rendering
     // Debugger). A pass that records trusts the table and does not check its kernels again.
     internal static class FeatureRegistry
     {
         static readonly FeatureDescriptor[] s_Descriptors = Build();
 
-        // Every camera records these. Resources that cannot support one fail when they resolve, not per frame.
-        internal static readonly EFrameFeature[] RequiredProducers =
-            { EFrameFeature.Depth, EFrameFeature.GBuffer, EFrameFeature.DeferredShading, EFrameFeature.Display };
+        // The reason of every feature outside PipelineCapabilities.features.
+        internal const string NotRecordedReason = "This pipeline does not record it.";
 
-        internal static void RequireProducerSupport(string[] resourceReasons)
+        // Every camera records the pipeline's required producers (PipelineCapabilities). Resources that cannot support one
+        // fail when they resolve, not per frame.
+        internal static void RequireProducerSupport(string[] resourceReasons, EFrameFeature[] requiredProducers)
         {
-            foreach (EFrameFeature feature in RequiredProducers)
+            foreach (EFrameFeature feature in requiredProducers)
             {
                 string reason = resourceReasons[(int)feature];
                 if (reason != null)
@@ -209,6 +213,31 @@ namespace InfinityTech.Rendering.Pipeline
             return table;
         }
 
+        // Every reason is a literal or a resource reason resolved when resources load, so a dependency's composed reason is
+        // built once per distinct pair and then read from this table (AGENTS R14, R17).
+        static readonly Dictionary<string, string>[] s_DependsOnReasons = CreateDependsOnReasonTables();
+
+        static Dictionary<string, string>[] CreateDependsOnReasonTables()
+        {
+            var tables = new Dictionary<string, string>[Enum.GetValues(typeof(EFrameFeature)).Length];
+            for (int i = 0; i < tables.Length; ++i)
+            {
+                tables[i] = new Dictionary<string, string>(StringComparer.Ordinal);
+            }
+            return tables;
+        }
+
+        static string DependsOnReason(EFrameFeature dependency, string dependencyReason)
+        {
+            Dictionary<string, string> table = s_DependsOnReasons[(int)dependency];
+            if (!table.TryGetValue(dependencyReason, out string reason))
+            {
+                reason = "Depends on " + dependency + ": " + dependencyReason;
+                table.Add(dependencyReason, reason);
+            }
+            return reason;
+        }
+
         static string BlueNoiseSupport(InfinityRenderPipelineRuntimeTextures textures)
         {
             return textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures.";
@@ -295,7 +324,12 @@ namespace InfinityTech.Rendering.Pipeline
             evaluated[index] = true;
             FeatureDescriptor descriptor = s_Descriptors[index];
             string reason = null;
-            if (descriptor.requiresTemporal && !context.temporal)
+            if (!context.pipelineFeatures[index])
+            {
+                reason = NotRecordedReason;
+            }
+
+            if (reason == null && descriptor.requiresTemporal && !context.temporal)
             {
                 reason = "This camera type renders without history (preview or reflection probe).";
             }
@@ -317,7 +351,7 @@ namespace InfinityTech.Rendering.Pipeline
                     string dependencyReason = Evaluate(dependency, context, reasons, evaluated);
                     if (dependencyReason != null)
                     {
-                        reason = $"Depends on {dependency}: {dependencyReason}";
+                        reason = DependsOnReason(dependency, dependencyReason);
                         break;
                     }
                 }

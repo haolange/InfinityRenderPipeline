@@ -7,16 +7,19 @@ namespace InfinityTech.Rendering.MeshPipeline
     // One owner for Mesh pass samplers and draw marker names. Shader LightModes are separate contracts.
     internal static class MeshDrawProfiling
     {
+        static readonly ProfilingSampler s_ViewProduction = new ProfilingSampler("ComputeMeshView");
         static readonly ProfilingSampler s_Production = new ProfilingSampler("ComputeMeshDrawList");
         static readonly ProfilingSampler s_Upload = new ProfilingSampler("UploadMeshData");
-        static readonly ProfilingSampler[] s_Passes = { s_Production, s_Upload };
+        static readonly ProfilingSampler[] s_Passes = { s_ViewProduction, s_Production, s_Upload };
 
-        /// <summary>Graph pass samplers: the GPU producer and the CPU upload of a draw list.</summary>
+        /// <summary>Graph pass samplers: the GPU producer of a view, the GPU producer of a draw list and the CPU upload of a draw list.</summary>
         internal static IReadOnlyList<ProfilingSampler> passes => s_Passes;
+        internal static ProfilingSampler viewProduction => s_ViewProduction;
         internal static ProfilingSampler production => s_Production;
         internal static ProfilingSampler upload => s_Upload;
 
         internal static readonly ProfilerMarker cpuCleanup = new ProfilerMarker("MeshCPU.CleanupComplete");
+        internal static readonly ProfilingSampler cullMeshView = new ProfilingSampler("CullMeshView");
         internal static readonly ProfilingSampler initializeIndirectArgs = new ProfilingSampler("InitializeIndirectArgs");
         internal static readonly ProfilingSampler buildDrawList = new ProfilingSampler("BuildDrawList");
 

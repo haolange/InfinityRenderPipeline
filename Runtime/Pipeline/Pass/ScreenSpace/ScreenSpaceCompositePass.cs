@@ -25,8 +25,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ScreenSpaceCompositePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal ScreenSpaceCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct ScreenSpaceCompositePassData
         {
             public RGConstantsHandle parametersHandle;
@@ -49,16 +58,15 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sceneColorTextureHandle;
         }
 
-        void ComputeScreenSpaceComposite(in CameraRecordContext context)
+        internal void ComputeScreenSpaceComposite(in ViewContext context)
         {
             bool hasSSR = context.features.ShouldRecord(EFrameFeature.SSR);
             bool hasSSGI = context.features.ShouldRecord(EFrameFeature.SSGI);
             RGTextureHandle ssrTextureHandle = hasSSR ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSRBuffer) : default;
             RGTextureHandle ssgiTextureHandle = hasSSGI ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer) : default;
+            // Without SSR or SSGI the deferred lighting is the opaque scene color (SceneColorKeys.opaque).
             if (!hasSSR && !hasSSGI)
             {
-                // Nothing to composite: the deferred lighting is the opaque scene color.
-                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.LightingBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
                 return;
             }
 
@@ -94,12 +102,12 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 passData.hasSSR = hasSSR ? 1 : 0;
                 passData.hasSSGI = hasSSGI ? 1 : 0;
-                passData.compositeShader = kernels.screenSpaceComposite.shader;
-                passData.kernel = kernels.screenSpaceComposite.index;
-                passData.groups = new int2(kernels.screenSpaceComposite.GroupsX(width), kernels.screenSpaceComposite.GroupsY(height));
-                passData.subsurfaceKeyword = kernels.compositeSubsurface;
-                passData.ssrKeyword = kernels.compositeSSR;
-                passData.ssgiKeyword = kernels.compositeSSGI;
+                passData.compositeShader = m_Resources.kernels.screenSpaceComposite.shader;
+                passData.kernel = m_Resources.kernels.screenSpaceComposite.index;
+                passData.groups = new int2(m_Resources.kernels.screenSpaceComposite.GroupsX(width), m_Resources.kernels.screenSpaceComposite.GroupsY(height));
+                passData.subsurfaceKeyword = m_Resources.kernels.compositeSubsurface;
+                passData.ssrKeyword = m_Resources.kernels.compositeSSR;
+                passData.ssgiKeyword = m_Resources.kernels.compositeSSGI;
                 passData.lightingTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
                 passData.indirectDiffuseHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
                 passData.indirectSpecularHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
@@ -149,7 +157,6 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
     }
 }

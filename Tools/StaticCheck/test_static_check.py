@@ -31,6 +31,59 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(1, len(out))
         self.assertEqual('unityboundary', out[0][1])
 
+    def test_frame_rate_allocation_fails_and_change_rate_idioms_pass(self):
+        self.write('Runtime/Pipeline/Pass/Observer.cs', 'internal sealed class Observer { }\n')
+        self.write('Runtime/Pipeline/Pass/Clean.cs',
+                   'class Clean {\n'
+                   '    static readonly int[] s_Table = BuildTable();\n'
+                   '    static int[] BuildTable() { return new int[4]; }\n'
+                   '    Observer m_Observer;\n'
+                   '    int[] m_Upload = new int[0];\n'
+                   '    void RecordShadow(int count) {\n'
+                   '        if (m_Upload.Length < count)\n'
+                   '        {\n'
+                   '            m_Upload = new int[count];\n'
+                   '        }\n'
+                   '        m_Observer ??= new Observer();\n'
+                   '        Observer pooled = m_Free.Count > 0 ? m_Free.Pop() : new Observer();\n'
+                   '        if (count < 0)\n'
+                   '            throw new System.ArgumentException(\n'
+                   '                $"count {count} is negative");\n'
+                   '#if UNITY_EDITOR || DEVELOPMENT_BUILD\n'
+                   '        UnityEngine.Debug.Log($"record {count}");\n'
+                   '#endif\n'
+                   '    }\n'
+                   '    void EnsureCapacity(int count) { m_Upload = new int[count]; }\n'
+                   '    Clean() { m_Observer = new Observer(); }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Settings/Asset.cs', 'class Asset { void RecordName() { var n = "a" + name; } }\n')
+        out = []
+        static_check.check_frame_allocations(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Lighting/Leaky.cs',
+                   'class Leaky {\n'
+                   '    void ResolveSampling(int count) {\n'
+                   '        var result = new int[count];\n'
+                   '        var names = new System.Collections.Generic.List<int>();\n'
+                   '        string label = name + "BlurTemp";\n'
+                   '        string reason = $"Depends on {count}";\n'
+                   '        var observer = new Observer();\n'
+                   '    }\n'
+                   '}\n')
+        static_check.check_frame_allocations(str(self.repo), out)
+        self.assertEqual(['framealloc'] * 5, [o[1] for o in out])
+        self.assertEqual(['Runtime/Lighting/Leaky.cs:3', 'Runtime/Lighting/Leaky.cs:4', 'Runtime/Lighting/Leaky.cs:5',
+                          'Runtime/Lighting/Leaky.cs:6', 'Runtime/Lighting/Leaky.cs:7'], [o[2].split(': ')[0] for o in out])
+
+    def test_mesh_graph_names_no_pipeline(self):
+        self.write('Runtime/Mesh/Graph/MeshGraphExtension.cs', 'using InfinityTech.Rendering.RenderGraph;\nclass MeshGraphExtension { }\n')
+        out = []
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/Graph/Leak.cs', 'using InfinityTech.Rendering.Pipeline;\nclass Leak { }\n')
+        static_check.check_layering(str(self.repo), out)
+        self.assertEqual(['layering'], [o[1] for o in out])
+
     def test_pass_uploading_parameters_one_by_one_fails(self):
         eight = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(static_check.SCALAR_UPLOAD_LIMIT))
         five = ''.join(f'        cmd.SetComputeIntParam(shader, ID{i}, mip);\n' for i in range(5))
@@ -130,9 +183,10 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_diagnostics(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Pass.cs', 'bool run = context.debugView != EDebugView.None;\nk = kernels.ssrDebug;\n'
-                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\n')
+                   'InfinityDebugDisplaySettings.current.lighting.lastLocalCount = n;\nreadonly DebugViewPass m_DebugViewPass;\n'
+                   'struct DebugViewPassData { }\n')
         static_check.check_diagnostics(str(self.repo), out)
-        self.assertEqual(3, len(out))
+        self.assertEqual(4, len(out))
 
     def test_table_kernel_must_exist_in_its_own_shader(self):
         self.write('Runtime/Pipeline/Settings/InfinityRenderPipelineRuntimeShaders.cs',
@@ -268,7 +322,7 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['Runtime/P.cs:2'], [o[2].split(': ')[0] for o in out])
 
     def test_silent_fallback_rejects_a_builtin_stand_in_and_allows_the_listed_debug_draw(self):
-        self.write('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'volume.RenderDebug(camera, options, Texture2D.whiteTexture);\n')
+        self.write('Runtime/Pipeline/Integration/ProbeVolumeIntegration.cs', 'volume.RenderDebug(camera, options, Texture2D.whiteTexture);\n')
         out = []
         static_check.check_silent_fallback(str(self.repo), out)
         self.assertEqual([], out)
@@ -277,17 +331,42 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_silent_fallback(str(self.repo), out)
         self.assertEqual(['Runtime/Pipeline/Pass/A.cs:2'], [o[2].split(': ')[0] for o in out])
 
-    def test_redundant_parameter_rejects_shadowing_and_allows_distinct_names(self):
-        self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public partial class InfinityRenderPipeline\n{\n'
-                   '        internal RenderContext renderContext;\n        ResourcePool m_ResourcePool;\n'
-                   '        void ComputeHiZ(in CameraRecordContext context, int mip)\n        {\n        }\n}\n')
+    def test_pass_root_rejects_the_root_and_the_pipeline_and_allows_the_scriptable_context(self):
+        self.write('Runtime/Pipeline/Pass/A.cs', '// renderContext and InfinityRenderPipeline in a comment are fine\n'
+                   'RendererList list = context.scriptableRenderContext.CreateUIOverlayRendererList(context.camera);\n'
+                   'internal DepthPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings) { }\n')
         out = []
-        static_check.check_redundant_parameters(str(self.repo), out)
+        static_check.check_pass_root(str(self.repo), out)
         self.assertEqual([], out)
-        self.write('Runtime/Pipeline/Pass/A.cs', 'public partial class InfinityRenderPipeline\n{\n'
-                   '        void RasterDepth(RenderContext renderContext, in CameraRecordContext context)\n        {\n        }\n}\n')
-        static_check.check_redundant_parameters(str(self.repo), out)
-        self.assertEqual(['Runtime/Pipeline/Pass/A.cs:3'], [o[2].split(': ')[0] for o in out])
+        self.write('Runtime/Pipeline/Pass/B.cs', 'var lights = renderContext.sceneWorld.lights.context;\n')
+        self.write('Runtime/Pipeline/Pass/C.cs', 'public partial class InfinityRenderPipeline\n{\n}\n')
+        self.write('Runtime/Pipeline/Pass/D.cs', 'internal DepthPass(InfinityRenderPipelineBase pipeline) { }\n')
+        static_check.check_pass_root(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Pass/B.cs:1', 'Runtime/Pipeline/Pass/C.cs:1', 'Runtime/Pipeline/Pass/D.cs:1'],
+                         sorted(o[2].split(': ')[0] for o in out))
+
+    def test_pipeline_base_rejects_the_desktop_pipeline_and_its_passes_and_allows_listed_types(self):
+        self.write('Runtime/Pipeline/Pass/Geometry/DepthPass.cs', 'internal sealed class DepthPass { }\ninternal static class CameraCulling { }\n')
+        self.write('Runtime/Pipeline/InfinityRenderPipelineBase.cs',
+                   '// InfinityRenderPipeline and DepthPass in a comment are fine\n'
+                   'public abstract partial class InfinityRenderPipelineBase : RenderPipeline\n'
+                   '{\n'
+                   '    InfinityRenderPipelineResources resources; InfinityRenderPipelineAsset.Settings m_Settings;\n'
+                   '    void Cull() { CameraCulling.Context(camera, ref parameters); Shader.globalRenderPipeline = "InfinityRenderPipeline"; }\n'
+                   '}\n')
+        self.write('Runtime/Pipeline/Context/ViewContext.cs', 'internal readonly struct ViewContext { }\n')
+        self.write('Runtime/Pipeline/InfinityRenderPipeline.cs', 'public class InfinityRenderPipeline : InfinityRenderPipelineBase { readonly DepthPass m_DepthPass; }\n')
+        out = []
+        static_check.check_pipeline_base(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Pipeline/HDROutputState.cs',
+                   'public abstract partial class InfinityRenderPipelineBase\n{\n    void Inherit(InfinityRenderPipeline previous) { }\n}\n')
+        self.write('Runtime/Pipeline/Context/RenderContext.cs', 'internal sealed class RenderContext\n{\n    DepthPass m_DepthPass;\n}\n')
+        self.write('Runtime/Pipeline/Context/PipelineCapabilities.cs', 'internal readonly struct PipelineCapabilities\n{\n    MeshPassId shadow = InfinityMeshPasses.Shadow;\n}\n')
+        static_check.check_pipeline_base(str(self.repo), out)
+        self.assertEqual(['Runtime/Pipeline/Context/PipelineCapabilities.cs:3', 'Runtime/Pipeline/Context/RenderContext.cs:3',
+                          'Runtime/Pipeline/HDROutputState.cs:3'],
+                         sorted(o[2].split(': ')[0] for o in out))
 
     def test_agents_over_limit_fails_and_at_limit_passes(self):
         self.write('AGENTS.md', 'a' * static_check.AGENTS_LIMIT)
@@ -338,13 +417,17 @@ class StaticCheckTests(unittest.TestCase):
     def test_mesh_mechanism_names_no_pipeline_concept(self):
         self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { void BeginCamera(Camera camera) { } }')
         self.write('Runtime/Mesh/View/MeshCullingContext.cs', '// A camera adapts into this context.\nstruct MeshCullingContext { }')
+        self.write('Runtime/Mesh/DrawList/MeshDrawListBuild.cs', 'struct MeshDrawListBuild { MeshViewDesc desc; RGMeshViewHandle viewHandle; }')
         out = []
         static_check.check_mesh_mechanism(str(self.repo), out)
         self.assertEqual([], out)
         self.write('Runtime/Mesh/Pass/MeshPassCache.cs', 'class MeshPassCache { Camera camera; }')
         self.write('Runtime/Mesh/Backend/Gpu.cs', 'class Gpu { int id = InfinityShaderIDs.DepthBuffer; }')
+        self.write('Runtime/Mesh/View/MeshViews.cs', 'enum EMeshViewKind { Main }')
+        self.write('Runtime/Mesh/World/MeshWorld.cs', 'class MeshWorld { MeshPassId id = InfinityMeshPasses.Depth; }')
         static_check.check_mesh_mechanism(str(self.repo), out)
-        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera'],
+        self.assertEqual(['Runtime/Mesh/Backend/Gpu.cs names InfinityShaderIDs', 'Runtime/Mesh/Pass/MeshPassCache.cs names Camera',
+                          'Runtime/Mesh/View/MeshViews.cs names EMeshViewKind', 'Runtime/Mesh/World/MeshWorld.cs names InfinityMeshPasses'],
                          sorted(o[2] for o in out))
 
     def test_mesh_submit_only_draws(self):
@@ -354,6 +437,12 @@ class StaticCheckTests(unittest.TestCase):
         self.write(root + 'Backend/MeshDrawGPUBackend.cs',
                    'class B { internal void SubmitMeshDrawList(CommandBuffer c) { var marker = MeshDrawProfiling.DrawSampler(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
         self.write(root + 'Graph/MeshGraphExtension.cs', 'RecordProducer MeshDrawProfiling.upload MeshDrawProfiling.production')
+        out = []
+        static_check.check_mesh_submit(str(self.repo), out)
+        self.assertEqual(['Graph/MeshGraphExtension.cs: missing MeshDrawProfiling.viewProduction', 'Graph/MeshGraphExtension.cs: missing RecordViewProducer'],
+                         sorted(o[2] for o in out if 'MeshGraphExtension' in o[2]))
+        self.write(root + 'Graph/MeshGraphExtension.cs',
+                   'RecordViewProducer RecordProducer MeshDrawProfiling.viewProduction MeshDrawProfiling.upload MeshDrawProfiling.production')
         out = []
         static_check.check_mesh_submit(str(self.repo), out)
         self.assertEqual(1, len(out))
@@ -371,10 +460,33 @@ class StaticCheckTests(unittest.TestCase):
 
     def test_mesh_pass_files_leave_backend_choice_to_the_world(self):
         self.write('Runtime/Pipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshDrawBackendPolicy.GPUIndirect) {}')
-        self.write('Runtime/Pipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass));')
+        self.write('Runtime/Pipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateMeshDrawList(viewHandle, m_GBufferMeshPass);')
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshDrawBackendPolicy')], out)
+
+    def test_light_views_are_culled_without_an_occluder(self):
+        cascade = 'Runtime/Pipeline/Pass/Shadow/CascadeShadowPass.cs'
+        local = 'Runtime/Pipeline/Pass/Shadow/LocalShadowPass.cs'
+        self.write(cascade, '// CullMeshView(new MeshViewDesc(c, default, occluder)) in a comment is ignored.\n'
+                            'var viewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(\n    CameraCulling.Context(camera, light, split), default, MeshOccluder.None));')
+        self.write(local, 'var sliceViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(CameraCulling.Context(a, b, c), default, MeshOccluder.None));')
+        out = []
+        static_check.check_mesh_passes(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write(cascade, 'var a = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), motion, earlyOccluder));\n'
+                            'var b = m_RGBuilder.CullMeshView(desc);\n'
+                            'var c = m_RGBuilder.CullMeshViewRemainder(a, MeshOccluder.None);')
+        self.write(local, 'var occluder = new MeshOccluder(furthestHandle, matrix, size, mips, false);\n'
+                          'var d = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), default, MeshOccluder.None));')
+        out = []
+        static_check.check_mesh_passes(str(self.repo), out)
+        self.assertEqual(['Shadow/CascadeShadowPass.cs:1: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/CascadeShadowPass.cs:2: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/CascadeShadowPass.cs:3: CullMeshViewRemainder of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/LocalShadowPass.cs:1: a shadow pass constructs a MeshOccluder'],
+                         sorted(o[2] for o in out))
+        self.assertTrue(all(o[1] == 'meshpasses' for o in out))
 
     def test_opaque_mesh_passes_dither_lod_transitions(self):
         dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'

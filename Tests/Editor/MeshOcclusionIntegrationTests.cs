@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -50,9 +49,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_EnteredPlayMode = true;
             m_PreviousRunBackground = Application.runInBackground;
             Application.runInBackground = true;
-            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             Assert.IsNotNull(pipeline);
-            MeshWorld world = pipeline.renderContext.meshWorld;
+            MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");
             m_PreviousCapture = RGDebugSession.captureEnabled; m_PreviousPause = RGDebugSession.paused; m_PreviousFocus = EditorWindow.focusedWindow; m_StateCaptured = true;
             m_World = world;
@@ -100,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     m_Readbacks = new List<AsyncGPUReadbackRequest>(1);
-                    var states = (Dictionary<int, CameraFrameState>)typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
+                    var states = pipeline.renderContext.cameras.states;
                     var state = states.Values.Single(s => s.camera == m_Camera);
                     Assert.IsTrue(state.acceptedHiZ);
                     Assert.IsTrue(state.historyCache.TryGetCommittedTexture(HiZPassUtilityData.HistoryFurthest, out var depth));

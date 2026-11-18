@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsNotNull(shader);
             var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
-            var world = new MeshWorld(pool, meshShader);
+            var world = new MeshWorld(pool, meshShader, InfinityMeshPasses.all);
             var first = new RGBuilder("FirstCameraBeforeSubmit", pool);
             var second = new RGBuilder("SecondCameraBeforeSubmit", pool);
             using var firstResult = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 4);

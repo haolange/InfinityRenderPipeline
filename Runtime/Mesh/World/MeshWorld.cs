@@ -17,7 +17,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int passCacheCount;
         public int commandCount;
         public int passCacheBuilds;
-        // GPU draw-list producers recorded for the last camera, and the kernels they dispatch.
+        // GPU view producers recorded for the last camera (one kernel each), GPU draw-list producers and the kernels they dispatch.
+        public int viewProductions;
         public int drawListProductions;
         public int drawListKernelDispatches;
         public long uploadedBytes;
@@ -26,15 +27,17 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void BeginCamera(Camera camera)
         {
             this.camera = camera;
+            viewProductions = 0;
             drawListProductions = 0;
             drawListKernelDispatches = 0;
         }
     }
 
     /// <summary>
-    /// The mesh world: entity, element, section and material tables, their GPU residency, the interned pass caches and the
-    /// draw backends. One world per render context. Structural edits go through <see cref="MeshWorldUpdate"/>; poses
-    /// (transform and bounds) are written outside transactions and do not take part in undo.
+    /// The mesh world: entity, element, section and material tables, their GPU residency, one pass cache per entry of the
+    /// pass table its owner hands it, and the draw backends. One world per render context. Structural edits go through
+    /// <see cref="MeshWorldUpdate"/>; poses (transform and bounds) are written outside transactions and do not take part in
+    /// undo.
     /// </summary>
     public sealed partial class MeshWorld : IDisposable
     {
@@ -56,8 +59,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         TransformAccessArray m_DynamicTransforms;
         NativeList<int> m_DynamicToEntity;
         NativeList<BoundingBox> m_DynamicLocalBounds;
-        NativeList<byte> m_DynamicChanged;
-        NativeArray<int> m_DynamicChangedCount;
 
         bool m_Disposed;
 
@@ -66,7 +67,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             get;
         }
-        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, draw-list producers on GPU indirect.</summary>
+        /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, view and draw-list producers on GPU indirect.</summary>
         internal ComputeShader meshDrawShader
         {
             get;
@@ -100,8 +101,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal NativeArray<MeshSection> sections => m_Sections.Items;
         internal NativeArray<MeshMaterial> materials => m_Materials.Items;
 
-        public MeshWorld(ResourcePool resourcePool, ComputeShader meshDrawShader)
+        /// <param name="passes">The pipeline's pass table (R1: data of the pipeline, not of the mesh mechanism). LightModes are
+        /// unique and queue ranges lie inside the render queues; a <see cref="MeshPassId"/> indexes it.</param>
+        internal MeshWorld(ResourcePool resourcePool, ComputeShader meshDrawShader, MeshPassDesc[] passes)
         {
+            m_Passes = ValidatePasses(passes);
             if (resourcePool == null)
             {
                 throw new ArgumentNullException(nameof(resourcePool));
@@ -126,14 +130,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_DynamicTransforms = new TransformAccessArray(256);
             m_DynamicToEntity = new NativeList<int>(256, Allocator.Persistent);
             m_DynamicLocalBounds = new NativeList<BoundingBox>(256, Allocator.Persistent);
-            m_DynamicChanged = new NativeList<byte>(256, Allocator.Persistent);
-            m_DynamicChangedCount = new NativeArray<int>(1, Allocator.Persistent);
             InitializeTransaction();
             m_Gpu = new MeshWorldGPU(this, resourcePool);
             m_ResourcePool = resourcePool;
             m_CPUBackend = new MeshDrawCPUBackend(resourcePool);
             m_GPUBackend = new MeshDrawGPUBackend(resourcePool, meshDrawShader);
-            InternPresets();
+            CreatePassCaches();
         }
 
         public bool IsAlive(MeshEntityId id) => id.IsValid && m_Entities.IsLive((int)id.Index, id.Generation);
@@ -270,29 +272,32 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 return;
             }
-            m_DynamicChanged.ResizeUninitialized(count);
-            m_DynamicChangedCount[0] = 0;
+            // Both live until the jobs complete inside this call (AGENTS R17: TempJob across scheduled jobs).
+            var changed = new NativeArray<byte>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var changedCount = new NativeArray<int>(1, Allocator.TempJob);
             JobHandle handle = new MeshDynamicPoseJob
             {
                 dynamicToEntity = m_DynamicToEntity.AsArray(),
                 localBounds = m_DynamicLocalBounds.AsArray(),
                 entityTransforms = m_EntityTransforms.AsArray(),
                 entityBounds = m_EntityBounds.AsArray(),
-                changed = m_DynamicChanged.AsArray()
+                changed = changed
             }.ScheduleReadOnly(m_DynamicTransforms, 64);
             handle = new MeshDynamicDirtyJob
             {
-                changed = m_DynamicChanged.AsArray(),
+                changed = changed,
                 dynamicToEntity = m_DynamicToEntity.AsArray(),
                 transformWords = m_TransformDirty.Words(m_Entities.HighWater),
                 entityWords = m_EntityDirty.Words(m_Entities.HighWater),
-                changedCount = m_DynamicChangedCount
+                changedCount = changedCount
             }.Schedule(handle);
             handle.Complete();
-            if (m_DynamicChangedCount[0] > 0)
+            if (changedCount[0] > 0)
             {
                 transformRevision++;
             }
+            changed.Dispose();
+            changedCount.Dispose();
         }
 
         void RegisterDynamic(int entity, Transform transform, in BoundingBox localBounds)
@@ -396,11 +401,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             m_DynamicToEntity.Dispose();
             m_DynamicLocalBounds.Dispose();
-            m_DynamicChanged.Dispose();
-            if (m_DynamicChangedCount.IsCreated)
-            {
-                m_DynamicChangedCount.Dispose();
-            }
             if (failures.Count == 1)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();

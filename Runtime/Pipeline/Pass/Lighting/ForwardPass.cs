@@ -16,8 +16,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string TextureName = "LightingTexture";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ForwardPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_ForwardMeshPass;
+
+        internal ForwardPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId forwardMeshPass)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+            m_ForwardMeshPass = forwardMeshPass;
+        }
+
         struct ForwardPassData
         {
             public bool hasSubsurface;
@@ -62,9 +73,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RasterForward(in CameraRecordContext context)
+        internal void RasterForward(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
-            RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterForwardPass));
+            RGMeshDrawListHandle forwardMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_ForwardMeshPass);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
@@ -88,8 +99,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = renderContext.lightContext.HasShadowmask;
-                    ShadowInputs shadows = QueryShadowInputs(context);
+                    passData.shadowmask = context.lights.HasShadowmask;
+                    ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
                     shadows.Read(passHandle);
                     passData.shadows = shadows;
                     passData.hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);
@@ -111,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         context.atmosphere.cubemapSize) - 1;
                     passData.lightRecordsHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                    LightLoopInputs lightLoop = QueryLightLoop(context);
+                    LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                     lightLoop.Read(passHandle);
                     passData.lightLoop = lightLoop;
                 }

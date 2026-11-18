@@ -26,8 +26,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class FogCompositePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal FogCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct FogCompositePassData
         {
             public ComputeKernel kernel;
@@ -45,21 +54,19 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle volumetricCloudTextureHandle;
         }
 
-        void ComputeFogComposite(in CameraRecordContext context)
+        internal void ComputeFogComposite(in ViewContext context)
         {
             bool hasFog = context.features.ShouldRecord(EFrameFeature.VolumetricFog);
             bool hasCloud = context.features.ShouldRecord(EFrameFeature.VolumetricCloud);
             RGTextureHandle volumetricFogTextureHandle = hasFog ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer) : default;
             RGTextureHandle volumetricCloudTextureHandle = hasCloud ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.VolumetricCloudBuffer) : default;
-            if (!TranslucentFeatureUtility.ShouldRecordFogComposite(hasFog, hasCloud))
+            // Without fog or clouds the opaque scene color is the fogged one (SceneColorKeys.fogged).
+            if (!hasFog && !hasCloud)
             {
-                // No fog to composite: the opaque scene color is the fogged scene color.
-                m_RGBuilder.scoper.MoveTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, InfinityShaderIDs.FoggedSceneColorBuffer);
-                m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer));
                 return;
             }
 
-            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle sceneColorTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.opaque);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
             var volFog = context.volumes.volumetricFog;
@@ -77,9 +84,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<FogCompositePassData> passHandle = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite));
                 ref FogCompositePassData passData = ref passHandle.GetPassData();
-                passData.kernel = kernels.fogComposite;
-                passData.fogKeyword = kernels.fogCompositeFog;
-                passData.cloudKeyword = kernels.fogCompositeCloud;
+                passData.kernel = m_Resources.kernels.fogComposite;
+                passData.fogKeyword = m_Resources.kernels.fogCompositeFog;
+                passData.cloudKeyword = m_Resources.kernels.fogCompositeCloud;
                 passData.resolution = new int2(context.dimensions.internalSize.x, context.dimensions.internalSize.y);
                 passData.parametersHandle = passHandle.WriteConstants(new FogCompositeParameters
                 {
@@ -88,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;
-                passData.fogCompositeShader = shaders.fogCompositeShader;
+                passData.fogCompositeShader = m_Resources.shaders.fogCompositeShader;
                 passData.sceneColorTextureHandle = passHandle.ReadTexture(sceneColorTextureHandle);
                 passData.foggedSceneColorTextureHandle = passHandle.WriteTexture(foggedSceneColorHandle);
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
@@ -122,7 +129,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, passData.kernel.index, passData.kernel.GroupsX(passData.resolution.x), passData.kernel.GroupsY(passData.resolution.y), 1);
                 });
             }
-            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, foggedSceneColorHandle);
         }
     }
 }

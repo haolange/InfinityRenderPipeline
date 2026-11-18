@@ -45,8 +45,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_VolumetricFogTextureID = Shader.PropertyToID("UAV_VolumetricFogTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class VolumetricFogPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal VolumetricFogPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct VolumetricFogPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -75,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricFog(in CameraRecordContext context)
+        internal void ComputeVolumetricFog(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {
@@ -83,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volFog = context.volumes.volumetricFog;
-            if (!VolumeComponentActive(volFog))
+            if (!GraphicsUtility.VolumeComponentActive(volFog))
             {
                 return;
             }
@@ -124,21 +133,21 @@ namespace InfinityTech.Rendering.Pipeline
                     depthSlices = depthSlices,
                     maxDistance = fog.maxDistance,
                     temporalWeight = historyRead.valid ? fog.temporalWeight : 0.0f,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     aerialDistance = aerialDistance
                 });
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
-                LightLoopInputs lightLoop = QueryLightLoop(context);
+                LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                 lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs(context);
+                ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
                 shadows.Read(passHandle);
                 passData.shadows = shadows;
                 passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.volumetricFogShader = shaders.volumetricFogShader;
-                passData.scatterDensityKernel = kernels.fogScatterDensity;
-                passData.integrateKernel = kernels.fogIntegrate;
-                passData.temporalKernel = kernels.fogTemporal;
+                passData.volumetricFogShader = m_Resources.shaders.volumetricFogShader;
+                passData.scatterDensityKernel = m_Resources.kernels.fogScatterDensity;
+                passData.integrateKernel = m_Resources.kernels.fogIntegrate;
+                passData.temporalKernel = m_Resources.kernels.fogTemporal;
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 passData.historyTextureHandle = passHandle.ReadTexture(historyTextureHandle);
                 passData.volumetricFogTextureHandle = passHandle.WriteTexture(volumetricFogTextureHandle);
@@ -185,7 +194,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryVolumetricFog(in CameraRecordContext context)
+        internal void CopyHistoryVolumetricFog(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricFog))
             {

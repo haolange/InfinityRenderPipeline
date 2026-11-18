@@ -25,7 +25,8 @@ namespace InfinityTech.Rendering.Editor
             public string kernel;
             public int dispatches;
         }
-        [Serializable] sealed class MeshDrawListEvidence
+        // One mesh producer path (a view's ComputeMeshView or a list's ComputeMeshDrawList) and the dispatches under it.
+        [Serializable] sealed class MeshProducerEvidence
         {
             public string name;
             public int dispatches;
@@ -36,7 +37,8 @@ namespace InfinityTech.Rendering.Editor
             public string status, error, cleanupError, persistenceError, unity, camera, cameraEntity, cameraSampler, scene;
             public int nativeCount, eventCount;
             public List<EventEvidence> events = new List<EventEvidence>();
-            public List<MeshDrawListEvidence> meshDrawLists = new List<MeshDrawListEvidence>();
+            public List<MeshProducerEvidence> meshViews = new List<MeshProducerEvidence>();
+            public List<MeshProducerEvidence> meshDrawLists = new List<MeshProducerEvidence>();
         }
         static Type s_Utility, s_DataType;
         static string s_Directory;
@@ -78,17 +80,15 @@ namespace InfinityTech.Rendering.Editor
             s_ProfilerGuid = UnityEditorInternal.ProfilerDriver.connectedProfiler;
             s_PreviousLimit = Convert.ToInt32(s_Utility.GetProperty("limit", Static).GetValue(null));
             Camera camera = cameraName == null ? Validation.ValidationSceneUtility.RequireActiveGameCamera() : Camera.allCameras.Single(c => c.cameraType == CameraType.Game && c.isActiveAndEnabled && c.name == cameraName && c.gameObject.scene.name == sceneName);
-            var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipeline
+            var pipeline = RenderPipelineManager.currentPipeline as Pipeline.InfinityRenderPipelineBase
                 ?? throw new InvalidOperationException("Frame tree requires an active Infinity render pipeline.");
-            var samplers = (Dictionary<int, ProfilingSampler>)typeof(Pipeline.InfinityRenderPipeline)
-                .GetField("m_CameraSamplers", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(pipeline);
-            MethodInfo getCameraId = typeof(Pipeline.InfinityRenderPipeline).GetMethod("GetCameraID", BindingFlags.NonPublic | BindingFlags.Instance);
-            string cameraSampler = CameraSamplerName(camera, pipeline, samplers, getCameraId);
+            Pipeline.CameraStateTable cameraStates = pipeline.renderContext.cameras;
+            string cameraSampler = CameraSamplerName(camera, cameraStates);
             if (Camera.allCameras.Concat(SceneView.GetAllSceneCameras()).Distinct().Any(c =>
             {
                 if (c == camera || !c.isActiveAndEnabled)
                     return false;
-                string other = CameraSamplerName(c, pipeline, samplers, getCameraId);
+                string other = CameraSamplerName(c, cameraStates);
                 return other == cameraSampler || other.StartsWith(cameraSampler + "/", StringComparison.Ordinal)
                     || cameraSampler.StartsWith(other + "/", StringComparison.Ordinal);
             }))
@@ -230,17 +230,8 @@ namespace InfinityTech.Rendering.Editor
             evidence.error = error?.ToString();
             if (status == "Completed")
             {
-                evidence.meshDrawLists = evidence.events
-                    .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler)
-                        && e.name.Contains("/ComputeMeshDrawList/"))
-                    .GroupBy(e => e.name)
-                    .Select(group => new MeshDrawListEvidence
-                    {
-                        name = group.Key,
-                        dispatches = group.Count(),
-                        kernels = group.GroupBy(e => e.computeKernel)
-                            .Select(kernel => new KernelDispatchEvidence { kernel = kernel.Key, dispatches = kernel.Count() }).ToList()
-                    }).ToList();
+                evidence.meshViews = MeshProducers(evidence, "/ComputeMeshView/");
+                evidence.meshDrawLists = MeshProducers(evidence, "/ComputeMeshDrawList/");
             }
             // Unsubscribe before restoration so a failed native call cannot leave an active session.
             EditorApplication.update -= Tick;
@@ -294,18 +285,28 @@ namespace InfinityTech.Rendering.Editor
                 s_Evidence = null;
             }
         }
+        // Ready dispatches of the selected camera under one mesh producer pass name, grouped by event path and kernel.
+        static List<MeshProducerEvidence> MeshProducers(Evidence evidence, string scope) => evidence.events
+            .Where(e => e.dataReady && e.type == "ComputeDispatch" && HasCameraScope(e.name, evidence.cameraSampler) && e.name.Contains(scope))
+            .GroupBy(e => e.name)
+            .Select(group => new MeshProducerEvidence
+            {
+                name = group.Key,
+                dispatches = group.Count(),
+                kernels = group.GroupBy(e => e.computeKernel)
+                    .Select(kernel => new KernelDispatchEvidence { kernel = kernel.Key, dispatches = kernel.Count() }).ToList()
+            }).ToList();
         static void Repaint() => typeof(EditorApplication).GetMethod("SetSceneRepaintDirty",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Invoke(null, null);
         static void Save() => File.WriteAllText(Path.Combine(s_Directory, "frame-tree.json"), JsonUtility.ToJson(s_Evidence, true));
         static bool HasCameraScope(string path, string cameraScope) =>
             !string.IsNullOrEmpty(path) && (path == cameraScope || path.StartsWith(cameraScope + "/", StringComparison.Ordinal));
-        static string CameraSamplerName(Camera camera, Pipeline.InfinityRenderPipeline pipeline, Dictionary<int, ProfilingSampler> samplers, MethodInfo getCameraId)
+        static string CameraSamplerName(Camera camera, Pipeline.CameraStateTable cameraStates)
         {
             ProfilingSampler custom = camera.GetComponent<InfinityTech.Component.InfinityAdditionalCameraData>()?.viewProfiler;
             if (custom != null)
                 return custom.name;
-            int cameraId = (int)getCameraId.Invoke(pipeline, new object[] { camera });
-            return samplers.TryGetValue(cameraId, out ProfilingSampler sampler) ? sampler.name : camera.name;
+            return cameraStates.TryGetSampler(camera, out ProfilingSampler sampler) ? sampler.name : camera.name;
         }
         static MethodInfo RequireMethod(string name) => s_Utility.GetMethod(name, Static) ?? throw new MissingMethodException(s_Utility.FullName, name);
         static object Read(object data, string name) => (data.GetType().GetField(name, Instance) ?? throw new MissingFieldException(data.GetType().FullName, name)).GetValue(data);

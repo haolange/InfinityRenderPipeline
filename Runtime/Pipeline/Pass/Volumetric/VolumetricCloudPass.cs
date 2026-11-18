@@ -45,8 +45,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class VolumetricCloudPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal VolumetricCloudPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct VolumetricCloudPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -69,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeVolumetricCloud(in CameraRecordContext context)
+        internal void ComputeVolumetricCloud(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {
@@ -77,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volCloud = context.volumes.volumetricCloud;
-            if (!VolumeComponentActive(volCloud))
+            if (!GraphicsUtility.VolumeComponentActive(volCloud))
             {
                 return;
             }
@@ -119,19 +128,19 @@ namespace InfinityTech.Rendering.Pipeline
                     numPrimarySteps = cloud.numPrimarySteps,
                     numLightSteps = cloud.numLightSteps,
                     temporalWeight = historyRead.valid ? cloud.temporalWeight : 0.0f,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     planetRadius = atmosphereParameter.planetRadius,
                     atmosphereHeight = atmosphereParameter.atmosphereHeight
                 });
-                LightLoopInputs lightLoop = QueryLightLoop(context);
+                LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                 lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
-                ShadowInputs shadows = QueryShadowInputs(context);
+                ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
                 shadows.Read(passHandle);
                 passData.shadows = shadows;
                 passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.volumetricCloudShader = shaders.volumetricCloudShader;
-                passData.cloudKernel = kernels.volumetricCloud;
+                passData.volumetricCloudShader = m_Resources.shaders.volumetricCloudShader;
+                passData.cloudKernel = m_Resources.kernels.volumetricCloud;
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 passData.transmittanceLUTHandle = passHandle.ReadTexture(transmittanceLUTHandle);
                 passData.historyTextureHandle = passHandle.ReadTexture(historyTextureHandle);
@@ -165,7 +174,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryVolumetricCloud(in CameraRecordContext context)
+        internal void CopyHistoryVolumetricCloud(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.VolumetricCloud))
             {

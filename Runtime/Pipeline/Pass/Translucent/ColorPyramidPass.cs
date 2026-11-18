@@ -79,8 +79,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ColorPyramidPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal ColorPyramidPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct ColorPyramidPassData
         {
             public int mipCount;
@@ -97,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeColorPyramid(in CameraRecordContext context)
+        internal void ComputeColorPyramid(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ColorPyramid))
             {
@@ -111,14 +120,14 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor colorPyramidDsc = CreateColorPyramidDescriptor(width, height, ColorPyramidPassUtilityData.TextureName);
             RGTextureHandle colorPyramidTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ColorPyramidBuffer, colorPyramidDsc);
 
-            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
+            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
 
             {
                 RGComputePassHandle<ColorPyramidPassData> passHandle = m_RGBuilder.AddComputePass<ColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeColorPyramid));
                 ref ColorPyramidPassData passData = ref passHandle.GetPassData();
                 passData.mipCount = mipCount;
                 passData.resolution = new int2(width, height);
-                passData.kernel = kernels.colorPyramid;
+                passData.kernel = m_Resources.kernels.colorPyramid;
                 passData.lightingTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
                 passData.colorPyramidTextureHandle = passHandle.WriteTexture(colorPyramidTextureHandle);
 

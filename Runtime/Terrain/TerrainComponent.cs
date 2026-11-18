@@ -3,12 +3,11 @@ using UnityEditor;
 #endif
 using UnityEngine;
 using Unity.Mathematics;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Core;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
 {
-    //[ExecuteInEditMode]
 #if UNITY_EDITOR
     [CanEditMultipleObjects]
 #endif
@@ -55,25 +54,22 @@ namespace InfinityTech.Component
         [HideInInspector]
         public TerrainSector terrainSector;
 
+        // The live set of terrains by entity id: the authority the scene world's terrain table derives from.
+        internal static readonly ComponentRegistry<TerrainComponent> s_Registry = new ComponentRegistry<TerrainComponent>();
+        ulong m_RegistryId;
+
         protected override void OnRegister()
         {
             terrainSector?.Initialize();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-            RenderTaskQueue.AddTask((RenderContext renderContext) =>
-            {
-                renderContext.AddWorldTerrain(this);
-            });
+            m_RegistryId = UnityEntityId.ToUInt64(this);
+            s_Registry.Register(m_RegistryId, this);
         }
 
         protected override void UnRegister()
         {
             terrainSector?.Dispose();
-
-            TerrainComponent self = this;
-            RenderTaskQueue.AddTask((RenderContext renderContext) =>
-            {
-                renderContext.RemoveWorldTerrain(self);
-            });
+            s_Registry.Unregister(m_RegistryId);
         }
 
         public void ProcessLOD(in float3 viewOrigin, in float4x4 projectionMatrix)

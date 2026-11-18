@@ -1,7 +1,6 @@
 using UnityEngine;
 using InfinityTech.Core;
 using InfinityTech.Rendering;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Component
@@ -11,8 +10,11 @@ namespace InfinityTech.Component
     [RequireComponent(typeof(Light))]
     [AddComponentMenu("InfinityRenderer/Additional Light Data")]
     [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "lights.md")]
-    public sealed class InfinityAdditionalLightData : BaseComponent
+    public sealed class InfinityAdditionalLightData : EntityComponent
     {
+        // The live set of light extensions by light entity id: the authority the scene world's light table derives from.
+        internal static readonly ComponentRegistry<InfinityAdditionalLightData> s_Registry = new ComponentRegistry<InfinityAdditionalLightData>();
+
         Light m_UnityLight;
         ulong m_RegisteredLightId;
 
@@ -137,23 +139,12 @@ namespace InfinityTech.Component
             m_EnableGeneration++;
             m_UnityLight = GetComponent<Light>();
             m_RegisteredLightId = UnityEntityId.ToUInt64(m_UnityLight);
-            ulong lightId = m_RegisteredLightId;
-            RenderTaskQueue.AddTask((RenderContext renderContext) =>
-            {
-                if (this && m_UnityLight)
-                {
-                    renderContext.AddWorldLight(lightId, this);
-                }
-            });
+            s_Registry.Register(m_RegisteredLightId, this);
         }
 
         protected override void UnRegister()
         {
-            ulong lightId = m_RegisteredLightId;
-            RenderTaskQueue.AddTask((RenderContext renderContext) =>
-            {
-                renderContext.RemoveWorldLight(lightId);
-            });
+            s_Registry.Unregister(m_RegisteredLightId);
         }
     }
 }

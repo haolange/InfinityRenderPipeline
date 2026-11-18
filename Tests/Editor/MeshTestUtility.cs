@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// A material state that no preset accepts: opaque presets end at queue 2999 and translucent presets require a
         /// translucent stage. World bookkeeping tests use it so that commits never resolve Unity objects.
         /// </summary>
-        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(MeshPassTable.TranslucentQueueMax + 1, 0, 0, 0);
+        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(InfinityMeshPasses.TranslucentQueueMax + 1, 0, 0, 0);
 
         internal static ComputeShader LoadMeshDrawShader()
         {
@@ -214,24 +214,30 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     }
 
     /// <summary>
-    /// Runs the GPU draw-list producer kernels directly over an explicit candidate table, bound the way
-    /// <c>MeshDrawGPUBackend.Produce</c> binds them, and reads back what they appended. Command <c>c</c> owns the stable range
+    /// Runs the GPU view and draw-list producer kernels directly over an explicit candidate table, bound the way
+    /// <c>MeshDrawGPUBackend.ProduceView</c> and <c>ProduceDrawList</c> bind them, and reads back what they wrote. A view kernel
+    /// writes one packed visibility word per entity slot; the list kernel reads it. Command <c>c</c> owns the stable range
     /// <c>[c * n, c * n + n)</c> and the fading range after all stable ranges, where <c>n</c> is the candidate count.
     /// </summary>
     internal sealed class MeshProducerRun : IDisposable
     {
+        internal const string CullView = "CullMeshView", CullViewOccluded = "CullMeshViewOccluded",
+            CullViewOccludedHistory = "CullMeshViewOccludedHistory", CullViewRemainder = "CullMeshViewRemainder";
+        static readonly string[] s_OccludedKernels = { CullViewOccluded, CullViewOccludedHistory, CullViewRemainder };
+
         readonly ComputeShader m_Shader;
         readonly MeshEntityColumns m_Columns;
-        readonly int m_CandidateCount, m_CommandCount;
-        readonly GraphicsBuffer m_Candidates, m_Meta, m_Args, m_Instances, m_Fades, m_Context, m_Drawn;
+        readonly int m_CandidateCount, m_CommandCount, m_EntityCount;
+        readonly GraphicsBuffer m_Candidates, m_Meta, m_Args, m_Instances, m_Fades, m_Context, m_Visibility, m_Drawn;
         readonly uint[] m_MetaValues;
 
-        internal MeshProducerRun(ComputeShader shader, in MeshEntityColumns columns, uint2[] candidates, int commandCount)
+        internal MeshProducerRun(ComputeShader shader, in MeshEntityColumns columns, uint2[] candidates, int commandCount, int entityCount)
         {
             m_Shader = shader;
             m_Columns = columns;
             m_CandidateCount = candidates.Length;
             m_CommandCount = commandCount;
+            m_EntityCount = Math.Max(1, entityCount);
             int n = Math.Max(1, m_CandidateCount);
             m_Candidates = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, sizeof(uint) * 2);
             m_Candidates.SetData(candidates);
@@ -248,23 +254,24 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Instances = new GraphicsBuffer(GraphicsBuffer.Target.Structured, commandCount * 2 * n, sizeof(uint));
             m_Fades = new GraphicsBuffer(GraphicsBuffer.Target.Structured, commandCount * 2 * n, sizeof(float));
             m_Context = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, System.Runtime.InteropServices.Marshal.SizeOf<MeshCullingContext>());
-            m_Drawn = new GraphicsBuffer(GraphicsBuffer.Target.Structured, n, sizeof(uint));
+            m_Visibility = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_EntityCount, sizeof(uint));
+            m_Drawn = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_EntityCount, sizeof(uint));
         }
 
-        /// <summary>Binds an occluder for the occluded kernels.</summary>
+        /// <summary>Binds an occluder for the occluded view kernels.</summary>
         internal void SetOccluder(Texture furthest, Matrix4x4 viewProjection, int width, int height, int mipCount)
         {
-            foreach (string kernel in new[] { "BuildDrawListOccluded", "BuildDrawListOccludedHistory", "BuildDrawListRemainder" })
+            foreach (string kernel in s_OccludedKernels)
                 m_Shader.SetTexture(m_Shader.FindKernel(kernel), "_MeshCullFurthest", furthest);
             m_Shader.SetMatrix("_MeshCullProjection", viewProjection);
             m_Shader.SetVector("_MeshCullFullExtent", new Vector4(width, height, 0, 0));
             m_Shader.SetInt("_MeshCullMipCount", mipCount);
         }
 
-        /// <summary>Binds the transform versions the history kernel compares.</summary>
+        /// <summary>Binds the transform versions the history view kernel compares.</summary>
         internal void SetHistory(GraphicsBuffer current, GraphicsBuffer currentGenerations, GraphicsBuffer previous, GraphicsBuffer previousGenerations, int currentCount, int previousCount)
         {
-            int kernel = m_Shader.FindKernel("BuildDrawListOccludedHistory");
+            int kernel = m_Shader.FindKernel(CullViewOccludedHistory);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentTransforms", current);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentGenerations", currentGenerations);
             m_Shader.SetBuffer(kernel, "_MeshCullPreviousTransforms", previous);
@@ -273,19 +280,15 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetInt("_MeshCullPreviousCount", previousCount);
         }
 
-        /// <summary>Initializes the arguments and runs one build kernel; the history kernel writes the drawn table, the remainder kernel reads it.</summary>
-        internal List<MeshDrawnInstance> Build(string kernelName, in MeshCullingContext context, bool dither = false)
+        /// <summary>The words a remainder view reads as its history view's visibility.</summary>
+        internal void SetDrawn(uint[] historyVisibility) => m_Drawn.SetData(historyVisibility);
+
+        /// <summary>Runs one view kernel over every entity slot and returns the packed visibility it wrote.</summary>
+        internal uint[] Cull(string viewKernel, in MeshCullingContext context)
         {
             m_Context.SetData(new[] { context });
-            int initialize = m_Shader.FindKernel("InitializeIndirectArgs");
-            m_Shader.SetInt("_CommandCount", m_CommandCount);
-            m_Shader.SetBuffer(initialize, "_CommandMeta", m_Meta);
-            m_Shader.SetBuffer(initialize, "_IndirectArgs", m_Args);
-            m_Shader.Dispatch(initialize, Math.Max(1, (m_CommandCount + 63) / 64), 1, 1);
-
-            int kernel = m_Shader.FindKernel(kernelName);
-            m_Shader.SetInt("_CandidateCount", m_CandidateCount);
-            m_Shader.SetInt("_DitherLod", dither ? 1 : 0);
+            int kernel = m_Shader.FindKernel(viewKernel);
+            m_Shader.SetInt("_EntityCount", m_EntityCount);
             m_Shader.SetBuffer(kernel, "_CullingContext", m_Context);
             m_Shader.SetBuffer(kernel, "_EntityBoundsCenter", m_Columns.center);
             m_Shader.SetBuffer(kernel, "_EntityBoundsExtent", m_Columns.extent);
@@ -294,14 +297,57 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(kernel, "_EntitySceneCullingMask", m_Columns.scenes);
             m_Shader.SetBuffer(kernel, "_EntityRenderingLayer", m_Columns.renderingLayers);
             m_Shader.SetBuffer(kernel, "_EntityLodChains", m_Columns.lodChains);
+            m_Shader.SetBuffer(kernel, "UAV_MeshViewVisibility", m_Visibility);
+            if (viewKernel == CullViewRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
+            m_Shader.Dispatch(kernel, Math.Max(1, (m_EntityCount + 63) / 64), 1, 1);
+            var visibility = new uint[m_EntityCount];
+            m_Visibility.GetData(visibility);
+            return visibility;
+        }
+
+        /// <summary>Initializes the arguments and runs the list kernel over the visibility the last view kernel wrote.</summary>
+        internal List<MeshDrawnInstance> BuildList(bool dither = false)
+        {
+            int initialize = m_Shader.FindKernel("InitializeIndirectArgs");
+            m_Shader.SetInt("_CommandCount", m_CommandCount);
+            m_Shader.SetBuffer(initialize, "_CommandMeta", m_Meta);
+            m_Shader.SetBuffer(initialize, "_IndirectArgs", m_Args);
+            m_Shader.Dispatch(initialize, Math.Max(1, (m_CommandCount + 63) / 64), 1, 1);
+
+            int kernel = m_Shader.FindKernel("BuildDrawList");
+            m_Shader.SetInt("_CandidateCount", m_CandidateCount);
+            m_Shader.SetInt("_DitherLod", dither ? 1 : 0);
+            m_Shader.SetBuffer(kernel, "SRV_MeshViewVisibility", m_Visibility);
             m_Shader.SetBuffer(kernel, "_CandidateTable", m_Candidates);
             m_Shader.SetBuffer(kernel, "_CommandMeta", m_Meta);
             m_Shader.SetBuffer(kernel, "_IndirectArgs", m_Args);
             m_Shader.SetBuffer(kernel, "_InstanceToEntity", m_Instances);
             m_Shader.SetBuffer(kernel, "_InstanceFade", m_Fades);
-            if (kernelName == "BuildDrawListOccludedHistory" || kernelName == "BuildDrawListRemainder") m_Shader.SetBuffer(kernel, "_DrawnCandidates", m_Drawn);
             m_Shader.Dispatch(kernel, Math.Max(1, (m_CandidateCount + 63) / 64), 1, 1);
             return Read();
+        }
+
+        /// <summary>One view kernel, then the list of one pass of that view.</summary>
+        internal List<MeshDrawnInstance> Build(string viewKernel, in MeshCullingContext context, bool dither = false)
+        {
+            Cull(viewKernel, context);
+            return BuildList(dither);
+        }
+
+        /// <summary>The packed visibility the last view kernel wrote.</summary>
+        internal uint[] Visibility()
+        {
+            var visibility = new uint[m_EntityCount];
+            m_Visibility.GetData(visibility);
+            return visibility;
+        }
+
+        /// <summary>Per entity slot, 1 where the packed word says visible.</summary>
+        internal static uint[] Visible(uint[] visibility)
+        {
+            var bits = new uint[visibility.Length];
+            for (int i = 0; i < visibility.Length; ++i) bits[i] = visibility[i] & 1u;
+            return bits;
         }
 
         List<MeshDrawnInstance> Read()
@@ -325,14 +371,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return result;
         }
 
-        /// <summary>The drawn table the history kernel wrote, one word per candidate.</summary>
-        internal uint[] DrawnCandidates()
-        {
-            var drawn = new uint[m_Drawn.count];
-            m_Drawn.GetData(drawn);
-            return drawn;
-        }
-
         public void Dispose()
         {
             m_Candidates.Release();
@@ -341,6 +379,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Instances.Release();
             m_Fades.Release();
             m_Context.Release();
+            m_Visibility.Release();
             m_Drawn.Release();
         }
     }
@@ -357,7 +396,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         {
             shader = MeshTestUtility.LoadMeshDrawShader();
             pool = new ResourcePool();
-            try { world = new MeshWorld(pool, shader); }
+            try { world = new MeshWorld(pool, shader, InfinityMeshPasses.all); }
             catch
             {
                 pool.Dispose();

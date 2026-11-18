@@ -48,15 +48,5 @@ namespace InfinityTech.Rendering.Pipeline
                 return m_FullScreenMesh;
             }
         }
-
-        // Compute UAV / sampled RT y=0 is the top of the image. Reconstructing with
-        // GetGPUProjectionMatrix(..., renderIntoTexture: true) maps that row to NDC y = -1,
-        // which this GPU projection treats as the bottom of the view. High-elevation sky
-        // then samples below-horizon SkyView texels (black). Scene and Game both write
-        // depth in the unflipped convention the raster attachments actually store.
-        internal static Matrix4x4 GetComputeGpuProjection(Camera camera)
-        {
-            return GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-        }
     }
 }

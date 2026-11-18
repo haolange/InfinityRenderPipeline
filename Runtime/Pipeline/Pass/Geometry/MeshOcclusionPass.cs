@@ -6,52 +6,99 @@ using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial class InfinityRenderPipeline
+    /// <summary>
+    /// The camera's main mesh views. With two-stage occlusion, <see cref="depthViewHandle"/> tests the previous frame's Hi-Z,
+    /// <see cref="recoveryViewHandle"/> draws what it left against the early Hi-Z of that depth, and
+    /// <see cref="mainViewHandle"/> tests the early Hi-Z for every later pass. Otherwise the three are one frustum view.
+    /// </summary>
+    internal readonly struct MeshMainViews
     {
-        // Two-stage occlusion of the main camera context on the GPU backend: the depth list tests against the previous
-        // frame's Hi-Z, an early pyramid of that depth replaces it, and a second depth list draws what the first left. A
-        // reset, a first frame or a non-temporal camera has no history to test, so every list is frustum-only.
-        bool RegisterMeshHistoryOccluder(in CameraRecordContext context, in MeshMotionBinding motion)
+        internal readonly RGMeshViewHandle depthViewHandle;
+        internal readonly RGMeshViewHandle recoveryViewHandle;
+        internal readonly RGMeshViewHandle mainViewHandle;
+        internal readonly bool twoStage;
+
+        internal MeshMainViews(in RGMeshViewHandle depthViewHandle, in RGMeshViewHandle recoveryViewHandle, in RGMeshViewHandle mainViewHandle, bool twoStage)
         {
-            MeshWorld world = renderContext.meshWorld;
-            if (!context.policy.temporal || !context.features.ShouldRecord(EFrameFeature.HiZ) || world.entityCount == 0
-                || world.SelectBackend(MeshPassTable.Depth) != EMeshDrawBackendPolicy.GPUIndirect
-                || context.resetsHistory || motion.previous == null)
-            {
-                return false;
-            }
-            int2 size = context.dimensions.internalSize;
-            HistoryRead previous = context.historyCache.Read(HiZPassUtilityData.HistoryFurthest, HiZDescriptor(size.x, size.y, "HiZFurthest"), context.resetsHistory);
-            if (!previous.valid || !context.state.acceptedHiZ)
-            {
-                return false;
-            }
-            m_RGBuilder.RegisterMeshOccluder(context.mainCulling, new MeshOccluder(m_RGBuilder.ImportTexture(previous.textureHandle),
-                context.cameraUniform.matrix_LastViewFlipYJitterProj, size, HiZMipCount(size), true));
-            return true;
+            this.depthViewHandle = depthViewHandle;
+            this.recoveryViewHandle = recoveryViewHandle;
+            this.mainViewHandle = mainViewHandle;
+            this.twoStage = twoStage;
+        }
+    }
+
+    internal sealed class MeshOcclusionPass
+    {
+        readonly RGBuilder m_RGBuilder;
+        readonly HiZPass m_HiZPass;
+        readonly MeshPassId m_DepthMeshPass;
+
+        internal MeshOcclusionPass(RGBuilder graph, HiZPass hiZPass, MeshPassId depthMeshPass)
+        {
+            m_RGBuilder = graph;
+            m_HiZPass = hiZPass;
+            m_DepthMeshPass = depthMeshPass;
         }
 
-        void RegisterMeshEarlyOccluder(in CameraRecordContext context)
+        // Two-stage occlusion of the main camera view on the GPU backend: the depth list tests the previous frame's Hi-Z, an
+        // early pyramid of that depth follows, and a remainder view draws what the first list left. A reset, a first frame
+        // or a non-temporal camera has no history to test, so the main views are one frustum view and nothing follows.
+        // With two stages, only depthViewHandle is valid until CullEarlyViews.
+        internal MeshMainViews CullMainViews(in ViewContext context, in MeshMotionBinding motion)
+        {
+            MeshWorld world = context.meshes;
+            bool history = context.policy.temporal && context.features.ShouldRecord(EFrameFeature.HiZ) && world.entityCount > 0
+                && world.SelectBackend(m_DepthMeshPass) == EMeshDrawBackendPolicy.GPUIndirect
+                && !context.resetsHistory && motion.previous != null;
+            HistoryRead previous = default;
+            int2 size = context.dimensions.internalSize;
+            if (history)
+            {
+                previous = context.historyCache.Read(HiZPassUtilityData.HistoryFurthest, HiZPass.HiZDescriptor(size.x, size.y, "HiZFurthest"), context.resetsHistory);
+                history = previous.valid && context.state.acceptedHiZ;
+            }
+            if (!history)
+            {
+                RGMeshViewHandle frustumViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(context.mainCulling, motion, MeshOccluder.None));
+                return new MeshMainViews(frustumViewHandle, frustumViewHandle, frustumViewHandle, false);
+            }
+            var historyOccluder = new MeshOccluder(m_RGBuilder.ImportTexture(previous.textureHandle),
+                context.cameraUniform.matrix_LastViewFlipYJitterProj, size, HiZMipCount(size), true);
+            RGMeshViewHandle historyViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(context.mainCulling, motion, historyOccluder));
+            return new MeshMainViews(historyViewHandle, default, default, true);
+        }
+
+        // The furthest Hi-Z of the depth the history view's list drew, recorded after that depth.
+        internal MeshOccluder CreateEarlyOccluder(in ViewContext context)
         {
             int2 size = context.dimensions.internalSize;
-            m_RGBuilder.RegisterMeshOccluder(context.mainCulling, new MeshOccluder(ComputeEarlyFurthestHiZ(),
-                context.cameraUniform.matrix_ViewFlipYJitterProj, size, HiZMipCount(size), false));
+            return new MeshOccluder(m_HiZPass.ComputeEarlyFurthestHiZ(), context.cameraUniform.matrix_ViewFlipYJitterProj, size, HiZMipCount(size), false);
+        }
+
+        // The second stage: the remainder of the history view, and the main view every later pass draws, both against the
+        // early occluder.
+        internal MeshMainViews CullEarlyViews(in ViewContext context, in MeshMotionBinding motion, in MeshMainViews views, in MeshOccluder earlyOccluder)
+        {
+            RGMeshViewHandle recoveryViewHandle = m_RGBuilder.CullMeshViewRemainder(views.depthViewHandle, earlyOccluder);
+            RGMeshViewHandle mainViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(context.mainCulling, motion, earlyOccluder));
+            return new MeshMainViews(views.depthViewHandle, recoveryViewHandle, mainViewHandle, true);
         }
 
         // Mip 0 of a pyramid is half the full extent (HiZDescriptor).
         static int HiZMipCount(int2 size) => PyramidMipBatch.MipCount((size.x + 1) / 2, (size.y + 1) / 2);
 
-        void RasterDepthRecovery(in CameraRecordContext context)
+        // The remainder depth list: what the history view's depth list left visible under the early occluder.
+        internal void RasterDepthRecovery(in RGMeshViewHandle recoveryViewHandle)
         {
-            RGMeshDrawListHandle drawsHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));
+            RGMeshDrawListHandle drawsHandle = m_RGBuilder.CreateMeshDrawList(recoveryViewHandle, m_DepthMeshPass);
             {
-                RGRasterPassHandle<DepthPassData> passHandle = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery));
+                RGRasterPassHandle<DepthPass.DepthPassData> passHandle = m_RGBuilder.AddRasterPass<DepthPass.DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery));
                 passHandle.SetDepthStencilAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer),
                     RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
-                ref DepthPassData passData = ref passHandle.GetPassData();
+                ref DepthPass.DepthPassData passData = ref passHandle.GetPassData();
                 passData = default;
                 passData.meshDrawListHandle = passHandle.UseMeshDrawList(drawsHandle);
-                passHandle.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder commands) => commands.SubmitMeshDrawList(passData.meshDrawListHandle));
+                passHandle.SetExecuteFunc((in DepthPass.DepthPassData passData, in RGRasterEncoder commands) => commands.SubmitMeshDrawList(passData.meshDrawListHandle));
             }
         }
     }

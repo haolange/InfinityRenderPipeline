@@ -13,17 +13,26 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string DBufferCName = "DBufferTextureC";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class DBufferPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal DBufferPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+        }
+
         struct DBufferPassData
         {
             public RGRendererListHandle rendererListHandle;
             public RGTextureHandle depthTextureHandle;
         }
 
-        void RasterDBuffer(in CameraRecordContext context)
+        internal void RasterDBuffer(in ViewContext context)
         {
-            if (renderContext.WorldDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            if (context.decalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }

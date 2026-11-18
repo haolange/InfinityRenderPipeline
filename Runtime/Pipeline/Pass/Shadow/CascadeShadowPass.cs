@@ -20,8 +20,19 @@ namespace InfinityTech.Rendering.Pipeline
 
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class CascadeShadowPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly MeshPassId m_ShadowMeshPass;
+
+        internal CascadeShadowPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId shadowMeshPass)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+            m_ShadowMeshPass = shadowMeshPass;
+        }
+
         struct CascadeShadowPassData
         {
             public int cascadeCount;
@@ -35,11 +46,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListHandle[] rendererListsHandle;
         }
 
-        void RasterCascadeShadow(in CameraRecordContext context)
+        internal void RasterCascadeShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.cascadeShadowMapResolution;
             int cascadeCount = ShadowAllocator.CascadeCount;
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
 
             TextureDescriptor shadowMapDsc = new TextureDescriptor(shadowMapResolution * 2, shadowMapResolution * 2);
             {
@@ -69,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (lightIndex >= 0)
             {
                 Light shadowLight = context.cullingResults.visibleLights[lightIndex].light;
-                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
+                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight, context.shadowmaskMode);
                 bool hasNativeCasters = context.cullingResults.GetShadowCasterBounds(lightIndex, out _);
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -79,8 +90,10 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         continue;
                     }
-                    cascadeMeshDrawListsHandle[cascade] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
-                        CameraCulling.Context(context.camera, shadowLight, slice.splitData), InfinityPassIDs.RasterShadowPass));
+                    // Each cascade is its own light view: no camera occluder and no motion reach it.
+                    RGMeshViewHandle cascadeViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(
+                        CameraCulling.Context(context.camera, shadowLight, slice.splitData), default, MeshOccluder.None));
+                    cascadeMeshDrawListsHandle[cascade] = m_RGBuilder.CreateMeshDrawList(cascadeViewHandle, m_ShadowMeshPass);
                     if (!hasNativeCasters)
                     {
                         continue;

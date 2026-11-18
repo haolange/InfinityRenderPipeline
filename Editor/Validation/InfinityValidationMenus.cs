@@ -313,8 +313,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
             builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
 
-            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
-            if (pipeline == null || pipeline.renderContext == null || pipeline.renderContext.lightContext == null)
+            InfinityRenderPipelineBase pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
+            if (pipeline == null || pipeline.renderContext == null || pipeline.renderContext.sceneWorld.lights.context == null)
             {
                 builder.Append("pipeline=null").AppendLine();
                 File.WriteAllText(path, builder.ToString());
@@ -322,7 +322,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 return;
             }
 
-            pipeline.renderContext.lightContext.WriteValidationDump(builder);
+            pipeline.renderContext.sceneWorld.lights.context.WriteValidationDump(builder);
             Light[] lights = UnityEngine.Object.FindObjectsByType<Light>();
             builder.Append("sceneLights=").Append(lights.Length).AppendLine();
             for (int i = 0; i < lights.Length; ++i)
@@ -350,7 +350,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
             builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
 
-            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            InfinityRenderPipelineBase pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             if (pipeline == null || pipeline.renderContext == null)
             {
                 builder.Append("pipeline=null").AppendLine();
@@ -360,11 +360,11 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
 
             RenderContext renderContext = pipeline.renderContext;
-            MeshWorld world = renderContext.meshWorld;
-            builder.Append("worldDecalCount=").Append(renderContext.WorldDecalCount).AppendLine();
-            builder.Append("worldLights=").Append(renderContext.GetWorldLight().Count).AppendLine();
-            builder.Append("directionalLights=").Append(renderContext.lightContext.DirectionalLightCount).AppendLine();
-            builder.Append("localLights=").Append(renderContext.lightContext.LocalLightCount).AppendLine();
+            MeshWorld world = renderContext.sceneWorld.meshes;
+            builder.Append("worldDecalCount=").Append(renderContext.sceneWorld.decals.table.count).AppendLine();
+            builder.Append("worldLights=").Append(renderContext.sceneWorld.lights.table.count).AppendLine();
+            builder.Append("directionalLights=").Append(renderContext.sceneWorld.lights.context.DirectionalLightCount).AppendLine();
+            builder.Append("localLights=").Append(renderContext.sceneWorld.lights.context.LocalLightCount).AppendLine();
             builder.Append("meshEntities=").Append(world.entityCount).AppendLine();
             builder.Append("meshElements=").Append(world.elementCount).AppendLine();
             builder.Append("dynamicMeshEntities=").Append(world.dynamicEntityCount).AppendLine();

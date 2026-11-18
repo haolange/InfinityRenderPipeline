@@ -46,8 +46,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ContactShadowPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal ContactShadowPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct ContactShadowPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -61,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Requested in the content phase: the Volume is active and the sun or a local light has Contact Shadows on.
-        void ComputeContactShadow(in CameraRecordContext context)
+        internal void ComputeContactShadow(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ContactShadow))
             {
@@ -97,17 +106,17 @@ namespace InfinityTech.Rendering.Pipeline
                     depthParams = ContactShadowPassUtilityData.DepthParams(context.camera),
                     numSteps = settings.numSteps,
                     sunNumSteps = settings.sunNumSteps,
-                    frameIndex = Time.frameCount,
+                    frameIndex = context.frame,
                     maxDistance = settings.maxDistance,
                     thickness = settings.thickness,
                     intensity = settings.intensity,
                     fadeDistance = settings.fadeDistance
                 });
-                LightLoopInputs lightLoop = QueryLightLoop(context);
+                LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                 lightLoop.Read(passHandle);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBufferHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.kernel = kernels.contactShadow;
+                passData.kernel = m_Resources.kernels.contactShadow;
                 passData.depthTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
                 passData.sunTextureHandle = passHandle.WriteTexture(sunTextureHandle);
                 passData.maskTextureHandle = passHandle.WriteTexture(maskTextureHandle);

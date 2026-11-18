@@ -36,13 +36,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void Pipeline_RestoresOnlyOwnedGraphicsState(bool replacementOwnsState, bool editResourceBindings, bool replacementOwnsLightmapper)
         {
             var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-            var type = typeof(InfinityRenderPipeline);
+            // The base declares the global-state members; the instance is the concrete desktop pipeline.
+            var type = typeof(InfinityRenderPipelineBase);
             var create = typeof(System.Runtime.CompilerServices.RuntimeHelpers).GetMethod("GetUninitializedObject");
             Assert.IsNotNull(create);
             // Exercise the actual production global-state methods without constructing a second renderer,
             // initializing VolumeManager or touching shared mesh/static draw ownership.
-            var pipeline = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
-            var testResources = new InfinityRenderPipelineResources();
+            var pipeline = (InfinityRenderPipelineBase)create.Invoke(null, new object[] { typeof(InfinityRenderPipeline) });
+            var testResources = new InfinityRenderPipelineResources(InfinityRenderPipeline.s_Capabilities.requiredProducers);
             Material originalResourceBlit = testResources.materials.blitMaterial;
             Texture2D originalResourceBestFit = testResources.textures.bestFitNormalTexture;
             type.GetField("resources", flags).SetValue(pipeline, testResources);
@@ -118,7 +119,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(2)]
         public void Lightmapper_OutOfOrderReleasePreservesLiveOwnerAndExternalDelegates(int replacementPoint)
         {
-            var type = typeof(InfinityRenderPipeline);
+            var type = typeof(InfinityRenderPipelineBase);
             var instanceFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
             var ownerField = type.GetField("s_LightmapperStateOwner", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
             var create = typeof(System.Runtime.CompilerServices.RuntimeHelpers).GetMethod("GetUninitializedObject");
@@ -130,9 +131,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f0 = (lights, output) => { };
             UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f1 = (lights, output) => { };
             UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f2 = (lights, output) => { };
-            var o = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
-            var a = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
-            var b = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
+            var instanceType = typeof(InfinityRenderPipeline);
+            var o = (InfinityRenderPipelineBase)create.Invoke(null, new object[] { instanceType });
+            var a = (InfinityRenderPipelineBase)create.Invoke(null, new object[] { instanceType });
+            var b = (InfinityRenderPipelineBase)create.Invoke(null, new object[] { instanceType });
             try
             {
                 UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(f0);

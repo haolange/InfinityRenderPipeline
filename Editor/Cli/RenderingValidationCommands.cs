@@ -125,9 +125,9 @@ namespace InfinityTech.Rendering.Editor
         [CliCommand("infinity_mesh_state", "Read current MeshWorld entity, element and pass-cache data for the selected Editor without altering it.")]
         public static object MeshState()
         {
-            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipelineBase;
             if (pipeline == null) throw new InvalidOperationException("Infinity is not the active pipeline.");
-            MeshWorld world = pipeline.renderContext.meshWorld;
+            MeshWorld world = pipeline.renderContext.sceneWorld.meshes;
             var entities = new System.Collections.Generic.List<object>();
             for (int i = 0; i < world.entityHighWater; i++)
             {
@@ -141,6 +141,7 @@ namespace InfinityTech.Rendering.Editor
                 passes.Add(new { pass = cache.desc.ToString(), members = cache.memberCount, commands = cache.commandCount });
             return new { entityCount = world.entityCount, elementCount = world.elementCount, dynamicCount = world.dynamicEntityCount,
                 lastRecordedCamera = world.stats.camera != null ? world.stats.camera.name : null,
+                lastCameraRecordedViewProductions = world.stats.viewProductions,
                 lastCameraRecordedDrawListProductions = world.stats.drawListProductions,
                 lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches, entities, passes };
         }

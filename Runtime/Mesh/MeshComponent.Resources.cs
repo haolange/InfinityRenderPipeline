@@ -104,7 +104,7 @@ namespace InfinityTech.Component
         /// <summary>A registered component holds one reference on its asset's geometry state; an unregistered one holds none.</summary>
         void RefreshGeometryReference()
         {
-            if (!s_Registered.Contains(this))
+            if (!s_Registry.Contains(m_RegistryId))
             {
                 return;
             }
@@ -142,7 +142,7 @@ namespace InfinityTech.Component
         static void InvalidateGeometry(GeometryState state)
         {
             state.stale = true;
-            foreach (var component in s_Registered)
+            foreach (var component in s_Registry.components)
                 if (ReferenceEquals(component.m_Geometry, state))
                 {
                     component.MarkDirty();

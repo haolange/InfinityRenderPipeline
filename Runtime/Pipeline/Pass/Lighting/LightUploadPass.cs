@@ -5,15 +5,22 @@ using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial class InfinityRenderPipeline
+    internal sealed class LightUploadPass
     {
+        readonly RGBuilder m_RGBuilder;
+
+        internal LightUploadPass(RGBuilder graph)
+        {
+            m_RGBuilder = graph;
+        }
+
         static readonly ProfilingSampler s_LightUpload = new ProfilingSampler("UploadLightData");
         struct LightUploadPassData
         {
             public LightContext context;
         }
 
-        void UploadLightData(LightContext context)
+        internal void UploadLightData(LightContext context)
         {
             {
                 RGTransferPassHandle<LightUploadPassData> passHandle = m_RGBuilder.AddTransferPass<LightUploadPassData>(s_LightUpload);

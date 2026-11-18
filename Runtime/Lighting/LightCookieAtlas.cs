@@ -153,6 +153,12 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 return;
             }
+            RecreateLayout(atlasSize, maxBlockSize);
+        }
+
+        // Runs only when the atlas size or block size changes: every packed cookie is forgotten with the old layout.
+        void RecreateLayout(int atlasSize, int maxBlockSize)
+        {
             AtlasSize = atlasSize;
             MaxBlockSize = maxBlockSize;
             m_Entries.Clear();

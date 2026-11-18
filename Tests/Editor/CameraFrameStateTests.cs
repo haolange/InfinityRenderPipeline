@@ -152,7 +152,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.MarkSupported(EFrameFeature.Display);
             features.MarkProduced(EFrameFeature.Display);
 
-            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(ETemporalResolve.TAA));
+            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, ETemporalResolve.TAA));
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.DBuffer));
         }
 
@@ -163,7 +163,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.Request(EFrameFeature.Depth);
             features.MarkSupported(EFrameFeature.Depth);
             features.MarkProduced(EFrameFeature.Depth);
-            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(ETemporalResolve.TAA));
+            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, ETemporalResolve.TAA));
         }
 
         [Test]

@@ -1,18 +1,26 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Diagnostics;
 using Unity.Profiling;
+using UnityEngine;
+using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // Bounded diagnostics only. Observers read completed samples outside the measured call chain.
+    // Bounded diagnostics only. Observers read completed samples outside the measured call chain. One record describes
+    // one Render call: Unity renders the Scene view and the Game view in separate calls, so a record carries the camera
+    // types it rendered and `sequence` tells a reader that a new record completed.
     internal static class PipelineFrameMeasurement
     {
         internal static bool enabled;
         // GC.Alloc counts managed allocations on this thread inside the scope. No profiler counter reports bytes for
         // the same scope, so allocation size is not measured here.
         internal static long frameAllocations, proxyAllocations, frameTicks, proxyTicks, sequence;
-        static ProfilerRecorder s_FrameAllocations, s_ProxyAllocations, s_SubmitAllocations;
+        // CameraType flags of the cameras the last completed Render call rendered.
+        internal static int frameCameraTypes;
+        // GC.Alloc count inside ScriptableRenderContext.Submit of the last completed Render call (part of frameAllocations).
         internal static long nativeSubmitAllocations;
+        static ProfilerRecorder s_FrameAllocations, s_ProxyAllocations, s_SubmitAllocations;
         static ProfilerRecorder Recorder(bool proxy)
         {
             ref var recorder = ref (proxy ? ref s_ProxyAllocations : ref s_FrameAllocations);
@@ -98,15 +106,27 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
+        internal static int CameraTypesOf(List<Camera> cameras)
+        {
+            int types = 0;
+            for (int i = 0; i < cameras.Count; ++i)
+            {
+                types |= (int)cameras[i].cameraType;
+            }
+            return types;
+        }
+
         internal readonly struct Scope : IDisposable
         {
             readonly bool m_Enabled, m_Proxy;
+            readonly int m_CameraTypes;
             readonly long m_Ticks;
             readonly ProfilerRecorder m_Allocations;
-            internal Scope(bool proxy)
+            internal Scope(bool proxy, int cameraTypes)
             {
                 m_Enabled = enabled;
                 m_Proxy = proxy;
+                m_CameraTypes = cameraTypes;
                 if (m_Enabled && !proxy)
                 {
                     nativeSubmitAllocations = 0;
@@ -137,9 +157,11 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     frameAllocations = count;
                     frameTicks = ticks;
+                    frameCameraTypes = m_CameraTypes;
                     ++sequence;
                 }
             }
         }
     }
 }
+#endif

@@ -13,7 +13,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void ExplicitImportUsesTerrainDataWithoutColliderAndSurvivesReenable()
         {
-            int start = RenderTaskQueue.GraphicsTasks.Count;
             var data = new TerrainData { heightmapResolution = 65, size = new Vector3(64, 10, 64) };
             var go = new GameObject("OwnedTerrainAuthoring");
             go.SetActive(false);
@@ -30,7 +29,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 // TerrainComponent runs in Play mode. Exercise its native lifecycle messages in this EditMode fixture.
                 Lifecycle(component, "OnEnable");
                 Assert.IsTrue(sector.m_Sections.IsCreated);
+                Assert.IsTrue(TerrainComponent.s_Registry.Contains(InfinityTech.Core.UnityEntityId.ToUInt64(component)), "An enabled terrain is in the registry the scene world derives its terrain table from.");
                 Lifecycle(component, "OnDisable");
+                Assert.IsFalse(TerrainComponent.s_Registry.Contains(InfinityTech.Core.UnityEntityId.ToUInt64(component)));
                 go.SetActive(false);
                 Assert.IsFalse(sector.m_Sections.IsCreated);
                 Assert.AreSame(sector, component.terrainSector, "Disabling releases runtime storage, not authored sector data.");
@@ -43,7 +44,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 UnityEngine.Object.DestroyImmediate(go);
                 UnityEngine.Object.DestroyImmediate(data);
-                RenderTaskQueue.GraphicsTasks.RemoveRange(start, RenderTaskQueue.GraphicsTasks.Count - start);
             }
         }
 

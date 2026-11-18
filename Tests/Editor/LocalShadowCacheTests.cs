@@ -99,14 +99,27 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsTrue(second, "Acquire alone never publishes a depth tile");
         }
 
+        // The complete production of light 1, or null when the cache resolves none.
+        LocalShadowCache.SamplingState[] Resolve(int version, int frame)
+        {
+            var faces = new LocalShadowCache.SamplingState[6];
+            int count = m_Cache.ResolveSampling(1, ulong.MaxValue, version, frame, faces);
+            if (count == 0)
+            {
+                return null;
+            }
+            System.Array.Resize(ref faces, count);
+            return faces;
+        }
+
         [Test]
         public void QueuedOnDemandSampling_IgnoresSameFrameHashChanges()
         {
             ProduceGroup(1, 0, 1, 10);
-            Assert.IsNotNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1));
+            Assert.IsNotNull(Resolve(0, 1));
             m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 999, 0, 1, out bool render);
             Assert.IsFalse(render);
-            Assert.AreEqual(10, m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1)[0].production);
+            Assert.AreEqual(10, Resolve(0, 1)[0].production);
         }
 
         [Test]
@@ -116,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out _);
             m_Cache.SetPendingSampling(A, State(0, 6, 10, 1));
             m_Cache.MarkProduced(new[] { A }, 1);
-            Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1));
+            Assert.IsNull(Resolve(0, 1));
             m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out bool render);
             Assert.IsTrue(render);
         }
@@ -125,18 +138,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void OnDemandSampling_IsPairedWithQueuedDepth_AndRequestReplacesIt()
         {
             ProduceGroup(1, 0, 1, 10);
-            var pending = m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1);
+            var pending = Resolve(0, 1);
             Assert.AreEqual(1, pending.Length);
             m_Cache.CommitFrame();
-            var hit = m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 2);
+            var hit = Resolve(0, 2);
             Assert.AreEqual(State(0, 1, 10, 1).slice.shadowMatrix, hit[0].slice.shadowMatrix);
             Assert.AreEqual(State(0, 1, 10, 1).gpu.shadowOriginSize, hit[0].gpu.shadowOriginSize);
             Assert.AreEqual(State(0, 1, 10, 1).gpu.depthParams, hit[0].gpu.depthParams);
             Assert.AreEqual(State(0, 1, 10, 1).gpu.momentParams, hit[0].gpu.momentParams);
-            Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 1, 2));
+            Assert.IsNull(Resolve(1, 2));
             ProduceGroup(1, 1, 2, 11);
             m_Cache.CommitFrame();
-            Assert.AreEqual(2, m_Cache.ResolveSampling(1, ulong.MaxValue, 1, 3)[0].gpu.shadowOriginSize.x);
+            Assert.AreEqual(2, Resolve(1, 3)[0].gpu.shadowOriginSize.x);
         }
 
         [TestCase(false)]
@@ -145,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             ProduceGroup(1, 0, 1, 10, queued);
             if (queued) m_Cache.RollbackPending();
-            Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 2));
+            Assert.IsNull(Resolve(0, 2));
         }
 
         [Test]
@@ -153,7 +166,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             m_Cache.Configure(3072, 512, 512);
             ProduceGroup(6, 0, 1, 10);
-            Assert.AreEqual(6, m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 1).Length);
+            Assert.AreEqual(6, Resolve(0, 1).Length);
             m_Cache.CommitFrame();
             var face = new ShadowCacheKey(1, 3);
             m_Cache.Acquire(face, EShadowUpdateMode.OnEnable, 99, 0, 2, out bool render);
@@ -161,7 +174,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Cache.SetPendingSampling(face, State(3, 6, 11, 2));
             m_Cache.MarkProduced(new[] { face }, 1);
             m_Cache.CommitFrame();
-            Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 3), "five old plus one new is not one cube production");
+            Assert.IsNull(Resolve(0, 3), "five old plus one new is not one cube production");
             for (int i = 0; i < 6; ++i) Assert.IsFalse(m_Cache.IsValid(new ShadowCacheKey(1, i)));
         }
 
@@ -175,7 +188,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Cache.SetPendingSampling(orphan, State(1, 6, 10, 1));
             m_Cache.MarkProduced(new[] { orphan }, 1);
             m_Cache.CommitFrame();
-            Assert.IsNull(m_Cache.ResolveSampling(1, ulong.MaxValue, 0, 2));
+            Assert.IsNull(Resolve(0, 2));
             Assert.IsFalse(m_Cache.IsValid(orphan));
         }
 

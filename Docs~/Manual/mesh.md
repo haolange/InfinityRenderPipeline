@@ -2,7 +2,7 @@
 
 `MeshComponent` objects are drawn by the pipeline's own mesh path instead of Unity renderer lists. Native `MeshRenderer`, `SkinnedMeshRenderer`, terrain and particles keep Unity culling and renderer lists, including lightmaps and light probes. The implementation is [ARCHITECTURE.md §7](../../ARCHITECTURE.md#7-mesh-drawing-pipeline).
 
-A pass records `new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass)` with `CreateMeshDrawList`, consumes it with `UseMeshDrawList`, and submits it with `SubmitMeshDrawList`. The list is `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. The world creates the nine pass caches with itself.
+A pass creates its list from the mesh view it receives and its pass id with `CreateMeshDrawList`, consumes it with `UseMeshDrawList`, and submits it with `SubmitMeshDrawList`; the pipeline culls the camera's views with `CullMeshView`. The list is `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. The world creates one pass cache per entry of the pipeline's mesh pass table with itself; the desktop pipeline has nine.
 
 ## Authoring
 
@@ -28,7 +28,7 @@ An asset has 1 to 8 levels and one mesh per level. The component's own material 
 
 LOD *i* draws while the object's screen size is at least its bound. Below the last bound the object is not drawn, unless that bound is 0. Screen size is the largest half-extent of the object's world bounds divided by the distance and by tan(fov / 2), scaled by **Quality Settings > LOD Bias**. That is the measure `LODGroup` transition heights use for an unrotated object; rotation can grow the world bounds by up to √3. Orthographic cameras divide by the orthographic size instead.
 
-Inside the band above a bound, opaque passes (depth, GBuffer, forward, motion and shadow) dither between the outgoing and the incoming level, so every pixel shows exactly one of them. Above a positive last bound there is no incoming level, so the object dithers out to nothing. Translucent passes draw the selected level only and switch without a fade. Shadow views select the level of the camera that renders them. Ray tracing uses LOD 0. GPU frustum culling of one camera is one dispatch; a view that already has an occlusion result reads that result. A reset or a first frame has no Hi-Z history, so that view is in the dispatch.
+Inside the band above a bound, opaque passes (depth, GBuffer, forward, motion and shadow) dither between the outgoing and the incoming level, so every pixel shows exactly one of them. Above a positive last bound there is no incoming level, so the object dithers out to nothing. Translucent passes draw the selected level only and switch without a fade. Shadow views select the level of the camera that renders them. Ray tracing uses LOD 0. On the GPU each view is culled once: one dispatch tests every object against the view's frustum, masks, LOD and occluder, and every pass that draws the view reads the result. A camera is one view, or three with two-stage occlusion (depth against the previous frame's Hi-Z, the recovery of what that hid, and the main view against this frame's early Hi-Z); each shadow cascade or local light face that renders adds one while any MeshComponent casts shadows. A reset or a first frame has no Hi-Z history, so the camera is a single frustum view. CPU Direct tests the objects of each pass in that pass's own job.
 
 ## Component settings
 
@@ -48,7 +48,7 @@ Mesh components store no lightmap and no per-instance probe data. A material may
 `meshBackendPolicy` on the [pipeline asset](pipeline-asset.md) selects Auto, CPU direct or GPU indirect. A camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU indirect use the GPU when the device supports compute and instancing.
 
 - CPU direct tests visibility, selects LOD and sorts in Burst jobs and issues one instanced draw per run of instances that share a command.
-- GPU indirect tests visibility and selects LOD in one compute producer per draw list and issues indirect draws in state order. It has no per-instance distance order. With temporal rendering and a valid Hi-Z history, opaque depth is drawn against the previous frame's Hi-Z first, then the remainder against this frame's.
+- GPU indirect tests visibility and selects LOD once per view in one compute producer, compacts each draw list from that result, and issues indirect draws in state order. It has no per-instance distance order. With temporal rendering and a valid Hi-Z history, opaque depth is drawn against the previous frame's Hi-Z first, then the remainder against this frame's.
 - Translucent color passes (T0/T1/T2) are sorted back to front and always use the CPU backend. The translucent depth pass sorts front to back on the selected backend.
 
 The Rendering Debugger's Infinity Mesh panel shows entity, element, pass-cache and command counts, the requested and actual backend, and the reason.

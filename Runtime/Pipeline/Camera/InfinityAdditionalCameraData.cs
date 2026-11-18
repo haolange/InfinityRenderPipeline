@@ -9,7 +9,7 @@ namespace InfinityTech.Component
     [RequireComponent(typeof(Camera))]
     [AddComponentMenu("InfinityRenderer/Additional Camera Data")]
     [HelpURL(InfinityTech.Core.InfinityDocumentation.BaseUrl + "cameras.md")]
-    public sealed class InfinityAdditionalCameraData : BaseComponent, IAdditionalData
+    public sealed class InfinityAdditionalCameraData : EntityComponent, IAdditionalData
     {
         public LayerMask volumeLayerMask = ~0;
         public Transform volumeTrigger;
@@ -45,10 +45,6 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             viewProfiler = new ProfilingSampler(name);
-        }
-
-        protected override void UnRegister()
-        {
         }
     }
 }

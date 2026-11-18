@@ -119,14 +119,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal BufferHandle candidateBufferHandle => m_CandidateBufferHandle;
         internal BufferHandle commandMetaBufferHandle => m_CommandMetaBufferHandle;
 
+        // The world validates its pass table; the route authority throws for a LightMode it does not route, before any
+        // native allocation.
         internal MeshPassCache(in MeshPassDesc desc)
         {
-            if (!MeshPassTable.IsMeshLightMode(desc.lightMode))
-                throw new ArgumentException($"'{desc.lightMode}' is not an Infinity mesh LightMode.", nameof(desc));
-            if (desc.queueMin > desc.queueMax)
-            {
-                throw new ArgumentException("queueMin exceeds queueMax.", nameof(desc));
-            }
             this.desc = desc;
             passSampler = MeshDrawProfiling.PassSampler(desc);
             scheduleMarker = MeshDrawProfiling.CpuMarker("Schedule", desc);

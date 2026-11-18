@@ -37,8 +37,27 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
         internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
     }
-    public partial class InfinityRenderPipeline
+    internal sealed class AntiAliasingPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly RenderCapturePass m_RenderCapturePass;
+#endif
+
+        internal AntiAliasingPass(RGBuilder graph, InfinityRenderPipelineResources resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            , RenderCapturePass renderCapturePass
+#endif
+            )
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            m_RenderCapturePass = renderCapturePass;
+#endif
+        }
+
         struct AntiAliasingPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -50,12 +69,12 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             public bool diagnostics;
             public RGTextureHandle confidenceHandle, reprojectionHandle;
-            public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
+            public RenderCapturePass.CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
 #endif
         }
-        static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
+        internal static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
             => TemporalDescriptor(name, width, height, GraphicsFormat.R16G16B16A16_SFloat, writable, domain);
-        static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
+        internal static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
             => TemporalDescriptor(name, width, height, GraphicsFormat.R32_SFloat, writable, domain);
         // Temporal inputs are read at texel centers with point sampling.
         static TextureDescriptor TemporalDescriptor(string name, int width, int height, GraphicsFormat format, bool writable, ETextureSizingDomain domain)
@@ -66,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeAntiAliasing(in CameraRecordContext context)
+        internal void ComputeAntiAliasing(in ViewContext context)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.TAA);
             var depthSource = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -86,9 +105,8 @@ namespace InfinityTech.Rendering.Pipeline
             context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
             context.historyCache.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
             var sharpened = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
-            m_RGBuilder.scoper.PublishTextureRole(InfinityShaderIDs.ResolvedSceneColor, sharpened);
-            var input = m_RGBuilder.scoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            ComputeKernel temporalKernel = kernels.temporalAntiAliasing;
+            var input = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
+            ComputeKernel temporalKernel = m_Resources.kernels.temporalAntiAliasing;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // A debug view or a confidence capture reads the diagnostics kernel's extra outputs.
             bool diagnostics = context.debugView != EDebugView.None
@@ -101,7 +119,7 @@ namespace InfinityTech.Rendering.Pipeline
                 confidenceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
                 descriptor.name = "TAAReprojection";
                 reprojection = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
-                temporalKernel = kernels.temporalAntiAliasingDebug;
+                temporalKernel = m_Resources.kernels.temporalAntiAliasingDebug;
             }
 #endif
             {
@@ -131,9 +149,9 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.confidenceHandle = passHandle.WriteTexture(confidenceHandle);
                     passData.reprojectionHandle = passHandle.WriteTexture(reprojection);
                 }
-                passData.inputSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAInput, input);
-                passData.historyColorSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryColor, historyColor);
-                passData.historyDepthSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryDepth, historyDepth);
+                passData.inputSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAInput, input);
+                passData.historyColorSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryColor, historyColor);
+                passData.historyDepthSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.TAAHistoryDepth, historyDepth);
 #endif
                 passHandle.SetExecuteFunc((in AntiAliasingPassData passData, in RGComputeEncoder commands) =>
                 {

@@ -11,18 +11,31 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly string TextureName = "DepthTexture";
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class DepthPass
     {
-        struct DepthPassData
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        // The depth pass of the pipeline's mesh pass table.
+        readonly MeshPassId m_DepthMeshPass;
+
+        internal DepthPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings, MeshPassId depthMeshPass)
+        {
+            m_RGBuilder = graph;
+            m_Settings = settings;
+            m_DepthMeshPass = depthMeshPass;
+        }
+
+        internal struct DepthPassData
         {
             public RGMeshDrawListHandle meshDrawListHandle;
             public RGRendererListHandle rendererListHandle;
         }
 
-        void RasterDepth(in CameraRecordContext context)
+        // viewHandle is the mesh view the depth list draws: the main view, or with two-stage occlusion the history view.
+        internal void RasterDepth(in ViewContext context, in RGMeshViewHandle viewHandle)
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
-            RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(context.mainCulling, InfinityPassIDs.RasterDepthPass));
+            RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_DepthMeshPass);
             TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;

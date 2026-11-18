@@ -1,10 +1,10 @@
 # InfinityRP contributor and agent specification
 
-This document is normative for `com.infinity.render-pipeline`: principles, design rules, conventions and work method. System contracts are normative in [ARCHITECTURE.md](ARCHITECTURE.md); its §16 lists known limits. [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md) records verification. [Docs~/Manual/index.md](Docs~/Manual/index.md) is the authoring manual. [Docs~/Record/History/](Docs~/Record/History) is immutable evidence. Each fact lives in exactly one of these documents.
+This document is normative for `com.infinity.render-pipeline`: principles, rules, conventions and work method. System contracts are normative in [ARCHITECTURE.md](ARCHITECTURE.md) (§16: known limits). [FeatureStatus](Docs~/Project/Status/FeatureStatus.md) records verification, the [Manual](Docs~/Manual/index.md) covers authoring, [History](Docs~/Record/History) is immutable evidence. Each fact lives in exactly one of them.
 
 ## 1. Model and principles
 
-A program is facts (quantities and orders it must know), their representations (fields, buffers, keys, branches, keywords, strings, copies), readers and writers, and clocks (CPU frame, GPU queue, submission epoch, transaction generation). It is correct when every reader sees the right version of each fact when it reads. Its cost is each representation times its evaluation rate times its unit cost, plus maintenance that grows with representations.
+A program is facts (quantities and orders it must know), their representations (fields, buffers, keys, branches, keywords, copies), readers and writers, and clocks (CPU frame, GPU queue, submission epoch, transaction generation). It is correct when every reader sees the right version of each fact when it reads. Its cost is each representation times its evaluation rate times its unit cost, plus maintenance that grows with representations.
 
 Correctness (every path, hot or cold):
 
@@ -20,7 +20,7 @@ Structure:
 
 Economy (weighted by rate; cold paths may relax it):
 
-- **P7 Rate matching.** Evaluate a fact at min(change rate, read rate). A representation whose read rate is zero costs only its existence: delete it. A reader is a current caller or an in-development consumer with a named owner; classify code with no caller by R15 before deleting it.
+- **P7 Rate matching.** Evaluate a fact at min(change rate, read rate). A reader is a current caller, an in-development consumer with a named owner, or a shared skeleton contract (one module lifecycle for every scene type). Uncalled code is classified by R15, never deleted for that alone.
 
 Knowledge:
 
@@ -46,9 +46,10 @@ On conflict: P1–P4, then P5–P6, then P7, then local readability. P8 decides 
 | R12 | Diagnostics are observers installed at construction, outside the success path and the measured scope, produced at failure or request rate. | Validation or capture calls in the core loop; a query that writes debug state. |
 | R13 | Code duplicated per kind becomes one generic or one core. | Two or more method bodies identical line for line. |
 | R14 | Setup-time facts (kernel index, property ID, keyword, sampler, pass index) are resolved once into a table when resources change. | A string lookup in record or execute. |
-| R15 | Classify code without callers before acting: in-development feature: keep, off other hot paths; duplicate of a dependency, remnant of a replaced design, unowned vendored code, unused parameter or write-only field: delete; meaningful but unwired: wire it; read only by tests: test the real path; diagnostics: R16. | — |
+| R15 | Classify code without callers before acting: an in-development feature, a domain type's own query or a mechanism's API completeness: keep, off other hot paths; a remnant of a replaced design, a duplicate of a dependency or unowned vendored code: delete (R9); a write-only field or meaningful unwired code: wire it; read only by tests: test the real path; diagnostics: R16. | Code deleted only because nothing calls it today. |
 | R16 | Diagnostics and validation exist only in Editor and Development builds; a release build has no branch to them. | A validation, capture or debug symbol reachable in a release build. |
-| R17 | Evaluation-rate scratch is stack memory, or one persistent container cleared by count. It grows only past its high water. | `new` of an array, list or native container, or `ArrayPool.Rent`, at frame rate. |
+| R17 | Scratch lives as long as its last reader (P4) and never touches the managed heap at evaluation rate. Use the shortest class covering the last reader: none (write the target); `stackalloc` or a fixed list when small and bounded; `Allocator.Temp`; `TempJob` across scheduled jobs; the graph arena across record and execute; across frames, a persistent container on a named owner, cleared by count, its high water bounded by a named quantity. A managed API that needs a managed array gets one array owned by its caller (R6). | At evaluation rate: a managed `new`, a capturing lambda, boxing, string building or `ArrayPool.Shared`; a persistent scratch field whose last reader is in the same call. |
+| R18 | Order is derived. A dependency is a parameter or a declared read; a call means the same whatever ran before it. | A registry where the latest entry wins, a second identical call that changes meaning, or a key whose referent changes with record order. |
 
 ## 3. Conventions
 
@@ -57,49 +58,49 @@ Conventions are uniform choices, not principles; static checks enforce them.
 | Kind | Convention | Examples |
 |---|---|---|
 | Namespace | `InfinityTech.<Domain>[.<Sub>][.Editor]` | `InfinityTech.Rendering.MeshPipeline` |
-| Enum | `E` prefix | `EPassType`, `EMeshDrawBackendPolicy` |
+| Enum | `E` prefix | `EPassType` |
 | GPU record | Same name in C# and HLSL (a pass cbuffer adds `CBV_`), tagged `// GPU-RECORD: <HlslStruct> <hlsl file>` | `LightRecord` |
-| Handle | `Handle` suffix | `TextureHandle`, `RGMeshDrawListHandle` |
-| Render-graph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
+| Handle | `Handle` suffix | `TextureHandle` |
+| Render-graph type | `RG` prefix | `RGBuilder` |
 | Job | `*Job` suffix | `MeshDrawGatherJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
 | Static field | `s_` prefix; IDs, keywords and samplers are `static readonly` | `s_NameID` |
 | Shader property IDs | One ID per property name; shared names on a `*ShaderIDs` holder | `PassShaderIDs.SRV_DepthTexture` |
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
-- A name says what a type holds or does. Do not borrow a type prefix from another engine. On a collision choose a more descriptive name; never add a prefix or a number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
+- A name says what a type holds or does. Borrow no type prefix from another engine. On a collision choose a more descriptive name, never a prefix or number. No generation version in a name, file or document title. `Version` and `Revision` name a data snapshot.
 - A variable keeps its type's head noun and may drop the domain prefix (`MeshCullingContext cullingContext`). A Handle type keeps the suffix (`RGTextureHandle depthTextureHandle`). No abbreviations. Time words are `previous` and `current`.
-- Acronyms stay uppercase in type and method names; a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
-- Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only inside an approved migration (§5). Do not add a divergent spelling or an old-name alias.
-- Extend `InfinityRenderPipeline` only through partial files under `Runtime/Pipeline/Pass/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Volume components live in `Runtime/Volume/<domain>/`. One primary type per file unless a pass or feature group is clearer together.
-- Layout follows [Docs~/Project/Style](Docs~/Project/Style) (Page, Type, Flow, Data, Editor, Shaders).
+- Acronyms stay uppercase in type and method names; a camelCase identifier starting with an acronym lowercases it. A verb is not repeated in one name; an ordinal does not stand in for meaning. `Draw` alone is a verb, never a noun prefix.
+- Correct a misspelled symbol when a change touches it. A misspelled serialized field is corrected only in an approved migration (§5). Add no divergent spelling or old-name alias.
+- A pipeline derives `InfinityRenderPipelineBase` with a `PipelineCapabilities` and overrides `RecordCamera`. A pass is an `internal sealed class XxxPass` in `Runtime/Pipeline/Pass/<domain>/` with its `XxxPassData` and optional `XxxPassUtilityData`; its constructor takes setup-time dependencies (graph, tables, settings, caches, observers, mesh pass ids); it records from `in ViewContext` and handle parameters and never names the pipeline or render context. One primary type per file unless a group is clearer together.
+- Layout follows [Docs~/Project/Style](Docs~/Project/Style).
 - Assemblies are `Unity.RenderPipelines.Infinity.*`. Components use `[ExecuteAlways]`, `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private`, names kept (§5).
-- Shader names start with `InfinityPipeline/`; the tag is `RenderPipeline=InfinityRenderPipeline`; compute files are `Compute_<Feature>.compute`. Infinity LightModes and their pass names are `RasterXXXPass` and match `InfinityPassIDs`; other owned raster shader names use the Raster prefix; Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay. GPU work types are Raster (draw), Compute (dispatch), Copy (transfer), Upload (CPU upload). Pass names come from the pass `ProfilingSampler`.
-- Comments are English. A TODO is `// TODO: <action>`. No large blocks of commented-out code.
+- Shader names start with `InfinityPipeline/`; the tag is `RenderPipeline=InfinityRenderPipeline`; compute files are `Compute_<Feature>.compute`. Infinity LightModes and their pass names are `RasterXXXPass` and match `InfinityPassIDs`; other owned raster shader names use the Raster prefix; Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` stay. GPU work types are Raster (draw), Compute (dispatch), Copy (transfer), Upload (CPU write). Pass names come from the pass `ProfilingSampler`.
+- Comments are English. A TODO is `// TODO: <action>`. No large commented-out blocks.
 
 ## 4. Work method
 
-Start from the behavior the user wants and why the code cannot produce it. Every planned item traces to the request, a contract or an observed defect; every load-bearing decision to code, documents, logs, tests or an explicit instruction. When a plan collects flags, guards or patches, find their shared cause first (R10). Size the change from evidence: a structural change with a demonstrated cause is in scope, an unrelated refactor is not. Every branch, state, option, retry and fallback needs a current reader with a named owner (P7).
+Start from the behavior the user wants and why the code cannot produce it. Every planned item traces to the request, a contract or an observed defect; every load-bearing decision to code, documents, logs, tests or an explicit instruction. A structural change with a demonstrated cause is in scope; an unrelated refactor is not. Each branch, state, option, retry and fallback needs a reader (P7).
 
-Decide which conditions are preconditions, which failures are raised and who handles them (R8). A layer that cannot handle a failure passes it to the owner its contract names. A workaround is marked `// TODO: <root cause>` and is not the final design; ownership, order and lifetime come before an API migration.
+Decide which conditions are preconditions, which failures are raised and who handles them (R8). A layer that cannot handle a failure passes it to the owner its contract names. A workaround is marked `// TODO: <root cause>` and not the final design; ownership, order and lifetime precede an API migration.
 
-Deliver the requested scope in the same interaction: decide, change, verify and leave a connected result. Do not shrink it to a sample or stop at a plan. Stop and ask only when continuing could lose data, break a serialized schema or another external contract, force an irreversible change, move a permission boundary, or when no safe default exists. For other ambiguity, state the default, the reason, the risk and the rollback, and finish the reversible work.
+Deliver the requested scope in the same interaction: decide, change, verify and leave a connected result, not a sample or a plan. Stop and ask only when continuing could lose data, break a serialized schema or another external contract, force an irreversible change, move a permission boundary, or no safe default exists; otherwise state the default, reason, risk and rollback and finish the reversible work.
 
-Verification: a check must be able to fail for a meaningful error; cover a mechanism with representative cases. The implementer owns its checks; an independent verifier reviews a batch and returns it on failure, which locks dependent batches. Without an Editor, `Tools/StaticCheck/` plus independent review is the static gate, consumer closure is a repository-wide search including `Editor/Cli`, docs and tests, and runtime and image results stay `TODO(UNVERIFIED)` until an Editor run confirms them.
+Verification: a check must be able to fail for a meaningful error; cover a mechanism with representative cases. The implementer owns its checks; an independent verifier reviews a batch and returns it on failure, which locks dependent batches. Without an Editor, `Tools/StaticCheck/` plus independent review is the static gate, consumer closure is a repository-wide search including `Editor/Cli`, docs and tests, and runtime and image results stay `TODO(UNVERIFIED)`.
 
-Living documents: after a change, update `AGENTS.md` and `ARCHITECTURE.md`: add what became true, delete what is no longer true, rewrite what changed. No iteration log. A fact appears in one document only. `AGENTS.md` stays the shortest. `DESIGN.md` is absent on purpose: this package has no visual design system.
+Living documents: after a change, update `AGENTS.md` and `ARCHITECTURE.md`: add what became true, delete what is no longer true, rewrite what changed. No iteration log; a fact appears in one document only; `AGENTS.md` stays the shortest. `DESIGN.md` is absent on purpose (no visual design system).
 
-Intermediate data lives in `<Unity project root>/intermediate/<task-id>/<run-id>/` (the Example project's, git-ignored), never in the package root, `/tmp` or home, and is never committed. Before a large capture, record path, owner and size, check free space and bound the count. After a task, stop producers, drain readbacks, keep the required summary and delete that task's paths. Keep failure evidence while diagnosis needs it. Delete by recorded task path only, never a shared `intermediate/` recursively, user source, baked data, `Library`, caches, logs or another task's files. Moving is not cleanup. The delivery note states removed paths, reclaimed space and any blocker.
+Intermediate data lives in `<Unity project root>/intermediate/<task-id>/<run-id>/` (git-ignored), never in the package root, `/tmp` or home, and is never committed. Bound large captures and check free space first. After a task, stop producers, drain readbacks and delete that task's paths; keep failure evidence while diagnosis needs it. Delete by recorded path only, never a shared `intermediate/`, user source, baked data, `Library`, caches, logs or another task's files; moving is not cleanup. The delivery note states removed paths, reclaimed space and blockers.
 
-Track active work in the conversation task list, not a repository ledger. Branch only when asked or prescribed by the session. `Docs~/Record/History` authorizes no work.
+Track active work in the conversation task list, not a repository ledger. Branch only when asked or prescribed; History authorizes no work.
 
 ## 5. Repository safety
 
 - Editor load and script reload never migrate, rebuild, delete or save user assets. Preflight never activates source scenes or instantiates prefabs.
-- A serialized schema change needs approval and a written intent, a fresh durable backup, an exact allowed delta, stable GUIDs and local IDs, a second save that is byte-identical, and a separate no-op. Native legacy fields and current effective values are different evidence; prove every non-approved field unchanged. Renaming a serialized field resets user values because `FormerlySerializedAs` is not used; prefer adding a field, and list every unavoidable rename in that change's verification notes. A replaced serialized type is deleted after consumer closure and an explicit Example-project migration. Schema, compilation and image checks are separate gates.
+- A serialized schema change needs approval, a written intent, a fresh backup, an exact allowed delta, stable GUIDs and local IDs, a byte-identical second save and a separate no-op; prove every non-approved field unchanged. Renaming a serialized field resets user values (`FormerlySerializedAs` is not used): prefer adding a field and list every unavoidable rename in the verification notes. A replaced serialized type is deleted after consumer closure and an explicit Example-project migration. Schema, compilation and image checks are separate gates.
 - Player builds and packaging require explicit user authorization.
-- Automated Editor interaction uses the Unity CLI (`Editor/Cli`, compiled with `INFINITY_UNITY_CLI`) against an explicitly selected project on `127.0.0.1` with bearer authentication. Commands take explicit arguments, return status and evidence paths and never save assets. Never print or archive credentials.
-- Never run `unity run`, a batch build or a second Editor against a project an Editor holds. Confirm the project and process ID first; when the source project is occupied, use the authorized independent task mirror and its `Library`. A timeout is not permission to resubmit, release resources or restart.
-- Scene views are created, closed, docked and restored on the Editor update pump, never inside their own render or `OnGUI` stack (that destroys an active camera and render texture); the render callback may advance a bounded motion pose only. Preserve tab ownership and position; setting `EditorWindow.position` can undock a view.
-- Capture uses the graph transfer capture of an explicitly selected active Game camera, or the single one, never assuming the MainCamera tag, and observes the real window; never `com.unity.pipeline` `screenshot`, which replaces `targetTexture` and calls `Camera.Render`. Long-running operations expose status and cancellation.
-- After a code or shader change: confirm the owned Editor, refresh with the Unity CLI or `Tools/RefreshUnityEditor.sh`/`.ps1`, wait for compilation and domain reload, confirm the candidate DLL loaded, read only the new window of `Application.consoleLogPath`, fix the first real owner, order, lifetime or shader-contract defect, and capture with `Tools/CaptureUnityWindow.sh`/`.ps1`. A change to clears, depth, attachments, pass order or present is unverified until the image is inspected. UI inspection uses computer use on the verified owned window. Repeat until the new log window has no InfinityRP flood and the frame is correct; log-only results stay `TODO(UNVERIFIED)`. Identical screenshots of a Game view that is not redrawing are not liveness evidence: use Play mode or a differing pair.
+- Automated Editor interaction uses the Unity CLI (`Editor/Cli`, `INFINITY_UNITY_CLI`) against an explicitly selected project on `127.0.0.1` with bearer authentication; commands take explicit arguments, return status and evidence paths and never save assets. Never print or archive credentials.
+- Never run `unity run`, a batch build or a second Editor against a project an Editor holds; confirm the project and process ID first, and use the authorized task mirror when the source project is occupied. A timeout is not permission to resubmit, release resources or restart.
+- Scene views are created, closed, docked and restored on the Editor update pump, never inside their own render or `OnGUI` stack; the render callback may only advance a bounded motion pose. Preserve tab ownership and position (`EditorWindow.position` can undock a view).
+- Capture uses the graph transfer capture of an explicitly selected active Game camera (or the single one, never by MainCamera tag) and observes the real window; never `com.unity.pipeline` `screenshot`, which replaces `targetTexture`. Long-running operations expose status and cancellation.
+- After a code or shader change: confirm the owned Editor, refresh with the Unity CLI or `Tools/RefreshUnityEditor.sh`/`.ps1`, wait for compilation and domain reload, confirm the candidate DLL loaded, read only the new window of `Application.consoleLogPath`, fix the first real owner, order, lifetime or shader-contract defect, and capture with `Tools/CaptureUnityWindow.sh`/`.ps1`. A change to clears, depth, attachments, pass order or present is unverified until the image is inspected. Repeat until the new log window has no InfinityRP flood and the frame is correct; log-only results stay `TODO(UNVERIFIED)`.

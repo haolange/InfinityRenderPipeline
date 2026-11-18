@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -55,24 +56,35 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    // What culling produced for one camera. Read-only once CullCamera returns.
-    internal readonly struct CameraScene
+    // What culling produced for one camera: Unity's snapshot and the scene world's view layers built from it. Read-only
+    // once CullCamera returns.
+    internal readonly struct SceneCullingResults
     {
         internal readonly CullingResults cullingResults;
         // The camera's mesh culling context: the main view of every camera-facing draw list.
         internal readonly MeshCullingContext mainCulling;
+        // The light module's view layer, built for this camera: records, bins, shadow allocation, atlas entries.
+        internal readonly LightContext lights;
+        internal readonly MeshWorld meshes;
+        // Published decal count of this frame's scene transaction.
+        internal readonly int decalCount;
 
-        internal CameraScene(in CullingResults cullingResults, in MeshCullingContext mainCulling)
+        internal SceneCullingResults(in CullingResults cullingResults, in MeshCullingContext mainCulling, LightContext lights, MeshWorld meshes,
+            int decalCount)
         {
             this.cullingResults = cullingResults;
             this.mainCulling = mainCulling;
+            this.lights = lights;
+            this.meshes = meshes;
+            this.decalCount = decalCount;
         }
     }
 
-    // Everything a pass reads while recording one camera. Passes take it by `in` and never store it; the graph
-    // is executed and cleared before the next camera, so nothing recorded outlives it. It flattens CameraSetup
-    // and CameraScene, both immutable, so the copies cannot diverge.
-    internal readonly struct CameraRecordContext
+    // Everything a pass reads while recording one camera: the three clocks flattened. CameraSetup (this camera's
+    // decisions), SceneCullingResults (what culling produced) and FrameContext (this Render call's engine facts) are
+    // immutable, so the copies cannot diverge. Passes take it by `in` and never store it; the graph is executed and
+    // cleared before the next camera, so nothing recorded outlives it.
+    internal readonly struct ViewContext
     {
         internal readonly Camera camera;
         internal readonly CameraFrameState state;
@@ -88,15 +100,22 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly OutputTransformDecision outputDecision;
         internal readonly VolumeSnapshot volumes;
         internal readonly AtmosphereParameter atmosphere;
-        internal readonly CullingResults cullingResults;
-        internal readonly MeshCullingContext mainCulling;
         internal readonly FrameFeatureSet features;
+        internal readonly SceneColorKeys sceneColor;
         internal readonly HistoryCache historyCache;
         internal readonly CameraUniform cameraUniform;
+        internal readonly CullingResults cullingResults;
+        internal readonly MeshCullingContext mainCulling;
+        internal readonly LightContext lights;
+        internal readonly MeshWorld meshes;
+        internal readonly int decalCount;
+        internal readonly ScriptableRenderContext scriptableRenderContext;
+        internal readonly int frame;
+        internal readonly ShadowmaskMode shadowmaskMode;
 
         internal bool resetsHistory => historyReset != EHistoryReset.None;
 
-        internal CameraRecordContext(in CameraSetup setup, in CameraScene scene)
+        internal ViewContext(in FrameContext frameContext, in CameraSetup setup, in SceneCullingResults scene)
         {
             camera = setup.camera;
             state = setup.state;
@@ -113,11 +132,22 @@ namespace InfinityTech.Rendering.Pipeline
             outputDecision = setup.outputDecision;
             volumes = setup.volumes;
             atmosphere = setup.atmosphere;
-            cullingResults = scene.cullingResults;
-            mainCulling = scene.mainCulling;
             features = setup.state.features;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve, setup.debugView != EDebugView.None);
+#else
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve);
+#endif
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;
+            cullingResults = scene.cullingResults;
+            mainCulling = scene.mainCulling;
+            lights = scene.lights;
+            meshes = scene.meshes;
+            decalCount = scene.decalCount;
+            scriptableRenderContext = frameContext.scriptableRenderContext;
+            frame = frameContext.frame;
+            shadowmaskMode = frameContext.shadowmaskMode;
         }
     }
 }

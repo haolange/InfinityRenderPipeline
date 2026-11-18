@@ -40,14 +40,14 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// What a draw list culls entities against: up to six planes, the layer, scene and rendering-layer masks, and the LOD
+    /// What a mesh view culls entities against: up to six planes, the layer, scene and rendering-layer masks, and the LOD
     /// projection. The caller builds it from its own view (a camera, a shadow cascade, a light face); the mesh mechanism
-    /// only tests entities against it. Field equality is its identity: occluders and repeated draw lists match on it.
+    /// only tests entities against it. It is a value, not an identity: a view is identified by its handle.
     /// Distances for translucent ordering are measured from the LOD origin.
     /// </summary>
     // GPU-RECORD: MeshCullingContext Shaders/Mesh/Compute_MeshDrawPipeline.compute
     [StructLayout(LayoutKind.Sequential)]
-    public struct MeshCullingContext : IEquatable<MeshCullingContext>
+    public struct MeshCullingContext
     {
         public const int MaxPlanes = 6;
 
@@ -125,32 +125,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 case 4: plane4 = plane; break;
                 case 5: plane5 = plane; break;
                 default: throw new ArgumentOutOfRangeException(nameof(index), index, "A culling context has six plane slots.");
-            }
-        }
-
-        public bool Equals(MeshCullingContext other)
-        {
-            return plane0.Equals(other.plane0) && plane1.Equals(other.plane1) && plane2.Equals(other.plane2)
-                && plane3.Equals(other.plane3) && plane4.Equals(other.plane4) && plane5.Equals(other.plane5)
-                && planeCount == other.planeCount && layerMask == other.layerMask && sceneLow == other.sceneLow && sceneHigh == other.sceneHigh
-                && renderingLayerMask == other.renderingLayerMask && filterRenderingLayers == other.filterRenderingLayers
-                && lodOrthographic == other.lodOrthographic && lodScale == other.lodScale && lodBias == other.lodBias
-                && lodOriginX == other.lodOriginX && lodOriginY == other.lodOriginY && lodOriginZ == other.lodOriginZ;
-        }
-
-        public override bool Equals(object obj) => obj is MeshCullingContext other && Equals(other);
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hash = plane0.GetHashCode();
-                hash = hash * 31 + plane1.GetHashCode();
-                hash = hash * 31 + plane2.GetHashCode();
-                hash = hash * 31 + (int)layerMask;
-                hash = hash * 31 + (int)sceneLow;
-                hash = hash * 31 + (int)renderingLayerMask;
-                return hash * 31 + lodOrigin.GetHashCode();
             }
         }
     }

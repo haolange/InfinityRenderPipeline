@@ -166,7 +166,7 @@ float3 ColorCorrect( float3 WorkingColor,
 	float4 ColorGain,
 	float4 ColorOffset )
 {
-	// TODO optimize
+	// TODO: Optimize ColorCorrect if LUT rebuilds stop being limited to grading-key changes.
 	float Luma = dot( WorkingColor, AP1_RGB2Y );
 	WorkingColor = max( 0, lerp( Luma.xxx, WorkingColor, ColorSaturation.xyz*ColorSaturation.w ) );
 	WorkingColor = pow( WorkingColor * (1.0 / 0.18), ColorContrast.xyz*ColorContrast.w ) * 0.18;

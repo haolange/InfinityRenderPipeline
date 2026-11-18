@@ -17,8 +17,21 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_CookieAtlasSourceID = Shader.PropertyToID("UAV_CookieAtlasSource");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class LightCookiePass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly LightCookieAtlas m_LightCookieAtlas;
+        readonly CookieProduction m_CookieProduction;
+
+        internal LightCookiePass(RGBuilder graph, InfinityRenderPipelineResources resources, LightCookieAtlas lightCookieAtlas)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_LightCookieAtlas = lightCookieAtlas;
+            m_CookieProduction = new CookieProduction { atlas = lightCookieAtlas };
+        }
+
         struct LightCookiePassData
         {
             public ComputeKernel copy2D, cubeToOctahedral, downsample;
@@ -36,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Imports the cookie atlas when this camera's records reference it and uploads the textures that are new or
         // changed. Uploads queued by an earlier camera of the frame are not repeated.
-        void ComputeLightCookies(in CameraRecordContext context)
+        internal void ComputeLightCookies(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.LightCookies))
             {
@@ -52,9 +65,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     RGComputePassHandle<LightCookiePassData> passHandle = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies));
                     ref LightCookiePassData passData = ref passHandle.GetPassData();
-                    passData.copy2D = kernels.cookieCopy2D;
-                    passData.cubeToOctahedral = kernels.cookieCubeToOctahedral;
-                    passData.downsample = kernels.cookieDownsample;
+                    passData.copy2D = m_Resources.kernels.cookieCopy2D;
+                    passData.cubeToOctahedral = m_Resources.kernels.cookieCubeToOctahedral;
+                    passData.downsample = m_Resources.kernels.cookieDownsample;
                     passData.uploads = uploads;
                     passData.uploadCount = uploadCount;
                     passData.atlasHandle = passHandle.WriteTexture(atlasHandle);

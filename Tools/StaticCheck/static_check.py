@@ -22,7 +22,8 @@ Checks
   unityboundary    MeshComponent owns no native renderer lighting or state (Renderer, lightmap and probe settings)
   meshbindings     mesh shader globals and the C# property IDs that bind them form a closed set
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
-  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners
+  meshpasses       pipeline pass files leave backend choice and native renderer lists to their owners; shadow passes cull
+                   every light view with MeshOccluder.None
   meshmechanism    the mesh mechanism names no pipeline concept: no shader IDs of the pipeline, capture or view kinds, and no
                    Camera outside the world's diagnostic counters
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
@@ -40,7 +41,11 @@ Checks
   hotpathlookup    pass, mesh and lighting code resolves no kernel, keyword, shader pass or property ID by name outside a static readonly initializer
   physicalalloc    in GPUResource and RenderGraph only ResourcePool allocates GPU memory (RTHandles.Alloc of an existing target is a wrapper)
   rgapi            graph encoders and command interfaces take int property IDs: no string-name or params overload
-  redundantparam   a pipeline instance method takes no parameter named like a pipeline member it would shadow
+  framealloc       frame- and camera-rate methods build no managed array, collection, string or package class (AGENTS R17)
+  passroot         pass files never name the pipeline or reach the render context root: per-camera facts come from ViewContext,
+                   services by constructor injection
+  pipelinebase     InfinityRenderPipelineBase and Runtime/Pipeline/Context name neither InfinityRenderPipeline nor a pass class:
+                   the frame sits below the pipelines built on it
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
@@ -266,7 +271,7 @@ def sequential_offsets(types):
 
 HANDLE_NAME_TYPES = (
     'RGTransferPassHandle', 'RGComputePassHandle', 'RGRayTracingPassHandle', 'RGRasterPassHandle',
-    'RGMeshDrawListHandle', 'RGRendererListHandle', 'RGConstantsHandle', 'RGResourceHandle',
+    'RGMeshDrawListHandle', 'RGMeshViewHandle', 'RGRendererListHandle', 'RGConstantsHandle', 'RGResourceHandle',
     'RGTextureHandle', 'RGBufferHandle', 'TextureHandle', 'BufferHandle',
 )
 HANDLE_NAME_TYPE = re.compile(r'\b(' + '|'.join(HANDLE_NAME_TYPES) + r')\b')
@@ -440,8 +445,9 @@ def without_strings(text):
 def check_scalar_uploads(repo, out):
     """Per-pass parameters are one GPU-RECORD constant buffer; only per-dispatch values stay scalar sets.
     Counted per method and local function (nested bodies count only toward the inner function, never twice).
-    The threshold stays > 8: the largest per-dispatch caller today is MeshDrawGPUBackend.Produce at 8 calls,
-    whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20 and ComputeBloom had 9."""
+    The threshold stays > 8: MeshDrawGPUBackend.ProduceView makes 6 calls and ProduceDrawList 3 (Produce made 8 before
+    views produced their own visibility), whereas on 3f5a883~1 ComputeCombineLuts had 33, BindAtmosphereParameters had 20
+    and ComputeBloom had 9."""
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
         rel = os.path.relpath(p, repo).replace(os.sep, '/')
         if rel in SCALAR_UPLOAD_DEFINITIONS:
@@ -465,6 +471,84 @@ def check_scalar_uploads(repo, out):
         if unscoped > SCALAR_UPLOAD_LIMIT:
             out.append(('ERROR', 'scalarupload', f'{rel}: {unscoped} scalar SetCompute*Param calls (limit {SCALAR_UPLOAD_LIMIT}); write per-pass values as one record with WriteConstants'))
 
+FRAME_ALLOC_ROOTS = ('Runtime/Pipeline/', 'Runtime/Mesh/', 'Runtime/Lighting/', 'Runtime/RenderGraph/', 'Runtime/Atmosphere/', 'Runtime/GPUResource/')
+FRAME_ALLOC_EXEMPT_FILES = re.compile(r'^Runtime/(?:Validation|Pipeline/Capture|Pipeline/Debug|Pipeline/Settings|Mesh/MeshComponent|Mesh/MeshAsset)')
+# Methods that run at frame or camera rate. Growth, construction and disposal run at change rate and are not scanned.
+FRAME_ALLOC_METHOD = re.compile(r'^(?:Record|Raster|Compute|Copy|Trace|Cull|Upload|Produce|Submit|Render|Prepare|Update|Execute|'
+                                r'Allocate|Assign|Pack|Collect|Declare|Use|Place|Compile|Query|Begin|End|Apply|Drain|Process|Schedule|Build|Configure|Resolve|'
+                                r'Evaluate|Request|Add|Read|Write|Import|Bind)')
+FRAME_ALLOC_CAPACITY = re.compile(r'\bif\s*\(.*(?:Length|Count|Capacity|capacity|size|Size)\b.*[<>]|\bif\s*\(.*[<>].*(?:Length|Count|Capacity)\b|'
+                                  r'\bif\s*\(\s*!.*\b(?:Pull|TryGet\w*|TryPop|TryTake|Contains\w*)\s*\(')
+FRAME_ALLOC_IDIOM = re.compile(r'\.(?:Pop|TryPop|Dequeue)\s*\(|\?\?=')
+FRAME_ALLOC_GROWTH = re.compile(r'^(?:Ensure|Grow|Resize|Reserve|Recreate|Rent|Create|Dispose|Release|Retire|Flush|Rebuild|Resolve\w*Support|BuildTable)')
+FRAME_ALLOC_PATTERNS = (
+    (re.compile(r'\bnew\s+[A-Za-z_][\w.]*(?:<[^;()]*?>)?\s*\[\s*[^\]\s]'), 'a managed array'),
+    (re.compile(r'\bnew\s+(?:[\w.]+\.)?(?:List|Dictionary|HashSet|Queue|Stack|SortedList|SortedDictionary|LinkedList)\s*<'), 'a managed collection'),
+    (re.compile(r'\bArrayPool\b'), 'ArrayPool'),
+    (re.compile(r'\$"'), 'an interpolated string'),
+    (re.compile(r'"\s*\+(?!\+)|(?<!\+)\+\s*"'), 'string concatenation'),
+)
+
+
+def check_frame_allocations(repo, out):
+    """AGENTS R17: scratch at evaluation rate never touches the managed heap. Scans frame- and camera-rate methods
+    (named by FRAME_ALLOC_METHOD; growth paths such as Ensure*/Grow*/Create* run at change rate) for managed arrays,
+    collections, ArrayPool, string building and `new` of a class declared in the package. Change-rate idioms inside
+    those methods are not evaluation-rate scratch: growth guarded by a capacity test on the line before, a pool miss
+    (`Pop()` or `new`), first-use creation (`??=`), a static table built for a static readonly initializer, and an
+    exception built by a `throw` statement. Diagnostics blocks exist only in Editor and Development builds."""
+    classes = set()
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        classes.update(re.findall(r'\bclass\s+([A-Z]\w*)', without_comments(read(p))))
+    class_new = re.compile(r'\bnew\s+(' + '|'.join(sorted(classes, key=len, reverse=True)) + r')\s*[({]') if classes else None
+    for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace(os.sep, '/')
+        if not rel.startswith(FRAME_ALLOC_ROOTS) or FRAME_ALLOC_EXEMPT_FILES.match(rel):
+            continue
+        raw = without_comments(read(p))
+        text = without_strings(raw)
+        declared = set(re.findall(r'\b(?:class|struct)\s+([A-Z]\w*)', text))
+        guarded = {number for number, _, is_guarded in diagnostic_guarded_lines(text) if is_guarded}
+        bodies = csharp_method_bodies(text)
+        lines = text.split('\n')
+        static_tables = set(re.findall(r'\bstatic\s+readonly\s+[^=;]+=\s*(\w+)\s*\(', text))
+        throwing = set()
+        for number, line in enumerate(lines, 1):
+            if re.search(r'\bthrow\b', line):
+                cursor = number
+                while cursor <= len(lines) and ';' not in lines[cursor - 1]:
+                    throwing.add(cursor)
+                    cursor += 1
+                throwing.add(cursor)
+        reported = set()
+        for name, start, end in bodies:
+            if name in declared or name in static_tables or FRAME_ALLOC_GROWTH.match(name) or not FRAME_ALLOC_METHOD.match(name):
+                continue
+            inner = [(s, e) for n, s, e in bodies if start < s and e <= end and (n in declared or FRAME_ALLOC_GROWTH.match(n))]
+            first = text.count('\n', 0, start) + 1
+            last = text.count('\n', 0, end) + 1
+            for number in range(first, last + 1):
+                if number in guarded or number in reported:
+                    continue
+                line = lines[number - 1]
+                if number in throwing or FRAME_ALLOC_IDIOM.search(line):
+                    continue
+                previous = next((lines[k].strip() for k in range(number - 2, max(-1, number - 4), -1) if lines[k].strip() not in ('', '{')), '')
+                if FRAME_ALLOC_CAPACITY.search(previous) or FRAME_ALLOC_CAPACITY.search(line):
+                    continue
+                offset = sum(len(l) + 1 for l in lines[:number - 1])
+                if any(s <= offset < e for s, e in inner):
+                    continue
+                found = [what for pattern, what in FRAME_ALLOC_PATTERNS if pattern.search(line)]
+                if class_new is not None:
+                    m = class_new.search(line)
+                    if m and not m.group(1).endswith('Exception'):
+                        found.append('a ' + m.group(1))
+                if found:
+                    reported.add(number)
+                    out.append(('ERROR', 'framealloc', f'{rel}:{number}: {name} allocates {found[0]} at evaluation rate (AGENTS R17)'))
+
+
 def check_cbuffer_member_ids(repo, out):
     """A value declared only inside named cbuffers is filled by binding its record. Setting it by name (GTAO did, member
     by member, before its record existed) left its occlusion at zero, so C# may not resolve an ID for such a name."""
@@ -486,7 +570,7 @@ def check_cbuffer_member_ids(repo, out):
 
 SILENT_FALLBACK = re.compile(r'\bTexture2D\.(whiteTexture|blackTexture|grayTexture|normalTexture|redTexture|linearGrayTexture)\b')
 # Core RP's Adaptive Probe Volume debug draw takes a texture argument it samples only in its own debug modes.
-SILENT_FALLBACK_ALLOWED = {('Runtime/Lighting/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
+SILENT_FALLBACK_ALLOWED = {('Runtime/Pipeline/Integration/ProbeVolumeIntegration.cs', 'whiteTexture')}
 
 def check_silent_fallback(repo, out):
     """A built-in texture bound where a resource does not exist forges that resource (P1); gate the reader instead."""
@@ -778,14 +862,58 @@ def check_mesh_submit(repo, out):
     extension = os.path.join(repo, MESH_DIR, 'Graph/MeshGraphExtension.cs')
     if os.path.exists(extension):
         text = without_comments(read(extension))
-        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'RecordProducer'):
+        for token in ('MeshDrawProfiling.upload', 'MeshDrawProfiling.production', 'MeshDrawProfiling.viewProduction', 'RecordProducer',
+                      'RecordViewProducer'):
             if token not in text: out.append(('ERROR', 'meshsubmit', f'Graph/MeshGraphExtension.cs: missing {token}'))
 
 
+# Passes that create mesh draw lists; the world derives each list's backend from the pass (MeshWorld.SelectBackend).
 MESH_PASS_FILES = ('Geometry/DepthPass.cs', 'Geometry/GBufferPass.cs', 'Lighting/ForwardPass.cs', 'Geometry/MotionPass.cs',
-                   'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
+                   'Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs', 'Translucent/TranslucentPass.cs')
 MESH_PASS_FORBIDDEN = ('EMeshDrawBackendPolicy', 'scriptableRenderContext.CreateRendererList',
                        'scriptableRenderContext.CreateShadowRendererList')
+# Light views (cascades, local faces) never see a camera occluder: these files cull each view from an inline MeshViewDesc
+# whose occluder is MeshOccluder.None, and construct no occluder and no remainder view.
+MESH_LIGHT_VIEW_FILES = ('Shadow/CascadeShadowPass.cs', 'Shadow/LocalShadowPass.cs')
+MESH_VIEW_CALL = re.compile(r'\b(CullMeshView\w*)\s*\(')
+
+
+def call_arguments(text, open_paren):
+    """The text inside the parentheses that open at open_paren, or None when they do not close."""
+    depth = 0
+    for index in range(open_paren, len(text)):
+        if text[index] == '(':
+            depth += 1
+        elif text[index] == ')':
+            depth -= 1
+            if depth == 0: return text[open_paren + 1:index]
+    return None
+
+
+def top_level_arguments(arguments):
+    parts, depth, start = [], 0, 0
+    for index, char in enumerate(arguments):
+        if char in '([{': depth += 1
+        elif char in ')]}': depth -= 1
+        elif char == ',' and depth == 0:
+            parts.append(arguments[start:index].strip())
+            start = index + 1
+    parts.append(arguments[start:].strip())
+    return parts
+
+
+def light_view_errors(rel, text):
+    errors = []
+    for match in MESH_VIEW_CALL.finditer(text):
+        line = text.count('\n', 0, match.start()) + 1
+        arguments = call_arguments(text, match.end() - 1) or ''
+        desc = re.match(r'\s*new\s+MeshViewDesc\s*\(', arguments)
+        occluder = top_level_arguments(call_arguments(arguments, desc.end() - 1) or '')[-1] if desc else None
+        if match.group(1) != 'CullMeshView' or occluder != 'MeshOccluder.None':
+            errors.append(('ERROR', 'meshpasses', f'{rel}:{line}: {match.group(1)} of a light view must pass new MeshViewDesc(..., MeshOccluder.None)'))
+    for match in re.finditer(r'\bnew\s+MeshOccluder\s*\(', text):
+        errors.append(('ERROR', 'meshpasses', f'{rel}:{text.count(chr(10), 0, match.start()) + 1}: a shadow pass constructs a MeshOccluder'))
+    return errors
 
 
 def check_mesh_passes(repo, out):
@@ -795,10 +923,13 @@ def check_mesh_passes(repo, out):
         text = without_comments(read(path))
         for token in MESH_PASS_FORBIDDEN:
             if token in text: out.append(('ERROR', 'meshpasses', f'{rel} references {token}'))
+        if rel in MESH_LIGHT_VIEW_FILES:
+            out.extend(light_view_errors(rel, without_strings(text)))
 
 
 MESH_MECHANISM = ('World', 'Pass', 'View', 'DrawList', 'Backend')
-MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|RenderCapture\w*|ECaptureBuffer|EMeshViewKind|MeshView)\b')
+# A mesh view is a mechanism concept (MeshViewDesc, RGMeshViewHandle); a pipeline's kind of view is not.
+MESH_PIPELINE_CONCEPT = re.compile(r'\b(InfinityShaderIDs|InfinityMeshPasses|RenderCapture\w*|ECaptureBuffer|EMeshViewKind)\b')
 MESH_CAMERA = re.compile(r'\bCamera\b')
 
 
@@ -968,7 +1099,7 @@ def check_legacy_residue(repo, out):
 
 
 # Types created by Unity or by reflection have no textual caller.
-UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|BaseComponent|RenderPipelineAsset|'
+UNUSED_TYPE_BASES = re.compile(r':\s*(?:[\w.]+\s*,\s*)*(?:MonoBehaviour|ScriptableObject|VolumeComponent|EntityComponent|RenderPipelineAsset|'
                                r'RenderPipelineGlobalSettings|IRenderPipelineResources|IRenderPipelineGraphicsSettings|InfinityVolumeComponent)\b')
 # In-development features (AGENTS R15) keep types that have no caller yet.
 UNUSED_TYPE_DIRECTORIES = ('Runtime/Terrain/',)
@@ -1029,7 +1160,8 @@ DIAGNOSTIC_SYMBOLS = re.compile(r'\b(?:RenderCaptureService|RenderCaptureSession
                                 r'CaptureStageSnapshot|PrepareStageSnapshot|RecordNormalFrameCapture|RecordLightingCapture|'
                                 r'RecordDeferredLightingCapture|captureSession|displayProbe|'
                                 r'EDebugView|debugView|DebugViewCatalog|ComputeDebugView|InfinityDebugDisplaySettings\w*|'
-                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend)\b')
+                                r'ssrDebug|ssgiTraceDebug|temporalAntiAliasingDebug|ResolveMeshBackend|PipelineFrameMeasurement|'
+                                r'DebugViewPass|RenderCapturePass|m_RenderCapturePass|m_DebugViewPass)\b')
 DIRECTIVE = re.compile(r'^\s*#\s*(if|elif|else|endif)\b(.*)$')
 
 
@@ -1071,8 +1203,11 @@ LAYERS = {
     'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
 }
 # The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
-for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList'):
+for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList', 'Graph'):
     LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
+# Lighting and the scene world sit below the pipeline: they derive scene facts and never name pipeline types.
+LAYERS['Runtime/Lighting/'] = ('Pipeline', 'Volume', 'Atmosphere')
+LAYERS['Runtime/Scene/World/'] = ('Pipeline', 'Volume', 'Atmosphere')
 
 
 STATIC_ID_INIT = re.compile(r'^\s*(?:(?:public|internal|private|protected)\s+)?static\s+(?!readonly\b)(?!const\b)[\w.<>\[\]]+\s+(\w+)\s*=\s*'
@@ -1144,30 +1279,53 @@ def check_rg_api(repo, out):
                     out.append(('ERROR', 'rgapi', f'{rel}:{line}: {method} takes a string {name}'))
 
 
-PIPELINE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipeline\b')
-CLASS_MEMBER = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|readonly)\s+)*[\w<>\[\],.]+\s+(\w+)\s*(?:=>|=|;)', re.M)
-CLASS_METHOD = re.compile(r'^ {8}(?:(?:internal|private|protected|public|static|override|unsafe)\s+)*[\w<>\[\],.]+\s+(\w+)\s*\(([^)]*)\)', re.M)
+PASS_ROOT = re.compile(r'\b(?:renderContext|RenderContext|InfinityRenderPipeline|InfinityRenderPipelineBase)\b')
 
-def check_redundant_parameters(repo, out):
-    """A pipeline instance method never takes a parameter named like a pipeline field or property: it shadows it."""
-    bodies = []
+def check_pass_root(repo, out):
+    """A pass reads its camera's facts from ViewContext and receives its services in its constructor. It never names the
+    pipeline, which constructs it, or the render context root."""
+    for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        for number, line in enumerate(code_only(read(p)).split('\n'), 1):
+            if PASS_ROOT.search(line):
+                out.append(('ERROR', 'passroot', f'{rel}:{number}: a pass names the pipeline or reaches the render context root'))
+
+
+PIPELINE_BASE_FILE = 'Runtime/Pipeline/InfinityRenderPipelineBase.cs'
+PIPELINE_BASE_PARTIAL = re.compile(r'\bpartial\s+class\s+InfinityRenderPipelineBase\b')
+# Types declared under Pass/ that the frame itself reads, each for one named reason.
+PIPELINE_BASE_PASS_TYPES = {
+    'PassShaderIDs',           # CameraUniform binds the camera-wide _ScreenParams
+    'OutputTransformUtility',  # every camera resolves its output transform and HDR output ownership
+    'CameraCulling',           # CullCamera builds the camera's main mesh culling context
+    'ScreenSpaceModeUtility',  # FrameFeatureSet.ResolveFrame requests SSR and SSGI from the volumes
+    'CombineLutCache',         # CameraFrameState owns the camera's combine-LUT frame transaction
+    'ShadowUniform',           # CameraFrameState owns the camera's shadow constant buffer (ARCHITECTURE §16)
+    'LightLoopUniform',        # CameraFrameState owns the camera's light-loop constant buffer (ARCHITECTURE §16)
+    'TemporalColorView',       # CameraFrameState keeps the accepted temporal color between frames
+    'OutputTransformDecision', # CameraSetup carries the camera's output transform
+    'EOutputMode', 'EScreenSpaceMode',  # inputs of the output decision and the feature request
+}
+
+def check_pipeline_base(repo, out):
+    """The frame infrastructure (InfinityRenderPipelineBase, its partial files and the contexts) sits below the pipelines
+    built on it: it names neither the desktop pipeline nor a class declared under Runtime/Pipeline/Pass, except the
+    listed types the frame itself reads."""
+    pass_classes = set()
+    for p in all_files(os.path.join(repo, 'Runtime', 'Pipeline', 'Pass'), {'.cs'}):
+        pass_classes.update(re.findall(r'\b(?:class|struct|enum)\s+(\w+)', code_only(read(p))))
+    # The desktop pipeline and its mesh pass table belong to a pipeline built on the base, like its passes.
+    names = sorted((pass_classes - PIPELINE_BASE_PASS_TYPES) | {'InfinityRenderPipeline', 'InfinityMeshPasses'}, key=len, reverse=True)
+    pattern = re.compile(r'\b(?:' + '|'.join(re.escape(name) for name in names) + r')\b')
     for p in all_files(os.path.join(repo, 'Runtime'), {'.cs'}):
-        text = without_comments(read(p))
-        for match in PIPELINE_PARTIAL.finditer(text):
-            body = method_body(text[match.start():], '{') or ''
-            offset = match.start() + text[match.start():].index(body)
-            bodies.append((os.path.relpath(p, repo).replace(os.sep, '/'), text, body, offset))
-    members = set()
-    for _, _, body, _ in bodies:
-        members |= set(CLASS_MEMBER.findall(body))
-    for rel, text, body, offset in bodies:
-        for m in CLASS_METHOD.finditer(body):
-            if re.search(r'\bstatic\b', body[m.start():m.start(1)]):
-                continue
-            for name in re.findall(r'(\w+)\s*(?:=[^,]*)?(?:,|$)', m.group(2).strip()):
-                if name in members:
-                    line = text.count(chr(10), 0, offset + m.start()) + 1
-                    out.append(('ERROR', 'redundantparam', f'{rel}:{line}: {m.group(1)} takes {name}, which shadows the pipeline member'))
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        text = code_only(read(p))
+        if rel != PIPELINE_BASE_FILE and not rel.startswith('Runtime/Pipeline/Context/') and not PIPELINE_BASE_PARTIAL.search(text):
+            continue
+        for number, line in enumerate(text.split('\n'), 1):
+            m = pattern.search(line)
+            if m:
+                out.append(('ERROR', 'pipelinebase', f'{rel}:{number}: the frame infrastructure names {m.group(0)}, which belongs to a pipeline built on it'))
 
 
 def check_layering(repo, out):
@@ -1209,7 +1367,8 @@ def main():
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),
                      ('diagnostics', check_diagnostics), ('layering', check_layering), ('staticid', check_static_ids),
                      ('hotpathlookup', check_hot_path_lookups), ('physicalalloc', check_physical_alloc), ('rgapi', check_rg_api),
-                     ('redundantparam', check_redundant_parameters)):
+                     ('framealloc', check_frame_allocations),
+                     ('passroot', check_pass_root), ('pipelinebase', check_pipeline_base)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

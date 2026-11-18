@@ -13,6 +13,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         internal const string CascadeTextureName = "CascadeShadowMoments";
         internal const string LocalTextureName = "LocalShadowMoments";
+        internal const string CascadeBlurTextureName = CascadeTextureName + "BlurTemp";
+        internal const string LocalBlurTextureName = LocalTextureName + "BlurTemp";
         // Smallest moment standard deviation in depth units (_ShadowMomentParams.z); hides acne on flat receivers.
         internal const float MinMomentDeviation = 0.001f;
         internal static readonly int MomentSliceRectID = Shader.PropertyToID("_MomentSliceRect");
@@ -29,8 +31,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int Mode(int shadowFilter) => shadowFilter == (int)EShadowFilter.EVSM ? 1 : 0;
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class ShadowMomentPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+
+        internal ShadowMomentPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+        }
+
         struct ShadowMomentPassData
         {
             public ComputeKernel fromDepth, blurH, blurV;
@@ -46,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Builds the VSM / EVSM moment atlases for the slices whose light needs them. Each atlas has half the resolution
         // of its depth atlas and the same UV layout; it exists only on frames where a visible shadowed light uses it.
-        void ComputeShadowMoments(in CameraRecordContext context)
+        internal void ComputeShadowMoments(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.ShadowMoments))
             {
@@ -55,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
             // A visible VSM / EVSM light makes the moments a required producer: a blocked feature fails at record time.
             context.features.ThrowIfCannotProduce(EFrameFeature.ShadowMoments);
 
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
             ShadowFilterSettings filter = m_Settings.shadowFilter;
 
             if (allocator.CascadeUsesMoments)
@@ -80,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 int atlasSize = math.max(1, m_Settings.cascadeShadowMapResolution);
                 AddShadowMomentPass(InfinityShaderIDs.CascadeShadowMap, InfinityShaderIDs.CascadeShadowMoments, ShadowMomentPassUtilityData.CascadeTextureName,
-                    atlasSize, count, rects, depthParams, momentParams);
+                    ShadowMomentPassUtilityData.CascadeBlurTextureName, atlasSize, count, rects, depthParams, momentParams);
             }
 
             if (allocator.LocalMomentSliceCount > 0)
@@ -105,13 +118,13 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 int atlasSize = math.max(1, m_Settings.localShadowMapResolution / 2);
                 AddShadowMomentPass(InfinityShaderIDs.LocalShadowMap, InfinityShaderIDs.LocalShadowMoments, ShadowMomentPassUtilityData.LocalTextureName,
-                    atlasSize, count, rects, depthParams, momentParams);
+                    ShadowMomentPassUtilityData.LocalBlurTextureName, atlasSize, count, rects, depthParams, momentParams);
             }
 
             context.features.MarkProduced(EFrameFeature.ShadowMoments);
         }
 
-        void AddShadowMomentPass(RGResourceKey depthKey, RGResourceKey momentKey, string name, int atlasSize, int sliceCount,
+        void AddShadowMomentPass(RGResourceKey depthKey, RGResourceKey momentKey, string name, string blurName, int atlasSize, int sliceCount,
             Vector4[] rects, Vector4[] depthParams, Vector4[] momentParams)
         {
             var descriptor = new TextureDescriptor(atlasSize, atlasSize)
@@ -129,16 +142,16 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<ShadowMomentPassData> passHandle = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments));
                 ref ShadowMomentPassData passData = ref passHandle.GetPassData();
-                passData.fromDepth = kernels.momentFromDepth;
-                passData.blurH = kernels.momentBlurH;
-                passData.blurV = kernels.momentBlurV;
+                passData.fromDepth = m_Resources.kernels.momentFromDepth;
+                passData.blurH = m_Resources.kernels.momentBlurH;
+                passData.blurV = m_Resources.kernels.momentBlurV;
                 passData.sliceCount = sliceCount;
                 passData.rects = rects;
                 passData.depthParams = depthParams;
                 passData.momentParams = momentParams;
                 passData.depthHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(depthKey));
                 passData.momentsHandle = passHandle.WriteTexture(momentsHandle);
-                descriptor.name = name + "BlurTemp";
+                descriptor.name = blurName;
                 passData.blurTempHandle = passHandle.CreatePassLocalTexture(descriptor);
 
                 passHandle.EnablePassCulling(false);

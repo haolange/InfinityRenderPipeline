@@ -23,8 +23,24 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int LocalShadowParamsID = Shader.PropertyToID("_LocalShadowParams");
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class LocalShadowPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
+        readonly LocalShadowCache m_LocalShadowCache;
+        readonly MeshPassId m_ShadowMeshPass;
+
+        internal LocalShadowPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings,
+            LocalShadowCache localShadowCache, MeshPassId shadowMeshPass)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+            m_Settings = settings;
+            m_LocalShadowCache = localShadowCache;
+            m_ShadowMeshPass = shadowMeshPass;
+        }
+
         struct LocalShadowPassData
         {
             public int sliceCount;
@@ -42,6 +58,10 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4[] sourceRects, destinationRects;
             public RGTextureHandle sourceHandle;
         }
+
+        // One observer for the pipeline's lifetime: the graph that queues it is executed and cleared before the next
+        // camera records and rewrites its fields.
+        readonly CachedShadowProduction m_CachedShadowProduction = new CachedShadowProduction();
 
         sealed class CachedShadowProduction : IRGPassQueueObserver
         {
@@ -69,10 +89,10 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RasterLocalShadow(in CameraRecordContext context)
+        internal void RasterLocalShadow(in ViewContext context)
         {
             int shadowMapResolution = m_Settings.localShadowMapResolution;
-            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);
 
@@ -111,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             int lastRecord = -1;
-            int frame = Time.frameCount;
+            int frame = context.frame;
             long production = 0;
             bool cacheGroupAvailable = false;
             for (int slice = 0; slice < sliceCount; ++slice)
@@ -140,9 +160,9 @@ namespace InfinityTech.Rendering.Pipeline
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
-                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
+                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight, context.shadowmaskMode);
 
-                InfinityAdditionalLightData ext = renderContext.lightContext.AdditionalData(lightIdx);
+                InfinityAdditionalLightData ext = context.lights.AdditionalData(lightIdx);
                 if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
                     cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, CameraSceneCulling.Mask(context.camera));
@@ -161,8 +181,10 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                sliceMeshDrawListsHandle[slice] = m_RGBuilder.CreateMeshDrawList(new MeshDrawListDesc(
-                    CameraCulling.Context(context.camera, shadowLight, local.splitData), InfinityPassIDs.RasterShadowPass));
+                // Each face is its own light view: no camera occluder and no motion reach it.
+                RGMeshViewHandle sliceViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(
+                    CameraCulling.Context(context.camera, shadowLight, local.splitData), default, MeshOccluder.None));
+                sliceMeshDrawListsHandle[slice] = m_RGBuilder.CreateMeshDrawList(sliceViewHandle, m_ShadowMeshPass);
 
                 if (!context.cullingResults.GetShadowCasterBounds(lightIdx, out _))
                 {
@@ -278,7 +300,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle cacheAtlasHandle = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlasHandle);
 
-            int shaderPass = blitPasses.copyShadowDepthTile;
+            int shaderPass = m_Resources.blitPasses.copyShadowDepthTile;
             var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
             var keys = m_RGBuilder.GetRecordingArray<ShadowCacheKey>(saveCount);
@@ -300,8 +322,12 @@ namespace InfinityTech.Rendering.Pipeline
             // Depth-only resources cannot use region CopyTexture. Keep each direction in its own raster pass:
             // sampling and attaching the same physical atlas in one pass would be a feedback hazard.
             if (saveCount > 0)
-                RecordShadowDepthCopies(shadowMapTextureHandle, cacheAtlasHandle, frameRects, cacheRects, 0, saveCount, shaderPass,
-                    new CachedShadowProduction { cache = m_LocalShadowCache, keys = keys, count = saveCount });
+            {
+                m_CachedShadowProduction.cache = m_LocalShadowCache;
+                m_CachedShadowProduction.keys = keys;
+                m_CachedShadowProduction.count = saveCount;
+                RecordShadowDepthCopies(shadowMapTextureHandle, cacheAtlasHandle, frameRects, cacheRects, 0, saveCount, shaderPass, m_CachedShadowProduction);
+            }
             if (loadCount > 0)
                 RecordShadowDepthCopies(cacheAtlasHandle, shadowMapTextureHandle, cacheRects, frameRects, saveCount, loadCount, shaderPass, null);
         }

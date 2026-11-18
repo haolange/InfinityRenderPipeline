@@ -23,35 +23,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void Equality_SeparatesEveryCullingInput()
-        {
-            Plane[] planes = MeshTestUtility.BoxPlanes();
-            MeshLODProjection lod = MeshTestUtility.Lod;
-            MeshCullingContext Make(Plane[] p = null, int layer = ~0, ulong scene = ulong.MaxValue, uint rendering = 0xFF, bool filter = false, MeshLODProjection? projection = null)
-                => MeshCullingContext.Create(p ?? planes, layer, scene, rendering, filter, projection ?? lod);
-            MeshCullingContext baseline = Make();
-            Assert.IsTrue(baseline.Equals(Make()));
-            Assert.AreEqual(baseline.GetHashCode(), Make().GetHashCode());
-
-            var moved = (Plane[])planes.Clone();
-            moved[5] = new Plane(Vector3.back, 11f);
-            var fewer = new Plane[5];
-            Array.Copy(planes, fewer, 5);
-            MeshLODProjection origin = lod, scale = lod, bias = lod, orthographic = lod;
-            origin.origin = new float3(0, 1, 0);
-            scale.scale = 2;
-            bias.bias = 2;
-            orthographic.orthographic = true;
-            var variants = new[]
-            {
-                Make(moved), Make(fewer), Make(layer: 1), Make(scene: 1), Make(rendering: 1), Make(filter: true),
-                Make(projection: origin), Make(projection: scale), Make(projection: bias), Make(projection: orthographic)
-            };
-            for (int i = 0; i < variants.Length; ++i)
-                Assert.IsFalse(baseline.Equals(variants[i]), $"variant {i}");
-        }
-
-        [Test]
         public void CpuGather_AppliesFlagsMasksAndFrustum()
         {
             using (var fixture = new MeshWorldFixture())
@@ -107,7 +78,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 int count = world.entityHighWater;
                 uint2[] candidates = MeshTestUtility.LevelCandidates(count, 1);
                 ComputeShader shader = Object.Instantiate(fixture.shader);
-                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 1);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 1, count);
                 try
                 {
                     var orthographic = new MeshLODProjection { origin = new float3(4, 0, 0), scale = 0.5f, bias = 2f, orthographic = true };
@@ -122,7 +93,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         for (int c = 0; c < contexts.Length; ++c)
                         {
                             List<MeshDrawnInstance> expected = MeshTestUtility.GatherOnCpu(world, candidates, 1, contexts[c], false);
-                            List<MeshDrawnInstance> actual = run.Build("BuildDrawList", contexts[c]);
+                            List<MeshDrawnInstance> actual = run.Build(MeshProducerRun.CullView, contexts[c]);
+                            // Every entity has one level-0 element, so the CPU's drawn entities are its view visibility.
+                            CollectionAssert.AreEqual(MeshTestUtility.DrawnEntities(expected, count), MeshProducerRun.Visible(run.Visibility()),
+                                $"view visibility, context {c}, scene mask {scene:X}");
                             CollectionAssert.AreEqual(expected, actual, $"context {c}, scene mask {scene:X}");
                         }
                     }

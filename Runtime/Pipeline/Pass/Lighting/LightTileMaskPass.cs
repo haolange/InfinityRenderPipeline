@@ -119,8 +119,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class LightTileMaskPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal LightTileMaskPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct LightTileMaskPassData
         {
             public RGConstantsHandle parametersHandle;
@@ -133,10 +142,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The camera's light-loop constants, from the light context built after culling. Probes count only when the
         // reflection probe feature records a probe list this frame.
-        LightLoopUniform ResolveLightLoopUniform(FrameFeatureSet features)
+        internal static LightLoopUniform ResolveLightLoopUniform(in ViewContext context)
         {
-            LightContext lightContext = renderContext.lightContext;
-            bool hasProbeList = features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
+            LightContext lightContext = context.lights;
+            bool hasProbeList = context.features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
             return new LightLoopUniform
             {
                 tileParameters = lightContext.TileParams,
@@ -151,36 +160,36 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
         // one-word empty mask (the z-bins are all empty, so no pixel reads past it).
-        LightLoopInputs QueryLightLoop(in CameraRecordContext context)
+        internal static LightLoopInputs QueryLightLoop(RGBuilder graph, in ViewContext context)
         {
-            LightContext lightContext = renderContext.lightContext;
+            LightContext lightContext = context.lights;
             bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
             bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
-            RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
-            RGTextureHandle probeAtlasHandle = hasProbeAtlas ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
+            RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? graph.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
+            RGTextureHandle probeAtlasHandle = hasProbeAtlas ? graph.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
             bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {
-                probesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
-                probeZBinsHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
+                probesHandle = graph.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
+                probeZBinsHandle = graph.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
                 probeTileMasksHandle = hasProbeList
-                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
-                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+                    ? graph.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
+                    : graph.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
                 probeAtlasHandle = probeAtlasHandle,
                 hasProbeAtlas = hasProbeAtlas,
-                cookiesHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
+                cookiesHandle = graph.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
                 cookieAtlasHandle = cookieAtlasHandle,
                 hasCookieAtlas = hasCookieAtlas,
-                zBinsHandle = m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
+                zBinsHandle = graph.scoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
                 tileMasksHandle = lightContext.HasLocalLightList()
-                    ? m_RGBuilder.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
-                    : m_RGBuilder.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
+                    ? graph.scoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)
+                    : graph.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
             };
         }
 
-        void ComputeLightTileMask(in CameraRecordContext context)
+        internal void ComputeLightTileMask(in ViewContext context)
         {
-            LightContext lightContext = renderContext.lightContext;
+            LightContext lightContext = context.lights;
             if (!lightContext.HasLocalLightList())
             {
                 return;
@@ -196,7 +205,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Builds tile bitmasks (tiles x words) from per-item tile rectangles: local lights, and reflection probes as the
         // second index space of the clustered list.
-        void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
+        internal void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
         {
             RGBufferHandle tileMasksHandle = m_RGBuilder.scoper.CreateBuffer(masksKey, new BufferDescriptor
             {
@@ -217,7 +226,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
                 passData.wordCount = wordCount;
                 passData.tileCount = tileCount;
-                passData.kernel = kernels.lightTileMask;
+                passData.kernel = m_Resources.kernels.lightTileMask;
                 passData.tileRectsHandle = passHandle.ReadBuffer(m_RGBuilder.scoper.QueryBuffer(rectsKey));
                 passData.tileMasksHandle = passHandle.WriteBuffer(tileMasksHandle);
 

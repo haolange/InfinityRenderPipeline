@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.LightPipeline
             in CullingResults cullingResults,
             InfinityAdditionalLightData[] additionalData,
             Camera camera,
-            in ShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
+            in ShadowAllocatorSettings settings, MeshWorld meshWorld, MeshPassId shadowPass, int frame, LocalShadowCache shadowCache = null)
         {
             if (camera == null)
             {
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_CollectCasters.Auto())
             {
-                m_MeshCasters.Collect(meshWorld, Time.frameCount);
+                m_MeshCasters.Collect(meshWorld, shadowPass, frame);
             }
             Reset();
 
@@ -194,23 +194,19 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             using (LightCpuMarkers.s_AllocateLocal.Auto())
             {
-                AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
+                AllocateLocal(records, cullingResults, additionalData, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, frame, shadowCache);
             }
         }
 
         // Local shadow budget: candidates in descending score (record order on ties) are accepted while both the light
         // count and the atlas tile budget allow; one that does not fit is dropped and a later, smaller one may still fit.
-        // Writes the accepted record indices in acceptance order and returns their count.
-        internal static int SelectWithinBudget(float[] scores, int[] recordIndices, int[] faceCounts, int maxLocalLights, int tileBudget,
-            int[] acceptedRecords, out int tilesUsed, out int dropped)
-        {
-            return SelectWithinBudget(scores, recordIndices, faceCounts, maxLocalLights, tileBudget, acceptedRecords, scores.Length, out tilesUsed, out dropped);
-        }
+        // Writes the accepted record indices in acceptance order and returns their count. The first `count` entries of
+        // scores, recordIndices and faceCounts are the candidates.
         readonly struct ShadowBudgetComparer : System.Collections.Generic.IComparer<int>
         {
-            readonly float[] m_Scores;
-            readonly int[] m_Records;
-            internal ShadowBudgetComparer(float[] scores, int[] records)
+            readonly NativeArray<float> m_Scores;
+            readonly NativeArray<int> m_Records;
+            internal ShadowBudgetComparer(NativeArray<float> scores, NativeArray<int> records)
             {
                 m_Scores = scores;
                 m_Records = records;
@@ -221,8 +217,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 return cmp != 0 ? cmp : m_Records[a].CompareTo(m_Records[b]);
             }
         }
-        static int SelectWithinBudget(float[] scores, int[] recordIndices, int[] faceCounts, int maxLocalLights, int tileBudget,
-            int[] acceptedRecords, int count, out int tilesUsed, out int dropped)
+        internal static int SelectWithinBudget(NativeArray<float> scores, NativeArray<int> recordIndices, NativeArray<int> faceCounts, int maxLocalLights, int tileBudget,
+            NativeArray<int> acceptedRecords, int count, out int tilesUsed, out int dropped)
         {
             using var order = new NativeArray<int>(count, Allocator.Temp);
             var writableOrder = order;
@@ -251,17 +247,6 @@ namespace InfinityTech.Rendering.LightPipeline
             return accepted;
         }
 
-        LocalShadowCache.SamplingState[][] m_CachedSampling = Array.Empty<LocalShadowCache.SamplingState[]>();
-        int[] m_FaceCounts = Array.Empty<int>(), m_CandidateRecords = Array.Empty<int>(), m_AcceptedRecords = Array.Empty<int>();
-        float[] m_CandidateScores = Array.Empty<float>();
-        static T[] BudgetStorage<T>(ref T[] values, int count)
-        {
-            if (values.Length < count)
-            {
-                Array.Resize(ref values, math.ceilpow2(math.max(1, count)));
-            }
-            return values;
-        }
         static readonly Plane[] s_CullingPlanes = new Plane[6];
 
         void AllocateLocal(
@@ -274,10 +259,12 @@ namespace InfinityTech.Rendering.LightPipeline
             int tileResolution,
             int tilesPerRow,
             int tileBudget,
-            int maxLocalLights, LocalShadowCache shadowCache)
+            int maxLocalLights, int frame, LocalShadowCache shadowCache)
         {
-            var cached = BudgetStorage(ref m_CachedSampling, records.Length);
-            Array.Clear(cached, 0, cached.Length);
+            // A cached record's sampling occupies up to six entries at recordIndex * MaxLocalFaces; cachedFaces holds their
+            // count, 0 when the record is not served from the cache. Both live until this call returns (AGENTS R17).
+            var cachedSampling = new NativeArray<LocalShadowCache.SamplingState>(math.max(1, records.Length * MaxLocalFaces), Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var cachedFaces = new NativeArray<int>(math.max(1, records.Length), Allocator.Temp);
             if (shadowCache != null)
                 for (int i = 0; i < records.Length; ++i)
                 {
@@ -291,12 +278,13 @@ namespace InfinityTech.Rendering.LightPipeline
                     if (light != null && light.shadows != LightShadows.None
                         && ext != null
                         && ext.shadowUpdateMode == EShadowUpdateMode.OnDemand)
-                        cached[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), ext.shadowCacheVersion, Time.frameCount);
+                        cachedFaces[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), ext.shadowCacheVersion, frame,
+                            cachedSampling.AsSpan().Slice(i * MaxLocalFaces, MaxLocalFaces));
                 }
             int candidateCount = 0;
             for (int i = 0; i < records.Length; ++i)
             {
-                if (cached[i] != null || IsLocalShadowCandidate(records[i], cullingResults, camera, tileResolution, settings.filterGuardTexels))
+                if (cachedFaces[i] != 0 || IsLocalShadowCandidate(records[i], cullingResults, camera, tileResolution, settings.filterGuardTexels))
                 {
                     candidateCount++;
                 }
@@ -308,7 +296,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < records.Length; ++i)
             {
                 LightRecord record = records[i];
-                if (cached[i] == null && !IsLocalShadowCandidate(record, cullingResults, camera, tileResolution, settings.filterGuardTexels))
+                if (cachedFaces[i] == 0 && !IsLocalShadowCandidate(record, cullingResults, camera, tileResolution, settings.filterGuardTexels))
                 {
                     continue;
                 }
@@ -318,7 +306,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 float distance = math.max(0.01f, Vector3.Distance(cameraPosition, lightPosition));
                 // Strength over distance; single-tile shapes win ties against six-face shapes.
                 float score = visible.light.shadowStrength / distance;
-                if ((cached[i]?.Length ?? LightRecordPack.LocalShadowSliceCount(record)) == 1)
+                if (FaceCount(cachedFaces[i], record) == 1)
                 {
                     score += 1e-4f;
                 }
@@ -328,18 +316,14 @@ namespace InfinityTech.Rendering.LightPipeline
                 write++;
             }
 
-            var faceCounts = BudgetStorage(ref m_FaceCounts, write);
-            var candidateScores = BudgetStorage(ref m_CandidateScores, write);
-            var candidateRecords = BudgetStorage(ref m_CandidateRecords, write);
+            var faceCounts = new NativeArray<int>(math.max(1, write), Allocator.Temp);
             for (int c = 0; c < write; ++c)
             {
-                candidateScores[c] = scores[c];
-                candidateRecords[c] = recordIndices[c];
-                faceCounts[c] = cached[recordIndices[c]]?.Length ?? LightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
+                faceCounts[c] = FaceCount(cachedFaces[recordIndices[c]], records[recordIndices[c]]);
             }
 
-            var acceptedRecords = BudgetStorage(ref m_AcceptedRecords, math.min(maxLocalLights, write));
-            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, write, out int tilesUsed, out _);
+            var acceptedRecords = new NativeArray<int>(math.max(1, math.min(maxLocalLights, write)), Allocator.Temp);
+            int accepted = SelectWithinBudget(scores, recordIndices, faceCounts, maxLocalLights, tileBudget, acceptedRecords, write, out int tilesUsed, out _);
 
             EnsureLocalCapacity(math.max(1, tilesUsed));
             LocalSliceCount = 0;
@@ -349,12 +333,12 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 int recordIndex = acceptedRecords[a];
                 LightRecord record = records[recordIndex];
-                int faces = cached[recordIndex]?.Length ?? LightRecordPack.LocalShadowSliceCount(record);
+                int faces = FaceCount(cachedFaces[recordIndex], record);
                 int visibleIndex = record.visibleLightIndex;
                 Light light = cullingResults.visibleLights[visibleIndex].light;
                 int firstSlice = nextSlice;
-                if (cached[recordIndex] != null)
-                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), faces, Time.frameCount);
+                if (cachedFaces[recordIndex] != 0)
+                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), CameraSceneCulling.Mask(camera), faces, frame);
 
                 for (int face = 0; face < faces; ++face)
                 {
@@ -393,9 +377,9 @@ namespace InfinityTech.Rendering.LightPipeline
                     gpu.shadowOriginSize = new Vector4(record.positionRange.x, record.positionRange.y, record.positionRange.z,
                         (record.flags & LightRecordFlags.Planar) != 0 && record.area.x > 0 && record.area.y > 0
                             ? math.sqrt(record.area.x * record.area.y / math.PI) : record.shape.x + record.shape.y);
-                    if (cached[recordIndex] != null)
+                    if (cachedFaces[recordIndex] != 0)
                     {
-                        var snapshot = cached[recordIndex][face];
+                        var snapshot = cachedSampling[recordIndex * MaxLocalFaces + face];
                         local.cachedSampling = true;
                         // Keep this camera's atlas layout and light record identity; depth geometry is the production's.
                         Matrix4x4 matrix = snapshot.slice.shadowMatrix;
@@ -429,7 +413,16 @@ namespace InfinityTech.Rendering.LightPipeline
             LocalSliceCount = nextSlice;
             scores.Dispose();
             recordIndices.Dispose();
+            faceCounts.Dispose();
+            acceptedRecords.Dispose();
+            cachedFaces.Dispose();
+            cachedSampling.Dispose();
         }
+
+        const int MaxLocalFaces = 6;
+
+        static int FaceCount(int cachedFaceCount, in LightRecord record)
+            => cachedFaceCount != 0 ? cachedFaceCount : LightRecordPack.LocalShadowSliceCount(record);
 
         bool IsLocalShadowCandidate(in LightRecord record, in CullingResults cullingResults, Camera camera, int tileResolution, float guardTexels)
         {

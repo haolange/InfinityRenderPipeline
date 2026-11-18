@@ -42,6 +42,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                     int2 countOffset = countOffsets[i];
                     TerrainDrawCommand terrainDrawCommand = terrainDrawCommands[i];
 
+                    // TODO: This loop issues the countOffset.x-instance batch countOffset.x times; draw it once per command when terrain drawing is wired into a pass.
                     for (int j = 0; j < countOffset.x; ++j)
                     {
                         cmdBuffer.DrawMeshInstancedProcedural(meshes[terrainDrawCommand.lod], 0, material, passIndex, countOffset.x);

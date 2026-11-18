@@ -1,303 +1,81 @@
 using System;
-using UnityEngine;
-using UnityEngine.Rendering;
-using InfinityTech.Component;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using UnityEngine;
+using InfinityTech.Rendering.SceneModules;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
-using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public delegate void RenderTask(RenderContext renderContext);
-
-    public static class RenderTaskQueue
+    /// <summary>
+    /// The pipeline-lifetime root: every service that outlives a frame, built in dependency order and disposed in reverse.
+    /// A frame's engine facts live in <see cref="FrameContext"/> and a camera's in <see cref="ViewContext"/>; neither is
+    /// stored here. The root forwards nothing and no subsystem refers back to it: the pipeline hands each pass the services
+    /// it reads.
+    /// </summary>
+    internal sealed class RenderContext : IDisposable
     {
-        internal struct MeshTask
+        internal readonly ResourcePool resourcePool;
+        internal readonly SceneWorld sceneWorld;
+        internal readonly RGBuilder graph;
+        internal readonly AtmosphereSharedCache atmosphereCache;
+        internal readonly ProbeVolumeIntegration probeVolumes;
+        internal readonly CameraStateTable cameras;
+        // Pipeline-wide frame transactions in completion order; camera-owned ones live in CameraFrameState.
+        internal readonly IFrameTransaction[] frameTransactions;
+
+        // The capabilities give the mesh pass table and its shadow caster pass, and whether the pipeline lets its graph use
+        // the async queue; the device still has to support it.
+        internal RenderContext(in InfinityRenderPipelineAsset.Settings settings, ComputeShader meshDrawShader, in PipelineCapabilities capabilities)
         {
-            internal MeshComponent component;
-            internal MeshEntityId entity;
-            internal int worldId;
-            internal uint epoch;
-            internal bool register;
-        }
-        internal static readonly List<MeshTask> MeshTasks = new List<MeshTask>(256);
-        internal static void RegisterMesh(MeshComponent component, uint epoch) => MeshTasks.Add(new MeshTask { component = component, epoch = epoch, register = true });
-        internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity, int worldId) => MeshTasks.Add(new MeshTask { component = component, entity = entity, worldId = worldId });
-
-        internal static readonly List<RenderTask> GraphicsTasks = new List<RenderTask>(256);
-
-        internal static void ProcessMeshTask(in MeshTask task, RenderContext context)
-        {
-            if (task.register)
-            {
-                if (task.component)
-                {
-                    task.component.CompleteRegistration(task.epoch);
-                }
-            }
-            else
-            {
-                context.EnqueueEntityRemoval(task.entity, task.worldId);
-            }
-        }
-
-        public static void AddTask(RenderTask graphicsTask)
-        {
-            GraphicsTasks.Add(graphicsTask);
-        }
-
-        internal static void ClearTasks()
-        {
-            GraphicsTasks.Clear();
-            MeshTasks.Clear();
-        }
-
-        internal static void ProcessTasks(RenderContext renderContext)
-        {
-            foreach (var task in MeshTasks)
-            {
-                ProcessMeshTask(task, renderContext);
-            }
-
-            for (int i = 0; i < GraphicsTasks.Count; ++i)
-            {
-                if (GraphicsTasks[i] != null)
-                {
-                    GraphicsTasks[i](renderContext);
-                    GraphicsTasks[i] = null;
-                }
-            }
-        }
-    }
-
-    public partial class RenderContext : IDisposable
-    {
-        private static readonly List<MeshComponent> s_DirtyMeshList = new List<MeshComponent>(256);
-        private static readonly List<MeshComponent> s_TransformUpdates = new List<MeshComponent>(256);
-        private readonly List<MeshEntityId> m_PendingRemovals = new List<MeshEntityId>(64);
-
-        private List<TerrainComponent> m_TerrainList;
-        private int m_WorldDecalCount;
-        private bool m_WorldDecalsInitialized;
-        private Dictionary<ulong, InfinityAdditionalLightData> m_LightList;
-
-        internal LightContext lightContext;
-        private readonly MeshWorld m_MeshWorld;
-        internal ScriptableRenderContext scriptableRenderContext;
-
-        public RenderContext(ResourcePool resourcePool, ComputeShader meshDrawShader)
-        {
-            m_LightList = new Dictionary<ulong, InfinityAdditionalLightData>(64);
-            m_TerrainList = new List<TerrainComponent>(32);
-
-            lightContext = new LightContext();
-            m_MeshWorld = new MeshWorld(resourcePool, meshDrawShader);
-            MeshComponent.ResyncAll();
-        }
-
-        public MeshWorld meshWorld => m_MeshWorld;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void EnqueueDirtyMesh(MeshComponent meshComponent)
-        {
-            if (ReferenceEquals(meshComponent, null))
-            {
-                return;
-            }
-
-            s_DirtyMeshList.Add(meshComponent);
-        }
-
-        internal static void EnqueueMeshTransform(MeshComponent mesh) => s_TransformUpdates.Add(mesh);
-
-        /// <summary>Entities of another world (an earlier pipeline) are not this world's to remove.</summary>
-        internal void EnqueueEntityRemoval(MeshEntityId entity, int worldId)
-        {
-            if (entity.IsValid && worldId == m_MeshWorld.worldId)
-            {
-                m_PendingRemovals.Add(entity);
-            }
-        }
-
-        /// <summary>
-        /// One structural transaction per frame: pending removals, then every dirty component. Components publish their
-        /// staged state only after the commit; on failure the world rolls back, the components abandon their staged state,
-        /// and the queues stay for the next frame while the original exception propagates.
-        /// </summary>
-        internal void DrainDirtyMeshes()
-        {
-            if (s_DirtyMeshList.Count == 0 && m_PendingRemovals.Count == 0)
-            {
-                return;
-            }
-            bool committed = false;
             try
             {
-                using (MeshWorldUpdate update = m_MeshWorld.BeginUpdate())
+                resourcePool = new ResourcePool();
+                sceneWorld = new SceneWorld(resourcePool, meshDrawShader, capabilities.meshPasses, capabilities.shadowCasterPass);
+                graph = new RGBuilder("RenderGraph", resourcePool, capabilities.asyncCompute && SystemInfo.supportsAsyncCompute);
+                graph.SetMeshWorld(sceneWorld.meshes);
+                atmosphereCache = new AtmosphereSharedCache(resourcePool);
+                probeVolumes = new ProbeVolumeIntegration(settings);
+                cameras = new CameraStateTable(resourcePool);
+                frameTransactions = new IFrameTransaction[]
                 {
-                    foreach (MeshEntityId entity in m_PendingRemovals)
-                        if (m_MeshWorld.IsAlive(entity))
-                        {
-                            update.RemoveEntity(entity);
-                        }
-                    foreach (MeshComponent meshComponent in s_DirtyMeshList)
-                        if (meshComponent)
-                        {
-                            meshComponent.Sync(m_MeshWorld, update);
-                        }
-                    update.Commit();
-                    committed = true;
-                }
+                    atmosphereCache, sceneWorld.lights.shadowCache, sceneWorld.lights.cookieAtlas, sceneWorld.probes.atlas
+                };
             }
-            finally
+            catch (Exception constructionFailure)
             {
-                foreach (MeshComponent meshComponent in s_DirtyMeshList)
-                {
-                    if (!meshComponent)
-                    {
-                        continue;
-                    }
-                    if (committed)
-                    {
-                        meshComponent.PublishSync();
-                    }
-                    else
-                    {
-                        meshComponent.AbandonSync();
-                    }
-                }
-                if (committed)
-                {
-                    m_PendingRemovals.Clear();
-                    s_DirtyMeshList.Clear();
-                }
+                try { Dispose(); }
+                catch (Exception cleanupFailure) { throw new AggregateException(constructionFailure, cleanupFailure); }
+                throw;
             }
         }
 
-        /// <summary>Explicit static pose notifications, written after the structural transaction.</summary>
-        internal void ApplyMeshTransforms()
-        {
-            using var measurement = new PipelineFrameMeasurement.Section(1);
-            foreach (MeshComponent mesh in s_TransformUpdates)
-                if (mesh)
-                {
-                    mesh.ApplyStaticPose(m_MeshWorld);
-                }
-            s_TransformUpdates.Clear();
-        }
-
-        internal void UpdateDynamicMeshPoses()
-        {
-            using var measurement = new PipelineFrameMeasurement.Section(0);
-            m_MeshWorld.UpdateDynamicPoses();
-        }
-
-        #region WorldLight
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldLight(in ulong id, InfinityAdditionalLightData lightComponent)
-        {
-            m_LightList.TryAdd(id, lightComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldLight(in ulong id)
-        {
-            m_LightList.Remove(id);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Dictionary<ulong, InfinityAdditionalLightData> GetWorldLight()
-        {
-            return m_LightList;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearWorldLight()
-        {
-            m_LightList.Clear();
-        }
-        #endregion //WorldLight
-
-        #region WorldTerrain
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldTerrain(TerrainComponent terrainComponent)
-        {
-            m_TerrainList.Add(terrainComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldTerrain(TerrainComponent terrainComponent)
-        {
-            m_TerrainList.Remove(terrainComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<TerrainComponent> GetWorldTerrains()
-        {
-            return m_TerrainList;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearWorldTerrains()
-        {
-            m_TerrainList.Clear();
-        }
-        #endregion //WorldTerrain
-
-
-        #region WorldDecal
-        public int WorldDecalCount => m_WorldDecalCount;
-
-        // A pipeline replacement does not re-enable the loaded scene's components. Reconcile once,
-        // after pending registration tasks were consumed, so those tasks cannot double-count decals.
-        internal void InitializeWorldDecals()
-        {
-            if (m_WorldDecalsInitialized)
-            {
-                return;
-            }
-            m_WorldDecalCount = 0;
-            foreach (DecalComponent decal in Resources.FindObjectsOfTypeAll<DecalComponent>())
-                if (decal.isActiveAndEnabled && decal.gameObject.scene.IsValid() && decal.gameObject.scene.isLoaded)
-                    m_WorldDecalCount++;
-            m_WorldDecalsInitialized = true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldDecal()
-        {
-            m_WorldDecalCount++;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldDecal()
-        {
-            m_WorldDecalCount = m_WorldDecalCount > 0 ? m_WorldDecalCount - 1 : 0;
-        }
-        #endregion //WorldDecal
-
-
+        // Reverse construction order. A recorded graph is cleared first: its draw lists and camera reads return to their
+        // owners before those dispose. Construction rollback reaches here with the later services unbuilt.
         public void Dispose()
         {
-            ClearWorldLight();
-            ClearWorldTerrains();
-            foreach (MeshComponent mesh in s_TransformUpdates)
+            var failures = new List<Exception>();
+            void Release(Action action)
             {
-                if (mesh)
-                {
-                    mesh.transformPending = false;
-                }
+                try { action(); }
+                catch (Exception error) { failures.Add(error); }
             }
-            s_TransformUpdates.Clear();
-            s_DirtyMeshList.Clear();
-            m_PendingRemovals.Clear();
-
-            RenderTaskQueue.ClearTasks();
-
-            lightContext.Dispose();
-            m_MeshWorld.Dispose();
+            if (graph != null) Release(graph.ClearRecordedGraph);
+            if (cameras != null) Release(cameras.Dispose);
+            if (probeVolumes != null) Release(probeVolumes.Dispose);
+            if (atmosphereCache != null) Release(atmosphereCache.Dispose);
+            if (graph != null) Release(graph.Dispose);
+            if (sceneWorld != null) Release(sceneWorld.Dispose);
+            if (resourcePool != null) Release(resourcePool.Dispose);
+            if (failures.Count == 1)
+            {
+                throw failures[0];
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(failures);
+            }
         }
     }
 }

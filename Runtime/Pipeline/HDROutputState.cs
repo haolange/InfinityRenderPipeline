@@ -2,12 +2,12 @@ using UnityEngine;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial class InfinityRenderPipeline
+    public abstract partial class InfinityRenderPipelineBase
     {
         HDROutputSettings m_OwnedHdrOutput;
         bool m_PreviousAutomaticHdrTonemapping;
 
-        void InheritHdrTonemappingOwnership(InfinityRenderPipeline previous)
+        void InheritHdrTonemappingOwnership(InfinityRenderPipelineBase previous)
         {
             if (previous == null || previous.m_OwnedHdrOutput == null)
             {

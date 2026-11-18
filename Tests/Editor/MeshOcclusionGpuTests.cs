@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity.Mathematics;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
 
@@ -59,38 +60,42 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     scenes = Buffer(scenes, 8), renderingLayers = Buffer(rendering, 4),
                     lodChains = Buffer(chainValues, System.Runtime.InteropServices.Marshal.SizeOf<MeshLODChain>())
                 };
-                run = new MeshProducerRun(shader, columns, MeshTestUtility.LevelCandidates(Count, 1), 1);
+                run = new MeshProducerRun(shader, columns, MeshTestUtility.LevelCandidates(Count, 1), 1, Count);
                 MeshCullingContext context = Context(MeshTestUtility.Lod, 0);
                 int mips = PyramidMipBatch.MipCount((Width + 1) / 2, (Height + 1) / 2);
 
-                List<MeshDrawnInstance> plain = run.Build("BuildDrawList", context);
+                List<MeshDrawnInstance> plain = run.Build(MeshProducerRun.CullView, context);
                 CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Drawn(plain));
+                CollectionAssert.AreEqual(Drawn(plain), MeshProducerRun.Visible(run.Visibility()), "A list draws exactly the entities its view sees.");
                 Assert.IsTrue(plain.Contains(new MeshDrawnInstance(1, 0, 0)), "A zero-bound chain draws level 0 in the stable range.");
 
                 run.SetHistory(Buffer(matrices, 64), Buffer(generations, 4), Buffer(oldMatrices, 64), Buffer(previousGenerations, 4), Count, Count);
                 run.SetOccluder(previous, Matrix4x4.identity, Width, Height, mips);
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build("BuildDrawListOccludedHistory", context)));
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, run.DrawnCandidates(), "The history list records what it drew.");
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build(MeshProducerRun.CullViewOccludedHistory, context)));
+                uint[] history = run.Visibility();
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, MeshProducerRun.Visible(history), "The history view's visibility is what its list drew.");
 
-                // A later list of the same context and pass draws what the history occluder hid and the current one does not.
+                // The list of the same pass on the remainder view draws what the history occluder hid and the current one does not.
+                run.SetDrawn(history);
                 run.SetOccluder(current, Matrix4x4.identity, Width, Height, mips);
                 var expectedRemainder = new uint[Count]; expectedRemainder[0] = 1;
                 expectedRemainder[9] = currentHole ? 0u : 1u;
-                CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build("BuildDrawListRemainder", context)));
+                CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build(MeshProducerRun.CullViewRemainder, context)));
+                CollectionAssert.AreEqual(expectedRemainder, MeshProducerRun.Visible(run.Visibility()), "The remainder view leaves every entity its history view saw culled.");
 
-                // Another pass tests its first list against the current occluder alone.
+                // A list of a view culled against the current occluder alone.
                 var expectedCurrent = new uint[] {1,1,1,1,1,1,0,0,1,currentHole ? 0u : 1u,1};
-                CollectionAssert.AreEqual(expectedCurrent, Drawn(run.Build("BuildDrawListOccluded", context)));
+                CollectionAssert.AreEqual(expectedCurrent, Drawn(run.Build(MeshProducerRun.CullViewOccluded, context)));
 
                 // A projection wholly behind the camera cannot prove occlusion.
                 foreach (float w in new[] { -1f, 0f })
                 {
                     var invalidProjection = Matrix4x4.identity; invalidProjection.m33 = w;
                     run.SetOccluder(previous, invalidProjection, Width, Height, mips);
-                    CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Drawn(run.Build("BuildDrawListOccludedHistory", context)));
+                    CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Drawn(run.Build(MeshProducerRun.CullViewOccludedHistory, context)));
                 }
                 run.SetOccluder(previous, Matrix4x4.identity, Width, Height, 0);
-                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Drawn(run.Build("BuildDrawListOccludedHistory", context)));
+                CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Drawn(run.Build(MeshProducerRun.CullViewOccludedHistory, context)));
 
                 // Cancellation in a translated VP must not turn a co-planar surface into an occlusion proof.
                 for (int i = 0; i < Count; ++i) centers[i] += new Vector4(2048, 2048, 2048, 0);
@@ -98,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var shifted = Matrix4x4.identity; shifted.m03 = shifted.m13 = shifted.m23 = -2048;
                 run.SetOccluder(previous, shifted, Width, Height, mips);
                 var shiftedLod = new MeshLODProjection { origin = new Unity.Mathematics.float3(2048, 2048, 2048), scale = 1, bias = 1 };
-                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build("BuildDrawListOccludedHistory", Context(shiftedLod, 2048))));
+                CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Drawn(run.Build(MeshProducerRun.CullViewOccludedHistory, Context(shiftedLod, 2048))));
 
                 GraphicsBuffer Buffer(Array values, int stride)
                 {
@@ -110,6 +115,42 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 run?.Dispose();
                 foreach (var buffer in allocations) buffer.Release();
                 UnityEngine.Object.DestroyImmediate(previous); UnityEngine.Object.DestroyImmediate(current); UnityEngine.Object.DestroyImmediate(shader);
+            }
+        }
+
+        // Two evaluations of one light frustum. The kernel has no memory of a previous view, so a second identical
+        // spot draws the same instances as the first.
+        [Test]
+        public void CoincidentLightViews_BothDrawTheSameInstances()
+        {
+            MeshTestUtility.RequireComputeReadback();
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshTestUtility.RequireGPUIndirect(fixture.world);
+                using (MeshWorldUpdate update = fixture.world.BeginUpdate())
+                {
+                    MeshTestUtility.CreateEntity(update, new float3(3f, 0f, 0f), EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow);
+                    update.Commit();
+                }
+                fixture.world.UpdateResidency();
+                int count = fixture.world.entityHighWater;
+                ComputeShader shader = UnityEngine.Object.Instantiate(fixture.shader);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(fixture.world),
+                    MeshTestUtility.LevelCandidates(count, 1), 1, count);
+                try
+                {
+                    MeshCullingContext light = MeshTestUtility.CameraContext();
+                    System.Collections.Generic.List<MeshDrawnInstance> first = run.Build(MeshProducerRun.CullView, light);
+                    System.Collections.Generic.List<MeshDrawnInstance> second = run.Build(MeshProducerRun.CullView, light);
+                    Assert.Greater(first.Count, 0, "The first light draws the caster.");
+                    Assert.AreEqual(first.Count, second.Count, "The second light, with the same frustum, draws the same instances.");
+                    CollectionAssert.AreEqual(first, second);
+                }
+                finally
+                {
+                    run.Dispose();
+                    UnityEngine.Object.DestroyImmediate(shader);
+                }
             }
         }
 

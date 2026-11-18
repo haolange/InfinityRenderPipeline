@@ -36,7 +36,7 @@ float MeshLODScreenSize(MeshLODChain chain, uint level)
 uint MeshPackLODVisibility(uint entity, float3 center, float3 extent, float3 origin, float scale, float bias, uint orthographic)
 {
     MeshLODChain chain = _EntityLodChains[entity];
-    // precise keeps every list of a culling context on one level.
+    // precise keeps every view of a culling context on one level.
     precise float distance = orthographic != 0u ? 1.0 : max(length(center - origin), 1e-6);
     precise float screen = max(max(extent.x, extent.y), extent.z) * scale * bias / distance;
     uint packed = 0u;

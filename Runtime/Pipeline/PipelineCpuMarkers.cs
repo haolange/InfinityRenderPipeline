@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static IReadOnlyList<string> Names => s_Names;
         internal static IReadOnlyList<ProfilerMarker> Markers => s_Markers;
 
+        internal static readonly ProfilerMarker s_RecordUploadCameraUniforms = Define("Record.UploadCameraUniforms");
         internal static readonly ProfilerMarker s_RecordUploadLightData = Define("Record.UploadLightData");
         internal static readonly ProfilerMarker s_RecordComputeLightCookies = Define("Record.ComputeLightCookies");
         internal static readonly ProfilerMarker s_RecordComputeReflectionProbes = Define("Record.ComputeReflectionProbes");
@@ -27,10 +28,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilerMarker s_RecordComputeAtmosphericLUT = Define("Record.ComputeAtmosphericLUT");
         internal static readonly ProfilerMarker s_RecordComputeTemporalColorPyramid = Define("Record.ComputeTemporalColorPyramid");
         internal static readonly ProfilerMarker s_RecordPrepareMeshMotion = Define("Record.PrepareMeshMotion");
-        internal static readonly ProfilerMarker s_RecordSetMeshMotion = Define("Record.SetMeshMotion");
-        internal static readonly ProfilerMarker s_RecordRegisterMeshHistoryOccluder = Define("Record.RegisterMeshHistoryOccluder");
+        internal static readonly ProfilerMarker s_RecordCullMainMeshViews = Define("Record.CullMainMeshViews");
         internal static readonly ProfilerMarker s_RecordRasterDepth = Define("Record.RasterDepth");
-        internal static readonly ProfilerMarker s_RecordRegisterMeshEarlyOccluder = Define("Record.RegisterMeshEarlyOccluder");
+        internal static readonly ProfilerMarker s_RecordCreateMeshEarlyOccluder = Define("Record.CreateMeshEarlyOccluder");
+        internal static readonly ProfilerMarker s_RecordCullEarlyMeshViews = Define("Record.CullEarlyMeshViews");
         internal static readonly ProfilerMarker s_RecordRasterDepthRecovery = Define("Record.RasterDepthRecovery");
         internal static readonly ProfilerMarker s_RecordRasterDBuffer = Define("Record.RasterDBuffer");
         internal static readonly ProfilerMarker s_RecordRasterGBuffer = Define("Record.RasterGBuffer");

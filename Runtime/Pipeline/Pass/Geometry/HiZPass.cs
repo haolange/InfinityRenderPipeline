@@ -24,8 +24,17 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int[] Furthest = { Shader.PropertyToID("_HiZFurthest0"), Shader.PropertyToID("_HiZFurthest1"), Shader.PropertyToID("_HiZFurthest2"), Shader.PropertyToID("_HiZFurthest3") };
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class HiZPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal HiZPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct HiZPassData
         {
             public int mipCount;
@@ -41,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        void ComputeHiZ(in CameraRecordContext context)
+        internal void ComputeHiZ(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.HiZ))
             {
@@ -59,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.MarkProduced(EFrameFeature.HiZ);
         }
 
-        RGTextureHandle ComputeEarlyFurthestHiZ()
+        internal RGTextureHandle ComputeEarlyFurthestHiZ()
         {
             var depth = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var size = m_RGBuilder.GetTextureDescriptor(depth);
@@ -70,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecordHiZ(RGTextureHandle depthHandle, RGTextureHandle closestHandle, RGTextureHandle furthestHandle, int width, int height, bool async, ProfilingSampler sampler)
         {
-            ComputeKernel kernel = closestHandle.IsValid() ? kernels.hiZClosest : kernels.hiZFurthest;
+            ComputeKernel kernel = closestHandle.IsValid() ? m_Resources.kernels.hiZClosest : m_Resources.kernels.hiZFurthest;
             {
                 RGComputePassHandle<HiZPassData> passHandle = m_RGBuilder.AddComputePass<HiZPassData>(sampler);
                 ref HiZPassData passData = ref passHandle.GetPassData();

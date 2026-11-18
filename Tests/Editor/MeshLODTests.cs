@@ -9,6 +9,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.Pipeline;
 using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -97,7 +98,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     }
                     update.Commit();
                 }
-                MeshPassCache cache = world.GetPassCache(MeshPassTable.GBuffer);
+                MeshPassCache cache = world.GetPassCache(InfinityMeshPasses.GBuffer);
                 for (int i = 0; i < chains.Length; ++i)
                 {
                     ulong materialId = MeshTestUtility.Id(materials[i]);
@@ -192,9 +193,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshLODSelection.Select(chain, MeshTestUtility.Bound(float3.zero), context.ReadLODProjection(), out byte level, out float fade);
                 Assert.AreEqual(0, level);
                 Assert.That(fade, Is.EqualTo(0.5f).Within(1e-4f));
-                var opaqueDraws = Build(world, MeshPassTable.GBuffer, context);
+                var opaqueDraws = Build(world, InfinityMeshPasses.GBuffer, context);
                 CollectionAssert.AreEquivalent(new[] { (true, fade), (true, -fade) }, opaqueDraws, "Opaque passes cross-fade both levels.");
-                var translucentDraws = Build(world, MeshPassTable.TranslucentT0, context);
+                var translucentDraws = Build(world, InfinityMeshPasses.TranslucentT0, context);
                 CollectionAssert.AreEqual(new[] { (false, 0f) }, translucentDraws, "Translucent passes draw the selected level only.");
             }
         }
@@ -208,9 +209,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         // Builds one pass under a context on the CPU backend and returns (fading, factor) per instance.
-        static List<(bool fading, float fade)> Build(MeshWorld world, in MeshPassDesc desc, in MeshCullingContext context)
+        static List<(bool fading, float fade)> Build(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
         {
-            MeshPassCache cache = world.GetPassCache(desc);
+            MeshPassCache cache = world.GetPassCache(pass);
             MeshDrawListBuild build = MeshDrawListBuild.Schedule(cache, world, context);
             try
             {
@@ -250,7 +251,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 ComputeShader shader = Object.Instantiate(fixture.shader);
                 int count = world.entityHighWater;
                 uint2[] candidates = MeshTestUtility.LevelCandidates(count, 3);
-                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 3);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(world), candidates, 3, count);
                 try
                 {
                     var levels = new HashSet<int>();
@@ -264,7 +265,25 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         string mode = lod.orthographic ? "orthographic" : "perspective";
                         MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
                         List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, context, true);
-                        List<MeshDrawnInstance> gpu = run.Build("BuildDrawList", context, dither: true);
+                        List<MeshDrawnInstance> gpu = run.Build(MeshProducerRun.CullView, context, dither: true);
+                        uint[] visibility = run.Visibility();
+                        // Visibility is the view's answer and the drawn set is the pass's. They differ in one case: the
+                        // selected level is the chain's last, the pass dithers and the fade is exactly 0, where the outgoing
+                        // level draws nothing (MeshDrawLod.Factor) and no incoming level exists, so a visible entity has no
+                        // instance. Such an entity must draw nothing and is left out of the comparison; the sweep keeps every
+                        // distance off a bound, so normally there is none.
+                        uint[] drawn = MeshTestUtility.DrawnEntities(cpu, count);
+                        uint[] visible = MeshProducerRun.Visible(visibility);
+                        for (int entity = 0; entity < count; ++entity)
+                        {
+                            MeshLODSelection.Select(chain, world.entityBounds[entity], lod, out byte selected, out float selectedFade);
+                            if (selected == chain.count - 1 && selectedFade == 0)
+                            {
+                                Assert.AreEqual(0u, drawn[entity], $"{mode}: entity {entity} at the last level's bound draws nothing");
+                                drawn[entity] = visible[entity];
+                            }
+                        }
+                        CollectionAssert.AreEqual(drawn, visible, $"{mode}: view visibility");
                         Assert.AreEqual(cpu.Count, gpu.Count, $"{mode}: instance count");
                         for (int i = 0; i < cpu.Count; ++i)
                         {
@@ -273,10 +292,14 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             Assert.AreEqual(cpu[i].command, gpu[i].command, $"{label}: level");
                             Assert.AreEqual(cpu[i].factor == 0, gpu[i].factor == 0, $"{label}: stable or in a band");
                             Assert.That(gpu[i].factor, Is.EqualTo(cpu[i].factor).Within(2.0f / 65534.0f), $"{label}: fade");
-                            if (cpu[i].factor >= 0) levels.Add(cpu[i].command);
+                            if (cpu[i].factor >= 0)
+                            {
+                                levels.Add(cpu[i].command);
+                                Assert.AreEqual(cpu[i].command, (int)((visibility[cpu[i].entity] >> 8) & 0xFFu), $"{label}: packed level");
+                            }
                             sawBand |= cpu[i].factor != 0;
                         }
-                        sawCulled |= Array.IndexOf(MeshTestUtility.DrawnEntities(cpu, count), 0u) >= 0;
+                        sawCulled |= Array.IndexOf(visible, 0u) >= 0;
                     }
                     Assert.AreEqual(3, levels.Count, "The sweep reaches every level.");
                     Assert.IsTrue(sawBand && sawCulled, "The sweep crosses a band and the culled range.");

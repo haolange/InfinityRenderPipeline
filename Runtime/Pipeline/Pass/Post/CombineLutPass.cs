@@ -157,8 +157,17 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class CombineLutPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+
+        internal CombineLutPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+        }
+
         struct CombineLutPassData
         {
             public ComputeShader combineLUTShader;
@@ -167,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGConstantsHandle parametersHandle;
         }
 
-        void ComputeCombineLuts(in CameraRecordContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
+        internal void ComputeCombineLuts(in ViewContext context, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
             TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32);
             combineLookupTextureDescriptor.dimension = TextureDimension.Tex3D;
@@ -191,8 +200,8 @@ namespace InfinityTech.Rendering.Pipeline
                 RGComputePassHandle<CombineLutPassData> passHandle = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts));
                 //Setup Phase
                 ref CombineLutPassData passData = ref passHandle.GetPassData();
-                passData.combineLUTShader = shaders.combineLUTShader;
-                passData.combineLutKernel = kernels.combineLut;
+                passData.combineLUTShader = m_Resources.shaders.combineLUTShader;
+                passData.combineLutKernel = m_Resources.kernels.combineLut;
                 passData.combineLookupTextureHandle = passHandle.WriteTexture(combineLookupTextureHandle);
                 passData.parametersHandle = passHandle.WriteConstants(combineLutParameterDescriptor);
 

@@ -57,12 +57,31 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly float[] TemporalDirections = { 0.0f, 0.5f, 0.25f, 0.75f };
     }
 
-    public partial class InfinityRenderPipeline
+    internal sealed class GTAOPass
     {
+        readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineResources m_Resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly RenderCapturePass m_RenderCapturePass;
+#endif
+
+        internal GTAOPass(RGBuilder graph, InfinityRenderPipelineResources resources
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            , RenderCapturePass renderCapturePass
+#endif
+            )
+        {
+            m_RGBuilder = graph;
+            m_Resources = resources;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            m_RenderCapturePass = renderCapturePass;
+#endif
+        }
+
         struct GTAOPassData
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            public CaptureStageSnapshot traceSnapshot, spatialXSnapshot, spatialYSnapshot, temporalSnapshot;
+            public RenderCapturePass.CaptureStageSnapshot traceSnapshot, spatialXSnapshot, spatialYSnapshot, temporalSnapshot;
 #endif
             public RGConstantsHandle parametersHandle;
             public int traceKernel, spatialXKernel, spatialYKernel, temporalKernel, upsampleKernel;
@@ -85,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
             return TextureDescriptor.Create2D(name, width, height, format, ETextureSizingDomain.Internal, 2);
         }
 
-        void ComputeGroundTruthOcclusion(in CameraRecordContext context)
+        internal void ComputeGroundTruthOcclusion(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.GTAO))
             {
@@ -139,14 +158,14 @@ namespace InfinityTech.Rendering.Pipeline
                 RGComputePassHandle<GTAOPassData> passHandle = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion));
                 ref GTAOPassData passData = ref passHandle.GetPassData();
                 passData = default;
-                passData.traceKernel = kernels.occlusionTrace.index;
-                passData.spatialXKernel = kernels.occlusionSpatialX.index;
-                passData.spatialYKernel = kernels.occlusionSpatialY.index;
-                passData.temporalKernel = kernels.occlusionTemporal.index;
-                passData.upsampleKernel = kernels.occlusionUpsample.index;
-                passData.halfGroups = new int2(kernels.occlusionTrace.GroupsX(halfWidth), kernels.occlusionTrace.GroupsY(halfHeight));
-                passData.fullGroups = new int2(kernels.occlusionUpsample.GroupsX(fullWidth), kernels.occlusionUpsample.GroupsY(fullHeight));
-                int temporalIndex = Time.frameCount & 3;
+                passData.traceKernel = m_Resources.kernels.occlusionTrace.index;
+                passData.spatialXKernel = m_Resources.kernels.occlusionSpatialX.index;
+                passData.spatialYKernel = m_Resources.kernels.occlusionSpatialY.index;
+                passData.temporalKernel = m_Resources.kernels.occlusionTemporal.index;
+                passData.upsampleKernel = m_Resources.kernels.occlusionUpsample.index;
+                passData.halfGroups = new int2(m_Resources.kernels.occlusionTrace.GroupsX(halfWidth), m_Resources.kernels.occlusionTrace.GroupsY(halfHeight));
+                passData.fullGroups = new int2(m_Resources.kernels.occlusionUpsample.GroupsX(fullWidth), m_Resources.kernels.occlusionUpsample.GroupsY(fullHeight));
+                int temporalIndex = context.frame & 3;
                 passData.parametersHandle = passHandle.WriteConstants(new OcclusionParameters
                 {
                     numRays = ssao.numRays,
@@ -165,7 +184,7 @@ namespace InfinityTech.Rendering.Pipeline
                     upsampleSize = new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight)
                 });
 
-                passData.ssaoShader = shaders.ssaoShader;
+                passData.ssaoShader = m_Resources.shaders.ssaoShader;
                 passData.halfResDepthTextureHandle = passHandle.ReadTexture(halfResDepthTextureHandle);
                 passData.halfResNormalTextureHandle = passHandle.ReadTexture(halfResNormalTextureHandle);
                 passData.fullResDepthTextureHandle = passHandle.ReadTexture(fullResDepthTextureHandle);
@@ -182,10 +201,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.occlusionTextureHandle = passHandle.WriteTexture(occlusionTextureHandle);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                passData.traceSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTrace, occlusionHalfTextureHandle);
-                passData.spatialXSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialX, spatialTempTextureHandle);
-                passData.spatialYSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialY, occlusionHalfTextureHandle);
-                passData.temporalSnapshot = PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTemporal, spatialTempTextureHandle);
+                passData.traceSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTrace, occlusionHalfTextureHandle);
+                passData.spatialXSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialX, spatialTempTextureHandle);
+                passData.spatialYSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.AOSpatialY, occlusionHalfTextureHandle);
+                passData.temporalSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.AOTemporal, spatialTempTextureHandle);
 #endif
                 passHandle.EnablePassCulling(false);
                 passHandle.EnableAsyncCompute(true);

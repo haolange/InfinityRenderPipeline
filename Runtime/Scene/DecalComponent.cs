@@ -1,5 +1,5 @@
 using UnityEngine;
-using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Core;
 
 namespace InfinityTech.Component
 {
@@ -20,6 +20,10 @@ namespace InfinityTech.Component
         [Range(0, 180), Tooltip("Surfaces turned this far from the projector are not decaled.")]
         public float endAngleFade = 180;
 
+        // The live set of decals by entity id: the authority the scene world's decal table derives from.
+        internal static readonly ComponentRegistry<DecalComponent> s_Registry = new ComponentRegistry<DecalComponent>();
+        ulong m_RegistryId;
+
         static readonly int s_UVScaleBiasID = Shader.PropertyToID("_DecalUVScaleBias");
         static readonly int s_AngleFadeID = Shader.PropertyToID("_DecalAngleFade");
         MaterialPropertyBlock m_Block;
@@ -33,10 +37,8 @@ namespace InfinityTech.Component
             if (!m_Registered)
             {
                 m_Registered = true;
-                RenderTaskQueue.AddTask((RenderContext renderContext) =>
-                {
-                    renderContext.AddWorldDecal();
-                });
+                m_RegistryId = UnityEntityId.ToUInt64(this);
+                s_Registry.Register(m_RegistryId, this);
             }
         }
 
@@ -45,10 +47,7 @@ namespace InfinityTech.Component
             if (m_Registered)
             {
                 m_Registered = false;
-                RenderTaskQueue.AddTask((RenderContext renderContext) =>
-                {
-                    renderContext.RemoveWorldDecal();
-                });
+                s_Registry.Unregister(m_RegistryId);
             }
         }
 

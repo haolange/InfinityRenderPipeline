@@ -239,15 +239,15 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // Resolve a complete cube/single-face production before allocation. Missing faces invalidate the whole group:
-        // mixing an old face with a new projection is never a valid OnDemand snapshot.
-        public SamplingState[] ResolveSampling(ulong lightId, ulong sceneMask, int version, int frame)
+        // mixing an old face with a new projection is never a valid OnDemand snapshot. Writes the faces into `result`
+        // (six entries) and returns their count, or 0 when no complete production exists.
+        public int ResolveSampling(ulong lightId, ulong sceneMask, int version, int frame, Span<SamplingState> result)
         {
             var firstKey = new ShadowCacheKey(lightId, 0, sceneMask);
             m_Entries.TryGetValue(firstKey, out Entry first);
             SamplingState firstState = first.pending && first.produced ? first.pendingSampling : first.sampling;
             int count = firstState.faceCount;
             bool complete = count == 1 || count == 6;
-            var result = complete ? new SamplingState[count] : null;
             for (int face = 0; complete && face < count; ++face)
             {
                 var key = new ShadowCacheKey(lightId, face, sceneMask);
@@ -285,7 +285,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 }
                 m_Entries[key] = entry;
             }
-            return complete ? result : null;
+            return complete ? count : 0;
         }
 
         // Check the complete group before Acquire mutates any slot. A cube never uses a partial cache allocation.

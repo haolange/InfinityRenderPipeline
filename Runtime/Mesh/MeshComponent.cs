@@ -3,7 +3,6 @@ using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
-using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MaterialPipeline;
 
@@ -73,6 +72,7 @@ namespace InfinityTech.Component
         BoundingBox m_BoundBox;
         bool m_DirtyEnqueued;
         uint m_RegistrationEpoch;
+        ulong m_RegistryId;
 
         internal MeshEntityId entityId => m_State.entity;
 
@@ -96,22 +96,23 @@ namespace InfinityTech.Component
                 MaterialRouteUtility.routingChanged += InvalidateMaterialRouting;
                 s_RoutingSubscribed = true;
             }
-            s_Registered.Add(this);
+            m_RegistryId = UnityEntityId.ToUInt64(this);
+            s_Registry.Register(m_RegistryId, this);
             RefreshGeometryReference();
-            RenderTaskQueue.RegisterMesh(this, epoch);
+            s_PendingRegistrations.Add((this, epoch));
         }
 
         protected override void UnRegister()
         {
             ++m_RegistrationEpoch;
-            s_Registered.Remove(this);
+            s_Registry.Unregister(m_RegistryId);
             ReleaseGeometryReference();
             SyncState published = m_State;
             // Clear local state immediately so UnRegister is idempotent across OnDisable and OnDestroy.
             ResetSyncState();
             m_DirtyEnqueued = false;
             transformPending = false;
-            RenderTaskQueue.UnregisterMesh(this, published.entity, published.worldId);
+            s_PendingRemovals.Add((published.entity, published.worldId));
         }
 
         public void MarkDirty()
@@ -121,7 +122,7 @@ namespace InfinityTech.Component
                 return;
             }
             m_DirtyEnqueued = true;
-            RenderContext.EnqueueDirtyMesh(this);
+            s_PendingSyncs.Add(this);
         }
 
         void ResetSyncState()
@@ -144,7 +145,7 @@ namespace InfinityTech.Component
             SyncState current = m_Staged ? m_Next : m_State;
             bool alive = IsPublishedIn(world, current);
             bool drawable = isActiveAndEnabled && asset != null && materials != null && m_Geometry != null;
-            if (drawable && !TryValidate(out string error))
+            if (drawable && !TryValidate(world, out string error))
             {
                 Debug.LogError($"MeshComponent '{name}' is not drawn: {error}", this);
                 drawable = false;
@@ -295,7 +296,7 @@ namespace InfinityTech.Component
         /// slot selects must route through Infinity surface routing, read entity data through the mesh instancing interface
         /// and declare each pass its route enables.
         /// </summary>
-        bool TryValidate(out string error)
+        bool TryValidate(MeshWorld world, out string error)
         {
             error = null;
             try
@@ -344,7 +345,7 @@ namespace InfinityTech.Component
                     error = exception.Message;
                     return false;
                 }
-                foreach (MeshPassDesc pass in MeshPassTable.all)
+                foreach (MeshPassDesc pass in world.passes)
                 {
                     if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode))
                     {
