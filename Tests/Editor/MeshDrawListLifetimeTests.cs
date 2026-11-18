@@ -448,6 +448,40 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
+        // Two spot lights with the same pose are two views. Equal culling contexts do not collapse them, and each list
+        // draws the caster.
+        [Test]
+        public void CoincidentLightViews_EachDrawTheSameCasters()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "CoincidentLights", EMeshDrawBackendPolicy.CPUDirect);
+                try
+                {
+                    MeshCullingContext light = LightContext(0);
+                    RGMeshViewHandle firstViewHandle = View(graph, light);
+                    RGMeshViewHandle secondViewHandle = View(graph, light);
+                    RGTextureHandle targetHandle = Target(graph);
+                    RGMeshDrawListHandle firstHandle = graph.CreateMeshDrawList(firstViewHandle, InfinityMeshPasses.Shadow);
+                    RGMeshDrawListHandle secondHandle = graph.CreateMeshDrawList(secondViewHandle, InfinityMeshPasses.Shadow);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, firstHandle, true);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterLocalShadow, secondHandle, true);
+                    Compile(graph);
+
+                    MeshViewRegistry registry = Registry(graph);
+                    MeshDrawListBuild firstBuild = registry.GetListCopy(firstHandle.index).build;
+                    MeshDrawListBuild secondBuild = registry.GetListCopy(secondHandle.index).build;
+                    firstBuild.job.Complete();
+                    secondBuild.job.Complete();
+                    Assert.Greater(firstBuild.instanceCount, 0, "The first light's list draws the caster.");
+                    Assert.AreEqual(firstBuild.instanceCount, secondBuild.instanceCount, "The second light, with the same frustum, draws the same instances.");
+                    Assert.AreNotEqual(firstViewHandle.index, secondViewHandle.index);
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
         [Test]
         public void RemainderView_DrawsOnlyWhatTheHistoryViewsListOfItsPassLeft()
         {

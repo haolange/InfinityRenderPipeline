@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity.Mathematics;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
 
@@ -114,6 +115,42 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 run?.Dispose();
                 foreach (var buffer in allocations) buffer.Release();
                 UnityEngine.Object.DestroyImmediate(previous); UnityEngine.Object.DestroyImmediate(current); UnityEngine.Object.DestroyImmediate(shader);
+            }
+        }
+
+        // Two evaluations of one light frustum. The kernel has no memory of a previous view, so a second identical
+        // spot draws the same instances as the first.
+        [Test]
+        public void CoincidentLightViews_BothDrawTheSameInstances()
+        {
+            MeshTestUtility.RequireComputeReadback();
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshTestUtility.RequireGPUIndirect(fixture.world);
+                using (MeshWorldUpdate update = fixture.world.BeginUpdate())
+                {
+                    MeshTestUtility.CreateEntity(update, new float3(3f, 0f, 0f), EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow);
+                    update.Commit();
+                }
+                fixture.world.UpdateResidency();
+                int count = fixture.world.entityHighWater;
+                ComputeShader shader = UnityEngine.Object.Instantiate(fixture.shader);
+                var run = new MeshProducerRun(shader, MeshEntityColumns.Of(fixture.world),
+                    MeshTestUtility.LevelCandidates(count, 1), 1, count);
+                try
+                {
+                    MeshCullingContext light = MeshTestUtility.CameraContext();
+                    System.Collections.Generic.List<MeshDrawnInstance> first = run.Build(MeshProducerRun.CullView, light);
+                    System.Collections.Generic.List<MeshDrawnInstance> second = run.Build(MeshProducerRun.CullView, light);
+                    Assert.Greater(first.Count, 0, "The first light draws the caster.");
+                    Assert.AreEqual(first.Count, second.Count, "The second light, with the same frustum, draws the same instances.");
+                    CollectionAssert.AreEqual(first, second);
+                }
+                finally
+                {
+                    run.Dispose();
+                    UnityEngine.Object.DestroyImmediate(shader);
+                }
             }
         }
 
