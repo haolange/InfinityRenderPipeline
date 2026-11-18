@@ -15,7 +15,7 @@ using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
-using InfinityTech.Rendering.Scene;
+using InfinityTech.Rendering.SceneModules;
 
 #if UNITY_EDITOR
 using UnityEditor;

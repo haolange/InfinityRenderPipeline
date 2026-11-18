@@ -1,7 +1,7 @@
 using InfinityTech.Core;
 using InfinityTech.Component;
 
-namespace InfinityTech.Rendering.Scene
+namespace InfinityTech.Rendering.SceneModules
 {
     /// <summary>
     /// The decal module of the scene world. Persistent layer: the decal table (component entity id to component, derived

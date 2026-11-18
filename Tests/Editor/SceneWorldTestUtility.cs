@@ -1,6 +1,6 @@
 using System.Linq;
 using InfinityTech.Component;
-using InfinityTech.Rendering.Scene;
+using InfinityTech.Rendering.SceneModules;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {

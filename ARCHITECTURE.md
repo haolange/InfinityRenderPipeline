@@ -40,7 +40,7 @@ Runtime code is grouped by owner: Core, Scene, Mesh, Terrain, Material, Lighting
 
 ### Scene world
 
-`SceneWorld` (`Runtime/Scene/World/`) is the pipeline's derived view of the scene: one module per scene type. Each module has a persistent layer derived from that type's component registry, a view layer rebuilt per camera and, where it draws, a graph layer reset with each graph.
+`SceneWorld` (`Runtime/Scene/World/`, namespace `InfinityTech.Rendering.SceneModules`) is the pipeline's derived view of the scene: one module per scene type. The namespace is not `Scene` or `SceneWorld`: inside `InfinityTech.Rendering` those simple names hide `UnityEngine.SceneManagement.Scene` and the `SceneWorld` type. Each module has a persistent layer derived from that type's component registry, a view layer rebuilt per camera and, where it draws, a graph layer reset with each graph.
 
 | Module | Persistent layer | View layer |
 |---|---|---|

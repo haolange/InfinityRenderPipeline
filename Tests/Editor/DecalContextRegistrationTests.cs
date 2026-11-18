@@ -2,7 +2,7 @@ using NUnit.Framework;
 using System.Collections.Generic;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline.Tests;
-using InfinityTech.Rendering.Scene;
+using InfinityTech.Rendering.SceneModules;
 using UnityEngine;
 using InfinityTech.Component;
 using UnityEditor.SceneManagement;

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using InfinityTech.Rendering.Scene;
+using InfinityTech.Rendering.SceneModules;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;

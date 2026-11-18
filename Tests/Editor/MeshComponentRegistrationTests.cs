@@ -6,7 +6,7 @@ using InfinityTech.Component;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
-using InfinityTech.Rendering.Scene;
+using InfinityTech.Rendering.SceneModules;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {

@@ -7,7 +7,7 @@ using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
-namespace InfinityTech.Rendering.Scene
+namespace InfinityTech.Rendering.SceneModules
 {
     /// <summary>
     /// The pipeline's derived view of the scene: one module per scene type, each a persistent layer derived from that
