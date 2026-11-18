@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
         [DllImport(Library)] static extern int InfinityCaptureMetalReady(IntPtr payload);
         [DllImport(Library)] static extern IntPtr InfinityCaptureMetalFormatName(ulong value);
 #endif
-        internal static NativeDisplayProbe Create()
+        internal static NativeDisplayProbe Create(int frame)
         {
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Metal)
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             probe.payload = Marshal.AllocHGlobal(Marshal.SizeOf<Result>());
             Marshal.StructureToPtr(default(Result), probe.payload, false);
-            probe.evidence.frame = Time.frameCount;
+            probe.evidence.frame = frame;
             return probe;
 #else
             return null;

@@ -139,6 +139,10 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_CameraAssigned;
         int m_LastGraphFrame = -1;
         int m_CaptureIndex;
+        int m_Frame;
+        int m_CountedFrame;
+        bool m_HasCountedFrame;
+        bool m_CountThisFrame;
         bool m_DimensionsResolved;
         internal int CapturedFrames => m_Evidence.capturedFrames;
         internal int SuccessfulFrames => m_Evidence.successfulFrames;
@@ -223,6 +227,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
             m_Camera = camera;
             m_CameraAssigned = true;
+            m_CountThisFrame = false;
+            // A Game view repaint renders again inside the same player frame. Count and capture that frame once.
+            if (m_HasCountedFrame && setup.frame == m_CountedFrame)
+            {
+                return;
+            }
+            m_CountThisFrame = true;
+            m_Frame = setup.frame;
             m_CaptureIndex++;
             if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || InfinityDebugDisplaySettings.current.debugView != EDebugView.None)
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
@@ -235,7 +247,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (m_CaptureThisFrame)
             {
                 m_Evidence.status = "Capturing";
-                m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = PipelineDiagnostics.motionPhase,
+                m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = m_Frame, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = PipelineDiagnostics.motionPhase,
                     currentJitterUV = state.cameraUniform.currentJitterUV, previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
                     entity = camera.GetEntityId().ToString(), historyReset = setup.resetsHistory,
                     postProcessingEnabled = setup.postProcessingEnabled, sceneLightingEnabled = setup.sceneLightingEnabled,
@@ -275,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void RecordShadowState(LightPipeline.ShadowAllocator allocator)
         {
-            var shadow = new ShadowEvidence { frame = Time.frameCount, validCount = allocator.CascadeAllocatedCount, splitDistances = allocator.CascadeSplitDistances };
+            var shadow = new ShadowEvidence { frame = m_Frame, validCount = allocator.CascadeAllocatedCount, splitDistances = allocator.CascadeSplitDistances };
             for (int i = 0; i < 4; i++)
             {
                 shadow.valid[i] = allocator.CascadeSlices[i].valid;
@@ -310,7 +322,7 @@ namespace InfinityTech.Rendering.Pipeline
                 colorSpace = semantic == "DisplayColor" || semantic == "PostProcess" ? "DisplayLinear-Rec709" : "SemanticData",
                 transferEncoding = semantic == "DisplayColor" || semantic == "PostProcess" ? "Linear; final target transfer belongs to Present" : "None",
                 width = texture.width, height = texture.height, layers = texture.volumeDepth, samples = texture.antiAliasing,
-                producerFrame = Time.frameCount, recordedFrame = Time.frameCount, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
+                producerFrame = m_Frame, recordedFrame = m_Frame, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
                 sourceRoi = ScaleRoi(descriptor.width, descriptor.height) };
             var staging = new Staging { texture = texture, handle = handle, evidence = evidence, owner = this, readbackFormat = readbackFormat };
             m_Staging.Add(staging);
@@ -389,7 +401,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return null;
             }
-            NativeDisplayProbe probe = NativeDisplayProbe.Create();
+            NativeDisplayProbe probe = NativeDisplayProbe.Create(m_Frame);
             if (probe != null)
             {
                 m_NativeProbes.Add(probe);
@@ -426,7 +438,7 @@ namespace InfinityTech.Rendering.Pipeline
                     continue;
                 }
                 staging.lifetime.submitted = staging.evidence.submitted = true;
-                staging.evidence.submissionFrame = Time.frameCount;
+                staging.evidence.submissionFrame = m_Frame;
             }
             bool needsDrainFence = false;
             foreach (Staging staging in m_Staging)
@@ -478,12 +490,15 @@ namespace InfinityTech.Rendering.Pipeline
                     CommandBufferPool.Release(commands);
                 }
             }
-            if (m_CameraSucceeded && !m_StopRecording)
+            if (m_CountThisFrame && m_CameraSucceeded && !m_StopRecording)
             {
+                m_CountedFrame = m_Frame;
+                m_HasCountedFrame = true;
                 m_Evidence.successfulFrames++;
                 if (m_DidCapture && ++m_Evidence.capturedFrames >= request.frameCount)
                 { m_StopRecording = true; m_Evidence.status = "Draining"; }
             }
+            m_CountThisFrame = false;
             m_CameraSucceeded = false;
             m_CaptureThisFrame = false;
             m_DidCapture = false;
@@ -494,7 +509,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             try
             {
-                staging.evidence.completionFrame = Time.frameCount;
+                staging.evidence.completionFrame = m_Frame;
                 if (readback.hasError)
                 {
                     throw new InvalidOperationException("GPU readback failed without data substitution.");
