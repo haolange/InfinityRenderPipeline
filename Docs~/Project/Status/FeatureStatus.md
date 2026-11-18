@@ -20,7 +20,11 @@ Coincident light views: `CoincidentLightViews_EachDrawTheSameCasters` and `Coinc
 
 Spazon, Game view only, GPU Indirect, camera still, Release, warmup 300, sample 300. `Inl_RecordRG` 0.929 ms, `Inl_ExecuteRG` 1.723 ms, `Inl_ProcessLight` 0.155 ms, `UpdateMeshWorldGPU` 0.017 ms. `Mesh.DeclareList` 0.218 ms at 13 calls, `Mesh.RecordViewProducer` 0.063 ms at 7 calls, `RG.Compile.Place` 0.155 ms. Game `frameAllocations` windows are 0.109, 0, 0. The first window is `ProfilerSession.EnablePlaymode` and `NativeInputSystem.NotifyBeforeUpdate`, tagged Game-or-shared, not a render-path allocation. The last two windows are 0. `nativeSubmitAllocations` is 0.
 
-Not run yet: a moving camera, debug views, fog and cloud enabled, super resolution, an LOD band, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
+Round 3. Play was not paused: at one sample `Time.frameCount` was 4732 and `timeScale` was 1. The earlier “frame 1 after 30 warm-up frames” counted Game view repaints inside one player frame (`gameTime` 0). `2c887d1d` makes capture copy `FrameContext.frame` and count a player frame once. A later warmup of 10 recorded frame 8141 on the evidence, the producer and the completion together; the live counter was 8111 before the capture and 8169 after it.
+
+Matrix CPU Direct, history locked, both sides frame 35, jitter 0, depth identical. DisplayColor still differs: mean absolute difference 1.41e-5, 80 pixels above 8/255. `gameTime` was 2.42 on this branch and 1.10 on `155c2ef`, so the pair is not the same moment. The GPU list kernel does append with `InterlockedAdd`, but this pair does not show that the 60 GPU pixels are only that order. Evidence: `intermediate/arch-convergence-verify/run3/`.
+
+Not run yet: a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
 
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 
