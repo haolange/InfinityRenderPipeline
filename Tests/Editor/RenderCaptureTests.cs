@@ -14,8 +14,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderCaptureTests
     {
-        static CameraSetup Setup(Camera camera, CameraFrameState state) => new CameraSetup(camera, state,
-            CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, ETemporalResolve.None, true, true, EDebugView.None,
+        static CameraSetup Setup(Camera camera, CameraFrameState state, EDebugView debugView = EDebugView.None) => new CameraSetup(camera, state,
+            CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, ETemporalResolve.None, true, true, debugView,
             default, default, default, default);
 
         static RenderCaptureRequest Request(string directory) => new RenderCaptureRequest
@@ -166,6 +166,60 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
                 UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
                 if (Directory.Exists(directory)) Directory.Delete(directory, true);
+            }
+        }
+
+        [Test]
+        public void DebugView_RequiresOptInAndRecordsTheResolvedView()
+        {
+            string blocked = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
+            string allowed = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
+            scene.name = "CaptureDebugView-" + Guid.NewGuid().ToString("N");
+            var cameraObject = new GameObject("CaptureDebugViewCamera");
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(cameraObject, scene);
+            Camera camera = cameraObject.AddComponent<Camera>();
+            camera.enabled = false;
+            var target = new RenderTexture(1, 1, 0);
+            target.Create();
+            camera.targetTexture = target;
+            bool ownsVolumes = !VolumeManager.instance.isInitialized;
+            if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
+            var historyPool = new ResourcePool();
+            var state = new CameraFrameState(43, historyPool);
+            try
+            {
+                RenderCaptureRequest blockedRequest = Request(blocked);
+                blockedRequest.scene = scene.name;
+                blockedRequest.camera = camera.name;
+                blockedRequest.warmupFrames = 0;
+                var blockedSession = new RenderCaptureSession(blockedRequest);
+                blockedSession.PrepareCamera(Time.frameCount, Setup(camera, state, EDebugView.Albedo));
+                StringAssert.Contains("normal-beauty DebugView contract", File.ReadAllText(Path.Combine(blocked, "capture.json")));
+
+                RenderCaptureRequest allowedRequest = Request(allowed);
+                allowedRequest.scene = scene.name;
+                allowedRequest.camera = camera.name;
+                allowedRequest.warmupFrames = 0;
+                allowedRequest.allowDebugView = true;
+                var allowedSession = new RenderCaptureSession(allowedRequest);
+                allowedSession.PrepareCamera(Time.frameCount, Setup(camera, state, EDebugView.Albedo));
+                allowedSession.Cancel();
+                string evidence = File.ReadAllText(Path.Combine(allowed, "capture.json"));
+                StringAssert.Contains("\"debugView\": \"Albedo\"", evidence);
+                StringAssert.DoesNotContain("normal-beauty DebugView contract", evidence);
+            }
+            finally
+            {
+                state.Dispose();
+                historyPool.Dispose();
+                if (ownsVolumes) VolumeManager.instance.Deinitialize();
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                target.Release();
+                UnityEngine.Object.DestroyImmediate(target);
+                UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
+                if (Directory.Exists(blocked)) Directory.Delete(blocked, true);
+                if (Directory.Exists(allowed)) Directory.Delete(allowed, true);
             }
         }
 

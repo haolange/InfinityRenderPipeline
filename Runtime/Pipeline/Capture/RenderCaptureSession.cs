@@ -26,6 +26,8 @@ namespace InfinityTech.Rendering.Pipeline
         public float timeoutSeconds = 120;
         public bool includeConfidence = true;
         public bool lockHistoryReset;
+        // A normal capture is the beauty image. Set this only to record a frame whose debug view is already active.
+        public bool allowDebugView;
         public MeshPipeline.EMeshDrawBackendPolicy meshBackend = MeshPipeline.EMeshDrawBackendPolicy.Auto;
         public string[] buffers = { "DisplayColor", "Lighting" };
         public RectInt roi;
@@ -94,7 +96,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 presentScaleBias;
             public bool presentExecuted;
             public bool postProcessingEnabled, sceneLightingEnabled;
-            public string cameraType, motionPhase;
+            public string cameraType, motionPhase, debugView;
             public double gameTime, realtime;
             public Vector2 currentJitterUV, previousJitterUV;
             public string entity;
@@ -237,7 +239,10 @@ namespace InfinityTech.Rendering.Pipeline
             m_CountThisFrame = true;
             m_Frame = frame;
             m_CaptureIndex++;
-            if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || InfinityDebugDisplaySettings.current.debugView != EDebugView.None)
+            // The view is the one CameraSetup resolved for this camera. A beauty capture rejects any other view;
+            // an opted-in capture records that view and still reads post from its own buffer.
+            if (camera.pixelWidth != request.width || camera.pixelHeight != request.height
+                || (setup.debugView != EDebugView.None && !request.allowDebugView))
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
             if (setup.resetsHistory)
             {
@@ -250,7 +255,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_Evidence.status = "Capturing";
                 m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = m_Frame, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = PipelineDiagnostics.motionPhase,
                     currentJitterUV = state.cameraUniform.currentJitterUV, previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
-                    entity = camera.GetEntityId().ToString(), historyReset = setup.resetsHistory,
+                    entity = camera.GetEntityId().ToString(), historyReset = setup.resetsHistory, debugView = setup.debugView.ToString(),
                     postProcessingEnabled = setup.postProcessingEnabled, sceneLightingEnabled = setup.sceneLightingEnabled,
                     internalWidth = setup.dimensions.internalSize.x, internalHeight = setup.dimensions.internalSize.y, presentViewport = setup.dimensions.outputViewport,
                     position = camera.transform.position, rotation = camera.transform.rotation, view = camera.worldToCameraMatrix,

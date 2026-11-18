@@ -28,7 +28,9 @@ Round 4, same Editor and mirror. `completionFrame` is `Time.frameCount` at the r
 
 `CameraSetup` no longer stores a frame. `PipelineDiagnostics.BeforeCamera` takes the `FrameContext` and capture reads `frameContext.frame`. After that compile, the same Matrix capture recorded evidence, producer and submission frame 19 and completion frame 21 (`run4/clock-after-framesource`). `RenderCaptureTests` 13 passed again (`run4/tests-frame-source`). `static_check` 0 errors, 51 static-check tests passed. The scene was not saved.
 
-Not run yet: a time-locked Matrix pair, a moving camera, fog and cloud enabled, super resolution, an LOD band, debug views, the coincident-light atlas image, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison against `155c2ef`.
+A beauty capture fails when `CameraSetup.debugView` is not `None`. `RenderCaptureRequest.allowDebugView` records that view and still copies `PostProcess` from `RasterPostCombine`. `RenderCaptureTests` 14 passed (`run4/tests-debug-view`). Scene_Spazon, history locked, gameTime 8, 993×1330 (`run4/head-spazon-debug-*`): Albedo, MotionMagnitude, PreTonemapLuma, LightComplexity, ReflectionProbeAtlas and CascadeShadowAtlas. DisplayColor differs from PostProcess on each of those views (477,976 to 1,320,690 pixels above 8/255). PostProcess differs from the beauty PostProcess by at most 98 such pixels. The example project has no reflection probe, so ReflectionProbeAtlas is the missing kernel (magenta). MotionMagnitude is about 0 because the camera is still. The scene was not saved.
+
+Not run yet against `155c2ef`: the time-locked Matrix pair's write-up, the moving camera, fog and cloud, super resolution, the LOD band, these debug views, the coincident-light atlas, Scene-view allocation stacks, pipeline-asset replacement, and the marker comparison.
 
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 
