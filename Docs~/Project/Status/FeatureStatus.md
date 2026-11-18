@@ -2,6 +2,18 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Architecture convergence, local Editor — 2026-11-18 (macOS Metal, Unity 6000.6.0f1, partial)
+
+The source project is on exFAT. Unity 6000.6.0f1 aborts on the second open of that Library (`Library Redirect Path: Library/` then `stoull: no conversion`; [issue 25823](https://issuetracker.unity3d.com/issues/25823), fixed in 6000.6.9f1, which is not installed). The Library was not deleted. Verification uses an APFS mirror at `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` whose package is a symlink to this checkout. Editor pid 13327. `static_check` 0 errors.
+
+Compile: Runtime, Editor, Tests, Validation and Cli (`INFINITY_UNITY_CLI`) loaded with 0 CS errors. `Compute_MeshDrawPipeline` imported on Metal and all 9 kernels resolve (`FindKernel` ≥ 0). D3D12 and Vulkan are not on this machine.
+
+EditMode, Infinity assemblies, 897 tests: first run 886 passed, 10 failed, 1 skipped. Nine failures were one `MissingReferenceException` from `TerrainModule.ProcessView` reading a destroyed `TerrainData` (`9efea8d`). After that fix: 895 passed, 1 failed, 1 skipped in 17.9 s. The failure is `VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True)`, the same failure recorded on earlier gates. The skip is `RenderGraphQueueGpuTests.CrossQueueHazardsAndPhysicalReuse_PreserveValues` (no async compute).
+
+Scene_Spazon Play, MainCamera, 993×1330, Metal, Apple M3 Max. DisplayColor `R16G16B16A16_SFloat` captured (`intermediate/arch-convergence-verify/run1/capture-spazon`). The frame shows the cloister, banners, stained glass and cast shadows. It is not compared with `155c2ef`. The compiled graph places `ComputeScreenSpaceReflection` and `ComputeScreenSpaceIndirect` on the graphics queue before `RasterCascadeShadow`. Seven `ComputeMeshView` passes: five before `RasterDepth` (the depth view and four cascade slices) and two after `ComputeEarlyFurthestHiZ` (recovery and main). `RasterDepth` is native group 0; `RasterDepthRecovery` and `RasterGBuffer` share group 1; object and camera motion share group 2; T1 and T2 share group 8. `ComputeMeshDrawList` sits immediately before the raster group that consumes it.
+
+Not run yet: Matrix, the `155c2ef` image pair, feature on/off captures, CPU-marker windows, the shadow-slice dispatch cost, pipeline-asset replacement, and the coincident-spot regression.
+
 ### Architecture convergence, static gate only — 2026-11-18 (no Editor)
 
 Every item below passed the static gate and nothing else: tree-sitter C# syntax under four define sets with no new error, `static_check` 0 errors, its 51 tests, and a repository-wide consumer closure of every removed symbol (Runtime, Editor, `Editor/Cli`, Tests, Tools and the living documents). Compilation, shader compilation, tests, images and timings are TODO(UNVERIFIED); the checklist at the end closes them.
