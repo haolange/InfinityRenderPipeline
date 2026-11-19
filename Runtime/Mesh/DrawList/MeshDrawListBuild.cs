@@ -77,30 +77,42 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    /// <summary>LOD membership of one element. The gather job calls this; it is not a sort key.</summary>
+    /// <summary>Which range of its command one element fills; the gather job calls this, it is not a sort key.</summary>
     internal static class MeshDrawLod
     {
         /// <summary>
-        /// Whether an element of LOD level <paramref name="elementLod"/> draws, and its fade (0 = stable). Inside the band of
-        /// the selected level the outgoing level draws +f and the next level -f, so the two dither patterns are complementary;
-        /// at f = 0 only the incoming level draws. Without dithering only the selected level draws.
+        /// Whether an element of LOD level <paramref name="elementLod"/> draws under its entity's packed view visibility, and
+        /// its signed dither factor (0 = stable). Inside the band of the selected level a dithering pass draws the outgoing
+        /// level +f and the next level -f, so the two patterns are complementary; at fade bits 0 only the incoming level draws.
+        /// Without dithering only the selected level draws. Mirrors MeshElementRange in <c>Compute_MeshDrawPipeline.compute</c>.
         /// </summary>
-        public static bool Factor(int elementLod, int selected, float fade, bool dither, out float itemFade)
+        public static bool Range(uint visibility, uint elementLod, bool dither, out float factor)
         {
-            itemFade = 0;
-            bool fading = dither && fade < 1;
-            if (elementLod == selected)
+            factor = 0;
+            if (visibility == 0u)
+            {
+                return false;
+            }
+            uint level = (visibility >> MeshLODSelection.LevelShift) & 0xFFu;
+            uint fadeBits = visibility >> MeshLODSelection.FadeShift;
+            bool fading = dither && fadeBits != MeshLODSelection.StableFade;
+            float fade = fadeBits / MeshLODSelection.FadeScale;
+            if (elementLod == level)
             {
                 if (!fading)
                 {
                     return true;
                 }
-                itemFade = fade;
-                return fade > 0;
+                if (fadeBits == 0u)
+                {
+                    return false;
+                }
+                factor = fade;
+                return true;
             }
-            if (fading && elementLod == selected + 1)
+            if (fading && elementLod == level + 1u)
             {
-                itemFade = -math.max(fade, 1e-6f);
+                factor = -math.max(fade, 1e-6f);
                 return true;
             }
             return false;
@@ -108,38 +120,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// Entity tests of a culling context shared by the CPU gather job; <c>Compute_MeshDrawPipeline.compute</c> evaluates the
-    /// same expressions (MeshEligible, MeshFrustumCulled).
-    /// </summary>
-    internal static class MeshCulling
-    {
-        public static bool Eligible(in MeshEntityDesc desc, in MeshCullingContext context)
-        {
-            return (desc.flags & EMeshEntityFlags.Visible) != 0
-                && (unchecked((uint)desc.layerMask) & context.layerMask) != 0
-                && (desc.sceneCullingMask & context.sceneCullingMask) != 0
-                && (context.filterRenderingLayers == 0 || (desc.renderingLayerMask & context.renderingLayerMask) != 0);
-        }
-
-        public static bool OutsidePlanes(in MeshCullingContext context, in BoundingBox bound)
-        {
-            for (int i = 0; i < (int)context.planeCount; ++i)
-            {
-                float4 plane = context.GetPlane(i);
-                float radius = math.dot(math.abs(plane.xyz), bound.extents);
-                if (math.dot(plane.xyz, bound.center) + plane.w + radius < 0)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// One thread per element slot of a pass cache: an element whose entity passes the culling context and whose level the
-    /// LOD selection draws becomes one instance with its pass key. The key formula is the type argument. The candidate table
-    /// holds elements of live entities only, as the GPU build kernel also assumes.
+    /// One thread per element slot of a pass cache: an element whose entity its view sees and whose level the view's LOD
+    /// selection draws in this pass becomes one instance with its pass key. The list filters; its view culled. The key
+    /// formula is the type argument. The candidate table holds elements of live entities only, as the GPU build kernel also
+    /// assumes.
     /// </summary>
     [BurstCompile]
     internal struct MeshDrawGatherJob<TKey> : IJobParallelFor where TKey : struct, IMeshSortKey
@@ -147,10 +131,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly] public NativeArray<uint2> candidates;
         [ReadOnly] public NativeArray<MeshDrawCommand> commands;
         [ReadOnly] public NativeArray<MeshElement> elements;
-        [ReadOnly] public NativeArray<MeshEntity> entities;
         [ReadOnly] public NativeArray<BoundingBox> bounds;
-        public MeshCullingContext context;
-        public MeshLODProjection lod;
+        [ReadOnly] public NativeArray<uint> visibility;
+        // Translucent distances are measured from the view's LOD origin.
+        public float3 origin;
         public bool ditherLod;
         public NativeList<MeshDrawInstance>.ParallelWriter items;
 
@@ -162,15 +146,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
             int entity = (int)candidate.x;
-            if (!MeshCulling.Eligible(entities[entity].desc, context))
-            {
-                return;
-            }
-            BoundingBox bound = bounds[entity];
-            MeshLODSelection.Select(entities[entity].lod, bound, lod, out byte level, out float levelFade);
-            if (level == MeshLODSelection.None
-                || !MeshDrawLod.Factor((int)(candidate.y >> MeshPassCache.LodShift), level, levelFade, ditherLod, out float itemFade)
-                || MeshCulling.OutsidePlanes(context, bound))
+            if (!MeshDrawLod.Range(visibility[entity], candidate.y >> MeshPassCache.LodShift, ditherLod, out float itemFade))
             {
                 return;
             }
@@ -179,7 +155,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 stateKey = commands[command].stateKey,
                 priority = elements[element].priority,
-                distance = math.length(bound.center - lod.origin),
+                distance = math.length(bounds[entity].center - origin),
                 fade = itemFade
             };
             items.AddNoResize(new MeshDrawInstance { key = default(TKey).Eval(input), command = command, entity = entity, fade = itemFade });
@@ -228,7 +204,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     /// <summary>
     /// The CPU product of one draw list: sorted items, merged draws and the instance-to-entity table. Scheduled when the
-    /// graph compiles, completed by the draw list's upload producer, disposed when the graph is dropped.
+    /// graph compiles, after its view's visibility job; completed by the draw list's upload producer, disposed when the graph
+    /// is dropped.
     /// </summary>
     internal struct MeshDrawListBuild : IDisposable
     {
@@ -241,7 +218,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         public bool isCreated => items.IsCreated;
         public int instanceCount => items.Length;
 
-        public static MeshDrawListBuild Schedule(MeshPassCache cache, MeshWorld world, in MeshCullingContext context)
+        /// <param name="visibility">The view's packed visibility, written by <paramref name="visibilityJob"/>.</param>
+        /// <param name="origin">The view's LOD origin, from which translucent distances are measured.</param>
+        public static MeshDrawListBuild Schedule(MeshPassCache cache, MeshWorld world, NativeArray<uint> visibility, float3 origin, JobHandle visibilityJob)
         {
             int capacity = math.max(1, cache.memberCount);
             var build = new MeshDrawListBuild
@@ -254,11 +233,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             JobHandle handle;
             if (cache.desc.sortKey == EMeshSortKey.TranslucentColor)
             {
-                handle = Gather<TranslucentColorSortKey>(cache, world, context, build.items);
+                handle = Gather<TranslucentColorSortKey>(cache, world, visibility, origin, visibilityJob, build.items);
             }
             else if (cache.desc.sortKey == EMeshSortKey.State)
             {
-                handle = Gather<StateSortKey>(cache, world, context, build.items);
+                handle = Gather<StateSortKey>(cache, world, visibility, origin, visibilityJob, build.items);
             }
             else
             {
@@ -279,21 +258,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             return build;
         }
 
-        static JobHandle Gather<TKey>(MeshPassCache cache, MeshWorld world, in MeshCullingContext context, NativeList<MeshDrawInstance> items)
-            where TKey : struct, IMeshSortKey
+        static JobHandle Gather<TKey>(MeshPassCache cache, MeshWorld world, NativeArray<uint> visibility, float3 origin, JobHandle visibilityJob,
+            NativeList<MeshDrawInstance> items) where TKey : struct, IMeshSortKey
         {
             return new MeshDrawGatherJob<TKey>
             {
                 candidates = cache.candidates,
                 commands = cache.commands,
                 elements = world.elements,
-                entities = world.entities,
                 bounds = world.entityBounds,
-                context = context,
-                lod = context.ReadLODProjection(),
+                visibility = visibility,
+                origin = origin,
                 ditherLod = cache.desc.ditherLODTransitions,
                 items = items.AsParallelWriter()
-            }.Schedule(cache.candidates.Length, 256);
+            }.Schedule(cache.candidates.Length, 256, visibilityJob);
         }
 
         public void Dispose()

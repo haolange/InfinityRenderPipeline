@@ -9,9 +9,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
     /// The mesh module's layer in one builder (P5: the render graph knows it only as an <see cref="IRGGraphExtension"/> and
-    /// calls Contribute once per compile and Clear whenever the recorded graph is dropped). It declares each view's and each
-    /// list's producer, contributes live consumers at compile and records consumer reads; the per-graph state lives in its
-    /// <see cref="MeshViewRegistry"/>.
+    /// calls Contribute once per compile, Clear whenever the recorded graph is dropped and Dispose with the builder). It
+    /// declares each view's and each list's producer, contributes live consumers at compile and records consumer reads; the
+    /// per-graph state lives in its <see cref="MeshViewRegistry"/>.
     /// </summary>
     internal sealed class MeshGraphExtension : IRGGraphExtension
     {
@@ -60,6 +60,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             => builder.extension as MeshGraphExtension ?? throw new InvalidOperationException("This RGBuilder has no MeshWorld; call SetMeshWorld first.");
 
         public void Clear() => registry.ReleaseAll();
+
+        public void Dispose() => registry.Dispose();
 
         public void Contribute(RGBuilder builder)
         {

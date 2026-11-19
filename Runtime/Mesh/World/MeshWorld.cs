@@ -21,6 +21,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int viewProductions;
         public int drawListProductions;
         public int drawListKernelDispatches;
+        // CPU view visibility jobs scheduled for the last camera: one per view that a live CPU list draws.
+        public int viewVisibilityJobs;
         public long uploadedBytes;
         internal Camera camera;
 
@@ -30,6 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             viewProductions = 0;
             drawListProductions = 0;
             drawListKernelDispatches = 0;
+            viewVisibilityJobs = 0;
         }
     }
 

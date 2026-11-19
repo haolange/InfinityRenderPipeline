@@ -756,7 +756,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_RendererListRecords.ReleaseAll();
         }
 
-        /// <summary>Drops any recorded graph (and its extension state) before releasing the resource registry.</summary>
+        /// <summary>Drops any recorded graph (and its extension state), disposes the extension, then releases the resource registry.</summary>
         public void Dispose()
         {
             try
@@ -765,8 +765,15 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             finally
             {
-                scoper.Dispose();
-                m_Resources.Dispose();
+                try
+                {
+                    extension?.Dispose();
+                }
+                finally
+                {
+                    scoper.Dispose();
+                    m_Resources.Dispose();
+                }
             }
         }
     }

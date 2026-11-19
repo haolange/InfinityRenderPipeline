@@ -105,7 +105,7 @@ float4 MeshContextPlane(MeshCullingContext context, int index)
     return plane;
 }
 
-// Mirrors MeshDrawGatherJob.OutsidePlanes; precise keeps every view of a context on one answer.
+// Mirrors MeshCulling.OutsidePlanes; precise keeps every view of a context on one answer.
 bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 {
     bool culled = false;
@@ -122,7 +122,7 @@ bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 }
 
 // Which range of its command an element of level elementLod fills (0 stable, 1 fading) and its signed dither factor.
-// Inside a band of a dithering pass the outgoing level draws +f and the next level -f; mirrors MeshDrawLod.Factor.
+// Inside a band of a dithering pass the outgoing level draws +f and the next level -f; mirrors MeshDrawLod.Range.
 bool MeshElementRange(uint packed, uint elementLod, out uint range, out float factor)
 {
     range = 2u;

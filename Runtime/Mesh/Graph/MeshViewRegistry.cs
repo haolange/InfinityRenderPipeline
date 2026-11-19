@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -59,8 +60,9 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// One culled view: its descriptor, for a remainder view the history view whose rest it draws, and, once its first nonempty
-    /// GPU list declares it, the view's producer state: the culling-context buffer it rents and the visibility it writes.
+    /// One culled view: its descriptor, for a remainder view the history view whose rest it draws, and its visibility on each
+    /// side that reads it: once its first nonempty GPU list declares it, the GPU producer's culling-context buffer and
+    /// visibility; once its first live CPU list schedules it, the CPU visibility and its job.
     /// </summary>
     internal struct MeshViewRecord
     {
@@ -75,6 +77,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshGPUViewPayload payload;
         public RGBufferHandle visibilityHandle;
         public int entityCount;
+        // CPU visibility: not created until the view's first live CPU list, and never for a view drawn only on the GPU. Words
+        // of the registry's pool, written by cpuVisibilityJob, which the gather of every CPU list of the view depends on.
+        public NativeArray<uint> cpuVisibility;
+        public JobHandle cpuVisibilityJob;
     }
 
     /// <summary>Graph handles every consumer of a list reads: the frozen tables and the producer's outputs.</summary>
@@ -106,11 +112,12 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// Per-graph mesh state of one builder: the culled views, their draw lists and the transform versions this graph
-    /// scheduled. Recording, compile, production and submit read it. <see cref="ReleaseAll"/> empties it when the graph is
-    /// dropped and advances the generation, so every view and list handle of that graph is rejected afterwards.
+    /// Per-graph mesh state of one builder: the culled views, their draw lists, the views' CPU visibility and the transform
+    /// versions this graph scheduled. Recording, compile, production and submit read it. <see cref="ReleaseAll"/> empties it
+    /// when the graph is dropped and advances the generation, so every view and list handle of that graph is rejected
+    /// afterwards. It lives as long as its builder, which disposes it.
     /// </summary>
-    internal sealed class MeshViewRegistry
+    internal sealed class MeshViewRegistry : IDisposable
     {
         readonly MeshWorld m_World;
         // Sized for a camera's main views, four cascades and several shadowed local faces, so recording does not grow them.
@@ -121,6 +128,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly List<int2> m_ListKeys = new List<int2>(64);
         readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
+        // CPU visibility words, one list per view that a live CPU list draws, handed out in schedule order and taken back by
+        // count in ReleaseAll (R17). A list's high water is the entity high water; the pool's is the views of one graph.
+        readonly List<NativeList<uint>> m_CpuVisibility = new List<NativeList<uint>>(32);
+        int m_CpuVisibilityCount;
         // Start at 1 so a default handle never matches a live graph.
         int m_GraphGeneration = 1;
 
@@ -321,8 +332,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Live CPU lists schedule their build jobs; lists without a live consumer are released without producing anything
-        /// (the graph culls a GPU list's producer with its consumer).
+        /// Live CPU lists schedule their build jobs; the first live CPU list of a view also schedules the view's visibility
+        /// job, which the gather of every CPU list of that view depends on. Lists without a live consumer are released without
+        /// producing anything (the graph culls a GPU list's producer with its consumer).
         /// </summary>
         internal void PrepareLive()
         {
@@ -342,16 +354,48 @@ namespace InfinityTech.Rendering.MeshPipeline
                 RequireUnchanged(record);
                 if (record.backend == EMeshDrawBackendPolicy.CPUDirect && !record.build.isCreated)
                 {
-                    MeshViewRecord view = m_Views[ViewOfList(i)];
+                    int viewIndex = ViewOfList(i);
+                    MeshViewRecord view = m_Views[viewIndex];
+                    if (!view.cpuVisibility.IsCreated)
+                    {
+                        view = ScheduleViewVisibility(viewIndex, record.tables.entityCount);
+                    }
                     using (record.cache.scheduleMarker.Auto())
                     {
-                        record.build = MeshDrawListBuild.Schedule(record.cache, m_World, view.cullingContext);
+                        record.build = MeshDrawListBuild.Schedule(record.cache, m_World, view.cpuVisibility, view.cullingContext.lodOrigin, view.cpuVisibilityJob);
                     }
                 }
                 record.state = EMeshDrawListState.Scheduled;
                 m_Lists[i] = record;
             }
             JobHandle.ScheduleBatchedJobs();
+        }
+
+        // The view's CPU visibility over the entity slots its lists' frozen tables cover, the count the GPU producer takes
+        // from the same tables (P1: one source for the count). Evaluated once whatever number of CPU lists read it.
+        MeshViewRecord ScheduleViewVisibility(int viewIndex, int entityCount)
+        {
+            using (MeshCpuMarkers.s_ScheduleViewVisibility.Auto())
+            {
+                MeshViewRecord view = m_Views[viewIndex];
+                view.cpuVisibility = RentCpuVisibility(entityCount);
+                view.cpuVisibilityJob = MeshViewVisibilityJob.Schedule(m_World, view.cullingContext, view.cpuVisibility);
+                m_Views[viewIndex] = view;
+                m_World.stats.viewVisibilityJobs++;
+                return view;
+            }
+        }
+
+        // The pool grows only when a graph draws more CPU views than any before it.
+        NativeArray<uint> RentCpuVisibility(int entityCount)
+        {
+            if (m_CpuVisibilityCount == m_CpuVisibility.Count)
+            {
+                m_CpuVisibility.Add(new NativeList<uint>(math.max(1, entityCount), Allocator.Persistent));
+            }
+            NativeList<uint> words = m_CpuVisibility[m_CpuVisibilityCount++];
+            words.Resize(entityCount, NativeArrayOptions.UninitializedMemory);
+            return words.AsArray();
         }
 
         void RequireUnchanged(in MeshDrawListRecord record)
@@ -428,14 +472,17 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Logical cleanup only: completes and frees CPU build jobs and retires list and view payloads, instance buffers and
-        /// transform-version references, then drops the views. Physical return happens after native submit.
+        /// Logical cleanup only: completes the views' CPU visibility jobs and takes their words back, completes and frees CPU
+        /// build jobs and retires list and view payloads, instance buffers and transform-version references, then drops the
+        /// views. Physical return happens after native submit.
         /// </summary>
         internal void ReleaseAll()
         {
             List<Exception> failures = null;
             for (int i = 0; i < m_Views.Count; ++i)
             {
+                // Before the count resets: the next graph resizes these words.
+                m_Views[i].cpuVisibilityJob.Complete();
                 try
                 {
                     m_World.gpuBackend.RetireViewPayload(m_Views[i].payload);
@@ -445,6 +492,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     (failures ??= new List<Exception>()).Add(error);
                 }
             }
+            m_CpuVisibilityCount = 0;
             for (int i = 0; i < m_Lists.Count; ++i)
             {
                 MeshDrawListRecord record = m_Lists[i];
@@ -480,6 +528,17 @@ namespace InfinityTech.Rendering.MeshPipeline
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
             }
             throw new AggregateException(failures);
+        }
+
+        /// <summary>Frees the CPU visibility pool when the builder is disposed, after it cleared the recorded graph.</summary>
+        public void Dispose()
+        {
+            foreach (NativeList<uint> words in m_CpuVisibility)
+            {
+                words.Dispose();
+            }
+            m_CpuVisibility.Clear();
+            m_CpuVisibilityCount = 0;
         }
     }
 }

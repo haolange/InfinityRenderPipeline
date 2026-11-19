@@ -10,7 +10,8 @@ namespace InfinityTech.Rendering.RenderGraph
 {
     // One instance per builder. Contribute runs once per compile after liveness and does not reorder passes.
     // A declared pass is inserted by PlaceDeclaredPasses before liveness. Clear runs whenever the recorded graph is dropped.
-    internal interface IRGGraphExtension
+    // The builder owns its extension and disposes it after clearing the recorded graph.
+    internal interface IRGGraphExtension : IDisposable
     {
         void Contribute(RGBuilder builder);
         void Clear();

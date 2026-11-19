@@ -145,28 +145,58 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void LODFactor_IsComplementaryInsideTheBand_AndStableOnlyWithoutDither()
+        public void Pack_EncodesTheLevelAndTheQuantizedBandPosition()
         {
-            Assert.IsTrue(MeshDrawLod.Factor(0, 0, 1, true, out float stable));
+            Assert.AreEqual(0u, MeshLODSelection.Pack(MeshLODSelection.None, 1), "No level draws: the entity is culled.");
+            Assert.AreEqual(1u | (2u << 8) | (65535u << 16), MeshLODSelection.Pack(2, 1), "Outside a band the fade is stable.");
+            Assert.AreEqual(1u | (32767u << 16), MeshLODSelection.Pack(0, 0.5f));
+            Assert.AreEqual(1u | (65533u << 16), MeshLODSelection.Pack(0, 0.99999f), "A band position stays below the stable value.");
+            Assert.AreEqual(1u | (7u << 8), MeshLODSelection.Pack(7, 0), "At the bound the fade is 0.");
+            Assert.AreEqual(1u, MeshLODSelection.Pack(0, 1e-5f), "A band position below 1/65534 quantizes to 0, as MeshPackLODVisibility does.");
+        }
+
+        [Test]
+        public void ElementRange_IsComplementaryInsideTheBand_AndStableOnlyWithoutDither()
+        {
+            uint stableWord = MeshLODSelection.Pack(0, 1);
+            Assert.IsTrue(MeshDrawLod.Range(stableWord, 0, true, out float stable));
             Assert.AreEqual(0f, stable, "Stable instances carry no dither factor.");
-            Assert.IsFalse(MeshDrawLod.Factor(1, 0, 1, true, out _), "Outside a band the next level does not draw.");
+            Assert.IsFalse(MeshDrawLod.Range(stableWord, 1, true, out _), "Outside a band the next level does not draw.");
+            Assert.IsFalse(MeshDrawLod.Range(0u, 0, true, out _), "An entity its view culled draws no level.");
+            Assert.IsFalse(MeshDrawLod.Range(0u, 0, false, out _));
 
             foreach (float fade in new[] { 0.01f, 0.5f, 0.99f })
             {
-                Assert.IsTrue(MeshDrawLod.Factor(0, 0, fade, true, out float outgoing));
-                Assert.IsTrue(MeshDrawLod.Factor(1, 0, fade, true, out float incoming));
-                Assert.AreEqual(fade, outgoing);
-                Assert.AreEqual(-fade, incoming, "LODDitheringTransition keeps complementary pixels for +f and -f.");
-                Assert.IsFalse(MeshDrawLod.Factor(2, 0, fade, true, out _));
+                uint word = MeshLODSelection.Pack(0, fade);
+                float decoded = (word >> MeshLODSelection.FadeShift) / MeshLODSelection.FadeScale;
+                Assert.AreEqual(fade, decoded, 1f / MeshLODSelection.FadeScale, "The word keeps the band position to one step.");
+                Assert.IsTrue(MeshDrawLod.Range(word, 0, true, out float outgoing));
+                Assert.IsTrue(MeshDrawLod.Range(word, 1, true, out float incoming));
+                Assert.AreEqual(decoded, outgoing);
+                Assert.AreEqual(-decoded, incoming, "LODDitheringTransition keeps complementary pixels for +f and -f.");
+                Assert.IsFalse(MeshDrawLod.Range(word, 2, true, out _));
 
-                Assert.IsTrue(MeshDrawLod.Factor(0, 0, fade, false, out float translucent));
+                Assert.IsTrue(MeshDrawLod.Range(word, 0, false, out float translucent));
                 Assert.AreEqual(0f, translucent);
-                Assert.IsFalse(MeshDrawLod.Factor(1, 0, fade, false, out _), "Passes without dither draw the stable level only.");
+                Assert.IsFalse(MeshDrawLod.Range(word, 1, false, out _), "Passes without dither draw the stable level only.");
             }
 
-            Assert.IsFalse(MeshDrawLod.Factor(0, 0, 0, true, out _), "At the bound the outgoing level has faded out.");
-            Assert.IsTrue(MeshDrawLod.Factor(1, 0, 0, true, out float entering));
-            Assert.Less(entering, 0f, "The incoming level is fully present at the bound.");
+            // At the bound, and below the first quantization step above it, the fade bits are 0 on both backends.
+            foreach (float fade in new[] { 0f, 1e-5f })
+            {
+                uint word = MeshLODSelection.Pack(0, fade);
+                Assert.IsFalse(MeshDrawLod.Range(word, 0, true, out _), "At the bound the outgoing level has faded out.");
+                Assert.IsTrue(MeshDrawLod.Range(word, 1, true, out float entering));
+                Assert.Less(entering, 0f, "The incoming level is fully present at the bound.");
+            }
+
+            // The last level of a three-level chain at its bound: the entity is visible, the outgoing level draws nothing in a
+            // dithering pass and no element has a next level, so it has no instance there; a translucent pass draws it stable.
+            uint last = MeshLODSelection.Pack(2, 0);
+            Assert.AreEqual(1u, last & 1u);
+            Assert.IsFalse(MeshDrawLod.Range(last, 2, true, out _));
+            Assert.IsTrue(MeshDrawLod.Range(last, 2, false, out float lastTranslucent));
+            Assert.AreEqual(0f, lastTranslucent);
         }
 
         [Test]
@@ -194,7 +224,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual(0, level);
                 Assert.That(fade, Is.EqualTo(0.5f).Within(1e-4f));
                 var opaqueDraws = Build(world, InfinityMeshPasses.GBuffer, context);
-                CollectionAssert.AreEquivalent(new[] { (true, fade), (true, -fade) }, opaqueDraws, "Opaque passes cross-fade both levels.");
+                Assert.AreEqual(2, opaqueDraws.Count, "Opaque passes cross-fade both levels.");
+                opaqueDraws.Sort((a, b) => b.fade.CompareTo(a.fade));
+                // The factor is the view's 16-bit band position, the value the GPU list reads.
+                Assert.IsTrue(opaqueDraws[0].fading && opaqueDraws[1].fading);
+                Assert.That(opaqueDraws[0].fade, Is.EqualTo(fade).Within(2f / MeshLODSelection.FadeScale), "The outgoing level draws +f.");
+                Assert.AreEqual(-opaqueDraws[0].fade, opaqueDraws[1].fade, "The incoming level draws -f.");
                 var translucentDraws = Build(world, InfinityMeshPasses.TranslucentT0, context);
                 CollectionAssert.AreEqual(new[] { (false, 0f) }, translucentDraws, "Translucent passes draw the selected level only.");
             }
@@ -208,14 +243,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
         }
 
-        // Builds one pass under a context on the CPU backend and returns (fading, factor) per instance.
+        // Builds one pass under a view of a context on the CPU backend and returns (fading, factor) per instance.
         static List<(bool fading, float fade)> Build(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
         {
-            MeshPassCache cache = world.GetPassCache(pass);
-            MeshDrawListBuild build = MeshDrawListBuild.Schedule(cache, world, context);
+            MeshDrawListBuild build = MeshTestUtility.BuildOnCpu(world, pass, context);
             try
             {
-                build.job.Complete();
                 var result = new List<(bool, float)>();
                 foreach (MeshDrawCall draw in build.draws)
                     for (int i = 0; i < draw.instanceCount; ++i) result.Add((draw.fading, build.instanceFade[draw.instanceOffset + i]));
@@ -264,40 +297,51 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     {
                         string mode = lod.orthographic ? "orthographic" : "perspective";
                         MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
-                        List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, context, true);
-                        List<MeshDrawnInstance> gpu = run.Build(MeshProducerRun.CullView, context, dither: true);
-                        uint[] visibility = run.Visibility();
-                        // Visibility is the view's answer and the drawn set is the pass's. They differ in one case: the
-                        // selected level is the chain's last, the pass dithers and the fade is exactly 0, where the outgoing
-                        // level draws nothing (MeshDrawLod.Factor) and no incoming level exists, so a visible entity has no
-                        // instance. Such an entity must draw nothing and is left out of the comparison; the sweep keeps every
-                        // distance off a bound, so normally there is none.
-                        uint[] drawn = MeshTestUtility.DrawnEntities(cpu, count);
-                        uint[] visible = MeshProducerRun.Visible(visibility);
-                        for (int entity = 0; entity < count; ++entity)
+                        // The view: one evaluation on each side, compared word by word.
+                        uint[] cpuVisibility = MeshTestUtility.CullOnCpu(world, context);
+                        uint[] gpuVisibility = run.Cull(MeshProducerRun.CullView, context);
+                        MeshTestUtility.AssertSameVisibility(cpuVisibility, gpuVisibility, count, $"{mode} view");
+                        uint[] visible = MeshProducerRun.Visible(cpuVisibility);
+                        // The lists: a dithering pass and a pass without dither filter the same view.
+                        foreach (bool dither in new[] { true, false })
                         {
-                            MeshLODSelection.Select(chain, world.entityBounds[entity], lod, out byte selected, out float selectedFade);
-                            if (selected == chain.count - 1 && selectedFade == 0)
+                            string pass = $"{mode}, {(dither ? "dithering" : "stable")} pass";
+                            List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, cpuVisibility, lod.origin, dither);
+                            List<MeshDrawnInstance> gpu = run.BuildList(dither);
+                            // Visibility is the view's answer and the drawn set is the pass's. They differ in one case: the
+                            // selected level is the chain's last, the pass dithers and the fade bits are 0, where the outgoing
+                            // level draws nothing (MeshDrawLod.Range) and no incoming level exists, so a visible entity has no
+                            // instance. Such an entity must draw nothing and is left out of the comparison; the sweep keeps
+                            // every distance off a bound, so normally there is none.
+                            uint[] drawn = MeshTestUtility.DrawnEntities(cpu, count);
+                            for (int entity = 0; entity < count; ++entity)
                             {
-                                Assert.AreEqual(0u, drawn[entity], $"{mode}: entity {entity} at the last level's bound draws nothing");
-                                drawn[entity] = visible[entity];
+                                uint word = cpuVisibility[entity];
+                                bool lastAtBound = (word & 1u) != 0 && ((word >> MeshLODSelection.LevelShift) & 0xFFu) == chain.count - 1
+                                    && word >> MeshLODSelection.FadeShift == 0u;
+                                if (dither && lastAtBound)
+                                {
+                                    Assert.AreEqual(0u, drawn[entity], $"{pass}: entity {entity} at the last level's bound draws nothing");
+                                    drawn[entity] = visible[entity];
+                                }
                             }
-                        }
-                        CollectionAssert.AreEqual(drawn, visible, $"{mode}: view visibility");
-                        Assert.AreEqual(cpu.Count, gpu.Count, $"{mode}: instance count");
-                        for (int i = 0; i < cpu.Count; ++i)
-                        {
-                            string label = $"{mode} instance {i} {cpu[i]}";
-                            Assert.AreEqual(cpu[i].entity, gpu[i].entity, label);
-                            Assert.AreEqual(cpu[i].command, gpu[i].command, $"{label}: level");
-                            Assert.AreEqual(cpu[i].factor == 0, gpu[i].factor == 0, $"{label}: stable or in a band");
-                            Assert.That(gpu[i].factor, Is.EqualTo(cpu[i].factor).Within(2.0f / 65534.0f), $"{label}: fade");
-                            if (cpu[i].factor >= 0)
+                            CollectionAssert.AreEqual(visible, drawn, $"{pass}: drawn entities are the view's visible ones");
+                            Assert.AreEqual(cpu.Count, gpu.Count, $"{pass}: instance count");
+                            for (int i = 0; i < cpu.Count; ++i)
                             {
-                                levels.Add(cpu[i].command);
-                                Assert.AreEqual(cpu[i].command, (int)((visibility[cpu[i].entity] >> 8) & 0xFFu), $"{label}: packed level");
+                                string label = $"{pass} instance {i} {cpu[i]}";
+                                Assert.AreEqual(cpu[i].entity, gpu[i].entity, label);
+                                Assert.AreEqual(cpu[i].command, gpu[i].command, $"{label}: level");
+                                Assert.AreEqual(cpu[i].factor == 0, gpu[i].factor == 0, $"{label}: stable or in a band");
+                                Assert.That(gpu[i].factor, Is.EqualTo(cpu[i].factor).Within(2.0f / MeshLODSelection.FadeScale), $"{label}: fade");
+                                Assert.IsTrue(dither || cpu[i].factor == 0, $"{label}: a pass without dither draws no band");
+                                if (cpu[i].factor >= 0)
+                                {
+                                    levels.Add(cpu[i].command);
+                                    Assert.AreEqual(cpu[i].command, (int)((cpuVisibility[cpu[i].entity] >> MeshLODSelection.LevelShift) & 0xFFu), $"{label}: packed level");
+                                }
+                                sawBand |= cpu[i].factor != 0;
                             }
-                            sawBand |= cpu[i].factor != 0;
                         }
                         sawCulled |= Array.IndexOf(visible, 0u) >= 0;
                     }
