@@ -32,7 +32,7 @@ float MeshLODScreenSize(MeshLODChain chain, uint level)
 }
 
 // Packed visibility of one entity: 0 when no level draws, else 1 | level << 8 | fade << 16, where fade is
-// MESH_LOD_STABLE outside the band and the band position quantized to [0, 65534) inside it.
+// MESH_LOD_STABLE outside the band and the band position quantized to [0, 65534) inside it; mirrors MeshLODSelection.Pack.
 uint MeshPackLODVisibility(uint entity, float3 center, float3 extent, float3 origin, float scale, float bias, uint orthographic)
 {
     MeshLODChain chain = _EntityLodChains[entity];

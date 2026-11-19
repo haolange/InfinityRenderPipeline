@@ -143,7 +143,8 @@ namespace InfinityTech.Rendering.Editor
                 lastRecordedCamera = world.stats.camera != null ? world.stats.camera.name : null,
                 lastCameraRecordedViewProductions = world.stats.viewProductions,
                 lastCameraRecordedDrawListProductions = world.stats.drawListProductions,
-                lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches, entities, passes };
+                lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches,
+                lastCameraViewCullingJobs = world.stats.viewCullingJobs, entities, passes };
         }
 
         [CliCommand("infinity_scene_view_dock", "Restore an explicitly selected floating SceneView beside the sole Game tab; does not save assets.")]

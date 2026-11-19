@@ -21,6 +21,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int viewProductions;
         public int drawListProductions;
         public int drawListKernelDispatches;
+        // CPU view culling jobs scheduled for the last camera: one per view that a live CPU list reads.
+        public int viewCullingJobs;
         public long uploadedBytes;
         internal Camera camera;
 
@@ -30,6 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             viewProductions = 0;
             drawListProductions = 0;
             drawListKernelDispatches = 0;
+            viewCullingJobs = 0;
         }
     }
 

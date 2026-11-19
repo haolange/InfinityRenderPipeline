@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly ComputeKernel m_CullViewKernel, m_CullViewOccludedKernel, m_CullViewOccludedHistoryKernel, m_CullViewRemainderKernel;
+        readonly ComputeKernel m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel, m_ViewCullingRemainderKernel;
         readonly ComputeKernel m_InitializeArgsKernel, m_BuildDrawListKernel;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUViewPayload> m_FreeViewPayloads = new Stack<MeshGPUViewPayload>(8);
@@ -130,14 +130,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Pool = pool;
             m_Shader = shader;
             const string field = "GlobalSettings RuntimeShaders.meshDrawPipelineCS";
-            m_CullViewKernel = ComputeKernel.Resolve(shader, field, "CullMeshView");
-            m_CullViewOccludedKernel = ComputeKernel.Resolve(shader, field, "CullMeshViewOccluded");
-            m_CullViewOccludedHistoryKernel = ComputeKernel.Resolve(shader, field, "CullMeshViewOccludedHistory");
-            m_CullViewRemainderKernel = ComputeKernel.Resolve(shader, field, "CullMeshViewRemainder");
+            m_ViewCullingKernel = ComputeKernel.Resolve(shader, field, "MeshViewCulling");
+            m_ViewCullingOccludedKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingOccluded");
+            m_ViewCullingOccludedHistoryKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingOccludedHistory");
+            m_ViewCullingRemainderKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingRemainder");
             m_InitializeArgsKernel = ComputeKernel.Resolve(shader, field, "InitializeIndirectArgs");
             m_BuildDrawListKernel = ComputeKernel.Resolve(shader, field, "BuildDrawList");
             // The shader is required on every backend; a missing kernel is a broken install, not a device limit.
-            foreach (ComputeKernel kernel in new[] { m_CullViewKernel, m_CullViewOccludedKernel, m_CullViewOccludedHistoryKernel, m_CullViewRemainderKernel,
+            foreach (ComputeKernel kernel in new[] { m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel, m_ViewCullingRemainderKernel,
                 m_InitializeArgsKernel, m_BuildDrawListKernel })
             {
                 if (!kernel.isValid)
@@ -190,10 +190,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             payload.contextStaging[0] = context;
             commands.SetBufferData(payload.cullingContextHandle.buffer, payload.contextStaging, 0, 0, 1);
 
-            ComputeKernel cull = !occluded ? m_CullViewKernel : occluder.history ? m_CullViewOccludedHistoryKernel
-                : remainder ? m_CullViewRemainderKernel : m_CullViewOccludedKernel;
+            ComputeKernel cull = !occluded ? m_ViewCullingKernel : occluder.history ? m_ViewCullingOccludedHistoryKernel
+                : remainder ? m_ViewCullingRemainderKernel : m_ViewCullingOccludedKernel;
             int kernel = cull.index;
-            encoder.BeginSample(MeshDrawProfiling.cullMeshView);
+            encoder.BeginSample(MeshDrawProfiling.viewCulling);
             encoder.SetComputeIntParam(m_Shader, ID_EntityCount, entityCount);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_CullingContext, payload.cullingContextHandle.buffer);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_EntityBoundsCenter, inputs.boundsCenterHandle);
@@ -225,7 +225,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
             }
             encoder.DispatchCompute(m_Shader, kernel, math.max(1, cull.GroupsX(entityCount)), 1, 1);
-            encoder.EndSample(MeshDrawProfiling.cullMeshView);
+            encoder.EndSample(MeshDrawProfiling.viewCulling);
             stats.viewProductions++;
         }
 

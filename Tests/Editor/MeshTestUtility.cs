@@ -127,12 +127,31 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return candidates;
         }
 
-        /// <summary>The CPU gather job a CPU draw list schedules, over an explicit candidate table, completed.</summary>
-        internal static List<MeshDrawnInstance> GatherOnCpu(MeshWorld world, uint2[] candidates, int commandCount, in MeshCullingContext context, bool dither)
+        /// <summary>The culling job a CPU list's view schedules, over every entity slot of the world, completed.</summary>
+        internal static uint[] CullOnCPU(MeshWorld world, in MeshCullingContext context)
+        {
+            var visibility = new Unity.Collections.NativeArray<uint>(world.entityHighWater, Unity.Collections.Allocator.TempJob);
+            try
+            {
+                MeshViewCullingJob.Schedule(world, context, visibility).Complete();
+                return visibility.ToArray();
+            }
+            finally
+            {
+                visibility.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// The CPU gather job a CPU draw list schedules, over an explicit candidate table and its view's visibility (from
+        /// <see cref="CullOnCPU"/>), completed. <paramref name="origin"/> is the view's LOD origin.
+        /// </summary>
+        internal static List<MeshDrawnInstance> GatherOnCPU(MeshWorld world, uint2[] candidates, int commandCount, uint[] visibility, float3 origin, bool dither)
         {
             var table = new Unity.Collections.NativeArray<uint2>(candidates, Unity.Collections.Allocator.TempJob);
             var commands = new Unity.Collections.NativeArray<MeshDrawCommand>(Math.Max(1, commandCount), Unity.Collections.Allocator.TempJob);
             var elements = new Unity.Collections.NativeArray<MeshElement>(Math.Max(1, candidates.Length), Unity.Collections.Allocator.TempJob);
+            var words = new Unity.Collections.NativeArray<uint>(visibility, Unity.Collections.Allocator.TempJob);
             var items = new Unity.Collections.NativeList<MeshDrawInstance>(Math.Max(1, candidates.Length * 2), Unity.Collections.Allocator.TempJob);
             try
             {
@@ -141,10 +160,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     candidates = table,
                     commands = commands,
                     elements = elements,
-                    entities = world.entities,
                     bounds = world.entityBounds,
-                    context = context,
-                    lod = context.ReadLODProjection(),
+                    visibility = words,
+                    origin = origin,
                     ditherLod = dither,
                     items = items.AsParallelWriter()
                 }.Schedule(candidates.Length, 64).Complete();
@@ -158,7 +176,54 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 table.Dispose();
                 commands.Dispose();
                 elements.Dispose();
+                words.Dispose();
                 items.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// What a CPU list of <paramref name="pass"/> builds on a view of <paramref name="context"/>: the view's culling job,
+        /// then the list's build depending on it, completed. The caller disposes the build.
+        /// </summary>
+        internal static MeshDrawListBuild BuildOnCPU(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
+        {
+            var visibility = new Unity.Collections.NativeArray<uint>(world.entityHighWater, Unity.Collections.Allocator.TempJob);
+            JobHandle visibilityJob = default;
+            MeshDrawListBuild build = default;
+            try
+            {
+                visibilityJob = MeshViewCullingJob.Schedule(world, context, visibility);
+                build = MeshDrawListBuild.Schedule(world.GetPassCache(pass), world, visibility, context.lodOrigin, visibilityJob);
+                build.job.Complete();
+                return build;
+            }
+            catch
+            {
+                build.Dispose();
+                throw;
+            }
+            finally
+            {
+                visibilityJob.Complete();
+                visibility.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// The CPU and GPU visibility of one view agree slot by slot: the visible bit and the level exactly, a stable fade
+        /// exactly, and a band position within two of its 65534 steps (the two sides round the same float expression).
+        /// </summary>
+        internal static void AssertSameVisibility(uint[] cpu, uint[] gpu, int entityCount, string label)
+        {
+            for (int entity = 0; entity < entityCount; ++entity)
+            {
+                string slot = $"{label}: entity {entity}, CPU 0x{cpu[entity]:X8}, GPU 0x{gpu[entity]:X8}";
+                Assert.AreEqual(cpu[entity] & 0xFFFFu, gpu[entity] & 0xFFFFu, $"{slot}: visible bit and level");
+                uint cpuFade = cpu[entity] >> MeshLODSelection.FadeShift, gpuFade = gpu[entity] >> MeshLODSelection.FadeShift;
+                if (cpuFade == MeshLODSelection.StableFade || gpuFade == MeshLODSelection.StableFade)
+                    Assert.AreEqual(cpuFade, gpuFade, $"{slot}: stable on both sides");
+                else
+                    Assert.LessOrEqual(Math.Abs((int)cpuFade - (int)gpuFade), 2, $"{slot}: band position");
             }
         }
 
@@ -221,9 +286,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     /// </summary>
     internal sealed class MeshProducerRun : IDisposable
     {
-        internal const string CullView = "CullMeshView", CullViewOccluded = "CullMeshViewOccluded",
-            CullViewOccludedHistory = "CullMeshViewOccludedHistory", CullViewRemainder = "CullMeshViewRemainder";
-        static readonly string[] s_OccludedKernels = { CullViewOccluded, CullViewOccludedHistory, CullViewRemainder };
+        internal const string ViewCulling = "MeshViewCulling", ViewCullingOccluded = "MeshViewCullingOccluded",
+            ViewCullingOccludedHistory = "MeshViewCullingOccludedHistory", ViewCullingRemainder = "MeshViewCullingRemainder";
+        static readonly string[] s_OccludedKernels = { ViewCullingOccluded, ViewCullingOccludedHistory, ViewCullingRemainder };
 
         readonly ComputeShader m_Shader;
         readonly MeshEntityColumns m_Columns;
@@ -271,7 +336,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// <summary>Binds the transform versions the history view kernel compares.</summary>
         internal void SetHistory(GraphicsBuffer current, GraphicsBuffer currentGenerations, GraphicsBuffer previous, GraphicsBuffer previousGenerations, int currentCount, int previousCount)
         {
-            int kernel = m_Shader.FindKernel(CullViewOccludedHistory);
+            int kernel = m_Shader.FindKernel(ViewCullingOccludedHistory);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentTransforms", current);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentGenerations", currentGenerations);
             m_Shader.SetBuffer(kernel, "_MeshCullPreviousTransforms", previous);
@@ -298,7 +363,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(kernel, "_EntityRenderingLayer", m_Columns.renderingLayers);
             m_Shader.SetBuffer(kernel, "_EntityLodChains", m_Columns.lodChains);
             m_Shader.SetBuffer(kernel, "UAV_MeshViewVisibility", m_Visibility);
-            if (viewKernel == CullViewRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
+            if (viewKernel == ViewCullingRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
             m_Shader.Dispatch(kernel, Math.Max(1, (m_EntityCount + 63) / 64), 1, 1);
             var visibility = new uint[m_EntityCount];
             m_Visibility.GetData(visibility);

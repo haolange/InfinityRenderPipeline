@@ -1,6 +1,6 @@
 // Mesh Drawing Pipeline kernels.
 // - Transform versions: every backend builds immutable per-entity transform tables from dirty-slot patches.
-// - GPU indirect views: one producer per view. A CullMeshView kernel (one thread per entity slot) tests the entity against
+// - GPU indirect views: one producer per view. A MeshViewCulling kernel (MeshViewCullingJob on the CPU; one thread per entity slot) tests the entity against
 //   the view's culling context (masks, LOD, frustum) and, for an occluded view, against the context's Hi-Z occluder, and
 //   writes one packed visibility word per entity. A view tested against the previous frame's pyramid has one remainder
 //   view; the remainder kernel, tested against this frame's pyramid, leaves culled every entity the history view drew.
@@ -14,10 +14,10 @@
 #pragma kernel InitializeTransformVersion
 #pragma kernel CopyTransformVersion
 #pragma kernel PatchTransformVersion
-#pragma kernel CullMeshView
-#pragma kernel CullMeshViewOccluded
-#pragma kernel CullMeshViewOccludedHistory
-#pragma kernel CullMeshViewRemainder
+#pragma kernel MeshViewCulling
+#pragma kernel MeshViewCullingOccluded
+#pragma kernel MeshViewCullingOccludedHistory
+#pragma kernel MeshViewCullingRemainder
 #pragma kernel InitializeIndirectArgs
 #pragma kernel BuildDrawList
 
@@ -105,7 +105,7 @@ float4 MeshContextPlane(MeshCullingContext context, int index)
     return plane;
 }
 
-// Mirrors MeshDrawGatherJob.OutsidePlanes; precise keeps every view of a context on one answer.
+// Mirrors MeshCulling.OutsidePlanes; precise keeps every view of a context on one answer.
 bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 {
     bool culled = false;
@@ -122,7 +122,7 @@ bool MeshFrustumCulled(MeshCullingContext context, float3 center, float3 extent)
 }
 
 // Which range of its command an element of level elementLod fills (0 stable, 1 fading) and its signed dither factor.
-// Inside a band of a dithering pass the outgoing level draws +f and the next level -f; mirrors MeshDrawLod.Factor.
+// Inside a band of a dithering pass the outgoing level draws +f and the next level -f; mirrors MeshDrawLod.Range.
 bool MeshElementRange(uint packed, uint elementLod, out uint range, out float factor)
 {
     range = 2u;
@@ -149,7 +149,7 @@ bool MeshElementRange(uint packed, uint elementLod, out uint range, out float fa
 
 // The flags are literals at each kernel, so a kernel binds only what it uses: the frustum kernel no occluder, a
 // current-frame occluder no transform versions. Only the remainder kernel reads the visibility its history view wrote.
-void CullMeshViewCore(uint entity, bool occluded, bool history, bool remainder)
+void MeshViewCullingCore(uint entity, bool occluded, bool history, bool remainder)
 {
     bool drawn = false;
     if (remainder) drawn = SRV_MeshViewDrawn[entity] != 0u;
@@ -184,27 +184,27 @@ void CullMeshViewCore(uint entity, bool occluded, bool history, bool remainder)
 }
 
 [numthreads(64, 1, 1)]
-void CullMeshView(uint3 id : SV_DispatchThreadID)
+void MeshViewCulling(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) CullMeshViewCore(id.x, false, false, false);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, false, false, false);
 }
 
 [numthreads(64, 1, 1)]
-void CullMeshViewOccluded(uint3 id : SV_DispatchThreadID)
+void MeshViewCullingOccluded(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, false, false);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, false, false);
 }
 
 [numthreads(64, 1, 1)]
-void CullMeshViewOccludedHistory(uint3 id : SV_DispatchThreadID)
+void MeshViewCullingOccludedHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, true, false);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, true, false);
 }
 
 [numthreads(64, 1, 1)]
-void CullMeshViewRemainder(uint3 id : SV_DispatchThreadID)
+void MeshViewCullingRemainder(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) CullMeshViewCore(id.x, true, false, true);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, false, true);
 }
 
 [numthreads(64, 1, 1)]

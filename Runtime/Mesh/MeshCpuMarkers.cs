@@ -30,5 +30,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static readonly ProfilerMarker s_DeclareList = Define("Mesh.DeclareList");
         internal static readonly ProfilerMarker s_RecordViewProducer = Define("Mesh.RecordViewProducer");
         internal static readonly ProfilerMarker s_RecordProducer = Define("Mesh.RecordProducer");
+        internal static readonly ProfilerMarker s_ScheduleViewCulling = Define("Mesh.ScheduleViewCulling");
     }
 }

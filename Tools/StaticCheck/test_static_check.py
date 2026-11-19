@@ -430,6 +430,25 @@ class StaticCheckTests(unittest.TestCase):
                           'Runtime/Mesh/View/MeshViews.cs names EMeshViewKind', 'Runtime/Mesh/World/MeshWorld.cs names InfinityMeshPasses'],
                          sorted(o[2] for o in out))
 
+    def test_mesh_lists_filter_their_views_visibility(self):
+        self.write('Runtime/Mesh/DrawList/MeshDrawListBuild.cs',
+                   '// MeshCulling evaluated this once per view.\n'
+                   'struct Gather { void Execute() { MeshDrawLod.Range(visibility[e], lod, dither, out float f); uint s = MeshLODSelection.StableFade; } }')
+        self.write('Runtime/Mesh/Graph/MeshViewRegistry.cs', 'class R { void S() { MeshViewCullingJob.Schedule(world, context, words); } }')
+        out = []
+        static_check.check_mesh_visibility(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Runtime/Mesh/DrawList/MeshDrawListBuild.cs',
+                   'struct Gather {\n void Execute() { if (!MeshCulling.Eligible(desc, context)) return;\n'
+                   ' MeshLODSelection.Select(chain, bound, lod, out byte level, out float fade); } }')
+        self.write('Runtime/Mesh/Backend/MeshDrawCPUBackend.cs', 'class B { void U() { MeshViewCullingJob.Schedule(world, context, words); } }')
+        static_check.check_mesh_visibility(str(self.repo), out)
+        self.assertEqual(['Runtime/Mesh/Backend/MeshDrawCPUBackend.cs:1: only MeshViewRegistry schedules a view\'s CPU culling',
+                          'Runtime/Mesh/DrawList/MeshDrawListBuild.cs:2: a draw list filters its view\'s visibility; it names MeshCulling',
+                          'Runtime/Mesh/DrawList/MeshDrawListBuild.cs:3: a draw list filters its view\'s visibility; it names MeshLODSelection.Select'],
+                         sorted(o[2] for o in out))
+        self.assertTrue(all(o[:2] == ('ERROR', 'meshvisibility') for o in out))
+
     def test_mesh_submit_only_draws(self):
         root = 'Runtime/Mesh/'
         self.write(root + 'Backend/MeshDrawCPUBackend.cs',

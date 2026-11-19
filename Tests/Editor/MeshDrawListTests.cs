@@ -160,8 +160,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 var specOfEntity = new Dictionary<uint, int>();
                 for (int i = 0; i < ids.Length; ++i) specOfEntity.Add(ids[i].Index, i);
-                build = MeshDrawListBuild.Schedule(cache, world, context);
-                build.job.Complete();
+                build = MeshTestUtility.BuildOnCPU(world, pass, context);
                 entities = new int[build.instanceCount];
                 for (int i = 0; i < entities.Length; ++i)
                 {
@@ -279,12 +278,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.GreaterOrEqual(freeCommand, 0, "The fixture contains a free command slot.");
 
                 MeshCullingContext context = MeshTestUtility.CameraContext();
+                uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, context);
                 var cpu = new Dictionary<(int command, bool fading), List<(uint entity, float fade)>>();
                 MeshDrawListBuild build = default;
                 try
                 {
-                    build = MeshDrawListBuild.Schedule(cache, world, context);
-                    build.job.Complete();
+                    build = MeshTestUtility.BuildOnCPU(world, InfinityMeshPasses.GBuffer, context);
                     foreach (MeshDrawCall draw in build.draws)
                     {
                         var key = (draw.command, draw.fading);
@@ -321,7 +320,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     GraphicsBuffer contextBuffer = Upload(new[] { context }, System.Runtime.InteropServices.Marshal.SizeOf<MeshCullingContext>());
                     int entityCount = math.max(1, world.entityHighWater);
                     GraphicsBuffer visibility = Upload(new uint[entityCount], sizeof(uint));
-                    int cull = shader.FindKernel("CullMeshView"), initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
+                    int cull = shader.FindKernel("MeshViewCulling"), initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
                     using var commands = new CommandBuffer();
                     commands.SetComputeIntParam(shader, "_EntityCount", entityCount);
                     commands.SetComputeBufferParam(shader, cull, "_CullingContext", contextBuffer);
@@ -343,6 +342,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     commands.DispatchCompute(shader, compact, (candidateCount + 63) / 64, 1, 1);
                     Graphics.ExecuteCommandBuffer(commands);
 
+                    // The view: the GPU producer and the CPU job evaluate the same word for every entity slot, the retired
+                    // slot included.
+                    var gpuVisibility = new uint[entityCount];
+                    visibility.GetData(gpuVisibility);
+                    MeshTestUtility.AssertSameVisibility(cpuVisibility, gpuVisibility, world.entityHighWater, "GBuffer view");
                     var argValues = new uint[commandCount * 2 * 5];
                     var instanceValues = new uint[instanceCapacity];
                     var fadeValues = new float[instanceCapacity];
@@ -371,7 +375,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             for (int i = 0; i < expected.Count; ++i)
                             {
                                 Assert.AreEqual(expected[i].entity, gpu[i].entity, label);
-                                Assert.AreEqual(expected[i].fade, gpu[i].fade, 1e-4f, $"{label}, entity {expected[i].entity}");
+                                Assert.AreEqual(expected[i].fade, gpu[i].fade, 2f / MeshLODSelection.FadeScale, $"{label}, entity {expected[i].entity}");
                             }
                         }
                     }

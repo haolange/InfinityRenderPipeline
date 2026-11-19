@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
         sealed class RecordingExtension : IRGGraphExtension
         {
-            public int contributions, clears;
+            public int contributions, clears, disposals;
             public readonly List<(int pass, bool culled, int[] uses)> seen = new List<(int, bool, int[])>();
 
             public void Contribute(RGBuilder builder)
@@ -22,6 +22,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
 
             public void Clear() => clears++;
+
+            public void Dispose() => disposals++;
         }
 
         [Test]
@@ -60,12 +62,14 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 graph.ClearRecordedGraph();
                 Assert.AreEqual(1, extension.clears);
                 Assert.AreEqual(0, graph.passCount);
+                Assert.AreEqual(0, extension.disposals, "Dropping a recorded graph keeps the extension.");
             }
             finally
             {
-                graph.extension = null;
                 graph.Dispose();
             }
+            Assert.AreEqual(2, extension.clears, "Dispose drops the recorded graph first.");
+            Assert.AreEqual(1, extension.disposals, "The builder owns its extension and disposes it once.");
         }
     }
 }
