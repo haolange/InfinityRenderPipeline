@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         {
                             // One level per chain, so every visible word is stable and the two sides agree bit for bit.
                             uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, contexts[c]);
-                            uint[] gpuVisibility = run.Cull(MeshProducerRun.CullView, contexts[c]);
+                            uint[] gpuVisibility = run.Cull(MeshProducerRun.ViewCulling, contexts[c]);
                             CollectionAssert.AreEqual(cpuVisibility, gpuVisibility, $"view visibility, context {c}, scene mask {scene:X}");
                             List<MeshDrawnInstance> expected = MeshTestUtility.GatherOnCPU(world, candidates, 1, cpuVisibility, contexts[c].lodOrigin, false);
                             List<MeshDrawnInstance> actual = run.BuildList();

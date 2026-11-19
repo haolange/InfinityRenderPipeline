@@ -6,11 +6,11 @@ using InfinityTech.Core.Geometry;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// One thread per entity slot: the CPU visibility of one view, the packed word a <c>CullMeshView</c> kernel writes on the
-    /// GPU. Every CPU list of the view reads it; no occluder is tested.
+    /// One thread per entity slot: the CPU culling of one view into its visibility, the packed word the <c>MeshViewCulling</c>
+    /// kernel writes on the GPU. Every CPU list of the view reads it; no occluder is tested.
     /// </summary>
     [BurstCompile]
-    internal struct MeshViewVisibilityJob : IJobParallelFor
+    internal struct MeshViewCullingJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<MeshEntity> entities;
         [ReadOnly] public NativeArray<BoundingBox> bounds;
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Evaluates every slot of <paramref name="visibility"/>, which covers the entity slots its lists read.</summary>
         public static JobHandle Schedule(MeshWorld world, in MeshCullingContext context, NativeArray<uint> visibility)
         {
-            var job = new MeshViewVisibilityJob
+            var job = new MeshViewCullingJob
             {
                 entities = world.entities,
                 bounds = world.entityBounds,

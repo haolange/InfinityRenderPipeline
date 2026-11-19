@@ -127,13 +127,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return candidates;
         }
 
-        /// <summary>The visibility job a CPU list's view schedules, over every entity slot of the world, completed.</summary>
+        /// <summary>The culling job a CPU list's view schedules, over every entity slot of the world, completed.</summary>
         internal static uint[] CullOnCPU(MeshWorld world, in MeshCullingContext context)
         {
             var visibility = new Unity.Collections.NativeArray<uint>(world.entityHighWater, Unity.Collections.Allocator.TempJob);
             try
             {
-                MeshViewVisibilityJob.Schedule(world, context, visibility).Complete();
+                MeshViewCullingJob.Schedule(world, context, visibility).Complete();
                 return visibility.ToArray();
             }
             finally
@@ -182,7 +182,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         /// <summary>
-        /// What a CPU list of <paramref name="pass"/> builds on a view of <paramref name="context"/>: the view's visibility job,
+        /// What a CPU list of <paramref name="pass"/> builds on a view of <paramref name="context"/>: the view's culling job,
         /// then the list's build depending on it, completed. The caller disposes the build.
         /// </summary>
         internal static MeshDrawListBuild BuildOnCPU(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
@@ -192,7 +192,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             MeshDrawListBuild build = default;
             try
             {
-                visibilityJob = MeshViewVisibilityJob.Schedule(world, context, visibility);
+                visibilityJob = MeshViewCullingJob.Schedule(world, context, visibility);
                 build = MeshDrawListBuild.Schedule(world.GetPassCache(pass), world, visibility, context.lodOrigin, visibilityJob);
                 build.job.Complete();
                 return build;
@@ -286,9 +286,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     /// </summary>
     internal sealed class MeshProducerRun : IDisposable
     {
-        internal const string CullView = "CullMeshView", CullViewOccluded = "CullMeshViewOccluded",
-            CullViewOccludedHistory = "CullMeshViewOccludedHistory", CullViewRemainder = "CullMeshViewRemainder";
-        static readonly string[] s_OccludedKernels = { CullViewOccluded, CullViewOccludedHistory, CullViewRemainder };
+        internal const string ViewCulling = "MeshViewCulling", ViewCullingOccluded = "MeshViewCullingOccluded",
+            ViewCullingOccludedHistory = "MeshViewCullingOccludedHistory", ViewCullingRemainder = "MeshViewCullingRemainder";
+        static readonly string[] s_OccludedKernels = { ViewCullingOccluded, ViewCullingOccludedHistory, ViewCullingRemainder };
 
         readonly ComputeShader m_Shader;
         readonly MeshEntityColumns m_Columns;
@@ -336,7 +336,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// <summary>Binds the transform versions the history view kernel compares.</summary>
         internal void SetHistory(GraphicsBuffer current, GraphicsBuffer currentGenerations, GraphicsBuffer previous, GraphicsBuffer previousGenerations, int currentCount, int previousCount)
         {
-            int kernel = m_Shader.FindKernel(CullViewOccludedHistory);
+            int kernel = m_Shader.FindKernel(ViewCullingOccludedHistory);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentTransforms", current);
             m_Shader.SetBuffer(kernel, "_MeshCullCurrentGenerations", currentGenerations);
             m_Shader.SetBuffer(kernel, "_MeshCullPreviousTransforms", previous);
@@ -363,7 +363,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(kernel, "_EntityRenderingLayer", m_Columns.renderingLayers);
             m_Shader.SetBuffer(kernel, "_EntityLodChains", m_Columns.lodChains);
             m_Shader.SetBuffer(kernel, "UAV_MeshViewVisibility", m_Visibility);
-            if (viewKernel == CullViewRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
+            if (viewKernel == ViewCullingRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
             m_Shader.Dispatch(kernel, Math.Max(1, (m_EntityCount + 63) / 64), 1, 1);
             var visibility = new uint[m_EntityCount];
             m_Visibility.GetData(visibility);

@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>
     /// One culled view: its descriptor, for a remainder view the history view whose rest it draws, and its visibility on each
     /// side that reads it: once its first nonempty GPU list declares it, the GPU producer's culling-context buffer and
-    /// visibility; once its first live CPU list schedules it, the CPU visibility and its job.
+    /// visibility; once a live CPU list reads it, the CPU visibility and its culling job.
     /// </summary>
     internal struct MeshViewRecord
     {
@@ -77,8 +77,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshGPUViewPayload payload;
         public RGBufferHandle visibilityHandle;
         public int entityCount;
-        // CPU visibility: not created until the view's first live CPU list, and never for a view drawn only on the GPU. Words
-        // of the registry's pool, written by cpuVisibilityJob, which the gather of every CPU list of the view depends on.
+        // CPU visibility: created when a live CPU list reads the view, never for a view drawn only on the GPU. Words of the
+        // registry's pool, written by the view's culling job (cpuVisibilityJob), which every CPU gather of the view depends on.
         public NativeArray<uint> cpuVisibility;
         public JobHandle cpuVisibilityJob;
     }
@@ -332,12 +332,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Live CPU lists schedule their build jobs; the first live CPU list of a view also schedules the view's visibility
-        /// job, which the gather of every CPU list of that view depends on. Lists without a live consumer are released without
-        /// producing anything (the graph culls a GPU list's producer with its consumer).
+        /// Releases lists without a live consumer without producing anything (the graph culls a GPU list's producer with its
+        /// consumer), culls every view a live CPU list reads once on the CPU, then schedules each live CPU list's build, which
+        /// depends on its view's culling job.
         /// </summary>
         internal void PrepareLive()
         {
+            // Lists and views: each view read by a live CPU list is culled once, however many of its lists read it.
             for (int i = 0; i < m_Lists.Count; ++i)
             {
                 MeshDrawListRecord record = m_Lists[i];
@@ -352,14 +353,24 @@ namespace InfinityTech.Rendering.MeshPipeline
                     continue;
                 }
                 RequireUnchanged(record);
+                int viewIndex = ViewOfList(i);
+                if (record.backend == EMeshDrawBackendPolicy.CPUDirect && !m_Views[viewIndex].cpuVisibility.IsCreated)
+                {
+                    ScheduleViewCulling(viewIndex);
+                }
+            }
+
+            // Builds: every live CPU list filters its view's culling result.
+            for (int i = 0; i < m_Lists.Count; ++i)
+            {
+                MeshDrawListRecord record = m_Lists[i];
+                if (record.state != EMeshDrawListState.Live)
+                {
+                    continue;
+                }
                 if (record.backend == EMeshDrawBackendPolicy.CPUDirect && !record.build.isCreated)
                 {
-                    int viewIndex = ViewOfList(i);
-                    MeshViewRecord view = m_Views[viewIndex];
-                    if (!view.cpuVisibility.IsCreated)
-                    {
-                        view = ScheduleViewVisibility(viewIndex);
-                    }
+                    MeshViewRecord view = m_Views[ViewOfList(i)];
                     using (record.cache.scheduleMarker.Auto())
                     {
                         record.build = MeshDrawListBuild.Schedule(record.cache, m_World, view.cpuVisibility, view.cullingContext.lodOrigin, view.cpuVisibilityJob);
@@ -371,20 +382,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             JobHandle.ScheduleBatchedJobs();
         }
 
-        // The view's CPU visibility over every entity slot of the world it reads when it is evaluated. A list recorded after a
-        // commit can hold a newer snapshot than the view's first list, and any candidate of an unchanged pass cache is a live
-        // entity, so the world's high water, not one list's snapshot, covers every list of the view. Evaluated once whatever
-        // number of CPU lists read it.
-        MeshViewRecord ScheduleViewVisibility(int viewIndex)
+        // Culls the view on the CPU over every entity slot of the world it reads when it is culled. Lists of one view can hold
+        // different snapshots when a commit falls between them, and any candidate of an unchanged pass cache is a live entity,
+        // so the world's high water, not one list's snapshot, covers every list of the view.
+        void ScheduleViewCulling(int viewIndex)
         {
-            using (MeshCpuMarkers.s_ScheduleViewVisibility.Auto())
+            using (MeshCpuMarkers.s_ScheduleViewCulling.Auto())
             {
                 MeshViewRecord view = m_Views[viewIndex];
                 view.cpuVisibility = RentCPUVisibility(m_World.entityHighWater);
-                view.cpuVisibilityJob = MeshViewVisibilityJob.Schedule(m_World, view.cullingContext, view.cpuVisibility);
+                view.cpuVisibilityJob = MeshViewCullingJob.Schedule(m_World, view.cullingContext, view.cpuVisibility);
                 m_Views[viewIndex] = view;
-                m_World.stats.viewVisibilityJobs++;
-                return view;
+                m_World.stats.viewCullingJobs++;
             }
         }
 
@@ -474,7 +483,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Logical cleanup only: completes the views' CPU visibility jobs and takes their words back, completes and frees CPU
+        /// Logical cleanup only: completes the views' CPU culling jobs and takes their words back, completes and frees CPU
         /// build jobs and retires list and view payloads, instance buffers and transform-version references, then drops the
         /// views. Physical return happens after native submit.
         /// </summary>
@@ -535,7 +544,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Frees the CPU visibility pool when the builder is disposed, after it cleared the recorded graph.</summary>
         public void Dispose()
         {
-            // A graph whose clear failed still has jobs that write or read the words: the visibility jobs and the gathers.
+            // A graph whose clear failed still has jobs that write or read the words: the culling jobs and the gathers.
             for (int i = 0; i < m_Views.Count; ++i)
             {
                 m_Views[i].cpuVisibilityJob.Complete();

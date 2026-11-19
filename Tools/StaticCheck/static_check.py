@@ -27,7 +27,7 @@ Checks
   meshmechanism    the mesh mechanism names no pipeline concept: no shader IDs of the pipeline, capture or view kinds, and no
                    Camera outside the world's diagnostic counters
   meshvisibility   a view's CPU visibility is evaluated once: draw-list code filters it and names no culling or LOD selection,
-                   and only the view registry schedules the view visibility job
+                   and only the view registry schedules the view culling job
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
   fprefix          no type name borrows another engine's F prefix
@@ -949,8 +949,8 @@ def check_mesh_mechanism(repo, out):
 
 # A CPU list reads its view's packed visibility (MeshDrawLod.Range); evaluating culling or LOD selection there would
 # evaluate the view's fact once per list again.
-MESH_LIST_CULLING = re.compile(r'\b(MeshCulling|MeshCullingContext|ReadLODProjection|MeshViewVisibilityJob|MeshLODSelection\.(?:Select|Pack|ScreenSize))\b')
-MESH_VIEW_JOB_SCHEDULE = re.compile(r'\bMeshViewVisibilityJob\.Schedule\s*\(')
+MESH_LIST_CULLING = re.compile(r'\b(MeshCulling|MeshCullingContext|ReadLODProjection|MeshViewCullingJob|MeshLODSelection\.(?:Select|Pack|ScreenSize))\b')
+MESH_VIEW_JOB_SCHEDULE = re.compile(r'\bMeshViewCullingJob\.Schedule\s*\(')
 MESH_VIEW_JOB_OWNER = MESH_DIR + '/Graph/MeshViewRegistry.cs'
 
 
@@ -966,7 +966,7 @@ def check_mesh_visibility(repo, out):
             continue
         text = without_comments(read(p))
         for match in MESH_VIEW_JOB_SCHEDULE.finditer(text):
-            out.append(('ERROR', 'meshvisibility', f'{rel}:{text.count(chr(10), 0, match.start()) + 1}: only MeshViewRegistry schedules a view\'s CPU visibility'))
+            out.append(('ERROR', 'meshvisibility', f'{rel}:{text.count(chr(10), 0, match.start()) + 1}: only MeshViewRegistry schedules a view\'s CPU culling'))
 
 
 SERIALIZED_FIELD = re.compile(r'(?:\[[^\]]*\bSerializeField\b[^\]]*\][^;{}]*?|public\s+)(?:readonly\s+)?[\w<>\[\],\s.?]+?\s(\w+)\s*(?:=[^;]*)?;')

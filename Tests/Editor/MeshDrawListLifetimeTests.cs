@@ -314,7 +314,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(EMeshDrawListState.Released, record.state);
                     Assert.IsFalse(record.build.isCreated, "A released CPU list never schedules its build.");
                     Assert.IsFalse(Registry(graph).GetViewCopy(Registry(graph).ViewOfList(drawsHandle.index)).cpuVisibility.IsCreated,
-                        "A view without a live CPU list schedules no visibility job.");
+                        "A view without a live CPU list schedules no culling job.");
                     // The nonempty list declared its producers, so the culled counts below are not met by declaring none.
                     bool gpu = backend == EMeshDrawBackendPolicy.GPUIndirect;
                     Assert.AreEqual(gpu ? 1 : 0, CountPasses(graph, "ComputeMeshView", false), "A nonempty GPU list declares its view's one producer.");
@@ -439,13 +439,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshDrawListHandle gbufferHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.GBuffer);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, depthHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
-                    int jobs = fixture.world.stats.viewVisibilityJobs;
+                    int jobs = fixture.world.stats.viewCullingJobs;
                     Compile(graph);
 
                     MeshViewRegistry registry = Registry(graph);
                     Assert.IsTrue(registry.GetListCopy(depthHandle.index).build.isCreated);
                     Assert.IsTrue(registry.GetListCopy(gbufferHandle.index).build.isCreated);
-                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewVisibilityJobs, "Both lists filter their view's one visibility job.");
+                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewCullingJobs, "Both lists filter their view's one culling job.");
                     Assert.AreEqual(2, CountPasses(graph, "UploadMeshData", true), "One upload producer per live list.");
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshDrawList", false));
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false), "A view drawn only on the CPU declares no GPU producer.");
@@ -473,11 +473,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshDrawListHandle secondHandle = graph.CreateMeshDrawList(secondViewHandle, InfinityMeshPasses.Shadow);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, firstHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterLocalShadow, secondHandle, true);
-                    int jobs = fixture.world.stats.viewVisibilityJobs;
+                    int jobs = fixture.world.stats.viewCullingJobs;
                     Compile(graph);
 
                     MeshViewRegistry registry = Registry(graph);
-                    Assert.AreEqual(jobs + 2, fixture.world.stats.viewVisibilityJobs, "Two views are two visibility evaluations, however equal their contexts.");
+                    Assert.AreEqual(jobs + 2, fixture.world.stats.viewCullingJobs, "Two views are two visibility evaluations, however equal their contexts.");
                     Assert.IsFalse(registry.GetViewCopy(firstViewHandle.index).cpuVisibility.Equals(registry.GetViewCopy(secondViewHandle.index).cpuVisibility),
                         "Each view writes its own words.");
                     MeshDrawListBuild firstBuild = registry.GetListCopy(firstHandle.index).build;
@@ -514,11 +514,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     };
                     foreach (RGMeshDrawListHandle drawsHandle in listsHandle)
                         AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, drawsHandle, true);
-                    int jobs = fixture.world.stats.viewVisibilityJobs;
+                    int jobs = fixture.world.stats.viewCullingJobs;
                     Compile(graph);
 
                     MeshViewRegistry registry = Registry(graph);
-                    Assert.AreEqual(jobs + 2, fixture.world.stats.viewVisibilityJobs, "One job for the camera view's three lists, one for the light view's list.");
+                    Assert.AreEqual(jobs + 2, fixture.world.stats.viewCullingJobs, "One job for the camera view's three lists, one for the light view's list.");
                     MeshViewRecord view = registry.GetViewCopy(viewHandle.index);
                     Assert.IsTrue(view.cpuVisibility.IsCreated);
                     Assert.IsTrue(registry.GetViewCopy(lightViewHandle.index).cpuVisibility.IsCreated);
@@ -545,14 +545,14 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         {
             using (var fixture = new MeshWorldFixture())
             {
-                int jobs = fixture.world.stats.viewVisibilityJobs;
+                int jobs = fixture.world.stats.viewCullingJobs;
                 RGBuilder graph = CreateGraph(fixture, "CpuEmptyList", EMeshDrawBackendPolicy.CPUDirect);
                 try
                 {
                     RGMeshViewHandle viewHandle = View(graph, MeshTestUtility.CameraContext());
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterGBuffer, graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.GBuffer), true);
                     Compile(graph);
-                    Assert.AreEqual(jobs, fixture.world.stats.viewVisibilityJobs, "A view whose only CPU list is empty evaluates nothing.");
+                    Assert.AreEqual(jobs, fixture.world.stats.viewCullingJobs, "A view whose only CPU list is empty evaluates nothing.");
                     Assert.IsFalse(Registry(graph).GetViewCopy(viewHandle.index).cpuVisibility.IsCreated);
                 }
                 finally { MeshTestUtility.Release(graph); }
@@ -564,7 +564,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshViewHandle viewHandle = View(graph, MeshTestUtility.CameraContext());
                     AddConsumer(graph, Target(graph), CustomSamplerId.RasterDepth, graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.Depth), false);
                     Compile(graph);
-                    Assert.AreEqual(jobs, fixture.world.stats.viewVisibilityJobs, "A view whose CPU lists have no live consumer evaluates nothing.");
+                    Assert.AreEqual(jobs, fixture.world.stats.viewCullingJobs, "A view whose CPU lists have no live consumer evaluates nothing.");
                     Assert.IsFalse(Registry(graph).GetViewCopy(viewHandle.index).cpuVisibility.IsCreated);
                 }
                 finally { MeshTestUtility.Release(graph); }
@@ -583,7 +583,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepthRecovery, remainderHandle, true);
                     Compile(graph);
                     MeshViewRegistry registry = Registry(graph);
-                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewVisibilityJobs, "Only the history view's list evaluates its view, without the occluder.");
+                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewCullingJobs, "Only the history view's list evaluates its view, without the occluder.");
                     Assert.IsTrue(registry.GetViewCopy(historyViewHandle.index).cpuVisibility.IsCreated);
                     Assert.IsFalse(registry.GetViewCopy(remainderViewHandle.index).cpuVisibility.IsCreated, "The CPU remainder list is empty, so its view evaluates nothing.");
                 }
@@ -591,7 +591,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        // A view with GPU and CPU lists evaluates once on each side: one CullMeshView producer for its GPU lists and one job
+        // A view with GPU and CPU lists evaluates once on each side: one MeshViewCulling producer for its GPU lists and one culling job
         // for its CPU list, over the same entity slots. A view with GPU lists only evaluates nothing on the CPU.
         [Test]
         public void ViewWithGPUAndCPULists_EvaluatesOncePerResidency()
@@ -622,14 +622,14 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterTranslucentT0, translucentHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, shadowHandle, true);
-                    int jobs = fixture.world.stats.viewVisibilityJobs;
+                    int jobs = fixture.world.stats.viewCullingJobs;
                     Compile(graph);
 
                     MeshViewRegistry registry = Registry(graph);
                     Assert.AreEqual(EMeshDrawBackendPolicy.GPUIndirect, registry.GetListCopy(depthHandle.index).backend);
                     Assert.AreEqual(EMeshDrawBackendPolicy.CPUDirect, registry.GetListCopy(translucentHandle.index).backend);
                     Assert.AreEqual(2, CountPasses(graph, "ComputeMeshView", true), "One GPU evaluation per view with a GPU list.");
-                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewVisibilityJobs, "One CPU evaluation, for the view with a CPU list.");
+                    Assert.AreEqual(jobs + 1, fixture.world.stats.viewCullingJobs, "One CPU evaluation, for the view with a CPU list.");
                     MeshViewRecord view = registry.GetViewCopy(viewHandle.index);
                     Assert.IsTrue(view.visibilityHandle.IsValid() && view.cpuVisibility.IsCreated, "The camera view is evaluated on both sides.");
                     Assert.AreEqual(view.entityCount, view.cpuVisibility.Length, "Without a commit inside the graph both sides cover the same entity slots.");

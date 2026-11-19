@@ -75,9 +75,9 @@ namespace InfinityTech.Rendering.Tests
                 StringAssert.Contains($"ComputeKernel.Resolve(shader, field, \"{scope.name}\")", backend);
             }
             // The view producer's scope names the family of view kernels: each kernel the view can choose starts with it.
-            string[] viewKernels = kernels.Where(kernel => kernel.StartsWith(MeshDrawProfiling.cullMeshView.name, StringComparison.Ordinal)).ToArray();
-            CollectionAssert.Contains(viewKernels, MeshDrawProfiling.cullMeshView.name);
-            string[] resolvedViewKernels = Regex.Matches(backend, @"m_CullView\w*Kernel = ComputeKernel\.Resolve\(shader, field, ""(\w+)""\)")
+            string[] viewKernels = kernels.Where(kernel => kernel.StartsWith(MeshDrawProfiling.viewCulling.name, StringComparison.Ordinal)).ToArray();
+            CollectionAssert.Contains(viewKernels, MeshDrawProfiling.viewCulling.name);
+            string[] resolvedViewKernels = Regex.Matches(backend, @"m_ViewCulling\w*Kernel = ComputeKernel\.Resolve\(shader, field, ""(\w+)""\)")
                 .Cast<Match>().Select(m => m.Groups[1].Value).ToArray();
             CollectionAssert.AreEquivalent(viewKernels, resolvedViewKernels, "The backend resolves exactly the view kernels of the view scope's family.");
         }

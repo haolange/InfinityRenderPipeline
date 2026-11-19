@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static ProfilingSampler upload => s_Upload;
 
         internal static readonly ProfilerMarker cpuCleanup = new ProfilerMarker("MeshCPU.CleanupComplete");
-        internal static readonly ProfilingSampler cullMeshView = new ProfilingSampler("CullMeshView");
+        internal static readonly ProfilingSampler viewCulling = new ProfilingSampler("MeshViewCulling");
         internal static readonly ProfilingSampler initializeIndirectArgs = new ProfilingSampler("InitializeIndirectArgs");
         internal static readonly ProfilingSampler buildDrawList = new ProfilingSampler("BuildDrawList");
 

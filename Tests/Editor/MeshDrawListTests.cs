@@ -320,7 +320,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     GraphicsBuffer contextBuffer = Upload(new[] { context }, System.Runtime.InteropServices.Marshal.SizeOf<MeshCullingContext>());
                     int entityCount = math.max(1, world.entityHighWater);
                     GraphicsBuffer visibility = Upload(new uint[entityCount], sizeof(uint));
-                    int cull = shader.FindKernel("CullMeshView"), initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
+                    int cull = shader.FindKernel("MeshViewCulling"), initialize = shader.FindKernel("InitializeIndirectArgs"), compact = shader.FindKernel("BuildDrawList");
                     using var commands = new CommandBuffer();
                     commands.SetComputeIntParam(shader, "_EntityCount", entityCount);
                     commands.SetComputeBufferParam(shader, cull, "_CullingContext", contextBuffer);

@@ -299,7 +299,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
                         // The view: one evaluation on each side, compared word by word.
                         uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, context);
-                        uint[] gpuVisibility = run.Cull(MeshProducerRun.CullView, context);
+                        uint[] gpuVisibility = run.Cull(MeshProducerRun.ViewCulling, context);
                         MeshTestUtility.AssertSameVisibility(cpuVisibility, gpuVisibility, count, $"{mode} view");
                         uint[] visible = MeshProducerRun.Visible(cpuVisibility);
                         // The lists: a dithering pass and a pass without dither filter the same view.

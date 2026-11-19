@@ -144,7 +144,7 @@ namespace InfinityTech.Rendering.Editor
                 lastCameraRecordedViewProductions = world.stats.viewProductions,
                 lastCameraRecordedDrawListProductions = world.stats.drawListProductions,
                 lastCameraRecordedDrawListDispatches = world.stats.drawListKernelDispatches,
-                lastCameraViewVisibilityJobs = world.stats.viewVisibilityJobs, entities, passes };
+                lastCameraViewCullingJobs = world.stats.viewCullingJobs, entities, passes };
         }
 
         [CliCommand("infinity_scene_view_dock", "Restore an explicitly selected floating SceneView beside the sole Game tab; does not save assets.")]

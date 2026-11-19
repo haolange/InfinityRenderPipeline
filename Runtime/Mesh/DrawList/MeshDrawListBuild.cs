@@ -204,7 +204,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     /// <summary>
     /// The CPU product of one draw list: sorted items, merged draws and the instance-to-entity table. Scheduled when the
-    /// graph compiles, after its view's visibility job; completed by the draw list's upload producer, disposed when the graph
+    /// graph compiles, after its view's culling job; completed by the draw list's upload producer, disposed when the graph
     /// is dropped.
     /// </summary>
     internal struct MeshDrawListBuild : IDisposable
