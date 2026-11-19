@@ -494,7 +494,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
         // A view's visibility is one fact: every CPU list of the view filters one evaluation of it, whatever their number.
         [Test]
-        public void OneView_SchedulesItsCpuVisibilityOnce_ForEveryCpuListOfIt()
+        public void OneView_SchedulesItsCPUVisibilityOnce_ForEveryCPUListOfIt()
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -522,7 +522,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshViewRecord view = registry.GetViewCopy(viewHandle.index);
                     Assert.IsTrue(view.cpuVisibility.IsCreated);
                     Assert.IsTrue(registry.GetViewCopy(lightViewHandle.index).cpuVisibility.IsCreated);
-                    Assert.AreEqual(fixture.world.entityHighWater, view.cpuVisibility.Length, "The words cover the entity slots of the frozen tables.");
+                    Assert.AreEqual(fixture.world.entityHighWater, view.cpuVisibility.Length, "The words cover every entity slot of the world.");
                     Assert.AreEqual(0, CountPasses(graph, "ComputeMeshView", false), "A view drawn only on the CPU declares no GPU producer.");
                     foreach (RGMeshDrawListHandle drawsHandle in listsHandle)
                     {
@@ -541,7 +541,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         // The CPU side evaluates a view only for a live, nonempty CPU list: an empty list, a culled list and a CPU remainder
         // list (empty, because the CPU tests no occluder) leave their view unevaluated.
         [Test]
-        public void ViewWithoutALiveCpuList_SchedulesNoCpuVisibility()
+        public void ViewWithoutALiveCPUList_SchedulesNoCPUVisibility()
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -594,7 +594,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         // A view with GPU and CPU lists evaluates once on each side: one CullMeshView producer for its GPU lists and one job
         // for its CPU list, over the same entity slots. A view with GPU lists only evaluates nothing on the CPU.
         [Test]
-        public void ViewWithGpuAndCpuLists_EvaluatesOncePerResidency()
+        public void ViewWithGPUAndCPULists_EvaluatesOncePerResidency()
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -632,7 +632,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(jobs + 1, fixture.world.stats.viewVisibilityJobs, "One CPU evaluation, for the view with a CPU list.");
                     MeshViewRecord view = registry.GetViewCopy(viewHandle.index);
                     Assert.IsTrue(view.visibilityHandle.IsValid() && view.cpuVisibility.IsCreated, "The camera view is evaluated on both sides.");
-                    Assert.AreEqual(view.entityCount, view.cpuVisibility.Length, "Both sides cover the entity slots of the same frozen tables.");
+                    Assert.AreEqual(view.entityCount, view.cpuVisibility.Length, "Without a commit inside the graph both sides cover the same entity slots.");
                     Assert.IsFalse(registry.GetViewCopy(lightViewHandle.index).cpuVisibility.IsCreated, "A view with GPU lists only evaluates nothing on the CPU.");
                     MeshDrawListBuild build = registry.GetListCopy(translucentHandle.index).build;
                     build.job.Complete();
@@ -644,12 +644,15 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
         // The words return to the registry by count when the graph is dropped, and the next graph's view takes them back.
         [Test]
-        public void CpuVisibility_ReturnsWithTheGraph_AndTheNextGraphReusesIt()
+        public void CPUVisibility_ReturnsWithTheGraph_AndTheNextGraphReusesIt()
         {
             using (var fixture = new MeshWorldFixture())
             {
                 AddMember(fixture);
-                RGBuilder graph = CreateGraph(fixture, "CpuVisibilityReuse", EMeshDrawBackendPolicy.CPUDirect);
+                RGBuilder graph = CreateGraph(fixture, "CPUVisibilityReuse", EMeshDrawBackendPolicy.CPUDirect);
+                // The pool is the registry's private state; reading its size keeps the runtime free of a test-only query.
+                FieldInfo pool = typeof(MeshViewRegistry).GetField("m_CPUVisibility", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.IsNotNull(pool, "MeshViewRegistry.m_CPUVisibility");
                 try
                 {
                     Unity.Collections.NativeArray<uint> previous = default;
@@ -664,10 +667,54 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         build.job.Complete();
                         Assert.AreEqual(1, build.instanceCount, $"Graph {frame} draws the member.");
                         Unity.Collections.NativeArray<uint> words = registry.GetViewCopy(viewHandle.index).cpuVisibility;
+                        Assert.AreEqual(1, ((System.Collections.ICollection)pool.GetValue(registry)).Count, $"Graph {frame} holds one pooled list.");
                         if (frame == 1)
                             Assert.IsTrue(words.Equals(previous), "The second graph's view takes back the first graph's words.");
                         previous = words;
                         graph.ClearRecordedGraph();
+                    }
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        // A commit between two lists of one view gives the later list a newer snapshot and candidates past the earlier list's
+        // entity count. The view's words cover the world when it is evaluated, so the later list still reads its candidates.
+        [Test]
+        public void CPUVisibility_CoversListsRecordedAfterACommit()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "CPUVisibilityAfterCommit", EMeshDrawBackendPolicy.CPUDirect);
+                try
+                {
+                    RGMeshViewHandle viewHandle = View(graph, MeshTestUtility.CameraContext());
+                    RGMeshDrawListHandle depthHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.Depth);
+                    int depthEntities = Registry(graph).GetListCopy(depthHandle.index).tables.entityCount;
+                    Mesh mesh = fixture.Mesh(1);
+                    Material translucent = fixture.Material(0, 1);
+                    using (MeshWorldUpdate update = fixture.world.BeginUpdate())
+                    {
+                        MeshEntityId entity = MeshTestUtility.CreateEntity(update, new float3(1, 0, 0));
+                        update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(translucent), MeshTestUtility.StateOf(translucent), 0);
+                        update.Commit();
+                    }
+                    RGMeshDrawListHandle translucentHandle = graph.CreateMeshDrawList(viewHandle, InfinityMeshPasses.TranslucentDepth);
+                    Assert.Greater(Registry(graph).GetListCopy(translucentHandle.index).tables.entityCount, depthEntities, "The later list holds a newer snapshot.");
+                    RGTextureHandle targetHandle = Target(graph);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, depthHandle, true);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterTranslucentDepth, translucentHandle, true);
+                    Compile(graph);
+
+                    MeshViewRegistry registry = Registry(graph);
+                    Assert.AreEqual(fixture.world.entityHighWater, registry.GetViewCopy(viewHandle.index).cpuVisibility.Length,
+                        "The words cover every entity slot of the world, not the first list's snapshot.");
+                    foreach (RGMeshDrawListHandle drawsHandle in new[] { depthHandle, translucentHandle })
+                    {
+                        MeshDrawListBuild build = registry.GetListCopy(drawsHandle.index).build;
+                        build.job.Complete();
+                        Assert.AreEqual(1, build.instanceCount, "Each list draws its member.");
                     }
                 }
                 finally { MeshTestUtility.Release(graph); }

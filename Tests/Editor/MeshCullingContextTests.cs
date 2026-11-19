@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void CpuVisibility_AppliesFlagsMasksAndFrustum_AndTheListFiltersIt()
+        public void CPUVisibility_AppliesFlagsMasksAndFrustum_AndTheListFiltersIt()
         {
             using (var fixture = new MeshWorldFixture())
             {
@@ -44,23 +44,23 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
                 MeshCullingContext camera = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), 1, 1, (uint)ERenderingLayer.Everything, false, MeshTestUtility.Lod);
                 // Visible flag, layer and scene masks apply; a camera context ignores rendering layers; bounds touching a plane stay.
-                uint[] cameraVisibility = MeshTestUtility.CullOnCpu(world, camera);
+                uint[] cameraVisibility = MeshTestUtility.CullOnCPU(world, camera);
                 CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 0, 1, 0, 1 }, MeshProducerRun.Visible(cameraVisibility));
                 CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 0, 1, 0, 1 },
-                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, cameraVisibility, camera.lodOrigin, false), 7),
+                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCPU(world, candidates, 1, cameraVisibility, camera.lodOrigin, false), 7),
                     "The list draws what its view sees.");
 
                 MeshCullingContext light = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), 1, ulong.MaxValue, 1u, true, MeshTestUtility.Lod);
-                uint[] lightVisibility = MeshTestUtility.CullOnCpu(world, light);
+                uint[] lightVisibility = MeshTestUtility.CullOnCPU(world, light);
                 CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 1, 0, 0, 1 }, MeshProducerRun.Visible(lightVisibility),
                     "A light context applies the light's rendering layers.");
                 CollectionAssert.AreEqual(new uint[] { 1, 0, 0, 1, 0, 0, 1 },
-                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCpu(world, candidates, 1, lightVisibility, light.lodOrigin, false), 7));
+                    MeshTestUtility.DrawnEntities(MeshTestUtility.GatherOnCPU(world, candidates, 1, lightVisibility, light.lodOrigin, false), 7));
             }
         }
 
         [Test]
-        public void GpuView_AgreesWithCpuView_AndTheirListsAgree()
+        public void GPUView_AgreesWithCPUView_AndTheirListsAgree()
         {
             MeshTestUtility.RequireComputeReadback();
             using (var fixture = new MeshWorldFixture())
@@ -98,10 +98,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         for (int c = 0; c < contexts.Length; ++c)
                         {
                             // One level per chain, so every visible word is stable and the two sides agree bit for bit.
-                            uint[] cpuVisibility = MeshTestUtility.CullOnCpu(world, contexts[c]);
+                            uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, contexts[c]);
                             uint[] gpuVisibility = run.Cull(MeshProducerRun.CullView, contexts[c]);
                             CollectionAssert.AreEqual(cpuVisibility, gpuVisibility, $"view visibility, context {c}, scene mask {scene:X}");
-                            List<MeshDrawnInstance> expected = MeshTestUtility.GatherOnCpu(world, candidates, 1, cpuVisibility, contexts[c].lodOrigin, false);
+                            List<MeshDrawnInstance> expected = MeshTestUtility.GatherOnCPU(world, candidates, 1, cpuVisibility, contexts[c].lodOrigin, false);
                             List<MeshDrawnInstance> actual = run.BuildList();
                             // Every entity has one level-0 element, so each list draws exactly its view's visible entities.
                             CollectionAssert.AreEqual(MeshProducerRun.Visible(cpuVisibility), MeshTestUtility.DrawnEntities(expected, count),

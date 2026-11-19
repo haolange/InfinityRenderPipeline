@@ -246,7 +246,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         // Builds one pass under a view of a context on the CPU backend and returns (fading, factor) per instance.
         static List<(bool fading, float fade)> Build(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
         {
-            MeshDrawListBuild build = MeshTestUtility.BuildOnCpu(world, pass, context);
+            MeshDrawListBuild build = MeshTestUtility.BuildOnCPU(world, pass, context);
             try
             {
                 var result = new List<(bool, float)>();
@@ -298,7 +298,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         string mode = lod.orthographic ? "orthographic" : "perspective";
                         MeshCullingContext context = MeshCullingContext.Create(MeshTestUtility.BoxPlanes(), ~0, ulong.MaxValue, (uint)ERenderingLayer.Everything, false, lod);
                         // The view: one evaluation on each side, compared word by word.
-                        uint[] cpuVisibility = MeshTestUtility.CullOnCpu(world, context);
+                        uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, context);
                         uint[] gpuVisibility = run.Cull(MeshProducerRun.CullView, context);
                         MeshTestUtility.AssertSameVisibility(cpuVisibility, gpuVisibility, count, $"{mode} view");
                         uint[] visible = MeshProducerRun.Visible(cpuVisibility);
@@ -306,7 +306,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         foreach (bool dither in new[] { true, false })
                         {
                             string pass = $"{mode}, {(dither ? "dithering" : "stable")} pass";
-                            List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCpu(world, candidates, 3, cpuVisibility, lod.origin, dither);
+                            List<MeshDrawnInstance> cpu = MeshTestUtility.GatherOnCPU(world, candidates, 3, cpuVisibility, lod.origin, dither);
                             List<MeshDrawnInstance> gpu = run.BuildList(dither);
                             // Visibility is the view's answer and the drawn set is the pass's. They differ in one case: the
                             // selected level is the chain's last, the pass dithers and the fade bits are 0, where the outgoing

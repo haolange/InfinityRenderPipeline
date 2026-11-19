@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         /// <summary>The visibility job a CPU list's view schedules, over every entity slot of the world, completed.</summary>
-        internal static uint[] CullOnCpu(MeshWorld world, in MeshCullingContext context)
+        internal static uint[] CullOnCPU(MeshWorld world, in MeshCullingContext context)
         {
             var visibility = new Unity.Collections.NativeArray<uint>(world.entityHighWater, Unity.Collections.Allocator.TempJob);
             try
@@ -144,9 +144,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         /// <summary>
         /// The CPU gather job a CPU draw list schedules, over an explicit candidate table and its view's visibility (from
-        /// <see cref="CullOnCpu"/>), completed. <paramref name="origin"/> is the view's LOD origin.
+        /// <see cref="CullOnCPU"/>), completed. <paramref name="origin"/> is the view's LOD origin.
         /// </summary>
-        internal static List<MeshDrawnInstance> GatherOnCpu(MeshWorld world, uint2[] candidates, int commandCount, uint[] visibility, float3 origin, bool dither)
+        internal static List<MeshDrawnInstance> GatherOnCPU(MeshWorld world, uint2[] candidates, int commandCount, uint[] visibility, float3 origin, bool dither)
         {
             var table = new Unity.Collections.NativeArray<uint2>(candidates, Unity.Collections.Allocator.TempJob);
             var commands = new Unity.Collections.NativeArray<MeshDrawCommand>(Math.Max(1, commandCount), Unity.Collections.Allocator.TempJob);
@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         /// What a CPU list of <paramref name="pass"/> builds on a view of <paramref name="context"/>: the view's visibility job,
         /// then the list's build depending on it, completed. The caller disposes the build.
         /// </summary>
-        internal static MeshDrawListBuild BuildOnCpu(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
+        internal static MeshDrawListBuild BuildOnCPU(MeshWorld world, MeshPassId pass, in MeshCullingContext context)
         {
             var visibility = new Unity.Collections.NativeArray<uint>(world.entityHighWater, Unity.Collections.Allocator.TempJob);
             JobHandle visibilityJob = default;

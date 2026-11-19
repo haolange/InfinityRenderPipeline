@@ -160,7 +160,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 var specOfEntity = new Dictionary<uint, int>();
                 for (int i = 0; i < ids.Length; ++i) specOfEntity.Add(ids[i].Index, i);
-                build = MeshTestUtility.BuildOnCpu(world, pass, context);
+                build = MeshTestUtility.BuildOnCPU(world, pass, context);
                 entities = new int[build.instanceCount];
                 for (int i = 0; i < entities.Length; ++i)
                 {
@@ -278,12 +278,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.GreaterOrEqual(freeCommand, 0, "The fixture contains a free command slot.");
 
                 MeshCullingContext context = MeshTestUtility.CameraContext();
-                uint[] cpuVisibility = MeshTestUtility.CullOnCpu(world, context);
+                uint[] cpuVisibility = MeshTestUtility.CullOnCPU(world, context);
                 var cpu = new Dictionary<(int command, bool fading), List<(uint entity, float fade)>>();
                 MeshDrawListBuild build = default;
                 try
                 {
-                    build = MeshTestUtility.BuildOnCpu(world, InfinityMeshPasses.GBuffer, context);
+                    build = MeshTestUtility.BuildOnCPU(world, InfinityMeshPasses.GBuffer, context);
                     foreach (MeshDrawCall draw in build.draws)
                     {
                         var key = (draw.command, draw.fading);

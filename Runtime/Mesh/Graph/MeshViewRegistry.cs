@@ -130,8 +130,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
         // CPU visibility words, one list per view that a live CPU list draws, handed out in schedule order and taken back by
         // count in ReleaseAll (R17). A list's high water is the entity high water; the pool's is the views of one graph.
-        readonly List<NativeList<uint>> m_CpuVisibility = new List<NativeList<uint>>(32);
-        int m_CpuVisibilityCount;
+        readonly List<NativeList<uint>> m_CPUVisibility = new List<NativeList<uint>>(32);
+        int m_CPUVisibilityCount;
         // Start at 1 so a default handle never matches a live graph.
         int m_GraphGeneration = 1;
 
@@ -358,7 +358,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     MeshViewRecord view = m_Views[viewIndex];
                     if (!view.cpuVisibility.IsCreated)
                     {
-                        view = ScheduleViewVisibility(viewIndex, record.tables.entityCount);
+                        view = ScheduleViewVisibility(viewIndex);
                     }
                     using (record.cache.scheduleMarker.Auto())
                     {
@@ -371,14 +371,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             JobHandle.ScheduleBatchedJobs();
         }
 
-        // The view's CPU visibility over the entity slots its lists' frozen tables cover, the count the GPU producer takes
-        // from the same tables (P1: one source for the count). Evaluated once whatever number of CPU lists read it.
-        MeshViewRecord ScheduleViewVisibility(int viewIndex, int entityCount)
+        // The view's CPU visibility over every entity slot of the world it reads when it is evaluated. A list recorded after a
+        // commit can hold a newer snapshot than the view's first list, and any candidate of an unchanged pass cache is a live
+        // entity, so the world's high water, not one list's snapshot, covers every list of the view. Evaluated once whatever
+        // number of CPU lists read it.
+        MeshViewRecord ScheduleViewVisibility(int viewIndex)
         {
             using (MeshCpuMarkers.s_ScheduleViewVisibility.Auto())
             {
                 MeshViewRecord view = m_Views[viewIndex];
-                view.cpuVisibility = RentCpuVisibility(entityCount);
+                view.cpuVisibility = RentCPUVisibility(m_World.entityHighWater);
                 view.cpuVisibilityJob = MeshViewVisibilityJob.Schedule(m_World, view.cullingContext, view.cpuVisibility);
                 m_Views[viewIndex] = view;
                 m_World.stats.viewVisibilityJobs++;
@@ -387,13 +389,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         // The pool grows only when a graph draws more CPU views than any before it.
-        NativeArray<uint> RentCpuVisibility(int entityCount)
+        NativeArray<uint> RentCPUVisibility(int entityCount)
         {
-            if (m_CpuVisibilityCount == m_CpuVisibility.Count)
+            if (m_CPUVisibilityCount == m_CPUVisibility.Count)
             {
-                m_CpuVisibility.Add(new NativeList<uint>(math.max(1, entityCount), Allocator.Persistent));
+                m_CPUVisibility.Add(new NativeList<uint>(math.max(1, entityCount), Allocator.Persistent));
             }
-            NativeList<uint> words = m_CpuVisibility[m_CpuVisibilityCount++];
+            NativeList<uint> words = m_CPUVisibility[m_CPUVisibilityCount++];
             words.Resize(entityCount, NativeArrayOptions.UninitializedMemory);
             return words.AsArray();
         }
@@ -492,7 +494,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     (failures ??= new List<Exception>()).Add(error);
                 }
             }
-            m_CpuVisibilityCount = 0;
+            m_CPUVisibilityCount = 0;
             for (int i = 0; i < m_Lists.Count; ++i)
             {
                 MeshDrawListRecord record = m_Lists[i];
@@ -533,12 +535,21 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Frees the CPU visibility pool when the builder is disposed, after it cleared the recorded graph.</summary>
         public void Dispose()
         {
-            foreach (NativeList<uint> words in m_CpuVisibility)
+            // A graph whose clear failed still has jobs that write or read the words: the visibility jobs and the gathers.
+            for (int i = 0; i < m_Views.Count; ++i)
+            {
+                m_Views[i].cpuVisibilityJob.Complete();
+            }
+            for (int i = 0; i < m_Lists.Count; ++i)
+            {
+                m_Lists[i].build.job.Complete();
+            }
+            foreach (NativeList<uint> words in m_CPUVisibility)
             {
                 words.Dispose();
             }
-            m_CpuVisibility.Clear();
-            m_CpuVisibilityCount = 0;
+            m_CPUVisibility.Clear();
+            m_CPUVisibilityCount = 0;
         }
     }
 }
