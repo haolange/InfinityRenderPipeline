@@ -126,6 +126,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int early = live.FindIndex(p => p.name == "ComputeEarlyFurthestHiZ"), recovery = live.FindIndex(p => p.name == "RasterDepthRecovery");
             Assert.GreaterOrEqual(early, 0); Assert.Greater(recovery, early);
             Assert.Less(recovery, live.FindIndex(p => p.name == "RasterGBuffer"));
+            Assert.AreEqual(1, live.Skip(early).Take(recovery - early).Count(p => p.name == "ComputeMeshView"),
+                "After the early pyramid only the main view is culled; the recovery view derives from it and the depth view.");
             Assert.IsFalse(live[early].asyncCompute, "Immediate depth recovery must not cross to async compute.");
             TestContext.WriteLine("Recovered mesh depth=" + centerDepth);
         }

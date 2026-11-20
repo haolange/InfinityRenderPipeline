@@ -3,10 +3,12 @@
 // - GPU indirect views: one producer per view. A MeshViewCulling kernel (MeshViewCullingJob on the CPU; one thread per entity slot) tests the entity against
 //   the view's culling context (masks, LOD, frustum) and, for an occluded view, against the context's Hi-Z occluder, and
 //   writes one packed visibility word per entity. A view tested against the previous frame's pyramid has one remainder
-//   view; the remainder kernel, tested against this frame's pyramid, leaves culled every entity the history view drew.
+//   view, which has no producer: it is derived from that history view and the current view culled against this frame's
+//   pyramid.
 // - GPU indirect draw lists: one producer per list of a view. InitializeIndirectArgs, then BuildDrawList over the pass's
 //   candidate table (one thread per element slot): the element reads its entity's visibility in the view and appends the
-//   entity to its command's stable or fading range. Visible counts are never read back.
+//   entity to its command's stable or fading range. A list of a remainder view runs BuildDrawListRemainder, which leaves
+//   culled every entity the history view saw and otherwise reads the current view's word. Visible counts are never read back.
 //
 // Index spaces: entity slot (culling, InstanceToEntity values), element slot (candidate table), command slot
 // (per pass cache), instance (position in InstanceToEntity).
@@ -17,9 +19,9 @@
 #pragma kernel MeshViewCulling
 #pragma kernel MeshViewCullingOccluded
 #pragma kernel MeshViewCullingOccludedHistory
-#pragma kernel MeshViewCullingRemainder
 #pragma kernel InitializeIndirectArgs
 #pragma kernel BuildDrawList
+#pragma kernel BuildDrawListRemainder
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
 #define MESH_COMMAND_MASK 0x00FFFFFFu
@@ -73,8 +75,9 @@ RWStructuredBuffer<uint> _IndirectArgs;
 // list of the view; in C# the graph buffer MeshGraphExtension.RecordViewProducer creates, max(1, entity high water) uints.
 // 0 when the entity is culled, else 1 | level << 8 | fade << 16, the word MeshPackLODVisibility returns: bit 0 visible,
 // bits 8-15 the selected LOD level, bits 16-31 MESH_LOD_STABLE outside the cross-fade band or the band position quantized
-// to [0, 65534) inside it. One HLSL global is either RW or read-only, so the producer writes UAV_MeshViewVisibility, a list
-// reads SRV_MeshViewVisibility and a remainder view reads its history view's words as SRV_MeshViewDrawn.
+// to [0, 65534) inside it. One HLSL global is either RW or read-only, so the producer writes UAV_MeshViewVisibility and a
+// list reads SRV_MeshViewVisibility; a list of a remainder view reads its current view's words there and its history
+// view's as SRV_MeshViewDrawn.
 RWStructuredBuffer<uint> UAV_MeshViewVisibility;
 StructuredBuffer<uint> SRV_MeshViewVisibility;
 StructuredBuffer<uint> SRV_MeshViewDrawn;
@@ -148,35 +151,30 @@ bool MeshElementRange(uint packed, uint elementLod, out uint range, out float fa
 }
 
 // The flags are literals at each kernel, so a kernel binds only what it uses: the frustum kernel no occluder, a
-// current-frame occluder no transform versions. Only the remainder kernel reads the visibility its history view wrote.
-void MeshViewCullingCore(uint entity, bool occluded, bool history, bool remainder)
+// current-frame occluder no transform versions.
+void MeshViewCullingCore(uint entity, bool occluded, bool history)
 {
-    bool drawn = false;
-    if (remainder) drawn = SRV_MeshViewDrawn[entity] != 0u;
     uint packed = 0u;
-    if (!drawn)
+    MeshCullingContext context = _CullingContext[0];
+    if (MeshEligible(entity, context))
     {
-        MeshCullingContext context = _CullingContext[0];
-        if (MeshEligible(entity, context))
+        float3 center = _EntityBoundsCenter[entity].xyz;
+        float3 extent = _EntityBoundsExtent[entity].xyz;
+        packed = MeshPackLODVisibility(entity, center, extent, float3(context.lodOriginX, context.lodOriginY, context.lodOriginZ),
+            context.lodScale, context.lodBias, context.lodOrthographic);
+        // HLSL && does not short-circuit, so each test is nested under the ones that must pass first.
+        if (packed != 0u)
         {
-            float3 center = _EntityBoundsCenter[entity].xyz;
-            float3 extent = _EntityBoundsExtent[entity].xyz;
-            packed = MeshPackLODVisibility(entity, center, extent, float3(context.lodOriginX, context.lodOriginY, context.lodOriginZ),
-                context.lodScale, context.lodBias, context.lodOrthographic);
-            // HLSL && does not short-circuit, so each test is nested under the ones that must pass first.
-            if (packed != 0u)
+            if (MeshFrustumCulled(context, center, extent)) packed = 0u;
+        }
+        if (packed != 0u && occluded)
+        {
+            // The previous frame's pyramid proves nothing about an entity that moved since.
+            bool testable = true;
+            if (history) testable = MeshHasStableHistory(entity);
+            if (testable)
             {
-                if (MeshFrustumCulled(context, center, extent)) packed = 0u;
-            }
-            if (packed != 0u && occluded)
-            {
-                // The previous frame's pyramid proves nothing about an entity that moved since.
-                bool testable = true;
-                if (history) testable = MeshHasStableHistory(entity);
-                if (testable)
-                {
-                    if (MeshOccluded(center, extent)) packed = 0u;
-                }
+                if (MeshOccluded(center, extent)) packed = 0u;
             }
         }
     }
@@ -186,25 +184,19 @@ void MeshViewCullingCore(uint entity, bool occluded, bool history, bool remainde
 [numthreads(64, 1, 1)]
 void MeshViewCulling(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) MeshViewCullingCore(id.x, false, false, false);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, false, false);
 }
 
 [numthreads(64, 1, 1)]
 void MeshViewCullingOccluded(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, false, false);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, false);
 }
 
 [numthreads(64, 1, 1)]
 void MeshViewCullingOccludedHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, true, false);
-}
-
-[numthreads(64, 1, 1)]
-void MeshViewCullingRemainder(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, false, true);
+    if (id.x < _EntityCount) MeshViewCullingCore(id.x, true, true);
 }
 
 [numthreads(64, 1, 1)]
@@ -225,18 +217,22 @@ void InitializeIndirectArgs(uint3 id : SV_DispatchThreadID)
 }
 
 // One pass's list of a view: each element slot reads its entity's visibility in the view, and the pass's dither flag and
-// the element's level choose its command's stable or fading range.
-[numthreads(64, 1, 1)]
-void BuildDrawList(uint3 id : SV_DispatchThreadID)
+// the element's level choose its command's stable or fading range. The flag is a literal at each kernel: a list of a
+// remainder view leaves culled every entity its history view saw (SRV_MeshViewDrawn) and otherwise reads its current
+// view's word, the word the remainder view's own culling would have written; only that kernel binds SRV_MeshViewDrawn.
+void BuildDrawListCore(uint element, bool remainder)
 {
-    if (id.x >= _CandidateCount) return;
-    uint2 candidate = _CandidateTable[id.x];
+    uint2 candidate = _CandidateTable[element];
     uint command = candidate.y & MESH_COMMAND_MASK;
     if (candidate.y == MESH_NO_COMMAND || command >= _CommandCount) return;
     uint entity = candidate.x;
+    bool drawn = false;
+    if (remainder) drawn = SRV_MeshViewDrawn[entity] != 0u;
+    uint packed = 0u;
+    if (!drawn) packed = SRV_MeshViewVisibility[entity];
     uint range;
     float factor;
-    if (MeshElementRange(SRV_MeshViewVisibility[entity], candidate.y >> MESH_LOD_SHIFT, range, factor))
+    if (MeshElementRange(packed, candidate.y >> MESH_LOD_SHIFT, range, factor))
     {
         uint slot;
         uint argsBase = (command * 2u + range) * MESH_ARGS_STRIDE;
@@ -245,6 +241,18 @@ void BuildDrawList(uint3 id : SV_DispatchThreadID)
         _InstanceToEntity[instance] = entity;
         _InstanceFade[instance] = factor;
     }
+}
+
+[numthreads(64, 1, 1)]
+void BuildDrawList(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, false);
+}
+
+[numthreads(64, 1, 1)]
+void BuildDrawListRemainder(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < _CandidateCount) BuildDrawListCore(id.x, true);
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

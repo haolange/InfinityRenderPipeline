@@ -108,8 +108,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         readonly ResourcePool m_Pool;
         readonly ComputeShader m_Shader;
-        readonly ComputeKernel m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel, m_ViewCullingRemainderKernel;
-        readonly ComputeKernel m_InitializeArgsKernel, m_BuildDrawListKernel;
+        readonly ComputeKernel m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel;
+        readonly ComputeKernel m_InitializeArgsKernel, m_BuildDrawListKernel, m_BuildDrawListRemainderKernel;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly Stack<MeshGPUViewPayload> m_FreeViewPayloads = new Stack<MeshGPUViewPayload>(8);
         readonly List<MeshGPUViewPayload> m_RetiredViews = new List<MeshGPUViewPayload>(8);
@@ -133,12 +133,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ViewCullingKernel = ComputeKernel.Resolve(shader, field, "MeshViewCulling");
             m_ViewCullingOccludedKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingOccluded");
             m_ViewCullingOccludedHistoryKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingOccludedHistory");
-            m_ViewCullingRemainderKernel = ComputeKernel.Resolve(shader, field, "MeshViewCullingRemainder");
             m_InitializeArgsKernel = ComputeKernel.Resolve(shader, field, "InitializeIndirectArgs");
             m_BuildDrawListKernel = ComputeKernel.Resolve(shader, field, "BuildDrawList");
+            m_BuildDrawListRemainderKernel = ComputeKernel.Resolve(shader, field, "BuildDrawListRemainder");
             // The shader is required on every backend; a missing kernel is a broken install, not a device limit.
-            foreach (ComputeKernel kernel in new[] { m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel, m_ViewCullingRemainderKernel,
-                m_InitializeArgsKernel, m_BuildDrawListKernel })
+            foreach (ComputeKernel kernel in new[] { m_ViewCullingKernel, m_ViewCullingOccludedKernel, m_ViewCullingOccludedHistoryKernel,
+                m_InitializeArgsKernel, m_BuildDrawListKernel, m_BuildDrawListRemainderKernel })
             {
                 if (!kernel.isValid)
                 {
@@ -177,12 +177,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>
         /// The view's producer: uploads its culling context, then writes one packed visibility word per entity slot below
         /// <paramref name="entityCount"/> (one thread each). <paramref name="occluder"/> is read only when
-        /// <paramref name="occluded"/>; a history occluder also compares the transform versions, and a remainder view reads
-        /// the words its history view wrote and leaves every entity that view saw culled.
+        /// <paramref name="occluded"/>; a history occluder also compares the transform versions.
         /// </summary>
         internal void ProduceView(in RGComputeEncoder encoder, MeshGPUViewPayload payload, int entityCount, in MeshCullingContext context,
-            in MeshCullInputs inputs, RGBufferHandle visibilityHandle, bool occluded, in MeshOccluderInputs occluder, bool remainder,
-            RGBufferHandle drawnHandle, MeshWorldStats stats)
+            in MeshCullInputs inputs, RGBufferHandle visibilityHandle, bool occluded, in MeshOccluderInputs occluder, MeshWorldStats stats)
         {
             RequireSupported();
             CommandBuffer commands = encoder.m_Core.commands;
@@ -190,8 +188,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             payload.contextStaging[0] = context;
             commands.SetBufferData(payload.cullingContextHandle.buffer, payload.contextStaging, 0, 0, 1);
 
-            ComputeKernel cull = !occluded ? m_ViewCullingKernel : occluder.history ? m_ViewCullingOccludedHistoryKernel
-                : remainder ? m_ViewCullingRemainderKernel : m_ViewCullingOccludedKernel;
+            ComputeKernel cull = !occluded ? m_ViewCullingKernel : occluder.history ? m_ViewCullingOccludedHistoryKernel : m_ViewCullingOccludedKernel;
             int kernel = cull.index;
             encoder.BeginSample(MeshDrawProfiling.viewCulling);
             encoder.SetComputeIntParam(m_Shader, ID_EntityCount, entityCount);
@@ -206,10 +203,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_ViewVisibilityOutput, visibilityHandle);
             if (occluded)
             {
-                if (remainder)
-                {
-                    encoder.SetComputeBufferParam(m_Shader, kernel, ID_ViewDrawn, drawnHandle);
-                }
                 encoder.SetComputeTextureParam(m_Shader, kernel, ID_Furthest, occluder.furthestHandle);
                 encoder.SetComputeMatrixParam(m_Shader, ID_Projection, occluder.viewProjection);
                 encoder.SetComputeVectorParam(m_Shader, ID_Extent, occluder.extent);
@@ -266,10 +259,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>
         /// The list's producer: initializes both argument records of every command slot, then appends every candidate whose
         /// entity its view sees, reading the visibility the view's producer wrote. The pass decides only whether LOD
-        /// transitions dither and which level each element draws.
+        /// transitions dither and which level each element draws. A list of a remainder view passes a valid
+        /// <paramref name="drawnHandle"/>, its history view's visibility, and its current view's as
+        /// <paramref name="visibilityHandle"/>: an entity the history view saw is culled, any other reads the current word.
         /// </summary>
         internal void ProduceDrawList(in RGComputeEncoder encoder, MeshGPUDrawPayload payload, MeshPassCache cache, int commandCount, int candidateCount,
-            RGBufferHandle visibilityHandle, MeshWorldStats stats)
+            RGBufferHandle visibilityHandle, RGBufferHandle drawnHandle, MeshWorldStats stats)
         {
             RequireSupported();
             if (commandCount > payload.commandCapacity)
@@ -287,17 +282,23 @@ namespace InfinityTech.Rendering.MeshPipeline
             encoder.EndSample(MeshDrawProfiling.initializeIndirectArgs);
             stats.drawListKernelDispatches++;
 
-            int kernel = m_BuildDrawListKernel.index;
+            bool remainder = drawnHandle.IsValid();
+            ComputeKernel build = remainder ? m_BuildDrawListRemainderKernel : m_BuildDrawListKernel;
+            int kernel = build.index;
             encoder.BeginSample(MeshDrawProfiling.buildDrawList);
             encoder.SetComputeIntParam(m_Shader, ID_CandidateCount, candidateCount);
             encoder.SetComputeIntParam(m_Shader, ID_DitherLod, cache.desc.ditherLODTransitions ? 1 : 0);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_ViewVisibility, visibilityHandle);
+            if (remainder)
+            {
+                encoder.SetComputeBufferParam(m_Shader, kernel, ID_ViewDrawn, drawnHandle);
+            }
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_CandidateTable, cache.candidateBufferHandle.buffer);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_CommandMeta, cache.commandMetaBufferHandle.buffer);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_IndirectArgs, payload.indirectArgsHandle.buffer);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceToEntity, payload.instanceToEntityHandle.buffer);
             encoder.SetComputeBufferParam(m_Shader, kernel, ID_InstanceFade, payload.instanceFadeHandle.buffer);
-            encoder.DispatchCompute(m_Shader, kernel, math.max(1, m_BuildDrawListKernel.GroupsX(candidateCount)), 1, 1);
+            encoder.DispatchCompute(m_Shader, kernel, math.max(1, build.GroupsX(candidateCount)), 1, 1);
             encoder.EndSample(MeshDrawProfiling.buildDrawList);
             stats.drawListKernelDispatches++;
             stats.drawListProductions++;

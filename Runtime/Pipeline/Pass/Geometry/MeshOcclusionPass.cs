@@ -8,8 +8,9 @@ namespace InfinityTech.Rendering.Pipeline
 {
     /// <summary>
     /// The camera's main mesh views. With two-stage occlusion, <see cref="depthViewHandle"/> tests the previous frame's Hi-Z,
-    /// <see cref="recoveryViewHandle"/> draws what it left against the early Hi-Z of that depth, and
-    /// <see cref="mainViewHandle"/> tests the early Hi-Z for every later pass. Otherwise the three are one frustum view.
+    /// <see cref="mainViewHandle"/> tests the early Hi-Z of that depth for every later pass, and
+    /// <see cref="recoveryViewHandle"/> draws what the depth view left and the main view sees. Otherwise the three are one
+    /// frustum view.
     /// </summary>
     internal readonly struct MeshMainViews
     {
@@ -75,12 +76,12 @@ namespace InfinityTech.Rendering.Pipeline
             return new MeshOccluder(m_HiZPass.ComputeEarlyFurthestHiZ(), context.cameraUniform.matrix_ViewFlipYJitterProj, size, HiZMipCount(size), false);
         }
 
-        // The second stage: the remainder of the history view, and the main view every later pass draws, both against the
-        // early occluder.
+        // The second stage: the main view every later pass draws, against the early occluder, and the remainder of the
+        // history view, derived from the history and main views without a culling pass of its own.
         internal MeshMainViews CullEarlyViews(in ViewContext context, in MeshMotionBinding motion, in MeshMainViews views, in MeshOccluder earlyOccluder)
         {
-            RGMeshViewHandle recoveryViewHandle = m_RGBuilder.CullMeshViewRemainder(views.depthViewHandle, earlyOccluder);
             RGMeshViewHandle mainViewHandle = m_RGBuilder.CullMeshView(new MeshViewDesc(context.mainCulling, motion, earlyOccluder));
+            RGMeshViewHandle recoveryViewHandle = m_RGBuilder.CullMeshViewRemainder(views.depthViewHandle, mainViewHandle);
             return new MeshMainViews(views.depthViewHandle, recoveryViewHandle, mainViewHandle, true);
         }
 

@@ -281,14 +281,15 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     /// <summary>
     /// Runs the GPU view and draw-list producer kernels directly over an explicit candidate table, bound the way
     /// <c>MeshDrawGPUBackend.ProduceView</c> and <c>ProduceDrawList</c> bind them, and reads back what they wrote. A view kernel
-    /// writes one packed visibility word per entity slot; the list kernel reads it. Command <c>c</c> owns the stable range
+    /// writes one packed visibility word per entity slot; the list kernel reads it, and the remainder list kernel also reads
+    /// the history view's words set with <see cref="SetDrawn"/>. Command <c>c</c> owns the stable range
     /// <c>[c * n, c * n + n)</c> and the fading range after all stable ranges, where <c>n</c> is the candidate count.
     /// </summary>
     internal sealed class MeshProducerRun : IDisposable
     {
         internal const string ViewCulling = "MeshViewCulling", ViewCullingOccluded = "MeshViewCullingOccluded",
-            ViewCullingOccludedHistory = "MeshViewCullingOccludedHistory", ViewCullingRemainder = "MeshViewCullingRemainder";
-        static readonly string[] s_OccludedKernels = { ViewCullingOccluded, ViewCullingOccludedHistory, ViewCullingRemainder };
+            ViewCullingOccludedHistory = "MeshViewCullingOccludedHistory";
+        static readonly string[] s_OccludedKernels = { ViewCullingOccluded, ViewCullingOccludedHistory };
 
         readonly ComputeShader m_Shader;
         readonly MeshEntityColumns m_Columns;
@@ -345,8 +346,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetInt("_MeshCullPreviousCount", previousCount);
         }
 
-        /// <summary>The words a remainder view reads as its history view's visibility.</summary>
+        /// <summary>The words a remainder list reads as its history view's visibility.</summary>
         internal void SetDrawn(uint[] historyVisibility) => m_Drawn.SetData(historyVisibility);
+
+        /// <summary>Replaces the visibility a list kernel reads, as if a view kernel had written these words.</summary>
+        internal void SetVisibility(uint[] visibility) => m_Visibility.SetData(visibility);
 
         /// <summary>Runs one view kernel over every entity slot and returns the packed visibility it wrote.</summary>
         internal uint[] Cull(string viewKernel, in MeshCullingContext context)
@@ -363,15 +367,17 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(kernel, "_EntityRenderingLayer", m_Columns.renderingLayers);
             m_Shader.SetBuffer(kernel, "_EntityLodChains", m_Columns.lodChains);
             m_Shader.SetBuffer(kernel, "UAV_MeshViewVisibility", m_Visibility);
-            if (viewKernel == ViewCullingRemainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
             m_Shader.Dispatch(kernel, Math.Max(1, (m_EntityCount + 63) / 64), 1, 1);
             var visibility = new uint[m_EntityCount];
             m_Visibility.GetData(visibility);
             return visibility;
         }
 
-        /// <summary>Initializes the arguments and runs the list kernel over the visibility the last view kernel wrote.</summary>
-        internal List<MeshDrawnInstance> BuildList(bool dither = false)
+        /// <summary>
+        /// Initializes the arguments and runs the list kernel over the visibility the last view kernel wrote; a remainder list
+        /// runs BuildDrawListRemainder, which also reads the words set with <see cref="SetDrawn"/>.
+        /// </summary>
+        internal List<MeshDrawnInstance> BuildList(bool dither = false, bool remainder = false)
         {
             int initialize = m_Shader.FindKernel("InitializeIndirectArgs");
             m_Shader.SetInt("_CommandCount", m_CommandCount);
@@ -379,10 +385,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             m_Shader.SetBuffer(initialize, "_IndirectArgs", m_Args);
             m_Shader.Dispatch(initialize, Math.Max(1, (m_CommandCount + 63) / 64), 1, 1);
 
-            int kernel = m_Shader.FindKernel("BuildDrawList");
+            int kernel = m_Shader.FindKernel(remainder ? "BuildDrawListRemainder" : "BuildDrawList");
             m_Shader.SetInt("_CandidateCount", m_CandidateCount);
             m_Shader.SetInt("_DitherLod", dither ? 1 : 0);
             m_Shader.SetBuffer(kernel, "SRV_MeshViewVisibility", m_Visibility);
+            if (remainder) m_Shader.SetBuffer(kernel, "SRV_MeshViewDrawn", m_Drawn);
             m_Shader.SetBuffer(kernel, "_CandidateTable", m_Candidates);
             m_Shader.SetBuffer(kernel, "_CommandMeta", m_Meta);
             m_Shader.SetBuffer(kernel, "_IndirectArgs", m_Args);

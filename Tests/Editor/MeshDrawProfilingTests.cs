@@ -74,6 +74,11 @@ namespace InfinityTech.Rendering.Tests
                 CollectionAssert.Contains(kernels, scope.name, "A list producer's in-pass scope names the kernel it dispatches.");
                 StringAssert.Contains($"ComputeKernel.Resolve(shader, field, \"{scope.name}\")", backend);
             }
+            // The build scope names the family of list kernels: the list kernel and the remainder list kernel.
+            string[] buildKernels = kernels.Where(kernel => kernel.StartsWith(MeshDrawProfiling.buildDrawList.name, StringComparison.Ordinal)).ToArray();
+            string[] resolvedBuildKernels = Regex.Matches(backend, @"m_BuildDrawList\w*Kernel = ComputeKernel\.Resolve\(shader, field, ""(\w+)""\)")
+                .Cast<Match>().Select(m => m.Groups[1].Value).ToArray();
+            CollectionAssert.AreEquivalent(buildKernels, resolvedBuildKernels, "The backend resolves exactly the list kernels of the build scope's family.");
             // The view producer's scope names the family of view kernels: each kernel the view can choose starts with it.
             string[] viewKernels = kernels.Where(kernel => kernel.StartsWith(MeshDrawProfiling.viewCulling.name, StringComparison.Ordinal)).ToArray();
             CollectionAssert.Contains(viewKernels, MeshDrawProfiling.viewCulling.name);

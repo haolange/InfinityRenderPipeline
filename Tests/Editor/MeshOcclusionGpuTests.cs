@@ -75,17 +75,26 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 uint[] history = run.Visibility();
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, MeshProducerRun.Visible(history), "The history view's visibility is what its list drew.");
 
-                // The list of the same pass on the remainder view draws what the history occluder hid and the current one does not.
-                run.SetDrawn(history);
-                run.SetOccluder(current, Matrix4x4.identity, Width, Height, mips);
-                var expectedRemainder = new uint[Count]; expectedRemainder[0] = 1;
-                expectedRemainder[9] = currentHole ? 0u : 1u;
-                CollectionAssert.AreEqual(expectedRemainder, Drawn(run.Build(MeshProducerRun.ViewCullingRemainder, context)));
-                CollectionAssert.AreEqual(expectedRemainder, MeshProducerRun.Visible(run.Visibility()), "The remainder view leaves every entity its history view saw culled.");
-
                 // A list of a view culled against the current occluder alone.
+                run.SetOccluder(current, Matrix4x4.identity, Width, Height, mips);
                 var expectedCurrent = new uint[] {1,1,1,1,1,1,0,0,1,currentHole ? 0u : 1u,1};
                 CollectionAssert.AreEqual(expectedCurrent, Drawn(run.Build(MeshProducerRun.ViewCullingOccluded, context)));
+                uint[] main = run.Visibility();
+
+                // The list of the same pass on the remainder view draws what the history occluder hid and the current one does
+                // not, derived from the history and current views' words without a culling kernel of its own.
+                run.SetDrawn(history);
+                var expectedRemainder = new uint[Count]; expectedRemainder[0] = 1;
+                expectedRemainder[9] = currentHole ? 0u : 1u;
+                List<MeshDrawnInstance> remainderList = run.BuildList(remainder: true);
+                CollectionAssert.AreEqual(expectedRemainder, Drawn(remainderList), "The remainder list leaves every entity its history view saw culled.");
+                // The words a remainder view's own culling kernel wrote: culled where the history view saw the entity, else the
+                // current view's word (same context and occluder). The derived list equals the list over those words, bit for bit.
+                var culledRemainder = new uint[Count];
+                for (int i = 0; i < Count; ++i) culledRemainder[i] = history[i] != 0u ? 0u : main[i];
+                CollectionAssert.AreEqual(expectedRemainder, MeshProducerRun.Visible(culledRemainder));
+                run.SetVisibility(culledRemainder);
+                CollectionAssert.AreEqual(run.BuildList(), remainderList, "The derived remainder list draws what a remainder view culled on its own drew.");
 
                 // A projection wholly behind the camera cannot prove occlusion.
                 foreach (float w in new[] { -1f, 0f })
