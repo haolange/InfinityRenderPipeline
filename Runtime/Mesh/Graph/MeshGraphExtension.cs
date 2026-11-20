@@ -179,13 +179,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException("A remainder list reads the visibility of its history view, which has no GPU producer.");
             }
             MeshViewRecord current = registry.GetViewCopy(view.currentView);
-            int currentCount = current.payload != null ? current.entityCount : math.max(1, entityHighWater);
+            int currentCount = current.payload != null ? current.entityCount : ViewSlotCount(entityHighWater);
             if (currentCount != drawn.entityCount)
             {
                 throw new InvalidOperationException("A remainder list reads a history view and a current view that cover different entity slots; a commit fell between their first lists.");
             }
             return drawn.visibilityHandle;
         }
+
+        // Entity slots a view's GPU visibility covers: the world's entity high water when its producer is declared, at least one.
+        static int ViewSlotCount(int entityHighWater) => math.max(1, entityHighWater);
 
         // One compute producer per view with a nonempty GPU list, declared by the first such list. It evaluates eligibility,
         // LOD, frustum and occluder once per entity slot; the view decides the kernel. A remainder view has no producer.
@@ -196,7 +199,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 MeshOccluder occluder = view.occluder;
                 bool occluded = occluder.isValid;
                 bool history = occluded && occluder.history;
-                int entityCount = math.max(1, entityHighWater);
+                int entityCount = ViewSlotCount(entityHighWater);
                 // MeshViewVisibility: one uint per entity slot, 0 when culled, else 1 | level << 8 | fade << 16 (the word
                 // MeshPackLODVisibility returns in Shaders/Library/MeshLOD.hlsl; fade 65535 is stable).
                 RGBufferHandle visibilityHandle = builder.CreateBuffer(new BufferDescriptor(entityCount, sizeof(uint)) { name = "MeshViewVisibility" });
