@@ -2,6 +2,29 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Derived remainder view, second local verification — 2026-11-21 (macOS Metal, Unity 6000.6.0f1)
+
+Scene_Spazon, GPU Indirect, Game focused at 993×1330, Scene views closed, still camera. Two branch → `7f64ef22` → `7f64ef22` → branch rounds used 120 deduplicated GPU frame timings per window after 90 warmup timings. These are whole-frame Editor timings, not isolated pass timings. The mean of the four window medians is 22.507 ms on the branch and 22.692 ms on the baseline; no window regressed by more than 5% against its round's higher baseline median. No pass-marker investigation was required.
+
+| Window | GPU median (ms) | GPU p10–p90 (ms) | CPU median (ms) |
+|---|---:|---:|---:|
+| branch 1 | 22.528 | 22.029–23.670 | 8.323 |
+| baseline 1 | 22.857 | 21.909–23.853 | 8.352 |
+| baseline 2 | 22.837 | 22.077–23.763 | 8.323 |
+| branch 2 | 22.652 | 21.602–23.475 | 8.304 |
+| branch 3 | 22.394 | 21.720–23.555 | 8.345 |
+| baseline 3 | 22.634 | 21.608–23.625 | 8.316 |
+| baseline 4 | 22.440 | 21.609–23.317 | 8.320 |
+| branch 4 | 22.455 | 21.791–23.473 | 8.335 |
+
+The phase-locked moving-camera captures at the same resolution have two branch outcomes: `phasek-b1` and `phasek-b3` match each other; `phasek-b2` matches all three byte-identical baseline runs. Frame 1 matches. At frame 10 the first captured difference is DisplayColor (53 pixels, x 484–499, y 538–550, maximum 6 float16 ULP, none above 8/255); DeferredLighting, SSR, SSGI, Lighting and SceneColor match. At frame 30 DeferredLighting still matches and SSR first differs (56 pixels, exactly 1 float16 ULP). The graph is identical between the branch outcomes; no single resource has been identified as the cause. The earlier 1698×955 Lighting difference of about 0.12 was not reproduced by this 993×1330 protocol and is not established as fixed. Subsurface is disabled in this scene and was not captured.
+
+The five `SRV_MeshViewDrawn` kernel 8 warnings occurred during shader reimport Submit when switching packages, paired with `_CommandMeta` kernel 6 warnings; stable Play did not emit them. The remainder dispatch binds `SRV_MeshViewDrawn` before dispatch. This evidence does not support adding a dummy binding.
+
+Follow-up capture of Depth, Motion, MotionMetadata, TAAHistoryColor and TAAHistoryDepth remains **TODO(UNVERIFIED)**. On reopening the APFS mirror, its Pipeline server reported no available ports in 7800–7849; no listener was found in that range and a separate loopback bind to 7800 succeeded. The server's availability probe suppresses the underlying exception, so its cause is unknown. No new captures or Runtime changes were made. The original round-2 evidence remains at `intermediate/remainder-derive-verify/run2` pending diagnosis. The scene's on-disk SHA-256 remained `f824ae3f3d0a1ba6423838ec598ca261ef915f1180a1d66ec31ad541fda83904` before reopening; it was not saved.
+
+**Do not merge into `main`:** the branch image is not single-valued and the difference is unattributed. GPU time and the reimport warning are not current blockers. D3D12 and Vulkan remain unverified.
+
 ### Derived remainder view, local Editor — 2026-11-20 (macOS Metal, Unity 6000.6.0f1)
 
 The recovery view is derived. `CullMeshViewRemainder(drawnView, currentView)` records a view with no producer, and its depth list runs `BuildDrawListRemainder`, which reads `SRV_MeshViewDrawn` (the history view's words) and otherwise the main view's word. `MeshViewCullingRemainder` is deleted. This round did not change Runtime, shaders or tests. The static gate already recorded for `710d9e94` stands: `static_check` 0 errors, `test_static_check.py` 52 tests, and the closure of the deleted kernel. The source project is on exFAT. The Editor is pid 14169 on the APFS mirror `/Users/gushihao/UnityWork/InfinityExample-arch-20261118`, whose package symlink pointed at this checkout or at a worktree of `7f64ef22`. No scene was saved. D3D12 and Vulkan are not on this machine.
@@ -16,9 +39,9 @@ Frame tree, Scene_Spazon, Game, Scene views closed, two-stage occlusion on: one 
 
 Allocations, Release, Game only, GPU Indirect, Scene views closed, warmup 120, sample 30, no capture pose handler. Game `frameAllocationsMean` is 1, 0, 0 and `nativeSubmitAllocationsMean` is 0. Scene view and other windows record 0 calls. A `GC.Alloc` recorder calibrated with one `new object()` per camera (40 of 40) then reads 0 for the frame preamble, camera enter, setup, record, execute and submit across the next 40 cameras. An earlier probe, taken while capture handlers were still subscribed, read 13, 12, 12; the same probe on `7f64ef22` with one handler read 3, 2, 2. Those two runs are not the measurement. On the paired marker logs, `Mesh.RecordViewProducer` is 6 against 7 and `RG.Execute.Create` and `RG.Execute.Release` are 45 against 46.
 
-GPU frame time, Scene view closed, still camera, Release, GPU Indirect, warmup 90 discarded timings then 120 `FrameTimingManager.gpuFrameTime` samples. The order is this checkout, `7f64ef22`, `7f64ef22`, this checkout. Medians are 0.208 ms, 0.211 ms, 0.216 ms and 0.264 ms. The baseline median range is 0.211–0.216 ms. The second branch median is above it. The first is below both baselines. The four maxima are 0.69, 2.90, 2.32 and 1.95 ms. The median gate of this order does not pass.
+The initial GPU timing protocol reported medians of 0.208, 0.211, 0.216 and 0.264 ms. These measurements are invalid and do not establish a performance result; the second local verification above replaces them.
 
-Not merged into `main`. Depth, GBuffer and the frame tree match the derived view. DisplayColor is not stably byte-identical to `7f64ef22`, and one of the two branch GPU medians is above the baseline median range.
+Not merged into `main`. Depth, GBuffer and the frame tree match the derived view. DisplayColor is not stably byte-identical to `7f64ef22`; see the second verification above for the performance result and outstanding image attribution.
 
 ### Per-view CPU mesh visibility, local Editor — 2026-11-20 (macOS Metal, Unity 6000.6.0f1)
 
