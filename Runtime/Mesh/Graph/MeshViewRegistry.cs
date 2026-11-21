@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -60,9 +61,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// One culled view: its descriptor, for a remainder view the history view whose rest it draws, and its visibility on each
-    /// side that reads it: once its first nonempty GPU list declares it, the GPU producer's culling-context buffer and
-    /// visibility; once a live CPU list reads it, the CPU visibility and its culling job.
+    /// One view: its descriptor and its visibility on each side that reads it: once its first nonempty GPU list declares it,
+    /// the GPU producer's culling-context buffer and visibility; once a live CPU list reads it, the CPU visibility and its
+    /// culling job. A remainder view is derived: it names the history view whose rest it draws and the current view whose
+    /// visibility decides that rest, carries their culling context and motion, and has no occluder, producer or visibility.
     /// </summary>
     internal struct MeshViewRecord
     {
@@ -71,9 +73,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshOccluder occluder;
         // The history view this view draws the rest of, or -1.
         public int drawnView;
+        // The view whose visibility a remainder view draws where the history view saw nothing, or -1.
+        public int currentView;
         // A history view's remainder view, or -1. There is at most one, so an instance draws at most once per view and pass.
         public int remainderView;
-        // GPU producer: null and invalid until the view's first nonempty GPU list, and for a view drawn only on the CPU.
+        // GPU producer: null and invalid until the view's first nonempty GPU list, for a view drawn only on the CPU, and for
+        // a remainder view, whose lists read the visibility of its history and current views.
         public MeshGPUViewPayload payload;
         public RGBufferHandle visibilityHandle;
         public int entityCount;
@@ -180,18 +185,22 @@ namespace InfinityTech.Rendering.MeshPipeline
                 motion = desc.motion,
                 occluder = desc.occluder,
                 drawnView = -1,
+                currentView = -1,
                 remainderView = -1
             });
             return new RGMeshViewHandle(this, index, m_GraphGeneration);
         }
 
         /// <summary>
-        /// Records the view that draws what the lists of a history view left: its culling context and motion against a newer
-        /// occluder. A history view has one remainder view; a second would draw those instances twice.
+        /// Records the view that draws what the lists of a history view left: the entities the history view saw nothing of
+        /// and the current view sees, culled with the same context and motion against a newer occluder. It is derived from
+        /// those two views and evaluates nothing itself. A history view has one remainder view; a second would draw those
+        /// instances twice.
         /// </summary>
-        internal RGMeshViewHandle CullRemainder(in RGMeshViewHandle drawnViewHandle, in MeshOccluder occluder)
+        internal RGMeshViewHandle CullRemainder(in RGMeshViewHandle drawnViewHandle, in RGMeshViewHandle currentViewHandle)
         {
             MeshViewRecord drawn = RequireView(drawnViewHandle);
+            MeshViewRecord current = RequireView(currentViewHandle);
             if (!drawn.occluder.history)
             {
                 throw new InvalidOperationException("A remainder view draws what a view culled against the previous frame's pyramid left; this view has no history occluder.");
@@ -200,23 +209,36 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new InvalidOperationException("This history view already has a remainder view.");
             }
-            if (!occluder.isValid || occluder.history)
+            if (current.drawnView >= 0 || !current.occluder.isValid || current.occluder.history)
             {
-                throw new InvalidOperationException("A remainder view needs a newer occluder than the previous frame's pyramid.");
+                throw new InvalidOperationException("A remainder view derives from a current view culled against a newer occluder than the previous frame's pyramid.");
+            }
+            if (!SameCullingContext(drawn.cullingContext, current.cullingContext))
+            {
+                throw new InvalidOperationException("A remainder view derives from a history view and a current view of the same culling context.");
+            }
+            if (drawn.motion.current != current.motion.current || drawn.motion.previous != current.motion.previous)
+            {
+                throw new InvalidOperationException("A remainder view derives from a history view and a current view of the same mesh motion.");
             }
             int index = m_Views.Count;
             m_Views.Add(new MeshViewRecord
             {
                 cullingContext = drawn.cullingContext,
                 motion = drawn.motion,
-                occluder = occluder,
                 drawnView = drawnViewHandle.index,
+                currentView = currentViewHandle.index,
                 remainderView = -1
             });
             drawn.remainderView = index;
             m_Views[drawnViewHandle.index] = drawn;
             return new RGMeshViewHandle(this, index, m_GraphGeneration);
         }
+
+        // A precondition on two views of one source, not a value equality: a culling context is a GPU record, so the two
+        // agree when the record the kernels read is the same bytes.
+        static unsafe bool SameCullingContext(MeshCullingContext a, MeshCullingContext b)
+            => UnsafeUtility.MemCmp(&a, &b, UnsafeUtility.SizeOf<MeshCullingContext>()) == 0;
 
         /// <summary>The list of one view and pass, or -1. A camera has few lists, so a scan of the keys is enough.</summary>
         internal int FindList(int view, MeshPassId pass)
@@ -434,14 +456,18 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         /// <summary>The view's producer: its visibility of every entity slot, read by every GPU list of the view.</summary>
         internal void ProduceView(int view, in RGComputeEncoder encoder, in MeshCullInputs inputs, RGBufferHandle visibilityHandle, bool occluded,
-            in MeshOccluderInputs occluder, bool remainder, RGBufferHandle drawnHandle)
+            in MeshOccluderInputs occluder)
         {
             MeshViewRecord record = m_Views[view];
             m_World.gpuBackend.ProduceView(encoder, record.payload, record.entityCount, record.cullingContext, inputs, visibilityHandle,
-                occluded, occluder, remainder, drawnHandle, m_World.stats);
+                occluded, occluder, m_World.stats);
         }
 
-        internal void ProduceDrawList(int index, in RGComputeEncoder encoder, RGBufferHandle visibilityHandle)
+        /// <summary>
+        /// The list's producer over its view's visibility; a list of a remainder view reads its current view's visibility as
+        /// <paramref name="visibilityHandle"/> and its history view's as <paramref name="drawnHandle"/>, invalid otherwise.
+        /// </summary>
+        internal void ProduceDrawList(int index, in RGComputeEncoder encoder, RGBufferHandle visibilityHandle, RGBufferHandle drawnHandle)
         {
             MeshDrawListRecord record = m_Lists[index];
             RequireUnchanged(record);
@@ -450,7 +476,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 m_World.gpuBackend.ProduceDrawList(encoder, record.payload, record.cache, record.commandCount, record.candidateCount,
-                    visibilityHandle, m_World.stats);
+                    visibilityHandle, drawnHandle, m_World.stats);
             }
             finally
             {

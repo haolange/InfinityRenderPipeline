@@ -573,10 +573,12 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 try
                 {
                     MeshTransformVersion version = fixture.world.transformVersions.current;
-                    RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(MeshTestUtility.CameraContext(),
-                        new MeshMotionBinding(version, version), Occluder(WrittenTarget(graph), true)));
+                    var motion = new MeshMotionBinding(version, version);
+                    MeshCullingContext main = MeshTestUtility.CameraContext();
+                    RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), true)));
                     RGMeshDrawListHandle historyHandle = graph.CreateMeshDrawList(historyViewHandle, InfinityMeshPasses.Depth);
-                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, Occluder(WrittenTarget(graph), false));
+                    RGMeshViewHandle currentViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), false)));
+                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, currentViewHandle);
                     RGMeshDrawListHandle remainderHandle = graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.Depth);
                     RGTextureHandle targetHandle = Target(graph);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, historyHandle, true);
@@ -586,6 +588,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreEqual(jobs + 1, fixture.world.stats.viewCullingJobs, "Only the history view's list evaluates its view, without the occluder.");
                     Assert.IsTrue(registry.GetViewCopy(historyViewHandle.index).cpuVisibility.IsCreated);
                     Assert.IsFalse(registry.GetViewCopy(remainderViewHandle.index).cpuVisibility.IsCreated, "The CPU remainder list is empty, so its view evaluates nothing.");
+                    Assert.IsFalse(registry.GetViewCopy(currentViewHandle.index).cpuVisibility.IsCreated, "Nor does the current view it derives from, which no CPU list reads.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -721,6 +724,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
+        // A remainder view is derived from its history view and its current view: it declares no producer, and its list reads
+        // both views' visibility, so compile orders that list after both view producers.
         [Test]
         public void RemainderView_DrawsOnlyWhatTheHistoryViewsListOfItsPassLeft()
         {
@@ -737,47 +742,113 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), true)));
                     RGMeshDrawListHandle firstHandle = graph.CreateMeshDrawList(historyViewHandle, InfinityMeshPasses.Depth);
                     RGMeshDrawListHandle cascadeHandle = graph.CreateMeshDrawList(View(graph, LightContext(0)), InfinityMeshPasses.Shadow);
-                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, Occluder(WrittenTarget(graph), true)),
-                        "The remainder of a history view needs a newer occluder.");
                     RGTextureHandle earlyHandle = WrittenTarget(graph);
-                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, Occluder(earlyHandle, false));
-                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, Occluder(earlyHandle, false)),
+                    RGMeshViewHandle currentViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(earlyHandle, false)));
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, historyViewHandle),
+                        "The current view of a remainder needs a newer occluder than the previous frame's pyramid.");
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, View(graph, main)),
+                        "A frustum view tests no newer occluder.");
+                    RGMeshViewHandle otherContextHandle = graph.CullMeshView(new MeshViewDesc(MeshTestUtility.CameraContext(new float3(1, 0, 0)), motion, Occluder(earlyHandle, false)));
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, otherContextHandle),
+                        "A remainder derives from two views of the same culling context.");
+                    RGMeshViewHandle otherMotionHandle = graph.CullMeshView(new MeshViewDesc(main, new MeshMotionBinding(version, null), Occluder(earlyHandle, false)));
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, otherMotionHandle),
+                        "A remainder derives from two views of the same motion.");
+                    Assert.AreEqual(-1, Registry(graph).GetViewCopy(historyViewHandle.index).remainderView, "A rejected remainder leaves the history view without one.");
+                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, currentViewHandle);
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(historyViewHandle, currentViewHandle),
                         "A history view has one remainder view, so an instance draws at most once per view and pass.");
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(remainderViewHandle, currentViewHandle),
+                        "A remainder view has no history occluder, so it has no remainder.");
+                    RGMeshViewHandle secondHistoryViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), true)));
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(secondHistoryViewHandle, remainderViewHandle),
+                        "A remainder view is derived; it is no current view.");
                     Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.GBuffer),
                         "A remainder list draws what the list of the same pass on the history view left; GBuffer has no list there.");
                     RGMeshDrawListHandle remainderHandle = graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.Depth);
+                    MeshViewRegistry registry = Registry(graph);
+                    MeshViewRecord remainderView = registry.GetViewCopy(remainderViewHandle.index);
+                    Assert.AreEqual(historyViewHandle.index, remainderView.drawnView);
+                    Assert.AreEqual(currentViewHandle.index, remainderView.currentView);
+                    Assert.IsNull(remainderView.payload, "A remainder view declares no producer.");
+                    Assert.IsFalse(remainderView.visibilityHandle.IsValid(), "A remainder view has no visibility of its own.");
+                    Assert.IsNotNull(registry.GetViewCopy(currentViewHandle.index).payload, "The remainder list declared its current view's producer.");
+                    RGMeshDrawListHandle gbufferHandle = graph.CreateMeshDrawList(currentViewHandle, InfinityMeshPasses.GBuffer);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, firstHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterCascadeShadow, cascadeHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepthRecovery, remainderHandle, true);
+                    AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
                     Compile(graph);
 
-                    MeshViewRegistry registry = Registry(graph);
                     Assert.AreEqual(EMeshDrawListState.Scheduled, registry.GetListCopy(remainderHandle.index).state,
                         "What the history pyramid hid is left to the remainder view.");
                     RGBufferHandle historyHandle = Visibility(graph, historyViewHandle);
-                    RGBufferHandle remainderVisibilityHandle = Visibility(graph, remainderViewHandle);
+                    RGBufferHandle currentHandle = Visibility(graph, currentViewHandle);
                     RGBufferHandle cascadeVisibilityHandle = registry.GetViewCopy(registry.ViewOfList(cascadeHandle.index)).visibilityHandle;
-                    Assert.IsTrue(historyHandle.IsValid() && remainderVisibilityHandle.IsValid() && cascadeVisibilityHandle.IsValid());
+                    Assert.IsTrue(historyHandle.IsValid() && currentHandle.IsValid() && cascadeVisibilityHandle.IsValid());
+                    Assert.IsFalse(Visibility(graph, remainderViewHandle).IsValid());
                     var views = CompiledViewProducers(graph);
-                    Assert.AreEqual(3, views.Count, "One producer per view with a GPU list.");
+                    Assert.AreEqual(3, views.Count, "One producer per culled view with a GPU list: history, current and cascade; the remainder view has none.");
                     Assert.AreEqual(1, views.FindAll(p => p.writes.Contains(Column(historyHandle))).Count, "The history view's producer writes its visibility.");
-                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(historyHandle))).Count, "Only the remainder view reads it as SRV_MeshViewDrawn.");
-                    Assert.IsTrue(views.Find(p => p.reads.Contains(Column(historyHandle))).writes.Contains(Column(remainderVisibilityHandle)));
-                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "Only the remainder view tests the newer occluder.");
+                    Assert.AreEqual(1, views.FindAll(p => p.writes.Contains(Column(currentHandle))).Count, "The current view's producer writes its visibility.");
+                    Assert.IsFalse(views.Exists(p => p.reads.Contains(Column(historyHandle)) || p.reads.Contains(Column(currentHandle))),
+                        "No view producer reads another view's visibility.");
+                    Assert.AreEqual(1, views.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "Only the current view tests the newer occluder.");
+                    Assert.IsTrue(views.Find(p => p.reads.Contains(Column(earlyHandle))).writes.Contains(Column(currentHandle)));
                     var lists = CompiledProducers(graph);
-                    Assert.AreEqual(3, lists.Count);
+                    Assert.AreEqual(4, lists.Count);
                     Assert.AreEqual(0, lists.FindAll(p => p.reads.Contains(Column(earlyHandle))).Count, "A list tests no occluder; its view did.");
-                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(historyHandle))).Count, "The history list reads its view's visibility.");
-                    Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(remainderVisibilityHandle))).Count, "The remainder list reads its own view's.");
+                    var remainderList = lists.Find(p => p.writes.Contains(Column(registry.GetListCopy(remainderHandle.index).reads.producerOutputsHandle[2])));
+                    Assert.IsNotNull(remainderList.reads, "The remainder list has its own producer.");
+                    StringAssert.Contains(Column(currentHandle), remainderList.reads, "The remainder list reads its current view's visibility.");
+                    StringAssert.Contains(Column(historyHandle), remainderList.reads, "And its history view's, which leaves what that view saw culled.");
+                    Assert.AreEqual(2, lists.FindAll(p => p.reads.Contains(Column(historyHandle))).Count, "The history list and the remainder list read the history visibility.");
+                    Assert.AreEqual(2, lists.FindAll(p => p.reads.Contains(Column(currentHandle))).Count, "The remainder list and the current view's list read the current visibility.");
                     Assert.AreEqual(1, lists.FindAll(p => p.reads.Contains(Column(cascadeVisibilityHandle))).Count);
+                    RGBufferHandle remainderArgsHandle = registry.GetListCopy(remainderHandle.index).reads.producerOutputsHandle[2];
                     int historyView = CompiledIndexOf(graph, "ComputeMeshView", p => p.writes.Contains(Column(historyHandle)));
-                    int remainderView = CompiledIndexOf(graph, "ComputeMeshView", p => p.writes.Contains(Column(remainderVisibilityHandle)));
-                    int remainderList = CompiledIndexOf(graph, "ComputeMeshDrawList", p => p.reads.Contains(Column(remainderVisibilityHandle)));
+                    int currentView = CompiledIndexOf(graph, "ComputeMeshView", p => p.writes.Contains(Column(currentHandle)));
+                    int remainderProducer = CompiledIndexOf(graph, "ComputeMeshDrawList", p => p.writes.Contains(Column(remainderArgsHandle)));
                     int recovery = IndexOfPass(graph, ProfilingSampler.Get(CustomSamplerId.RasterDepthRecovery).name);
                     Assert.GreaterOrEqual(historyView, 0);
-                    Assert.Less(historyView, remainderView, "The remainder view's producer follows the history view's producer it reads.");
-                    Assert.Less(remainderView, remainderList);
-                    Assert.Less(remainderList, recovery);
+                    Assert.GreaterOrEqual(currentView, 0);
+                    Assert.Less(historyView, remainderProducer, "The remainder list follows the history view's producer it reads.");
+                    Assert.Less(currentView, remainderProducer, "And the current view's producer it reads.");
+                    Assert.Less(remainderProducer, recovery);
+                }
+                finally { MeshTestUtility.Release(graph); }
+            }
+        }
+
+        // The two visibilities a remainder list reads cover the same entity slots; a commit between the history view's first
+        // list and the remainder list that declares the current view's producer would make them differ.
+        [Test]
+        public void RemainderList_RejectsViewsOfDifferentEntityCounts()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                AddMember(fixture);
+                RGBuilder graph = CreateGraph(fixture, "RemainderEntityCount", EMeshDrawBackendPolicy.GPUIndirect);
+                try
+                {
+                    MeshTransformVersion version = fixture.world.transformVersions.current;
+                    var motion = new MeshMotionBinding(version, version);
+                    MeshCullingContext main = MeshTestUtility.CameraContext();
+                    RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), true)));
+                    graph.CreateMeshDrawList(historyViewHandle, InfinityMeshPasses.Depth);
+                    RGMeshViewHandle currentViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), false)));
+                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, currentViewHandle);
+                    using (MeshWorldUpdate update = fixture.world.BeginUpdate())
+                    {
+                        MeshTestUtility.CreateEntity(update, new float3(1, 0, 0));
+                        update.Commit();
+                    }
+                    MeshViewRegistry registry = Registry(graph);
+                    int listCount = registry.listCount;
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.Depth),
+                        "The current view would cover more entity slots than the history view whose words the list reads.");
+                    Assert.IsNull(registry.GetViewCopy(currentViewHandle.index).payload, "The failed list declared no current view producer.");
+                    Assert.AreEqual(listCount + 1, registry.listCount, "The list joined the registry before the check, so ReleaseAll retires it.");
                 }
                 finally { MeshTestUtility.Release(graph); }
             }
@@ -793,10 +864,12 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 try
                 {
                     MeshTransformVersion version = fixture.world.transformVersions.current;
-                    RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(MeshTestUtility.CameraContext(),
-                        new MeshMotionBinding(version, version), Occluder(WrittenTarget(graph), true)));
+                    var motion = new MeshMotionBinding(version, version);
+                    MeshCullingContext main = MeshTestUtility.CameraContext();
+                    RGMeshViewHandle historyViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), true)));
                     RGMeshDrawListHandle firstHandle = graph.CreateMeshDrawList(historyViewHandle, InfinityMeshPasses.Depth);
-                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, Occluder(WrittenTarget(graph), false));
+                    RGMeshViewHandle currentViewHandle = graph.CullMeshView(new MeshViewDesc(main, motion, Occluder(WrittenTarget(graph), false)));
+                    RGMeshViewHandle remainderViewHandle = graph.CullMeshViewRemainder(historyViewHandle, currentViewHandle);
                     RGMeshDrawListHandle remainderHandle = graph.CreateMeshDrawList(remainderViewHandle, InfinityMeshPasses.Depth);
                     RGTextureHandle targetHandle = Target(graph);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, firstHandle, true);
@@ -826,9 +899,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     RGMeshViewHandle occludedViewHandle = graph.CullMeshView(new MeshViewDesc(main, default, Occluder(WrittenTarget(graph), false)));
                     RGMeshDrawListHandle depthHandle = graph.CreateMeshDrawList(frustumViewHandle, InfinityMeshPasses.Depth);
                     RGMeshDrawListHandle gbufferHandle = graph.CreateMeshDrawList(occludedViewHandle, InfinityMeshPasses.GBuffer);
-                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(frustumViewHandle, Occluder(WrittenTarget(graph), false)),
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(frustumViewHandle, occludedViewHandle),
                         "A frustum view draws every visible member; a newer occluder reveals nothing it left.");
-                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(occludedViewHandle, Occluder(WrittenTarget(graph), false)),
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CullMeshViewRemainder(occludedViewHandle, occludedViewHandle),
                         "This frame's depth leaves nothing for a later view.");
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterDepth, depthHandle, true);
                     AddConsumer(graph, targetHandle, CustomSamplerId.RasterGBuffer, gbufferHandle, true);
@@ -1018,9 +1091,11 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     Assert.AreNotEqual(firstViewHandle.index, secondViewHandle.index);
                     Assert.AreEqual(registry.ViewOfList(firstDepthHandle.index), registry.ViewOfList(firstGBufferHandle.index));
                     Assert.AreEqual(registry.ViewOfList(secondDepthHandle.index), registry.ViewOfList(secondGBufferHandle.index));
-                    // Neither view became a remainder of the other: none reads another view's visibility (SRV_MeshViewDrawn).
+                    // Neither view became a remainder of the other: no list of either reads another view's visibility.
                     Assert.AreEqual(-1, registry.GetViewCopy(firstViewHandle.index).drawnView);
                     Assert.AreEqual(-1, registry.GetViewCopy(secondViewHandle.index).drawnView);
+                    Assert.AreEqual(-1, registry.GetViewCopy(firstViewHandle.index).currentView);
+                    Assert.AreEqual(-1, registry.GetViewCopy(secondViewHandle.index).currentView);
                     RGBufferHandle firstHandle = Visibility(graph, firstViewHandle), secondHandle = Visibility(graph, secondViewHandle);
                     Assert.AreNotEqual(firstHandle.handle.index, secondHandle.handle.index, "Two views are two visibility products.");
                     var views = CompiledViewProducers(graph);

@@ -911,8 +911,10 @@ def light_view_errors(rel, text):
         arguments = call_arguments(text, match.end() - 1) or ''
         desc = re.match(r'\s*new\s+MeshViewDesc\s*\(', arguments)
         occluder = top_level_arguments(call_arguments(arguments, desc.end() - 1) or '')[-1] if desc else None
-        if match.group(1) != 'CullMeshView' or occluder != 'MeshOccluder.None':
-            errors.append(('ERROR', 'meshpasses', f'{rel}:{line}: {match.group(1)} of a light view must pass new MeshViewDesc(..., MeshOccluder.None)'))
+        if match.group(1) != 'CullMeshView':
+            errors.append(('ERROR', 'meshpasses', f'{rel}:{line}: a light view is culled with CullMeshView, not {match.group(1)}'))
+        elif occluder != 'MeshOccluder.None':
+            errors.append(('ERROR', 'meshpasses', f'{rel}:{line}: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)'))
     for match in re.finditer(r'\bnew\s+MeshOccluder\s*\(', text):
         errors.append(('ERROR', 'meshpasses', f'{rel}:{text.count(chr(10), 0, match.start()) + 1}: a shadow pass constructs a MeshOccluder'))
     return errors

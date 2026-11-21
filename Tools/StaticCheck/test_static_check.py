@@ -495,14 +495,14 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual([], out)
         self.write(cascade, 'var a = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), motion, earlyOccluder));\n'
                             'var b = m_RGBuilder.CullMeshView(desc);\n'
-                            'var c = m_RGBuilder.CullMeshViewRemainder(a, MeshOccluder.None);')
+                            'var c = m_RGBuilder.CullMeshViewRemainder(a, b);')
         self.write(local, 'var occluder = new MeshOccluder(furthestHandle, matrix, size, mips, false);\n'
                           'var d = m_RGBuilder.CullMeshView(new MeshViewDesc(Context(x, y), default, MeshOccluder.None));')
         out = []
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual(['Shadow/CascadeShadowPass.cs:1: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
                           'Shadow/CascadeShadowPass.cs:2: CullMeshView of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
-                          'Shadow/CascadeShadowPass.cs:3: CullMeshViewRemainder of a light view must pass new MeshViewDesc(..., MeshOccluder.None)',
+                          'Shadow/CascadeShadowPass.cs:3: a light view is culled with CullMeshView, not CullMeshViewRemainder',
                           'Shadow/LocalShadowPass.cs:1: a shadow pass constructs a MeshOccluder'],
                          sorted(o[2] for o in out))
         self.assertTrue(all(o[1] == 'meshpasses' for o in out))
