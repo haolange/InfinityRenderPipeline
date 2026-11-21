@@ -13,6 +13,46 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class MeshOcclusionGpuTests
     {
         const int Count = 11, Width = 63, Height = 41;
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DerivedRemainder_PreservesCurrentLodAndFadeAcrossDispatchGroups(bool dither)
+        {
+            MeshTestUtility.RequireComputeReadback();
+            const int count = 129;
+            var shader = UnityEngine.Object.Instantiate(MeshTestUtility.LoadMeshDrawShader());
+            try
+            {
+                using (var run = new MeshProducerRun(shader, default, MeshTestUtility.LevelCandidates(count, 2), 2, count))
+                {
+                    var history = new uint[count];
+                    var current = new uint[count];
+                    var expected = new List<MeshDrawnInstance>();
+                    for (int i = 0; i < count; i++)
+                    {
+                        history[i] = i % 4 == 0 ? 1u : 0u;
+                        uint fade = i % 3 == 0 ? MeshLODSelection.StableFade : i % 3 == 1 ? 0u : 32767u;
+                        current[i] = i % 5 == 0 ? 0u : 1u | ((uint)(i % 2) << MeshLODSelection.LevelShift) | (fade << MeshLODSelection.FadeShift);
+                        if (history[i] != 0u) continue;
+                        for (uint level = 0; level < 2; level++)
+                        {
+                            if (MeshDrawLod.Range(current[i], level, dither, out float factor))
+                                expected.Add(new MeshDrawnInstance(i, (int)level, factor));
+                        }
+                    }
+                    expected.Sort();
+                    run.SetDrawn(history);
+                    run.SetVisibility(current);
+                    CollectionAssert.AreEqual(expected, run.BuildList(dither, remainder: true),
+                        "The remainder must draw the current visibility, LOD and fade only where history drew nothing.");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(shader);
+            }
+        }
+
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
