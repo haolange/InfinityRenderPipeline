@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEditor;
@@ -9,6 +10,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class LightShapeTests
     {
+        [TestCase(0f, 1000f)]
+        [TestCase(0.25f, 3750f)]
+        [TestCase(0.5f, 6500f)]
+        [TestCase(0.75f, 13250f)]
+        [TestCase(1f, 20000f)]
+        [Category("LightInspector")]
+        public void ColorTemperatureSlider_RoundTripsItsGradientStops(float position, float kelvin)
+        {
+            Assert.AreEqual(kelvin, InfinityLightInspectorGUI.KelvinFromPosition(position), 0.01f);
+            Assert.AreEqual(position, InfinityLightInspectorGUI.PositionFromKelvin(kelvin), 1e-5f);
+        }
+
         static Light NewLight(LightType type, out GameObject go)
         {
             go = new GameObject("LightShapeTest");
@@ -233,24 +246,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [Category("LightInspector")]
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
         public void NativeDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
         {
-            Light light = NewLight(LightType.Disc, out GameObject go);
-            try
+            using (var fixture = new LightInspectorFixture())
             {
+                Light light = fixture.NewLight(LightType.Disc);
                 light.lightmapBakeType = LightmapBakeType.Baked;
                 light.areaSize = new Vector2(0.85f, 1);
-                var data = go.AddComponent<InfinityAdditionalLightData>();
+                var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
                 string native = EditorJsonUtility.ToJson(light);
                 Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
                 Assert.AreEqual(LightType.Disc, light.type, "Adoption must not migrate native fields.");
-                Undo.IncrementCurrentGroup();
-                var apply = typeof(InfinityTech.Component.Editor.InfinityLightEditor).GetMethod("ApplyBakeMode",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-                apply.Invoke(null, new object[] { light, data, mode });
-                Undo.FlushUndoRecordObjects();
+
+                InfinityLightEditorTransactions.ApplyBakeMode(new[] { light }, mode);
+
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
                 Undo.PerformUndo();
@@ -259,72 +271,612 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
                 Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
-                Undo.ClearUndo(light);
-                Undo.ClearUndo(data);
-            }
-            finally
-            {
-                Undo.FlushUndoRecordObjects();
-                var data = go.GetComponent<InfinityAdditionalLightData>();
-                if (data) Undo.ClearUndo(data);
-                Undo.ClearUndo(light);
-                Undo.ClearUndo(go);
-                Object.DestroyImmediate(go);
             }
         }
 
-        [Test]
-        public void InspectorAdoption_UndoRedoRestoresNativeShapeWithoutChangingNativeLight()
+        [Category("LightInspector")]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LightInspectorCreation_DoesNotModifyTargetsOrAddUndo(bool withAdditional)
         {
-            var originalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            bool originalDirty = originalScene.isDirty;
-            var ownedScene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
-            var go = EditorUtility.CreateGameObjectWithHideFlags("LightAdoptionTest", HideFlags.DontSave, typeof(Light));
-            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, ownedScene);
-            Light light = go.GetComponent<Light>();
-            light.type = LightType.Rectangle;
-            var marker = EditorUtility.CreateGameObjectWithHideFlags("LightAdoptionUndoSentinel", HideFlags.DontSave);
-            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(marker, ownedScene);
-            UnityEditor.Editor inspector = null;
-            InfinityAdditionalLightData data = null;
-            try
+            using (var fixture = new LightInspectorFixture())
             {
+                Light light = fixture.NewLight(LightType.Rectangle);
                 light.areaSize = new Vector2(3, 1);
-                data = go.AddComponent<InfinityAdditionalLightData>();
-                var serialized = new SerializedObject(data);
-                serialized.FindProperty("m_ShapeAuthored").boolValue = false;
-                serialized.ApplyModifiedPropertiesWithoutUndo();
-                string before = EditorJsonUtility.ToJson(data);
+                InfinityAdditionalLightData data = null;
+                if (withAdditional)
+                {
+                    data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                    SetUnauthored(data);
+                    data.shadowFilter = EShadowFilter.PCSS;
+                }
                 string native = EditorJsonUtility.ToJson(light);
+                string additional = data ? EditorJsonUtility.ToJson(data) : null;
+                Light marker = fixture.NewLight(LightType.Point);
                 Undo.IncrementCurrentGroup();
-                Undo.RecordObject(marker.transform, "Light adoption sentinel");
+                Undo.RecordObject(marker.transform, "Inspector sentinel");
                 marker.transform.position = Vector3.one;
                 Undo.FlushUndoRecordObjects();
                 Undo.IncrementCurrentGroup();
-                inspector = UnityEditor.Editor.CreateEditor(light, typeof(InfinityTech.Component.Editor.InfinityLightEditor));
-                Undo.FlushUndoRecordObjects();
-                string adopted = EditorJsonUtility.ToJson(data);
-                Assert.IsTrue(data.shapeAuthored);
-                Assert.AreNotEqual(before, adopted);
+                bool sceneDirty = fixture.scene.isDirty;
+
+                var inspector = UnityEditor.Editor.CreateEditor(light, typeof(InfinityLightEditor));
+                try
+                {
+                    Assert.IsNotNull(inspector);
+                    Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
+                    Assert.AreSame(data, light.GetComponent<InfinityAdditionalLightData>());
+                    if (data)
+                    {
+                        Assert.AreEqual(additional, EditorJsonUtility.ToJson(data));
+                        Assert.IsFalse(data.shapeAuthored);
+                        Assert.AreEqual(EShadowFilter.PCSS, data.shadowFilter);
+                    }
+                    Assert.AreEqual(sceneDirty, fixture.scene.isDirty);
+                }
+                finally
+                {
+                    if (inspector) Object.DestroyImmediate(inspector);
+                }
+
+                Undo.PerformUndo();
+                Assert.AreEqual(Vector3.zero, marker.transform.position, "Opening the inspector must not create an Undo entry.");
+                Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
+                Assert.AreSame(data, light.GetComponent<InfinityAdditionalLightData>());
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void AdditionalDataInspector_UsesTheEmptyEditorWithoutModifyingData()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                data.diffuse = 0.4f;
+                string native = EditorJsonUtility.ToJson(light);
+                string additional = EditorJsonUtility.ToJson(data);
+                bool sceneDirty = fixture.scene.isDirty;
+                var inspector = UnityEditor.Editor.CreateEditor(data);
+                try
+                {
+                    Assert.IsInstanceOf<InfinityAdditionalLightDataEditor>(inspector);
+                    Assert.AreEqual(additional, EditorJsonUtility.ToJson(data));
+                    Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
+                    Assert.AreEqual(sceneDirty, fixture.scene.isDirty);
+                }
+                finally
+                {
+                    if (inspector) Object.DestroyImmediate(inspector);
+                }
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void LightInspector_BareLightSnapshotFieldsRemainEditable()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                var inspector = UnityEditor.Editor.CreateEditor(light, typeof(InfinityLightEditor));
+                try
+                {
+                    var field = typeof(InfinityLightEditor).GetField("m_After", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    var snapshots = (InfinityLightInspectorSnapshot[])field.GetValue(inspector);
+                    using var serialized = new SerializedObject(snapshots[0]);
+                    Assert.IsTrue(serialized.FindProperty("m_Shape.type").editable);
+                    Assert.IsTrue(serialized.FindProperty("m_Shape.sourceRadius").editable);
+                    Assert.IsTrue(serialized.FindProperty("maxDrawDistance").editable);
+                    Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                }
+                finally
+                {
+                    Object.DestroyImmediate(inspector);
+                }
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void FirstAdditionalEdit_PreservesBareLightAndUndoRedo()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                light.shadows = LightShadows.Hard;
+                string native = EditorJsonUtility.ToJson(light);
+                var before = new SerializedObject(fixture.Snapshot(light));
+                var after = new SerializedObject(fixture.Snapshot(light));
+                after.FindProperty("diffuse").floatValue = 0.4f;
+                after.ApplyModifiedPropertiesWithoutUndo();
+
+                InfinityLightEditorTransactions.ApplyAdditional(new[] { light }, new[] { before }, new[] { after }, "diffuse");
+
+                var data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(0.4f, data.diffuse, 1e-6f);
+                Assert.AreEqual(0, data.maxDrawDistance);
+                Assert.AreEqual(EShadowFilter.Hard, data.shadowFilter);
+                Assert.IsFalse(data.shapeAuthored);
                 Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
                 Undo.PerformUndo();
-                Assert.AreEqual(before, EditorJsonUtility.ToJson(data));
-                Assert.AreEqual(Vector3.one, marker.transform.position, "Adoption must own the Undo entry.");
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
                 Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
                 Undo.PerformRedo();
-                Assert.AreEqual(adopted, EditorJsonUtility.ToJson(data));
+                data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(0.4f, data.diffuse, 1e-6f);
+                Assert.AreEqual(0, data.maxDrawDistance);
+                Assert.AreEqual(EShadowFilter.Hard, data.shadowFilter);
+                Assert.IsFalse(data.shapeAuthored);
                 Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
             }
-            finally
+        }
+
+        [Category("LightInspector")]
+        [TestCase(LightShadows.None)]
+        [TestCase(LightShadows.Hard)]
+        [TestCase(LightShadows.Soft)]
+        public void BareSnapshot_AndFirstEditMatchRealtimeDefaults(LightShadows shadows)
+        {
+            using (var fixture = new LightInspectorFixture())
             {
-                if (inspector) Object.DestroyImmediate(inspector);
-                if (data) Undo.ClearUndo(data);
-                Undo.ClearUndo(light);
-                Undo.ClearUndo(marker.transform);
-                Object.DestroyImmediate(marker);
-                Object.DestroyImmediate(go);
-                UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(ownedScene);
-                Assert.AreEqual(originalDirty, originalScene.isDirty, "The test must not edit the framework scene.");
+                Light light = fixture.NewLight(LightType.Point);
+                light.shadows = shadows;
+                var beforeSnapshot = fixture.Snapshot(light);
+                var afterSnapshot = fixture.Snapshot(light);
+                using var before = new SerializedObject(beforeSnapshot);
+                using var after = new SerializedObject(afterSnapshot);
+                var visible = VisibleLightTestUtility.FromLight(light);
+                LightSourceShape shape = LightShapeUtility.FromUnityLight(light);
+                Assert.IsTrue(LightRecordPack.TryPack(visible, light, null, shape, 0, Vector3.one * 1000, out LightRecord bare));
+                Assert.AreEqual(bare.weights, new Vector4(beforeSnapshot.diffuse, beforeSnapshot.specular,
+                    beforeSnapshot.volumetricIntensity, beforeSnapshot.volumetricOcclusion));
+                Assert.AreEqual((bare.flags & LightRecordFlags.EnableContactShadow) != 0, beforeSnapshot.enableContactShadow);
+                Assert.AreEqual((bare.flags & LightRecordFlags.EnableVolumetric) != 0, beforeSnapshot.enableVolumetric);
+                Assert.AreEqual(bare.lightLayer, (int)beforeSnapshot.lightLayer);
+                Assert.AreEqual(bare.shadowFilter, before.FindProperty("m_ShadowFilter").enumValueIndex);
+                Assert.AreEqual(0f, beforeSnapshot.maxDrawDistance);
+
+                after.FindProperty("maxDrawDistanceFade").floatValue = 2;
+                after.ApplyModifiedPropertiesWithoutUndo();
+                InfinityLightEditorTransactions.ApplyAdditional(new[] { light }, new[] { before }, new[] { after }, "maxDrawDistanceFade");
+
+                var data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.IsTrue(LightRecordPack.TryPack(visible, light, data, data.shape, 0, Vector3.one * 1000, out LightRecord prepared));
+                Assert.AreEqual(bare.weights, prepared.weights);
+                Assert.AreEqual(bare.flags, prepared.flags);
+                Assert.AreEqual(bare.lightLayer, prepared.lightLayer);
+                Assert.AreEqual(bare.shadowFilter, prepared.shadowFilter);
+                Assert.AreEqual(bare.radiance, prepared.radiance);
+            }
+        }
+
+        [Category("LightInspector")]
+        [TestCase("maxDrawDistance")]
+        [TestCase("maxDrawDistanceFade")]
+        [TestCase("iesProfile")]
+        public void BareSnapshot_UsesAdditionalDataTooltips(string propertyPath)
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                var snapshot = fixture.Snapshot(light);
+                var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                using var snapshotObject = new SerializedObject(snapshot);
+                using var dataObject = new SerializedObject(data);
+                Assert.AreEqual(dataObject.FindProperty(propertyPath).tooltip, snapshotObject.FindProperty(propertyPath).tooltip);
+                Assert.IsNotEmpty(snapshotObject.FindProperty(propertyPath).tooltip);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void UnchangedAdditionalEdit_DoesNotCreateComponents()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light first = fixture.NewLight(LightType.Point);
+                Light second = fixture.NewLight(LightType.Spot);
+                var before = new[] { new SerializedObject(fixture.Snapshot(first)), new SerializedObject(fixture.Snapshot(second)) };
+                var after = new[] { new SerializedObject(fixture.Snapshot(first)), new SerializedObject(fixture.Snapshot(second)) };
+
+                InfinityLightEditorTransactions.ApplyAdditional(new[] { first, second }, before, after, "diffuse");
+
+                Assert.IsNull(first.GetComponent<InfinityAdditionalLightData>());
+                Assert.IsNull(second.GetComponent<InfinityAdditionalLightData>());
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void AdditionalEdit_DoesNotAdoptUnauthoredShapeOrReplaceFilter()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Rectangle);
+                light.areaSize = new Vector2(3, 1);
+                var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                SetUnauthored(data);
+                data.shadowFilter = EShadowFilter.PCSS;
+                string native = EditorJsonUtility.ToJson(light);
+                var before = new SerializedObject(fixture.Snapshot(light));
+                var after = new SerializedObject(fixture.Snapshot(light));
+                after.FindProperty("maxDrawDistance").floatValue = 42;
+                after.ApplyModifiedPropertiesWithoutUndo();
+
+                InfinityLightEditorTransactions.ApplyAdditional(new[] { light }, new[] { before }, new[] { after }, "maxDrawDistance");
+
+                Assert.AreEqual(42, data.maxDrawDistance);
+                Assert.IsFalse(data.shapeAuthored);
+                Assert.AreEqual(EShadowFilter.PCSS, data.shadowFilter);
+                Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
+                Undo.PerformUndo();
+                Assert.AreEqual(128, data.maxDrawDistance);
+                Assert.IsFalse(data.shapeAuthored);
+                Assert.AreEqual(EShadowFilter.PCSS, data.shadowFilter);
+                Undo.PerformRedo();
+                Assert.AreEqual(42, data.maxDrawDistance);
+                Assert.IsFalse(data.shapeAuthored);
+                Assert.AreEqual(EShadowFilter.PCSS, data.shadowFilter);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdit_OnlyChangesAffectedTargetsAndPreservesTheirOtherValues()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light first = fixture.NewLight(LightType.Rectangle);
+                Light second = fixture.NewLight(LightType.Rectangle);
+                first.areaSize = new Vector2(2, 1);
+                second.areaSize = new Vector2(4, 3);
+                string firstNative = EditorJsonUtility.ToJson(first);
+                string secondNative = EditorJsonUtility.ToJson(second);
+                var before = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                var after = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                using var selected = new SerializedObject(new Object[] { after[0], after[1] });
+                using var firstSnapshot = new SerializedObject(after[0]);
+                using var secondSnapshot = new SerializedObject(after[1]);
+                SerializedProperty width = selected.FindProperty("m_Shape.sourceWidth");
+                width.floatValue = 2;
+                InfinityLightEditorTransactions.StageProperty(width, new[] { firstSnapshot, secondSnapshot });
+
+                InfinityLightEditorTransactions.ApplyShape(new[] { first, second }, before, after);
+
+                Assert.IsNull(first.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(firstNative, EditorJsonUtility.ToJson(first));
+                var data = second.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.IsTrue(data.shapeAuthored);
+                Assert.AreEqual(2, data.shape.sourceWidth);
+                Assert.AreEqual(3, data.shape.sourceHeight);
+                Assert.AreEqual(new Vector2(2, 3), second.areaSize);
+                Undo.PerformUndo();
+                Assert.IsNull(first.GetComponent<InfinityAdditionalLightData>());
+                Assert.IsNull(second.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(firstNative, EditorJsonUtility.ToJson(first));
+                Assert.AreEqual(secondNative, EditorJsonUtility.ToJson(second));
+                Undo.PerformRedo();
+                data = second.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(2, data.shape.sourceWidth);
+                Assert.AreEqual(3, data.shape.sourceHeight);
+                Assert.AreEqual(new Vector2(2, 3), second.areaSize);
+                Assert.IsNull(first.GetComponent<InfinityAdditionalLightData>());
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdit_StagesActualMultiSelectionThroughSnapshots()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light first = fixture.NewLight(LightType.Point);
+                Light second = fixture.NewLight(LightType.Point);
+                var firstData = first.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var secondData = second.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var firstShape = LightSourceShape.Default(EInfinityLightType.Point);
+                firstShape.sourceRadius = 0.1f;
+                firstShape.softSourceRadius = 0.2f;
+                firstData.SetShape(firstShape);
+                var secondShape = LightSourceShape.Default(EInfinityLightType.Point);
+                secondShape.sourceRadius = 0.3f;
+                secondShape.softSourceRadius = 0.4f;
+                secondData.SetShape(secondShape);
+                var before = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                var after = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                using var actual = new SerializedObject(new Object[] { firstData, secondData });
+                using var firstSnapshot = new SerializedObject(after[0]);
+                using var secondSnapshot = new SerializedObject(after[1]);
+                SerializedProperty radius = actual.FindProperty("m_Shape.sourceRadius");
+                Assert.IsTrue(radius.hasMultipleDifferentValues);
+                radius.floatValue = 0.5f;
+                InfinityLightEditorTransactions.StageProperty(radius, new[] { firstSnapshot, secondSnapshot });
+
+                InfinityLightEditorTransactions.ApplyShape(new[] { first, second }, before, after);
+
+                Assert.AreEqual(0.5f, firstData.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.5f, secondData.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.2f, firstData.shape.softSourceRadius, 1e-6f);
+                Assert.AreEqual(0.4f, secondData.shape.softSourceRadius, 1e-6f);
+                Assert.AreEqual(0.5f, first.shapeRadius, 1e-6f);
+                Assert.AreEqual(0.5f, second.shapeRadius, 1e-6f);
+                Undo.PerformUndo();
+                Assert.AreEqual(0.1f, firstData.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.3f, secondData.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.1f, first.shapeRadius, 1e-6f);
+                Assert.AreEqual(0.3f, second.shapeRadius, 1e-6f);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdits_KeepInterveningUndoSeparate()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                Light marker = fixture.NewLight(LightType.Point);
+                float original = light.shapeRadius;
+                var before = new[] { fixture.Snapshot(light) };
+                var after = new[] { fixture.Snapshot(light) };
+                using (var edited = new SerializedObject(after[0]))
+                {
+                    edited.FindProperty("m_Shape.sourceRadius").floatValue = 0.5f;
+                    edited.ApplyModifiedPropertiesWithoutUndo();
+                }
+                InfinityLightEditorTransactions.ApplyShape(new[] { light }, before, after);
+
+                Undo.IncrementCurrentGroup();
+                Undo.RecordObject(marker.transform, "Intervening edit");
+                marker.transform.position = Vector3.one;
+                Undo.FlushUndoRecordObjects();
+
+                before = new[] { fixture.Snapshot(light) };
+                after = new[] { fixture.Snapshot(light) };
+                using (var edited = new SerializedObject(after[0]))
+                {
+                    edited.FindProperty("m_Shape.sourceRadius").floatValue = 1;
+                    edited.ApplyModifiedPropertiesWithoutUndo();
+                }
+                InfinityLightEditorTransactions.ApplyShape(new[] { light }, before, after);
+
+                Undo.PerformUndo();
+                Assert.AreEqual(0.5f, light.shapeRadius, 1e-6f);
+                Assert.AreEqual(Vector3.one, marker.transform.position);
+                Undo.PerformUndo();
+                Assert.AreEqual(Vector3.zero, marker.transform.position);
+                Assert.AreEqual(0.5f, light.shapeRadius, 1e-6f);
+                Undo.PerformUndo();
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(original, light.shapeRadius, 1e-6f);
+                Undo.PerformRedo();
+                Undo.PerformRedo();
+                Undo.PerformRedo();
+                var data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(1, data.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(1, light.shapeRadius, 1e-6f);
+                Assert.AreEqual(Vector3.one, marker.transform.position);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdit_FailureRollsBackEveryTarget()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light first = fixture.NewLight(LightType.Point);
+                Light second = fixture.NewLight(LightType.Point);
+                string firstNative = EditorJsonUtility.ToJson(first);
+                string secondNative = EditorJsonUtility.ToJson(second);
+                var before = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                var after = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
+                using var selected = new SerializedObject(new Object[] { after[0], after[1] });
+                using var firstSnapshot = new SerializedObject(after[0]);
+                using var secondSnapshot = new SerializedObject(after[1]);
+                SerializedProperty radius = selected.FindProperty("m_Shape.sourceRadius");
+                radius.floatValue = 0.25f;
+                InfinityLightEditorTransactions.StageProperty(radius, new[] { firstSnapshot, secondSnapshot });
+                var invalid = after[1].shape;
+                invalid.type = (EInfinityLightType)999;
+                typeof(InfinityLightInspectorSnapshot).GetField("m_Shape", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .SetValue(after[1], invalid);
+
+                Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+                    InfinityLightEditorTransactions.ApplyShape(new[] { first, second }, before, after));
+
+                Assert.IsNull(first.GetComponent<InfinityAdditionalLightData>());
+                Assert.IsNull(second.GetComponent<InfinityAdditionalLightData>());
+                Assert.IsFalse(InfinityAdditionalLightData.s_Registry.Contains(InfinityTech.Core.UnityEntityId.ToUInt64(first)));
+                Assert.IsFalse(InfinityAdditionalLightData.s_Registry.Contains(InfinityTech.Core.UnityEntityId.ToUInt64(second)));
+                Assert.AreEqual(firstNative, EditorJsonUtility.ToJson(first));
+                Assert.AreEqual(secondNative, EditorJsonUtility.ToJson(second));
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void NativeDisk_BakeModeEditCreatesCarrierOnlyForTheEdit()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Disc);
+                light.lightmapBakeType = LightmapBakeType.Baked;
+                light.areaSize = new Vector2(0.75f, 1);
+                string native = EditorJsonUtility.ToJson(light);
+
+                InfinityLightEditorTransactions.ApplyBakeMode(new[] { light }, LightmapBakeType.Realtime);
+
+                var data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(0, data.maxDrawDistance);
+                Assert.AreEqual(LightType.Rectangle, light.type);
+                Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
+                Undo.PerformUndo();
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
+                Undo.PerformRedo();
+                data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(0, data.maxDrawDistance);
+                Assert.AreEqual(LightType.Rectangle, light.type);
+                Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
+            }
+        }
+
+        [Category("LightInspector")]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SceneRangeEdit_DoesNotCreateOrAuthorAdditionalData(bool withAdditional)
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                InfinityAdditionalLightData data = null;
+                if (withAdditional)
+                {
+                    data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                    SetUnauthored(data);
+                    data.shadowFilter = EShadowFilter.PCSS;
+                }
+                LightSourceShape shape = data ? data.shape : LightShapeUtility.FromUnityLight(light);
+                float originalRange = light.range;
+
+                InfinityLightEditorTransactions.ApplySceneEdit(light, shape, shape, originalRange + 3, light.spotAngle);
+
+                Assert.AreSame(data, light.GetComponent<InfinityAdditionalLightData>());
+                if (data) Assert.IsFalse(data.shapeAuthored);
+                Assert.AreEqual(originalRange + 3, light.range);
+                Undo.PerformUndo();
+                Assert.AreSame(data, light.GetComponent<InfinityAdditionalLightData>());
+                if (data) Assert.IsFalse(data.shapeAuthored);
+                Assert.AreEqual(originalRange, light.range);
+                Undo.PerformRedo();
+                Assert.AreSame(data, light.GetComponent<InfinityAdditionalLightData>());
+                if (data)
+                {
+                    Assert.IsFalse(data.shapeAuthored);
+                    Assert.AreEqual(EShadowFilter.PCSS, data.shadowFilter);
+                }
+                Assert.AreEqual(originalRange + 3, light.range);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdit_PrefabInstanceTracksBothOverridesAndUndo()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.InstantiatePrefab();
+                var data = light.GetComponent<InfinityAdditionalLightData>();
+                Assert.IsNotNull(data);
+                Assert.AreEqual(0.1f, data.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.1f, light.shapeRadius, 1e-6f);
+                var before = new[] { fixture.Snapshot(light) };
+                var after = new[] { fixture.Snapshot(light) };
+                using (var candidate = new SerializedObject(after[0]))
+                {
+                    candidate.FindProperty("m_Shape.sourceRadius").floatValue = 0.5f;
+                    candidate.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                InfinityLightEditorTransactions.ApplyShape(new[] { light }, before, after);
+
+                using (var extension = new SerializedObject(data))
+                using (var native = new SerializedObject(light))
+                {
+                    Assert.IsTrue(extension.FindProperty("m_Shape.sourceRadius").prefabOverride);
+                    Assert.IsTrue(native.FindProperty("m_ShapeRadius").prefabOverride);
+                }
+                Assert.AreEqual(0.5f, data.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.5f, light.shapeRadius, 1e-6f);
+                Undo.PerformUndo();
+                Assert.AreEqual(0.1f, data.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.1f, light.shapeRadius, 1e-6f);
+                Undo.PerformRedo();
+                Assert.AreEqual(0.5f, data.shape.sourceRadius, 1e-6f);
+                Assert.AreEqual(0.5f, light.shapeRadius, 1e-6f);
+            }
+        }
+
+        static void SetUnauthored(InfinityAdditionalLightData data)
+        {
+            var serialized = new SerializedObject(data);
+            serialized.FindProperty("m_ShapeAuthored").boolValue = false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        sealed class LightInspectorFixture : System.IDisposable
+        {
+            readonly UnityEngine.SceneManagement.Scene m_OriginalScene;
+            readonly bool m_OriginalDirty;
+            readonly List<GameObject> m_GameObjects = new List<GameObject>();
+            readonly List<InfinityLightInspectorSnapshot> m_Snapshots = new List<InfinityLightInspectorSnapshot>();
+
+            internal UnityEngine.SceneManagement.Scene scene { get; }
+
+            internal LightInspectorFixture()
+            {
+                m_OriginalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                m_OriginalDirty = m_OriginalScene.isDirty;
+                scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
+                var sentinel = EditorUtility.CreateGameObjectWithHideFlags("LightInspectorUndoSentinel", HideFlags.DontSave);
+                m_GameObjects.Add(sentinel);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(sentinel, scene);
+                Undo.IncrementCurrentGroup();
+                Undo.RecordObject(sentinel.transform, "Light inspector fixture sentinel");
+                sentinel.transform.position = Vector3.one;
+                Undo.FlushUndoRecordObjects();
+                Undo.IncrementCurrentGroup();
+            }
+
+            internal Light NewLight(LightType type)
+            {
+                var go = EditorUtility.CreateGameObjectWithHideFlags("LightInspectorTest", HideFlags.DontSave, typeof(Light));
+                m_GameObjects.Add(go);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, scene);
+                Light light = go.GetComponent<Light>();
+                light.type = type;
+                return light;
+            }
+
+            internal Light InstantiatePrefab()
+            {
+                const string path = "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/LightInspector.prefab";
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                Assert.IsNotNull(prefab);
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+                m_GameObjects.Add(go);
+                return go.GetComponent<Light>();
+            }
+
+            internal InfinityLightInspectorSnapshot Snapshot(Light light)
+            {
+                var snapshot = ScriptableObject.CreateInstance<InfinityLightInspectorSnapshot>();
+                snapshot.hideFlags = HideFlags.DontSave;
+                snapshot.Read(light);
+                m_Snapshots.Add(snapshot);
+                return snapshot;
+            }
+
+            public void Dispose()
+            {
+                Undo.FlushUndoRecordObjects();
+                foreach (GameObject go in m_GameObjects)
+                {
+                    if (!go) continue;
+                    var data = go.GetComponent<InfinityAdditionalLightData>();
+                    if (data) Undo.ClearUndo(data);
+                    var light = go.GetComponent<Light>();
+                    if (light) Undo.ClearUndo(light);
+                    Undo.ClearUndo(go.transform);
+                    Undo.ClearUndo(go);
+                    Object.DestroyImmediate(go);
+                }
+                foreach (var snapshot in m_Snapshots)
+                    if (snapshot) Object.DestroyImmediate(snapshot);
+                UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
+                Assert.AreEqual(m_OriginalDirty, m_OriginalScene.isDirty, "The test must not edit the framework scene.");
             }
         }
 

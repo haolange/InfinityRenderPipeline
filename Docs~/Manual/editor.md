@@ -32,7 +32,7 @@ The command-line adapter under `Editor/Cli` is compiled only with `INFINITY_UNIT
 | Object | Sections |
 |---|---|
 | Camera | Projection, Rendering, Environment (Volume Mask, Volume Trigger, Super Resolution), Frame Settings, Output |
-| Light | General, Shape, Emission, Baking, Cookie & IES, Shadows (caster layers, filter, update mode, Request Shadow Map Rendering, contact shadows), Volumetric, Layers & Distance. Additional Properties reveals the less common fields. Scene handles edit range, angles and the source shape |
+| Light | General, Shape, Emission, Baking, Cookie & IES, Shadows, Volumetric, Layers & Distance. Scene handles edit range, angles and the source shape |
 | Mesh | State (Mobility), Mesh (Mesh Asset, Materials; with no asset, Create MeshAsset from Mesh), Lighting, Rendering. Assigning a Mesh Asset copies its materials once |
 | Decal | General, Projection |
 | Volume Profile | The Core RP component list |
@@ -43,6 +43,8 @@ The command-line adapter under `Editor/Cli` is compiled only with `INFINITY_UNIT
 | Shader Graph Lit | Surface Options, Subsurface, Advanced / Render State |
 | Terrain | General, and Rebuild Sector From Unity Terrain |
 | Additional reflection-probe data | Influence, and Sphere Radius when the influence is a sphere |
+
+Edit all light settings in the Light inspector. Additional Light Data keeps its component header and has an empty Inspector body. In Emission, the float field to the right of the color swatch sets Intensity. Turn on Use Temperature to combine the swatch with a color-temperature tint. Drag the gradient to preview the temperature or enter a Kelvin value on its right and press Enter. For weights, bias and indirect or volumetric intensity, drag within the displayed slider range or type a value in the field. Inspector sections follow the selected lights' common capabilities. Continuous Infinity property drags update immediately and may use multiple Undo steps.
 
 Camera Rendering explains that MSAA, the built-in HDR toggle and command-buffer injection are not Infinity features. Custom Frame Settings must be enabled before the per-feature overrides appear.
 

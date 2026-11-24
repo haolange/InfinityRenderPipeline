@@ -14,23 +14,33 @@ namespace InfinityTech.Component
     {
         // The live set of light extensions by light entity id: the authority the scene world's light table derives from.
         internal static readonly ComponentRegistry<InfinityAdditionalLightData> s_Registry = new ComponentRegistry<InfinityAdditionalLightData>();
+        internal const float DefaultDiffuse = 1;
+        internal const float DefaultSpecular = 1;
+        internal const bool DefaultContactShadow = false;
+        internal const bool DefaultVolumetric = true;
+        internal const float DefaultVolumetricIntensity = 1;
+        internal const float DefaultVolumetricOcclusion = 1;
+        internal const float DefaultDistanceFade = 1;
+        internal const string MaximumDistanceTooltip = "Lights farther than this from the camera are not rendered (meters).";
+        internal const string DistanceFadeTooltip = "Distance over which the light fades out before Maximum Distance (meters).";
+        internal const string IESTooltip = "IES profile from an imported .ies file: the Cube texture applies to every local light by direction, the 2D texture to cone and pyramid spots. The cookie is the Light's own Cookie.";
 
         Light m_UnityLight;
         ulong m_RegisteredLightId;
 
         public Light attachedLight => m_UnityLight ? m_UnityLight : (m_UnityLight = GetComponent<Light>());
         public ERenderingLayer lightLayer = ERenderingLayer.LightLayerDefault;
-        public float diffuse = 1;
-        public float specular = 1;
-        public bool enableContactShadow = false;
-        public bool enableVolumetric = true;
-        public float volumetricIntensity = 1;
-        public float volumetricOcclusion = 1;
-        [Tooltip("Lights farther than this from the camera are not rendered (meters).")]
+        public float diffuse = DefaultDiffuse;
+        public float specular = DefaultSpecular;
+        public bool enableContactShadow = DefaultContactShadow;
+        public bool enableVolumetric = DefaultVolumetric;
+        public float volumetricIntensity = DefaultVolumetricIntensity;
+        public float volumetricOcclusion = DefaultVolumetricOcclusion;
+        [Tooltip(MaximumDistanceTooltip)]
         public float maxDrawDistance = 128;
-        [Tooltip("Distance over which the light fades out before Maximum Distance (meters).")]
-        public float maxDrawDistanceFade = 1;
-        [Tooltip("IES profile from an imported .ies file: the Cube texture applies to every local light by direction, the 2D texture to cone and pyramid spots. The cookie is the Light's own Cookie.")]
+        [Tooltip(DistanceFadeTooltip)]
+        public float maxDrawDistanceFade = DefaultDistanceFade;
+        [Tooltip(IESTooltip)]
         public Texture iesProfile;
 
         // Source shape in Unreal form. Authority over the native shape fields (type, shapeRadius, areaSize,
