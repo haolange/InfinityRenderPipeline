@@ -24,53 +24,62 @@ namespace InfinityTech.Rendering.Editor
         delegate void ShapeEdit(ref LightSourceShape shape);
 
         [MenuItem(LightMenu + "Directional Light", false, LightPriority)]
-        static void CreateDirectional(MenuCommand command) => CreateLight(command, "Directional Light", EInfinityLightType.Directional, null);
+        static void CreateDirectional(MenuCommand command) =>
+            CreateLight(command, "Directional Light", LightSourceShape.DefaultDirectional());
 
         [MenuItem(LightMenu + "Point Light", false, LightPriority + 1)]
-        static void CreatePoint(MenuCommand command) => CreateLight(command, "Point Light", EInfinityLightType.Point, null);
+        static void CreatePoint(MenuCommand command) =>
+            CreateLight(command, "Point Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional));
 
         [MenuItem(LightMenu + "Sphere Light", false, LightPriority + 2)]
         static void CreateSphere(MenuCommand command) =>
-            CreateLight(command, "Sphere Light", EInfinityLightType.Point, (ref LightSourceShape s) => s.sourceRadius = 0.1f);
+            CreateLight(command, "Sphere Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                (ref LightSourceShape s) => s.sourceRadius = 0.1f);
 
         [MenuItem(LightMenu + "Tube Light", false, LightPriority + 3)]
         static void CreateTube(MenuCommand command) =>
-            CreateLight(command, "Tube Light", EInfinityLightType.Point, (ref LightSourceShape s) => { s.sourceLength = 1.0f; s.sourceRadius = 0.05f; });
+            CreateLight(command, "Tube Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                (ref LightSourceShape s) => { s.sourceLength = 1.0f; s.sourceRadius = 0.05f; });
 
         [MenuItem(LightMenu + "Spot Light (Cone)", false, LightPriority + 4)]
         static void CreateCone(MenuCommand command) =>
-            CreateLight(command, "Spot Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Cone);
+            CreateLight(command, "Spot Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone));
 
         [MenuItem(LightMenu + "Spot Light (Pyramid)", false, LightPriority + 5)]
         static void CreatePyramid(MenuCommand command) =>
-            CreateLight(command, "Pyramid Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Pyramid);
+            CreateLight(command, "Pyramid Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid));
 
         [MenuItem(LightMenu + "Spot Light (Box)", false, LightPriority + 6)]
         static void CreateBox(MenuCommand command) =>
-            CreateLight(command, "Box Light", EInfinityLightType.Spot, (ref LightSourceShape s) => s.spotShape = ESpotShape.Box);
+            CreateLight(command, "Box Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox));
 
         [MenuItem(LightMenu + "Rect Light", false, LightPriority + 7)]
-        static void CreateRect(MenuCommand command) => CreateLight(command, "Rect Light", EInfinityLightType.Rect, null);
+        static void CreateRect(MenuCommand command) =>
+            CreateLight(command, "Rect Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere));
 
         [MenuItem(LightMenu + "Disk Light", false, LightPriority + 8)]
-        static void CreateDisk(MenuCommand command) => CreateLight(command, "Disk Light", EInfinityLightType.Disk, null);
+        static void CreateDisk(MenuCommand command) =>
+            CreateLight(command, "Disk Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere));
 
-        static void CreateLight(MenuCommand command, string name, EInfinityLightType type, ShapeEdit edit)
+        [MenuItem(LightMenu + "Spot Light (Disk Cone)", false, LightPriority + 9)]
+        static void CreateDiskCone(MenuCommand command) =>
+            CreateLight(command, "Disk Spot Light", LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone));
+
+        static void CreateLight(MenuCommand command, string name, LightSourceShape shape, ShapeEdit edit = null)
         {
             GameObject go = Place(new GameObject(name), command);
             Light light = go.AddComponent<Light>();
-            if (type == EInfinityLightType.Directional)
+            if (shape.kind == ELightKind.Directional)
             {
                 go.transform.rotation = Quaternion.Euler(50, -30, 0);
                 light.shadows = LightShadows.Soft;
             }
-            else if (type != EInfinityLightType.Point)
+            else if (shape.distribution != ELocalLightDistribution.Omnidirectional)
             {
-                // Spots and area lights point down by default.
+                // Directional beams and planar emitters point down by default.
                 go.transform.rotation = Quaternion.Euler(90, 0, 0);
             }
             InfinityAdditionalLightData data = InfinityAdditionalLightData.GetOrCreate(light, false);
-            LightSourceShape shape = LightSourceShape.Default(type);
             edit?.Invoke(ref shape);
             data.SetShape(shape);
             Finish(go, "Create " + name);

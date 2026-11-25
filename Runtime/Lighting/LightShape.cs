@@ -1,24 +1,123 @@
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    // The light types offered in the Infinity Light inspector (Unreal Engine form). Point covers punctual, sphere, line
-    // and tube emitters; which one is decided by sourceRadius and sourceLength, not by a separate type.
-    public enum EInfinityLightType
+    // Top-level light category in InfinityRP.
+    public enum ELightKind
+    {
+        Directional = 0,
+        Local = 1,
+    }
+
+    // Physical emitter geometry of a local light.
+    // Round derives punctual Point (radius == 0, length == 0), Sphere (radius > 0, length == 0),
+    // Line (radius == 0, length > 0 along local X), or Tube (radius > 0, length > 0 along local X).
+    public enum ELocalLightEmitter
+    {
+        Round = 0,
+        Rectangle = 1,
+        Disk = 2,
+    }
+
+    // Angular/spatial light distribution of a local light.
+    public enum ELocalLightDistribution
+    {
+        Omnidirectional = 0,
+        Hemisphere = 1,
+        Cone = 2,
+        Pyramid = 3,
+        ParallelBox = 4,
+    }
+
+    // Effective emitter + distribution shape resolved from (kind, emitter, distribution, sourceRadius, sourceLength).
+    public enum EResolvedLightShape
     {
         Directional = 0,
         Point = 1,
-        Spot = 2,
-        Rect = 3,
-        Disk = 4,
+        Sphere = 2,
+        Line = 3,
+        Tube = 4,
+        SpotCone = 5,
+        SpotPyramid = 6,
+        SpotBox = 7,
+        Rect = 8,
+        Disk = 9,
+        DiskCone = 10,
     }
 
-    public enum ESpotShape
+    // Controls how changing emitter size or beam angle interacts with stored light intensity.
+    public enum ELightIntensityEditMode
     {
-        Cone = 0,
-        Pyramid = 1,
-        Box = 2,
+        PhysicallyBased = 0,
+        PreserveFlux = 1,
+        Artistic = 2,
+    }
+
+    public readonly struct LightCapabilities
+    {
+        public readonly EResolvedLightShape resolvedShape;
+        public readonly bool validCombination;
+        public readonly bool realtimeShading;
+        public readonly bool realtimeShadow;
+        public readonly bool baking;
+        public readonly string bakeDisabledReason;
+        public readonly bool hasSunAngle;
+        public readonly bool hasSourceRadius;
+        public readonly bool hasSourceLength;
+        public readonly bool hasRectSize;
+        public readonly bool hasBarnDoors;
+        public readonly bool hasSpotAngle;
+        public readonly bool hasInnerSpotAngle;
+        public readonly bool hasPyramidAspect;
+        public readonly bool hasBoxSize;
+        public readonly bool isPlanar;
+        public readonly bool supportsCubeCookie;
+        public readonly bool supportsPlanarCookie;
+        public readonly bool supports2DIes;
+
+        public LightCapabilities(
+            EResolvedLightShape resolvedShape,
+            bool validCombination,
+            bool realtimeShading,
+            bool realtimeShadow,
+            bool baking,
+            string bakeDisabledReason,
+            bool hasSunAngle = false,
+            bool hasSourceRadius = false,
+            bool hasSourceLength = false,
+            bool hasRectSize = false,
+            bool hasBarnDoors = false,
+            bool hasSpotAngle = false,
+            bool hasInnerSpotAngle = false,
+            bool hasPyramidAspect = false,
+            bool hasBoxSize = false,
+            bool isPlanar = false,
+            bool supportsCubeCookie = false,
+            bool supportsPlanarCookie = false,
+            bool supports2DIes = false)
+        {
+            this.resolvedShape = resolvedShape;
+            this.validCombination = validCombination;
+            this.realtimeShading = realtimeShading;
+            this.realtimeShadow = realtimeShadow;
+            this.baking = baking;
+            this.bakeDisabledReason = bakeDisabledReason;
+            this.hasSunAngle = hasSunAngle;
+            this.hasSourceRadius = hasSourceRadius;
+            this.hasSourceLength = hasSourceLength;
+            this.hasRectSize = hasRectSize;
+            this.hasBarnDoors = hasBarnDoors;
+            this.hasSpotAngle = hasSpotAngle;
+            this.hasInnerSpotAngle = hasInnerSpotAngle;
+            this.hasPyramidAspect = hasPyramidAspect;
+            this.hasBoxSize = hasBoxSize;
+            this.isPlanar = isPlanar;
+            this.supportsCubeCookie = supportsCubeCookie;
+            this.supportsPlanarCookie = supportsPlanarCookie;
+            this.supports2DIes = supports2DIes;
+        }
     }
 
     // Per-light shadow filter (Shaders/Library/ShadowSampling.hlsl FilterShadow). PCF and PCSS read the depth
@@ -44,24 +143,24 @@ namespace InfinityTech.Rendering.LightPipeline
         EVSM = 4,
     }
 
-    // Source shape of a light in Unreal Engine form. Lengths are meters, angles degrees.
-    //   Point:       sourceRadius = 0 and sourceLength = 0 -> punctual; radius > 0 -> sphere; length > 0 -> line
-    //                (radius 0) or tube (radius > 0). The tube axis is the light's local X (transform.right); its
-    //                diameter is 2 * sourceRadius (there is no separate "thickness").
-    //   Spot:        cone / pyramid / box; cone and pyramid may carry a spherical source (sourceRadius).
-    //   Rect:        one-sided sourceWidth x sourceHeight emitter facing transform.forward, optional barn doors.
-    //   Disk:        one-sided disk of sourceRadius facing transform.forward.
-    //   Directional: sourceAngle is the angular diameter of the sun disk (Unreal default 0.5357 degrees).
+    // Two-dimensional light shape specification (Kind + Emitter x Distribution). Lengths are meters, angles degrees.
+    //   Directional:                 sourceAngle is the angular diameter of the sun disk (default 0.5357 degrees).
+    //   Local / Round + Omni:        radius == 0 & length == 0 -> Point; radius > 0 -> Sphere; length > 0 along X -> Line or Tube.
+    //   Local / Round + Cone:        cone beam with optional spherical sourceRadius.
+    //   Local / Round + Pyramid:     rectangular pyramid beam (spotAngle + pyramidAspect) with optional spherical sourceRadius.
+    //   Local / Round + ParallelBox: collimated box beam of boxSize.xy in meters.
+    //   Local / Rectangle + Hemi:    one-sided sourceWidth x sourceHeight emitter facing transform.forward, optional barn doors.
+    //   Local / Disk + Hemi:         one-sided circular disk emitter of sourceRadius facing transform.forward.
+    //   Local / Disk + Cone:         one-sided circular disk emitter with shifted-apex cone beam originating at the disk rim.
     [Serializable]
     public struct LightSourceShape
     {
-        public EInfinityLightType type;
-        public ESpotShape spotShape;
-        [Min(0), Tooltip("Radius of the spherical source (point, cone, pyramid), the tube radius, or the disk radius. Meters.")]
+        public ELightKind kind;
+        public ELocalLightEmitter emitter;
+        public ELocalLightDistribution distribution;
+        [Min(0), Tooltip("Radius of a Round spherical/tube emitter or a Disk emitter. Meters.")]
         public float sourceRadius;
-        [Min(0), Tooltip("Widens specular and shadow penumbrae beyond sourceRadius. Meters.")]
-        public float softSourceRadius;
-        [Min(0), Tooltip("Point lights: length of the line or tube along the light's local X axis. Meters.")]
+        [Min(0), Tooltip("Round + Omnidirectional lights: length of the line or tube along the light's local X axis. Meters.")]
         public float sourceLength;
         [Min(0)] public float sourceWidth;
         [Min(0)] public float sourceHeight;
@@ -70,33 +169,58 @@ namespace InfinityTech.Rendering.LightPipeline
         [Min(0)] public float barnDoorLength;
         [Range(0, 10), Tooltip("Angular diameter of the sun disk in degrees.")]
         public float sourceAngle;
-        [Range(0, 10)] public float softSourceAngle;
-        // Pyramid: width / height of the frustum cross-section. Box: emitter size in meters.
+        // Pyramid: width / height of the frustum cross-section. ParallelBox: emitter size in meters.
         [Min(0.01f)] public float pyramidAspect;
         public Vector2 boxSize;
 
         public const float DefaultSunAngle = 0.5357f;
 
-        public static LightSourceShape Default(EInfinityLightType type)
+        public static LightSourceShape DefaultDirectional()
         {
             return new LightSourceShape
             {
-                type = type,
-                spotShape = ESpotShape.Cone,
+                kind = ELightKind.Directional,
+                emitter = ELocalLightEmitter.Round,
+                distribution = ELocalLightDistribution.Omnidirectional,
                 sourceWidth = 1,
                 sourceHeight = 1,
                 barnDoorAngle = 90,
-                sourceAngle = type == EInfinityLightType.Directional ? DefaultSunAngle : 0,
+                sourceAngle = DefaultSunAngle,
                 pyramidAspect = 1,
                 boxSize = Vector2.one,
             };
         }
 
-        public bool IsTube => type == EInfinityLightType.Point && sourceLength > 0;
+        public static LightSourceShape DefaultLocal(
+            ELocalLightEmitter emitter = ELocalLightEmitter.Round,
+            ELocalLightDistribution distribution = ELocalLightDistribution.Omnidirectional)
+        {
+            if (!LightShapeUtility.IsValidCombination(ELightKind.Local, emitter, distribution))
+            {
+                throw new ArgumentOutOfRangeException(nameof(distribution),
+                    $"Invalid local light combination: {emitter} + {distribution}.");
+            }
+
+            return new LightSourceShape
+            {
+                kind = ELightKind.Local,
+                emitter = emitter,
+                distribution = distribution,
+                sourceRadius = emitter == ELocalLightEmitter.Disk ? 0.5f : 0f,
+                sourceWidth = 1,
+                sourceHeight = 1,
+                barnDoorAngle = 90,
+                pyramidAspect = 1,
+                boxSize = Vector2.one,
+            };
+        }
+
+        public bool IsLineOrTube => LightShapeUtility.IsValidCombination(kind, emitter, distribution)
+            && LightShapeUtility.Resolve(this) is EResolvedLightShape.Line or EResolvedLightShape.Tube;
     }
 
-    // Converts between Unity's native Light fields and LightSourceShape. Rendering resolves the shape once per light per
-    // camera; Editor code writes the derived native fields after user edits (never on load).
+    // Converts between Unity's native Light fields and LightSourceShape and resolves emitter x distribution capabilities.
+    // Rendering resolves the shape once per light per camera; Editor code writes derived native fields after user edits.
     public static class LightShapeUtility
     {
         public static bool IsSupportedNativeType(LightType type)
@@ -117,6 +241,203 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        public static bool IsValidCombination(ELightKind kind, ELocalLightEmitter emitter, ELocalLightDistribution distribution)
+        {
+            if (kind == ELightKind.Directional)
+            {
+                return true;
+            }
+            if (kind != ELightKind.Local)
+            {
+                return false;
+            }
+
+            switch (emitter)
+            {
+                case ELocalLightEmitter.Round:
+                    return distribution == ELocalLightDistribution.Omnidirectional
+                        || distribution == ELocalLightDistribution.Cone
+                        || distribution == ELocalLightDistribution.Pyramid
+                        || distribution == ELocalLightDistribution.ParallelBox;
+                case ELocalLightEmitter.Rectangle:
+                    return distribution == ELocalLightDistribution.Hemisphere;
+                case ELocalLightEmitter.Disk:
+                    return distribution == ELocalLightDistribution.Hemisphere
+                        || distribution == ELocalLightDistribution.Cone;
+                default:
+                    return false;
+            }
+        }
+
+        public static (ELocalLightEmitter emitter, ELocalLightDistribution distribution) NormalizeCombination(
+            ELocalLightEmitter emitter,
+            ELocalLightDistribution distribution,
+            bool keepEmitter)
+        {
+            if (IsValidCombination(ELightKind.Local, emitter, distribution))
+            {
+                return (emitter, distribution);
+            }
+
+            if (keepEmitter)
+            {
+                return emitter switch
+                {
+                    ELocalLightEmitter.Round => (ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                    ELocalLightEmitter.Rectangle => (ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere),
+                    ELocalLightEmitter.Disk => (ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere),
+                    _ => (ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                };
+            }
+
+            return distribution switch
+            {
+                ELocalLightDistribution.Omnidirectional => (ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                ELocalLightDistribution.Pyramid => (ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid),
+                ELocalLightDistribution.ParallelBox => (ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox),
+                ELocalLightDistribution.Cone => (ELocalLightEmitter.Round, ELocalLightDistribution.Cone),
+                ELocalLightDistribution.Hemisphere => (ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere),
+                _ => (ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+            };
+        }
+
+        public static EResolvedLightShape Resolve(in LightSourceShape shape)
+        {
+            if (shape.kind == ELightKind.Directional)
+            {
+                return EResolvedLightShape.Directional;
+            }
+            if (shape.kind != ELightKind.Local)
+            {
+                throw new ArgumentOutOfRangeException(nameof(shape), $"Unsupported light kind: {shape.kind}");
+            }
+
+            switch (shape.emitter)
+            {
+                case ELocalLightEmitter.Round:
+                    switch (shape.distribution)
+                    {
+                        case ELocalLightDistribution.Omnidirectional:
+                            if (shape.sourceLength > 0)
+                            {
+                                return shape.sourceRadius > 0 ? EResolvedLightShape.Tube : EResolvedLightShape.Line;
+                            }
+                            return shape.sourceRadius > 0 ? EResolvedLightShape.Sphere : EResolvedLightShape.Point;
+                        case ELocalLightDistribution.Cone:
+                            return EResolvedLightShape.SpotCone;
+                        case ELocalLightDistribution.Pyramid:
+                            return EResolvedLightShape.SpotPyramid;
+                        case ELocalLightDistribution.ParallelBox:
+                            return EResolvedLightShape.SpotBox;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(shape),
+                                $"Unsupported Round distribution: {shape.distribution}");
+                    }
+                case ELocalLightEmitter.Rectangle:
+                    if (shape.distribution == ELocalLightDistribution.Hemisphere)
+                    {
+                        return EResolvedLightShape.Rect;
+                    }
+                    throw new ArgumentOutOfRangeException(nameof(shape),
+                        $"Unsupported Rectangle distribution: {shape.distribution}");
+                case ELocalLightEmitter.Disk:
+                    return shape.distribution switch
+                    {
+                        ELocalLightDistribution.Hemisphere => EResolvedLightShape.Disk,
+                        ELocalLightDistribution.Cone => EResolvedLightShape.DiskCone,
+                        _ => throw new ArgumentOutOfRangeException(nameof(shape),
+                            $"Unsupported Disk distribution: {shape.distribution}"),
+                    };
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(shape), $"Unsupported emitter: {shape.emitter}");
+            }
+        }
+
+        public static LightCapabilities GetCapabilities(in LightSourceShape shape)
+        {
+            if (!IsValidCombination(shape.kind, shape.emitter, shape.distribution))
+            {
+                return new LightCapabilities(
+                    EResolvedLightShape.Point,
+                    validCombination: false,
+                    realtimeShading: false,
+                    realtimeShadow: false,
+                    baking: false,
+                    bakeDisabledReason: "Unsupported emitter and distribution combination.");
+            }
+
+            EResolvedLightShape resolved = Resolve(shape);
+            switch (resolved)
+            {
+                case EResolvedLightShape.Directional:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasSunAngle: true, supportsPlanarCookie: true);
+                case EResolvedLightShape.Point:
+                case EResolvedLightShape.Sphere:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasSourceRadius: true, hasSourceLength: true, supportsCubeCookie: true);
+                case EResolvedLightShape.Line:
+                case EResolvedLightShape.Tube:
+                    return new LightCapabilities(resolved, true, true, true, false,
+                        "Line and Tube emitters have no lightmapper representation and are Realtime only.",
+                        hasSourceRadius: true, hasSourceLength: true, supportsCubeCookie: true);
+                case EResolvedLightShape.SpotCone:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasSourceRadius: true, hasSpotAngle: true, hasInnerSpotAngle: true, supports2DIes: true);
+                case EResolvedLightShape.SpotPyramid:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasSourceRadius: true, hasSpotAngle: true, hasPyramidAspect: true, supports2DIes: true);
+                case EResolvedLightShape.SpotBox:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasBoxSize: true);
+                case EResolvedLightShape.Rect:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasRectSize: true, hasBarnDoors: true, isPlanar: true, supportsPlanarCookie: true);
+                case EResolvedLightShape.Disk:
+                    return new LightCapabilities(resolved, true, true, true, true, null,
+                        hasSourceRadius: true, isPlanar: true, supportsPlanarCookie: true);
+                case EResolvedLightShape.DiskCone:
+                    return new LightCapabilities(resolved, true, true, true, false,
+                        "Disk + Cone lights use shifted-apex cone beam clipping and are Realtime only.",
+                        hasSourceRadius: true, hasSpotAngle: true, hasInnerSpotAngle: true,
+                        isPlanar: true, supportsPlanarCookie: true, supports2DIes: true);
+                default:
+                    return new LightCapabilities(resolved, false, false, false, false, "Unsupported light shape.");
+            }
+        }
+
+        // Virtual apex offset behind a Disk + Cone emitter along -forward so the outer cone boundary passes through the disk rim.
+        public static float DiskConeApexOffset(float sourceRadius, float spotAngleDegrees)
+        {
+            float clampedRadius = Mathf.Max(0f, sourceRadius);
+            if (clampedRadius <= 0f)
+            {
+                return 0f;
+            }
+            float halfTan = Mathf.Tan(Mathf.Clamp(spotAngleDegrees, 1f, 179f) * 0.5f * Mathf.Deg2Rad);
+            return clampedRadius / Mathf.Max(halfTan, 1e-4f);
+        }
+
+        // World bounding sphere radius centered at light.positionRange.xyz for tile binning and Z-binning.
+        public static float BoundingRadius(in LightRecord record)
+        {
+            float range = math.max(record.positionRange.w, 0.01f);
+            if ((record.flags & LightRecordFlags.SpotBox) != 0)
+            {
+                float hx = 0.5f * math.max(record.area.x, 0f);
+                float hy = 0.5f * math.max(record.area.y, 0f);
+                return math.sqrt(hx * hx + hy * hy + range * range);
+            }
+            if ((record.flags & LightRecordFlags.Planar) != 0)
+            {
+                float halfExtent = record.area.x > 0f && record.area.y > 0f
+                    ? 0.5f * math.sqrt(record.area.x * record.area.x + record.area.y * record.area.y)
+                    : math.max(record.shape.x, 0f);
+                return range + halfExtent;
+            }
+            return range + 0.5f * math.max(record.shape.z, 0f) + math.max(record.shape.x, 0f);
+        }
+
         // Shape of a light that has no authored Infinity shape, derived from Unity's native fields so lights created by
         // scripts or imported render with the shape Unity shows for them. Area size and sun angle exist only in the
         // Editor: a player build freezes each scene light's shape into its InfinityAdditionalLightData, and a light
@@ -127,31 +448,36 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 throw new ArgumentNullException(nameof(light));
             }
+
             LightSourceShape shape;
             switch (light.type)
             {
                 case LightType.Directional:
-                    shape = LightSourceShape.Default(EInfinityLightType.Directional);
+                    shape = LightSourceShape.DefaultDirectional();
                     break;
                 case LightType.Tube:
-                    shape = LightSourceShape.Default(EInfinityLightType.Point);
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
                     break;
                 case LightType.Spot:
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone);
+                    shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
+                    break;
                 case LightType.Pyramid:
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid);
+                    shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
+                    break;
                 case LightType.Box:
-                    shape = LightSourceShape.Default(EInfinityLightType.Spot);
-                    shape.spotShape = light.type == LightType.Spot ? ESpotShape.Cone : (light.type == LightType.Pyramid ? ESpotShape.Pyramid : ESpotShape.Box);
-                    shape.sourceRadius = light.type == LightType.Box ? 0 : Mathf.Max(0, light.shapeRadius);
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox);
                     break;
                 case LightType.Rectangle:
-                    shape = LightSourceShape.Default(EInfinityLightType.Rect);
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere);
                     break;
                 case LightType.Disc:
-                    shape = LightSourceShape.Default(EInfinityLightType.Disk);
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere);
                     break;
                 default:
-                    shape = LightSourceShape.Default(EInfinityLightType.Point);
+                    shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
                     shape.sourceRadius = Mathf.Max(0, light.shapeRadius);
                     break;
             }
@@ -193,19 +519,27 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public static LightType NativeType(in LightSourceShape shape)
         {
-            switch (shape.type)
+            switch (Resolve(shape))
             {
-                case EInfinityLightType.Directional:
+                case EResolvedLightShape.Directional:
                     return LightType.Directional;
-                case EInfinityLightType.Point:
-                    return shape.sourceLength > 0 ? LightType.Tube : LightType.Point;
-                case EInfinityLightType.Spot:
-                    return shape.spotShape == ESpotShape.Pyramid ? LightType.Pyramid : (shape.spotShape == ESpotShape.Box ? LightType.Box : LightType.Spot);
-                case EInfinityLightType.Rect:
-                    return LightType.Rectangle;
+                case EResolvedLightShape.Point:
+                case EResolvedLightShape.Sphere:
+                    return LightType.Point;
+                case EResolvedLightShape.Line:
+                case EResolvedLightShape.Tube:
+                    return LightType.Tube;
+                case EResolvedLightShape.SpotCone:
+                    return LightType.Spot;
+                case EResolvedLightShape.SpotPyramid:
+                    return LightType.Pyramid;
+                case EResolvedLightShape.SpotBox:
+                    return LightType.Box;
+                case EResolvedLightShape.Rect:
                 // Native Disc is omitted from realtime culling and coerces bake mode on Undo/reload.
-                // Additional data retains Disk identity; the lightmapper receives DiscLight.
-                case EInfinityLightType.Disk:
+                // Additional data retains Disk / DiskCone identity; the lightmapper receives DiscLight or NoBake.
+                case EResolvedLightShape.Disk:
+                case EResolvedLightShape.DiskCone:
                     return LightType.Rectangle;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(shape));
@@ -217,7 +551,10 @@ namespace InfinityTech.Rendering.LightPipeline
         static void DeriveNativeType(Light light, in LightSourceShape shape, out LightType type, out float shapeRadius)
         {
             type = NativeType(shape);
-            bool ownsRadius = shape.type == EInfinityLightType.Point || (shape.type == EInfinityLightType.Spot && shape.spotShape != ESpotShape.Box);
+            EResolvedLightShape resolved = Resolve(shape);
+            bool ownsRadius = resolved is EResolvedLightShape.Point or EResolvedLightShape.Sphere
+                or EResolvedLightShape.Line or EResolvedLightShape.Tube
+                or EResolvedLightShape.SpotCone or EResolvedLightShape.SpotPyramid;
             shapeRadius = ownsRadius ? shape.sourceRadius : light.shapeRadius;
         }
 
@@ -228,31 +565,26 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             areaSize = light.areaSize;
             shadowAngle = light.shadowAngle;
-            switch (shape.type)
+            switch (Resolve(shape))
             {
-                case EInfinityLightType.Directional:
+                case EResolvedLightShape.Directional:
                     shadowAngle = shape.sourceAngle;
                     break;
-                case EInfinityLightType.Point:
-                    if (shape.sourceLength > 0)
-                    {
-                        areaSize = new Vector2(shape.sourceLength, areaSize.y);
-                    }
+                case EResolvedLightShape.Line:
+                case EResolvedLightShape.Tube:
+                    areaSize = new Vector2(shape.sourceLength, areaSize.y);
                     break;
-                case EInfinityLightType.Spot:
-                    if (shape.spotShape == ESpotShape.Pyramid)
-                    {
-                        areaSize = new Vector2(shape.pyramidAspect, 1);
-                    }
-                    if (shape.spotShape == ESpotShape.Box)
-                    {
-                        areaSize = shape.boxSize;
-                    }
+                case EResolvedLightShape.SpotPyramid:
+                    areaSize = new Vector2(shape.pyramidAspect, 1);
                     break;
-                case EInfinityLightType.Rect:
+                case EResolvedLightShape.SpotBox:
+                    areaSize = shape.boxSize;
+                    break;
+                case EResolvedLightShape.Rect:
                     areaSize = new Vector2(shape.sourceWidth, shape.sourceHeight);
                     break;
-                case EInfinityLightType.Disk:
+                case EResolvedLightShape.Disk:
+                case EResolvedLightShape.DiskCone:
                     float diskSide = Mathf.Sqrt(Mathf.PI) * shape.sourceRadius;
                     areaSize = new Vector2(diskSide, diskSide);
                     break;
@@ -322,20 +654,27 @@ namespace InfinityTech.Rendering.LightPipeline
             return changed;
         }
 
-        // Unity's lightmapper has no tube or line emitter; like HDRP, those shapes are realtime only.
-        public static bool IsBakeable(in LightSourceShape shape) => !shape.IsTube;
+        public static bool IsBakeable(in LightSourceShape shape) => GetCapabilities(shape).baking;
 
-        // True when the shape describes an emitter with a positive area or a valid punctual setup.
+        // True when the shape has a valid emitter + distribution combination and required positive extents.
         public static bool IsValid(in LightSourceShape shape)
         {
-            switch (shape.type)
+            if (!IsValidCombination(shape.kind, shape.emitter, shape.distribution))
             {
-                case EInfinityLightType.Rect:
+                return false;
+            }
+
+            switch (Resolve(shape))
+            {
+                case EResolvedLightShape.Rect:
                     return shape.sourceWidth > 0 && shape.sourceHeight > 0;
-                case EInfinityLightType.Disk:
+                case EResolvedLightShape.Disk:
+                case EResolvedLightShape.DiskCone:
                     return shape.sourceRadius > 0;
-                case EInfinityLightType.Spot:
-                    return shape.spotShape != ESpotShape.Box || (shape.boxSize.x > 0 && shape.boxSize.y > 0);
+                case EResolvedLightShape.SpotPyramid:
+                    return shape.pyramidAspect > 0;
+                case EResolvedLightShape.SpotBox:
+                    return shape.boxSize.x > 0 && shape.boxSize.y > 0;
                 default:
                     return true;
             }

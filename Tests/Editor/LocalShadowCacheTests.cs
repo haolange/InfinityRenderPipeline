@@ -15,8 +15,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             m_Pool = new ResourcePool();
             m_Cache = new LocalShadowCache(m_Pool);
-            // 2 x 1 slots of 512.
-            m_Cache.Configure(1024, 512, 512);
+            // 2 x 1 slots of 512 (min 128, max 512).
+            m_Cache.Configure(1024, 512, 128, 512);
         }
 
         [TearDown]
@@ -48,31 +48,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(reusedRender);
         }
 
-        int Frame(ShadowCacheKey key, EShadowUpdateMode mode, int hash, int version, int frame, bool produce, out bool render)
+        int Frame(ShadowCacheKey key, EShadowUpdateMode mode, int hash, int version, int frame, bool produce, out bool render, int tileResolution = 512)
         {
             m_Cache.BeginFrame();
-            int slot = m_Cache.Acquire(key, mode, hash, version, frame, out render);
+            int slot = m_Cache.Acquire(key, mode, tileResolution, hash, version, frame, out render);
             if (produce && render) m_Cache.MarkProduced(new[] { key }, 1);
             return slot;
         }
 
-        static LocalShadowCache.SamplingState State(int face, int count, long production, float x) =>
+        static LocalShadowCache.SamplingState State(int face, int count, long production, float x, int tileResolution = 512) =>
             new LocalShadowCache.SamplingState
             {
-                faceCount = count, production = production,
-                slice = new LocalShadowSlice { face = face, valid = true, shadowMatrix = UnityEngine.Matrix4x4.Translate(new UnityEngine.Vector3(x, 2, 3)) },
+                faceCount = count, tileResolution = tileResolution, production = production,
+                slice = new LocalShadowSlice
+                {
+                    face = face, valid = true,
+                    atlasPixelRect = new UnityEngine.Vector4(0, 0, tileResolution, tileResolution),
+                    shadowMatrix = UnityEngine.Matrix4x4.Translate(new UnityEngine.Vector3(x, 2, 3))
+                },
                 gpu = new LocalShadowSliceGPU { depthParams = new UnityEngine.Vector4(x, 2, 3, 4),
                     momentParams = new UnityEngine.Vector4(1 / x, 0, 0, 0), shadowOriginSize = new UnityEngine.Vector4(x, 2, 3, .5f) }
             };
 
-        void ProduceGroup(int count, int version, int frame, long generation, bool queued = true)
+        void ProduceGroup(int count, int version, int frame, long generation, bool queued = true, int tileResolution = 512)
         {
             for (int face = 0; face < count; ++face)
             {
                 var key = new ShadowCacheKey(1, face);
-                m_Cache.Acquire(key, EShadowUpdateMode.OnDemand, frame, version, frame, out bool render);
+                m_Cache.Acquire(key, EShadowUpdateMode.OnDemand, tileResolution, frame, version, frame, out bool render);
                 Assert.IsTrue(render);
-                m_Cache.SetPendingSampling(key, State(face, count, generation, frame));
+                m_Cache.SetPendingSampling(key, State(face, count, generation, frame, tileResolution));
                 if (queued) m_Cache.MarkProduced(new[] { key }, 1);
             }
         }
@@ -82,19 +87,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             Frame(A, EShadowUpdateMode.OnEnable, 10, 0, 1, true, out _);
             m_Cache.CommitFrame();
-            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 20, 0, 2, out bool moved);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 20, 0, 2, out bool moved);
             Assert.IsTrue(moved);
             m_Cache.MarkProduced(new[] { A }, 1);
-            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 10, 0, 2, out bool restored);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 10, 0, 2, out bool restored);
             Assert.IsTrue(restored, "queued B has overwritten committed A's physical slot");
         }
 
         [Test]
         public void SameFrame_UnqueuedTileIsRenderedAgain()
         {
-            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out bool first);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 512, 1, 0, 1, out bool first);
             m_Cache.SetPendingSampling(A, State(0, 1, 10, 1));
-            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out bool second);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 512, 1, 0, 1, out bool second);
             Assert.IsTrue(first);
             Assert.IsTrue(second, "Acquire alone never publishes a depth tile");
         }
@@ -117,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             ProduceGroup(1, 0, 1, 10);
             Assert.IsNotNull(Resolve(0, 1));
-            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 999, 0, 1, out bool render);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 512, 999, 0, 1, out bool render);
             Assert.IsFalse(render);
             Assert.AreEqual(10, Resolve(0, 1)[0].production);
         }
@@ -125,12 +130,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void IncompletePendingCube_IsInvalidatedBeforeAnyFaceCanHit()
         {
-            m_Cache.Configure(3072, 512, 512);
-            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out _);
+            m_Cache.Configure(3072, 512, 128, 512);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 512, 1, 0, 1, out _);
             m_Cache.SetPendingSampling(A, State(0, 6, 10, 1));
             m_Cache.MarkProduced(new[] { A }, 1);
             Assert.IsNull(Resolve(0, 1));
-            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 1, 0, 1, out bool render);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnDemand, 512, 1, 0, 1, out bool render);
             Assert.IsTrue(render);
         }
 
@@ -164,12 +169,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CubeSampling_RequiresAllSixFacesOfTheSameProduction()
         {
-            m_Cache.Configure(3072, 512, 512);
+            m_Cache.Configure(3072, 512, 128, 512);
             ProduceGroup(6, 0, 1, 10);
             Assert.AreEqual(6, Resolve(0, 1).Length);
             m_Cache.CommitFrame();
             var face = new ShadowCacheKey(1, 3);
-            m_Cache.Acquire(face, EShadowUpdateMode.OnEnable, 99, 0, 2, out bool render);
+            m_Cache.Acquire(face, EShadowUpdateMode.OnEnable, 512, 99, 0, 2, out bool render);
             Assert.IsTrue(render);
             m_Cache.SetPendingSampling(face, State(3, 6, 11, 2));
             m_Cache.MarkProduced(new[] { face }, 1);
@@ -181,10 +186,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CubeSampling_OrphanFacesAreInvalidated_AndInsufficientCapacityReservesNone()
         {
-            Assert.IsFalse(m_Cache.CanAcquireGroup(1, ulong.MaxValue, 6, 1));
+            Assert.IsFalse(m_Cache.CanAcquireGroup(1, ulong.MaxValue, 6, 512, 1));
             Assert.AreEqual(0, m_Cache.EntryCount);
             var orphan = new ShadowCacheKey(1, 1);
-            m_Cache.Acquire(orphan, EShadowUpdateMode.OnDemand, 1, 0, 1, out _);
+            m_Cache.Acquire(orphan, EShadowUpdateMode.OnDemand, 512, 1, 0, 1, out _);
             m_Cache.SetPendingSampling(orphan, State(1, 6, 10, 1));
             m_Cache.MarkProduced(new[] { orphan }, 1);
             m_Cache.CommitFrame();
@@ -195,7 +200,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void EveryFrame_GetsNoSlot()
         {
-            int slot = m_Cache.Acquire(A, EShadowUpdateMode.EveryFrame, 1, 0, 1, out bool render);
+            int slot = m_Cache.Acquire(A, EShadowUpdateMode.EveryFrame, 512, 1, 0, 1, out bool render);
             Assert.AreEqual(-1, slot);
             Assert.IsTrue(render);
         }
@@ -251,9 +256,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SecondCameraOfTheFrame_ReusesThePendingTile()
         {
             m_Cache.BeginFrame();
-            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 10, 1, 1, out bool first);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 10, 1, 1, out bool first);
             m_Cache.MarkProduced(new[] { A }, 1);
-            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 10, 1, 1, out bool second);
+            m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 10, 1, 1, out bool second);
             Assert.IsTrue(first);
             Assert.IsFalse(second);
             m_Cache.CommitFrame();
@@ -270,11 +275,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreNotEqual(slotA, slotB);
 
             m_Cache.BeginFrame();
-            int slotC = m_Cache.Acquire(C, EShadowUpdateMode.OnEnable, 1, 0, 3, out bool render);
+            int slotC = m_Cache.Acquire(C, EShadowUpdateMode.OnEnable, 512, 1, 0, 3, out bool render);
             Assert.AreEqual(slotA, slotC, "A was used least recently");
             Assert.IsTrue(render);
-            m_Cache.Acquire(B, EShadowUpdateMode.OnEnable, 1, 0, 3, out _);
-            int slotA2 = m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 1, 0, 3, out _);
+            m_Cache.Acquire(B, EShadowUpdateMode.OnEnable, 512, 1, 0, 3, out _);
+            int slotA2 = m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 1, 0, 3, out _);
             Assert.AreEqual(-1, slotA2, "both slots are in use this frame");
         }
 
@@ -283,9 +288,85 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             Frame(A, EShadowUpdateMode.OnEnable, 1, 0, 1, true, out _);
             m_Cache.CommitFrame();
-            m_Cache.Configure(2048, 512, 512);
+            m_Cache.Configure(2048, 512, 128, 512);
             Assert.AreEqual(0, m_Cache.EntryCount);
-            Assert.AreEqual(4, m_Cache.SlotCount);
+            Assert.AreEqual(64, m_Cache.SlotCount);
+        }
+
+        [Test]
+        public void ResolutionTierChange_RelocatesSlotAndInvalidatesOldProduction()
+        {
+            // Cache 1024x512 allows 512, 256, 128 tiles.
+            Frame(A, EShadowUpdateMode.OnEnable, 10, 0, 1, true, out bool firstRender, tileResolution: 256);
+            Assert.IsTrue(firstRender);
+            Assert.AreEqual(256f, m_Cache.SlotPixelRect(m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 256, 10, 0, 1, out _)).z);
+            m_Cache.CommitFrame();
+            Assert.IsTrue(m_Cache.IsValid(A));
+
+            // Light A steps up to 512 on frame 2 -> must relocate cleanly, force re-render, and increment RelocatedThisFrame.
+            m_Cache.BeginFrame();
+            int slot512 = m_Cache.Acquire(A, EShadowUpdateMode.OnEnable, 512, 10, 0, 2, out bool relocatedRender);
+            Assert.IsTrue(relocatedRender, "Relocated slot must never read stale lower-res texels.");
+            Assert.AreEqual(1, m_Cache.RelocatedThisFrame);
+            Assert.AreEqual(512f, m_Cache.SlotPixelRect(slot512).z);
+        }
+
+        [Test]
+        public void VariableEviction_CoalescesSmallerTilesForLargerSlot_AndAllocatesZeroBytesAtSteadyState()
+        {
+            // Fill one 512x512 root with four 256 tiles and the second 512x512 root with four 256 tiles on frame 1..8.
+            m_Cache.BeginFrame();
+            for (ulong id = 1; id <= 8; ++id)
+            {
+                var k = new ShadowCacheKey(id, 0);
+                Assert.GreaterOrEqual(m_Cache.Acquire(k, EShadowUpdateMode.OnEnable, 256, 1, 0, 1, out _), 0);
+                m_Cache.MarkProduced(new[] { k }, 1);
+            }
+            m_Cache.CommitFrame();
+            Assert.AreEqual(1.0f, m_Cache.Occupancy, 1e-6f);
+
+            // On frame 2, touch keys 5..8 at frame 2 so keys 1..4 are LRU, then acquire key 9 at 512 -> evicts 4 buddies and merges to 512.
+            m_Cache.BeginFrame();
+            for (ulong id = 5; id <= 8; ++id)
+                m_Cache.Acquire(new ShadowCacheKey(id, 0), EShadowUpdateMode.OnEnable, 256, 1, 0, 2, out _);
+            var bigKey = new ShadowCacheKey(99, 0);
+            int bigSlot = m_Cache.Acquire(bigKey, EShadowUpdateMode.OnEnable, 512, 1, 0, 2, out bool bigRender);
+            Assert.GreaterOrEqual(bigSlot, 0);
+            Assert.IsTrue(bigRender);
+            Assert.AreEqual(512f, m_Cache.SlotPixelRect(bigSlot).z);
+            Assert.AreEqual(4, m_Cache.EvictedThisFrame);
+            m_Cache.MarkProduced(new[] { bigKey }, 1);
+            m_Cache.CommitFrame();
+
+            // Verify zero steady-state GC.Alloc on warm cache hit loop.
+            var hitKeys = new[] { bigKey };
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int f = 3; f < 100; ++f)
+            {
+                m_Cache.BeginFrame();
+                m_Cache.Acquire(bigKey, EShadowUpdateMode.OnEnable, 512, 1, 0, f, out bool hitRender);
+                Assert.IsFalse(hitRender);
+                m_Cache.MarkProduced(hitKeys, 0);
+                m_Cache.CommitFrame();
+            }
+            long after = System.GC.GetAllocatedBytesForCurrentThread();
+            Assert.AreEqual(0L, after - before, "Warm LocalShadowCache hit loop must allocate 0 managed bytes.");
+        }
+
+        [Test]
+        public void PartialGroupAcquire_ReleasePendingGroupFreesAbandonedSlots()
+        {
+            m_Cache.Configure(1024, 512, 128, 512);
+            m_Cache.BeginFrame();
+            var face0 = new ShadowCacheKey(7, 0);
+            var face1 = new ShadowCacheKey(7, 1);
+            Assert.GreaterOrEqual(m_Cache.Acquire(face0, EShadowUpdateMode.OnEnable, 256, 1, 0, 1, out _), 0);
+            Assert.GreaterOrEqual(m_Cache.Acquire(face1, EShadowUpdateMode.OnEnable, 256, 1, 0, 1, out _), 0);
+            Assert.Greater(m_Cache.Occupancy, 0f);
+
+            m_Cache.ReleasePendingGroup(7, ulong.MaxValue, 6);
+            Assert.AreEqual(0f, m_Cache.Occupancy, 1e-6f, "ReleasePendingGroup must free slots of aborted group faces.");
+            Assert.AreEqual(0, m_Cache.EntryCount);
         }
     }
 }

@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         struct ShadowSlice
         {
-            public Vector4 rect, depth, moments;
+            public Vector4 rect, depth, moments, originSize, axisU, axisV;
         }
         struct ProbeRecord
         {
@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/Library/ShadowSampling.hlsl").Contains("struct LocalShadowSlice");
                 if (shadowSlices)
                 {
-                    shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice { rect = Vector4.zero, depth = Vector4.zero, moments = Vector4.zero } }, 48));
+                    shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice() }, Marshal.SizeOf<LocalShadowSliceGPU>()));
                 }
                 else shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { Vector4.zero }, 16));
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))

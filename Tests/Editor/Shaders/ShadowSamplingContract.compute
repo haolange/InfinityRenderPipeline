@@ -62,3 +62,23 @@ void ReceiverGradient(uint3 id : SV_DispatchThreadID)
     if (id.x == 3) projection = 0;
     Results[id.x] = float4(ShadowReceiverGradient(projection, 0, normal, float2(.5, .5)), 0, 1);
 }
+
+#pragma kernel ShapePCSS
+float4 TestEmitterAxisU;
+float4 TestEmitterAxisV;
+float TestApexOffset;
+int TestSweepAxis;
+float TestSweepCoord;
+float2 TestTexelSize;
+[numthreads(64, 1, 1)]
+void ShapePCSS(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 256) return;
+    float sweep = (id.x + 0.5) / 256.0;
+    float2 localUV = TestSweepAxis == 0 ? float2(sweep, TestSweepCoord) : float2(TestSweepCoord, sweep);
+    float2 uv = TestRect.xy + localUV * TestRect.zw;
+    float receiver = TestDepthParams.y / max(TestReceiverDepth, 1e-4) - TestDepthParams.x;
+    float visibility = SampleShadowPCSS(TestDepth, uv, receiver, TestTexelSize, TestRect, 0, TestDepthParams,
+        false, TestEmitterAxisU, TestEmitterAxisV, TestApexOffset);
+    Results[id.x] = float4(visibility, receiver, uv);
+}

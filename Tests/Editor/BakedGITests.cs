@@ -51,6 +51,32 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 light.spotAngle = 60.0f;
                 float solidAngle = 2.0f * Mathf.PI * (1.0f - Mathf.Cos(30.0f * Mathf.Deg2Rad));
                 Assert.AreEqual(100.0f / solidAngle, InfinityIESImporter.CandelaFromIES(light, "Lumens", 100.0f), 1e-3f);
+
+                Assert.AreEqual(LightUnit.Lux, InfinityIESImporter.ParseIESUnit("Lux"));
+                Assert.AreEqual(LightUnit.Nits, InfinityIESImporter.ParseIESUnit(" Nits "));
+                Assert.AreEqual(LightUnit.Candela, InfinityIESImporter.ParseIESUnit(null));
+                Assert.AreEqual(LightUnit.Candela, InfinityIESImporter.ParseIESUnit(""));
+
+                Texture2D dummyIes = new Texture2D(2, 2);
+                try
+                {
+                    InfinityIESImporter.ApplyImportedIES(light, dummyIes, true, "Lumens", 100.0f);
+                    Assert.AreEqual(60.0f, light.innerSpotAngle, 1e-5f);
+                    Assert.AreEqual(LightUnit.Lumen, light.lightUnit);
+                    Assert.AreEqual(100.0f, InfinityTech.Rendering.LightPipeline.LightIntensityUtility.ToDisplayIntensity(
+                        light, InfinityTech.Rendering.LightPipeline.LightShapeUtility.FromUnityLight(light), LightUnit.Lumen), 1e-2f);
+
+                    InfinityIESImporter.ApplyImportedIES(light, dummyIes, false, "Lumens", 500.0f);
+                    Assert.AreEqual(1.0f, light.intensity, 1e-5f);
+                    Assert.AreEqual(LightUnit.Candela, light.lightUnit);
+
+                    InfinityIESImporter.ApplyImportedIES(light, dummyIes, true, "Nits", 250.0f);
+                    Assert.AreEqual(LightUnit.Candela, light.lightUnit, "Unsupported Spot unit falls back to canonical Candela.");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(dummyIes);
+                }
             }
             finally
             {

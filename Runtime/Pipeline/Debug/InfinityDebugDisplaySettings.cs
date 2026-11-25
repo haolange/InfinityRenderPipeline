@@ -135,8 +135,12 @@ namespace InfinityTech.Rendering.Pipeline
             lighting.children.Add(new DebugUI.Value { displayName = "Reflection Probes", getter = () => (object)state.lighting.lastReflectionProbeCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Invalid Light Shapes", getter = () => (object)state.lighting.lastUnsupportedShapeCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Lights Beyond Max Distance", getter = () => (object)state.lighting.lastDistanceCulledCount });
+            lighting.children.Add(new DebugUI.Value { displayName = "Local Shadow Atlas Occupancy", getter = () => (object)$"{state.lighting.lastLocalShadowOccupancy * 100f:F1}%" });
+            lighting.children.Add(new DebugUI.Value { displayName = "Local Shadow Tiles", getter = () => (object)$"{state.lighting.lastLocalShadowTiles} (1024:{state.lighting.lastLocalShadowTier1024} 512:{state.lighting.lastLocalShadowTier512} 256:{state.lighting.lastLocalShadowTier256} <=128:{state.lighting.lastLocalShadowTier128OrSmaller})" });
+            lighting.children.Add(new DebugUI.Value { displayName = "Local Shadow Downgraded / Dropped", getter = () => (object)$"{state.lighting.lastLocalShadowDowngradedLights} / {state.lighting.lastLocalShadowDroppedLights}" });
             lighting.children.Add(new DebugUI.Value { displayName = "Cached Shadow Tiles", getter = () => (object)state.lighting.lastCachedShadowTiles });
             lighting.children.Add(new DebugUI.Value { displayName = "Cached Shadow Re-renders", getter = () => (object)state.lighting.lastCachedShadowRenders });
+            lighting.children.Add(new DebugUI.Value { displayName = "Cached Shadow Evictions / Relocations", getter = () => (object)$"{state.lighting.lastCachedShadowEvictions} / {state.lighting.lastCachedShadowRelocations}" });
             lighting.children.Add(new DebugUI.Value { displayName = "Ray Tracing Backend", getter = () => (object)state.lighting.rayTracingBackend.ToString() });
             lighting.children.Add(new DebugUI.Value { displayName = "RTAO Record Reason", getter = () => (object)(string.IsNullOrEmpty(state.lighting.rtaoBlockReason) ? "recording" : state.lighting.rtaoBlockReason) });
             lighting.children.Add(new DebugUI.Value

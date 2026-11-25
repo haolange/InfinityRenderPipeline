@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             return go;
         }
 
-        public Light Light(string name, Vector3 position, Vector3 euler, EInfinityLightType type, Color color, float intensity, float range = 10, ShapeEdit edit = null)
+        public Light Light(string name, Vector3 position, Vector3 euler, LightSourceShape shape, Color color, float intensity, float range = 10, ShapeEdit edit = null)
         {
             var go = new GameObject(name);
             go.transform.SetPositionAndRotation(position, Quaternion.Euler(euler));
@@ -122,7 +122,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             light.spotAngle = 60;
             light.shadows = LightShadows.None;
             InfinityAdditionalLightData data = InfinityAdditionalLightData.GetOrCreate(light, false);
-            LightSourceShape shape = LightSourceShape.Default(type);
             edit?.Invoke(ref shape);
             data.SetShape(shape);
             return light;

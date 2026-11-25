@@ -33,13 +33,16 @@ namespace InfinityTech.Rendering.Editor.Validation
             fixture.Primitive(PrimitiveType.Cube, "Back Wall", new Vector3(0, 3, 8), new Vector3(40, 6, 0.2f), floor);
 
             Texture2D checker = CheckerTexture(fixture);
-            Light spot = fixture.Light("Spot Cookie", new Vector3(-8, 5, 0), new Vector3(90, 0, 0), EInfinityLightType.Spot, Color.white, 60, 10);
+            Light spot = fixture.Light("Spot Cookie", new Vector3(-8, 5, 0), new Vector3(90, 0, 0),
+                LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone), Color.white, 60, 10);
             spot.cookie = checker;
-            Light pyramid = fixture.Light("Pyramid Cookie", new Vector3(-3, 5, 0), new Vector3(90, 0, 0), EInfinityLightType.Spot, Color.white, 60, 10,
-                (ref LightSourceShape s) => { s.spotShape = ESpotShape.Pyramid; s.pyramidAspect = 2; });
+            Light pyramid = fixture.Light("Pyramid Cookie", new Vector3(-3, 5, 0), new Vector3(90, 0, 0),
+                LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid), Color.white, 60, 10,
+                (ref LightSourceShape s) => s.pyramidAspect = 2);
             pyramid.cookie = checker;
 
-            Light point = fixture.Light("Point Cube Cookie", new Vector3(3, 1.5f, 0), Vector3.zero, EInfinityLightType.Point, Color.white, 20, 8);
+            Light point = fixture.Light("Point Cube Cookie", new Vector3(3, 1.5f, 0), Vector3.zero,
+                LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional), Color.white, 20, 8);
             point.cookie = CubeTexture(fixture);
 
             Light iesLight = PlaceIesLight(fixture, new Vector3(8, 4, 0));
@@ -48,7 +51,8 @@ namespace InfinityTech.Rendering.Editor.Validation
                 Debug.LogWarning("[InfinityRP][Validation] The IES profile produced no texture; the IES spot is missing.");
             }
 
-            Light sun = fixture.Light("Sun Tiled Cookie", Vector3.zero, new Vector3(60, 160, 0), EInfinityLightType.Directional, new Color(1, 0.95f, 0.9f), 0.5f);
+            Light sun = fixture.Light("Sun Tiled Cookie", Vector3.zero, new Vector3(60, 160, 0),
+                LightSourceShape.DefaultDirectional(), new Color(1, 0.95f, 0.9f), 0.5f);
             sun.cookie = checker;
             sun.cookieSize2D = new Vector2(4, 4);
             RenderSettings.sun = sun;
@@ -120,7 +124,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 return null;
             }
-            Light light = fixture.Light("IES Spot", position, new Vector3(90, 0, 0), EInfinityLightType.Spot, Color.white, 60, 10);
+            Light light = fixture.Light("IES Spot", position, new Vector3(90, 0, 0),
+                LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone), Color.white, 60, 10);
             light.spotAngle = 120;
             light.GetComponent<InfinityAdditionalLightData>().iesProfile = profile;
             return light;

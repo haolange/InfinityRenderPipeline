@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             sphereData.influence = EReflectionProbeInfluence.Sphere;
             sphereData.sphereRadius = 2.0f;
 
-            Light sun = fixture.Light("Sun", Vector3.zero, new Vector3(40, 200, 0), EInfinityLightType.Directional, Color.white, 1.0f);
+            Light sun = fixture.Light("Sun", Vector3.zero, new Vector3(40, 200, 0), LightSourceShape.DefaultDirectional(), Color.white, 1.0f);
             sun.shadows = LightShadows.Soft;
             RenderSettings.sun = sun;
             fixture.Camera(new Vector3(0, 3.5f, -10), new Vector3(0, 1, 0), new Color(0.05f, 0.05f, 0.06f));

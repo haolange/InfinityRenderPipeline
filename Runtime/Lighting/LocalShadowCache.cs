@@ -28,11 +28,10 @@ namespace InfinityTech.Rendering.LightPipeline
     }
 
     /// <summary>
-    /// Cached shadow atlas for OnEnable / OnDemand local lights. Tiles have the frame atlas tile size and are keyed by
-    /// light instance id, face and scene culling mask, never by record index. The atlas is one persistent texture; what is transactional
-    /// is the slot state: a tile rendered this frame is pending until its pass is queued (MarkProduced) and the frame
-    /// is submitted (CommitFrame). A frame that fails rolls the produced tiles back to invalid, so they re-render.
-    /// Slots are reused least-recently-used when the atlas is full; a light that gets no slot renders every frame.
+    /// Cached shadow atlas for OnEnable / OnDemand local lights with variable power-of-two tile slots backed by
+    /// <see cref="ShadowAtlasLayout"/>. Keyed by light instance id, face and scene culling mask, never by record index.
+    /// Transactional state tracks pending vs produced vs committed tiles; resolution tier changes relocate cleanly without
+    /// reading stale texels.
     /// </summary>
     internal sealed class LocalShadowCache : IFrameTransaction, IDisposable
     {
@@ -43,12 +42,14 @@ namespace InfinityTech.Rendering.LightPipeline
             public LocalShadowSlice slice;
             public LocalShadowSliceGPU gpu;
             public int faceCount;
+            public int tileResolution;
             public long production;
         }
 
         struct Entry
         {
             public int slot;
+            public int tileResolution;
             public bool valid;
             public int contentHash;
             public int version;
@@ -68,40 +69,20 @@ namespace InfinityTech.Rendering.LightPipeline
         public long NextProduction() => ++m_NextProduction;
 
         readonly HistoryCache m_History;
+        readonly ShadowAtlasLayout m_Layout = new ShadowAtlasLayout();
         readonly Dictionary<ShadowCacheKey, Entry> m_Entries = new Dictionary<ShadowCacheKey, Entry>();
         readonly List<ShadowCacheKey> m_Scratch = new List<ShadowCacheKey>();
-        readonly Stack<int> m_FreeSlots = new Stack<int>();
 
-        public int AtlasWidth
-        {
-            get;
-            private set;
-        }
-        public int AtlasHeight
-        {
-            get;
-            private set;
-        }
-        public int TileResolution
-        {
-            get;
-            private set;
-        }
-        public int SlotsPerRow
-        {
-            get;
-            private set;
-        }
-        public int RowCount
-        {
-            get;
-            private set;
-        }
-        public int SlotCount => SlotsPerRow * RowCount;
+        public int AtlasWidth => m_Layout.AtlasWidth;
+        public int AtlasHeight => m_Layout.AtlasHeight;
+        public int MinTileResolution => m_Layout.MinTileSize;
+        public int MaxTileResolution => m_Layout.MaxTileSize;
+        public int SlotCount => m_Layout.MaxMinTileCapacity;
         public int EntryCount => m_Entries.Count;
+        public float Occupancy => m_Layout.Occupancy;
         public int RetiredQueuedCount => m_History.RetiredQueuedCount;
 
-        // Rendered / reused tiles of the last Acquire calls (Rendering Debugger).
+        // Rendered / reused / evicted / relocated tiles of the last Acquire calls (Rendering Debugger).
         public int RenderedThisFrame
         {
             get;
@@ -112,44 +93,35 @@ namespace InfinityTech.Rendering.LightPipeline
             get;
             private set;
         }
+        public int EvictedThisFrame
+        {
+            get;
+            private set;
+        }
+        public int RelocatedThisFrame
+        {
+            get;
+            private set;
+        }
 
         public void BeginFrame()
         {
             m_History.BeginFrame();
             RenderedThisFrame = 0;
             ReusedThisFrame = 0;
+            EvictedThisFrame = 0;
+            RelocatedThisFrame = 0;
         }
 
-        // The atlas has the frame atlas height, so a tile copy keeps the same row in both textures whatever origin
-        // the graphics API uses for copy regions. Changing any size empties the cache (every tile re-renders).
-        public void Configure(int atlasWidth, int atlasHeight, int tileResolution)
+        // The atlas keeps the frame atlas height, so 1:1 tile copies preserve rows regardless of graphics API origin.
+        // Changing dimensions or tile bounds empties the cache cleanly.
+        public void Configure(int atlasWidth, int atlasHeight, int minTileResolution, int maxTileResolution)
         {
-            atlasWidth = Mathf.Max(0, atlasWidth);
-            atlasHeight = Mathf.Max(0, atlasHeight);
-            tileResolution = Mathf.Max(1, tileResolution);
-            if (atlasWidth == AtlasWidth && atlasHeight == AtlasHeight && tileResolution == TileResolution)
-            {
-                return;
-            }
-            AtlasWidth = atlasWidth;
-            AtlasHeight = atlasHeight;
-            TileResolution = tileResolution;
-            SlotsPerRow = atlasWidth / tileResolution;
-            RowCount = atlasHeight / tileResolution;
-            m_Entries.Clear();
-            m_FreeSlots.Clear();
-            for (int slot = SlotCount - 1; slot >= 0; --slot)
-            {
-                m_FreeSlots.Push(slot);
-            }
+            if (m_Layout.Configure(atlasWidth, atlasHeight, minTileResolution, maxTileResolution))
+                m_Entries.Clear();
         }
 
-        public Vector4 SlotPixelRect(int slot)
-        {
-            int row = SlotsPerRow > 0 ? slot / SlotsPerRow : 0;
-            int col = SlotsPerRow > 0 ? slot % SlotsPerRow : 0;
-            return new Vector4(col * TileResolution, row * TileResolution, TileResolution, TileResolution);
-        }
+        public Vector4 SlotPixelRect(int slot) => m_Layout.SlotPixelRect(slot);
 
         public TextureDescriptor AtlasDescriptor()
         {
@@ -174,24 +146,40 @@ namespace InfinityTech.Rendering.LightPipeline
             return atlasHandle;
         }
 
-        // Finds or allocates the tile of key. Returns -1 when no slot is free (the caller renders it every frame);
-        // render is true when the tile content is missing or stale for its update mode.
-        public int Acquire(in ShadowCacheKey key, EShadowUpdateMode mode, int contentHash, int version, int frame, out bool render)
+        // Finds, relocates or allocates the variable-resolution tile of key. Returns -1 when no slot is free
+        // (the caller renders it every frame into the frame atlas); render is true when missing, relocated, or stale.
+        public int Acquire(in ShadowCacheKey key, EShadowUpdateMode mode, int tileResolution, int contentHash, int version, int frame, out bool render)
         {
             render = true;
-            if (mode == EShadowUpdateMode.EveryFrame || SlotCount <= 0)
+            if (mode == EShadowUpdateMode.EveryFrame || SlotCount <= 0 || tileResolution <= 0 || tileResolution > MaxTileResolution)
             {
                 return -1;
             }
 
-            if (!m_Entries.TryGetValue(key, out Entry entry))
+            if (m_Entries.TryGetValue(key, out Entry entry))
             {
-                int slot = AllocateSlot(frame);
+                if (entry.tileResolution != tileResolution)
+                {
+                    m_Layout.Free(entry.slot);
+                    m_Entries.Remove(key);
+                    RelocatedThisFrame++;
+                    entry = default;
+                    entry.slot = -1;
+                }
+            }
+            else
+            {
+                entry.slot = -1;
+            }
+
+            if (entry.slot < 0)
+            {
+                int slot = AllocateSlot(tileResolution, frame);
                 if (slot < 0)
                 {
                     return -1;
                 }
-                entry = new Entry { slot = slot };
+                entry = new Entry { slot = slot, tileResolution = tileResolution };
             }
 
             entry.lastUsedFrame = frame;
@@ -260,7 +248,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 complete = pending ? entry.pendingHasSampling && entry.pendingVersion == version
                     : !entry.pending && entry.valid && entry.hasSampling && entry.version == version;
                 SamplingState state = pending ? entry.pendingSampling : entry.sampling;
-                complete &= state.faceCount == count && state.production == firstState.production;
+                complete &= state.faceCount == count && state.production == firstState.production
+                    && (state.tileResolution <= 0 || state.tileResolution == entry.tileResolution);
                 if (complete)
                 {
                     result[face] = state;
@@ -288,23 +277,30 @@ namespace InfinityTech.Rendering.LightPipeline
             return complete ? count : 0;
         }
 
-        // Check the complete group before Acquire mutates any slot. A cube never uses a partial cache allocation.
-        public bool CanAcquireGroup(ulong lightId, ulong sceneMask, int faceCount, int frame)
+        // Check total available texel capacity before Acquire mutates any slot. A cube never uses a partial cache allocation.
+        public bool CanAcquireGroup(ulong lightId, ulong sceneMask, int faceCount, int tileResolution, int frame)
         {
-            if (SlotCount < faceCount)
-            {
+            if (SlotCount <= 0 || tileResolution <= 0 || tileResolution > MaxTileResolution)
                 return false;
-            }
-            int available = m_FreeSlots.Count;
+
+            long requiredTexels = (long)faceCount * tileResolution * tileResolution;
+            if (m_Layout.TotalTexels < requiredTexels)
+                return false;
+
+            long freeTexels = m_Layout.TotalTexels - m_Layout.AllocatedTexels;
             foreach (var pair in m_Entries)
             {
                 bool ownFace = pair.Key.lightId == lightId && pair.Key.sceneCullingMask == sceneMask && pair.Key.face < faceCount;
-                if (ownFace || (pair.Value.lastUsedFrame < frame && !pair.Value.pending))
+                if (ownFace)
                 {
-                    available++;
+                    freeTexels += (long)pair.Value.tileResolution * pair.Value.tileResolution;
+                }
+                else if (pair.Value.lastUsedFrame < frame && !pair.Value.pending)
+                {
+                    freeTexels += (long)pair.Value.tileResolution * pair.Value.tileResolution;
                 }
             }
-            return available >= faceCount;
+            return freeTexels >= requiredTexels;
         }
 
         public void PinSampling(ulong lightId, ulong sceneMask, int faceCount, int frame)
@@ -316,6 +312,22 @@ namespace InfinityTech.Rendering.LightPipeline
                     throw new InvalidOperationException("InfinityRP: resolved shadow group lost a tile before pinning.");
                 entry.lastUsedFrame = frame;
                 m_Entries[key] = entry;
+            }
+        }
+
+        // Drops pending state across a light group if all faces could not be atomically acquired together,
+        // freeing the abandoned slots so the rest of the frame can reuse that atlas area.
+        public void ReleasePendingGroup(ulong lightId, ulong sceneMask, int faceCount)
+        {
+            for (int face = 0; face < faceCount; ++face)
+            {
+                var key = new ShadowCacheKey(lightId, face, sceneMask);
+                if (!m_Entries.TryGetValue(key, out Entry entry) || !entry.pending)
+                    continue;
+
+                m_Layout.Free(entry.slot);
+                m_Entries.Remove(key);
+                RenderedThisFrame = Mathf.Max(0, RenderedThisFrame - 1);
             }
         }
 
@@ -401,36 +413,45 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        int AllocateSlot(int frame)
+        int AllocateSlot(int tileResolution, int frame)
         {
-            if (m_FreeSlots.Count > 0)
+            if (m_Layout.TryAllocate(tileResolution, out int handle, out _))
             {
-                return m_FreeSlots.Pop();
+                return handle;
             }
-            // Evict the least recently used tile that this frame has not touched.
-            bool found = false;
-            ShadowCacheKey victim = default;
-            int oldest = int.MaxValue;
-            foreach (KeyValuePair<ShadowCacheKey, Entry> pair in m_Entries)
+
+            // Evict least-recently-used tiles from prior frames until buddy coalescing yields a slot of tileResolution.
+            while (true)
             {
-                if (pair.Value.lastUsedFrame >= frame || pair.Value.pending)
+                bool found = false;
+                ShadowCacheKey victim = default;
+                int oldest = int.MaxValue;
+                foreach (KeyValuePair<ShadowCacheKey, Entry> pair in m_Entries)
                 {
-                    continue;
+                    if (pair.Value.lastUsedFrame >= frame || pair.Value.pending)
+                    {
+                        continue;
+                    }
+                    if (pair.Value.lastUsedFrame < oldest)
+                    {
+                        oldest = pair.Value.lastUsedFrame;
+                        victim = pair.Key;
+                        found = true;
+                    }
                 }
-                if (pair.Value.lastUsedFrame < oldest)
+                if (!found)
                 {
-                    oldest = pair.Value.lastUsedFrame;
-                    victim = pair.Key;
-                    found = true;
+                    return -1;
+                }
+                int freedSlot = m_Entries[victim].slot;
+                m_Entries.Remove(victim);
+                m_Layout.Free(freedSlot);
+                EvictedThisFrame++;
+                if (m_Layout.TryAllocate(tileResolution, out handle, out _))
+                {
+                    return handle;
                 }
             }
-            if (!found)
-            {
-                return -1;
-            }
-            int slot = m_Entries[victim].slot;
-            m_Entries.Remove(victim);
-            return slot;
         }
 
         public void FlushRetired(ResourceReuseFence fence) => m_History.FlushRetired(fence);

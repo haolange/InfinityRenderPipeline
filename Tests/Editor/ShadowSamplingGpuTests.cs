@@ -201,5 +201,212 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { output?.Dispose(); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader); }
         }
 
+        [Test]
+        public void ShapePCSS_ElongatedRect_ProducesAnisotropicPenumbraThatRotates()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+
+            ComputeShader shader = null;
+            Texture2D depth = null;
+            GraphicsBuffer output = null;
+            try
+            {
+                shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                    "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+                // Small centered blocker square inside a 128x128 shadow map.
+                depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
+                bool reversed = SystemInfo.usesReversedZBuffer;
+                float blockerDepth = 0.5f;
+                float clearDepth = reversed ? 0.0f : 1.0f;
+                var values = new float[128 * 128];
+                for (int y = 0; y < 128; ++y)
+                    for (int x = 0; x < 128; ++x)
+                        values[y * 128 + x] = (x >= 62 && x < 66 && y >= 62 && y < 66) ? blockerDepth : clearDepth;
+                depth.SetPixelData(values, 0); depth.Apply(false);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
+
+                int kernel = shader.FindKernel("ShapePCSS");
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { filterParameters = new Vector4(1, 64, 64, 24) });
+                shader.SetVector("TestRect", new Vector4(0, 0, 1, 1));
+                shader.SetVector("TestTexelSize", new Vector2(1f / 128f, 1f / 128f));
+                shader.SetVector("TestDepthParams", reversed ? new Vector4(0, 1, 0.01f, 0) : new Vector4(-1, -1, 0.01f, 0));
+                shader.SetFloat("TestReceiverDepth", 4.0f);
+                shader.SetFloat("TestApexOffset", 0.0f);
+                shader.SetTexture(kernel, "TestDepth", depth);
+                shader.SetBuffer(kernel, "Results", output);
+
+                int MeasureWidth(Vector4 axisU, Vector4 axisV, int sweepAxis)
+                {
+                    shader.SetVector("TestEmitterAxisU", axisU);
+                    shader.SetVector("TestEmitterAxisV", axisV);
+                    shader.SetInt("TestSweepAxis", sweepAxis);
+                    shader.SetFloat("TestSweepCoord", 0.5f);
+                    shader.Dispatch(kernel, 4, 1, 1);
+                    var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                    Assert.IsFalse(readback.hasError);
+                    var samples = readback.GetData<Vector4>();
+                    int shadowed = 0;
+                    for (int i = 0; i < samples.Length; ++i)
+                        if (samples[i].x < 0.99f) shadowed++;
+                    return shadowed;
+                }
+
+                // Wide horizontal Rect: width > height -> X penumbra much wider than Y penumbra.
+                Vector4 horizU = new Vector4(1, 0, 0.35f, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.OrientedRect);
+                Vector4 horizV = new Vector4(0, 1, 0.04f, 1);
+                int widthX = MeasureWidth(horizU, horizV, 0);
+                int widthY = MeasureWidth(horizU, horizV, 1);
+                Assert.Greater(widthX, widthY + 12, $"Horizontal Rect penumbra must be wider along X ({widthX}) than Y ({widthY}).");
+
+                // Rotated 90 degrees: X/Y penumbra extents swap.
+                Vector4 vertU = new Vector4(0, 1, 0.35f, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.OrientedRect);
+                Vector4 vertV = new Vector4(-1, 0, 0.04f, 1);
+                int rotWidthX = MeasureWidth(vertU, vertV, 0);
+                int rotWidthY = MeasureWidth(vertU, vertV, 1);
+                Assert.Greater(rotWidthY, rotWidthX + 12, $"Rotated Rect penumbra must swap to Y ({rotWidthY}) vs X ({rotWidthX}).");
+
+                // Equal-area isotropic circle behaves symmetrically unlike the elongated Rect.
+                float eqRadius = Mathf.Sqrt(0.35f * 0.04f);
+                Vector4 diskU = new Vector4(1, 0, eqRadius, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.IsotropicDisk);
+                Vector4 diskV = new Vector4(0, 1, eqRadius, 1);
+                int diskX = MeasureWidth(diskU, diskV, 0);
+                Assert.Greater(widthX, diskX + 10, $"Elongated Rect X spread ({widthX}) must differ measurably from equal-area Disk ({diskX}).");
+            }
+            finally { output?.Dispose(); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader); }
+        }
+
+        [Test]
+        public void ShapePCSS_LineAndTube_RespondToAxisAndRadius()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+
+            ComputeShader shader = null;
+            Texture2D depth = null;
+            GraphicsBuffer output = null;
+            try
+            {
+                shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                    "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+                depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
+                bool reversed = SystemInfo.usesReversedZBuffer;
+                float blockerDepth = 0.5f;
+                float clearDepth = reversed ? 0.0f : 1.0f;
+                var values = new float[128 * 128];
+                for (int y = 0; y < 128; ++y)
+                    for (int x = 0; x < 128; ++x)
+                        values[y * 128 + x] = (x >= 62 && x < 66 && y >= 62 && y < 66) ? blockerDepth : clearDepth;
+                depth.SetPixelData(values, 0); depth.Apply(false);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
+
+                int kernel = shader.FindKernel("ShapePCSS");
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { filterParameters = new Vector4(1, 64, 64, 24) });
+                shader.SetVector("TestRect", new Vector4(0, 0, 1, 1));
+                shader.SetVector("TestTexelSize", new Vector2(1f / 128f, 1f / 128f));
+                shader.SetVector("TestDepthParams", reversed ? new Vector4(0, 1, 0.01f, 0) : new Vector4(-1, -1, 0.01f, 0));
+                shader.SetFloat("TestReceiverDepth", 4.0f);
+                shader.SetFloat("TestApexOffset", 0.0f);
+                shader.SetTexture(kernel, "TestDepth", depth);
+                shader.SetBuffer(kernel, "Results", output);
+
+                int CountSoftSamples(Vector4 axisU, Vector4 axisV, int sweepAxis)
+                {
+                    shader.SetVector("TestEmitterAxisU", axisU);
+                    shader.SetVector("TestEmitterAxisV", axisV);
+                    shader.SetInt("TestSweepAxis", sweepAxis);
+                    shader.SetFloat("TestSweepCoord", 0.5f);
+                    shader.Dispatch(kernel, 4, 1, 1);
+                    var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                    Assert.IsFalse(readback.hasError);
+                    var samples = readback.GetData<Vector4>();
+                    int soft = 0;
+                    for (int i = 0; i < samples.Length; ++i)
+                        if (samples[i].x > 0.01f && samples[i].x < 0.99f) soft++;
+                    return soft;
+                }
+
+                // Pure Line (radius = 0, halfLength = 0.4 along X): directional penumbra along X, hard along Y.
+                var lineU = new Vector4(1, 0, 0.4f, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.OrientedCapsule);
+                var lineV = new Vector4(0, 1, 0.0f, 1);
+                int lineSoftX = CountSoftSamples(lineU, lineV, 0);
+                int lineSoftY = CountSoftSamples(lineU, lineV, 1);
+                Assert.Greater(lineSoftX, lineSoftY + 10, $"Line length must soften along X ({lineSoftX}) while staying tight along Y ({lineSoftY}).");
+
+                // Tube adds transverse radius -> softens perpendicular Y axis too.
+                var tubeV = new Vector4(0, 1, 0.25f, 1);
+                int tubeSoftY = CountSoftSamples(lineU, tubeV, 1);
+                Assert.Greater(tubeSoftY, lineSoftY + 8, $"Tube transverse radius must soften along Y ({tubeSoftY}) compared to zero-radius Line ({lineSoftY}).");
+            }
+            finally { output?.Dispose(); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader); }
+        }
+
+        [Test]
+        public void ShapePCSS_NearEmitterPlanarOccluder_UsesEmitterDepthBaselineAndClampsTile()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+
+            ComputeShader shader = null;
+            Texture2D depth = null;
+            GraphicsBuffer output = null;
+            try
+            {
+                shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                    "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+                // Left half of the atlas has a rogue neighbor-tile blocker at z = very close; right half is tile [0.5, 0, 0.5, 1]
+                // with a narrow strip blocker near x = 0.75 (center of right tile).
+                depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
+                bool reversed = SystemInfo.usesReversedZBuffer;
+                // Blocker sits at d_apex = 1.0 (0.3 in front of apexOffset = 0.7), clear = farthest.
+                float blockerStored = reversed ? 0.7f : 0.3f;
+                float neighborBlocker = reversed ? 1.0f : 0.0f;
+                float clearStored = reversed ? 0.0f : 1.0f;
+                var values = new float[128 * 128];
+                for (int y = 0; y < 128; ++y)
+                    for (int x = 0; x < 128; ++x)
+                    {
+                        if (x < 64) values[y * 128 + x] = neighborBlocker;
+                        else values[y * 128 + x] = (x >= 95 && x <= 97) ? blockerStored : clearStored;
+                    }
+                depth.SetPixelData(values, 0); depth.Apply(false);
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
+
+                int kernel = shader.FindKernel("ShapePCSS");
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { filterParameters = new Vector4(1, 64, 64, 24) });
+                shader.SetVector("TestRect", new Vector4(0.5f, 0, 0.5f, 1));
+                shader.SetVector("TestTexelSize", new Vector2(1f / 128f, 1f / 128f));
+                shader.SetVector("TestDepthParams", reversed ? new Vector4(0, 0.7f, 0.01f, 0) : new Vector4(-1, -0.7f, 0.01f, 0));
+                shader.SetFloat("TestReceiverDepth", 2.7f);
+                shader.SetVector("TestEmitterAxisU", new Vector4(1, 0, 0.3f, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.IsotropicDisk));
+                shader.SetVector("TestEmitterAxisV", new Vector4(0, 1, 0.3f, 1));
+                shader.SetInt("TestSweepAxis", 0);
+                shader.SetFloat("TestSweepCoord", 0.5f);
+                shader.SetTexture(kernel, "TestDepth", depth);
+                shader.SetBuffer(kernel, "Results", output);
+
+                int MeasureTransition(float apexOffset, out float borderLit)
+                {
+                    shader.SetFloat("TestApexOffset", apexOffset);
+                    shader.Dispatch(kernel, 4, 1, 1);
+                    var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                    Assert.IsFalse(readback.hasError);
+                    var samples = readback.GetData<Vector4>();
+                    borderLit = samples[0].x;
+                    int soft = 0;
+                    for (int i = 0; i < samples.Length; ++i)
+                        if (samples[i].x > 0.01f && samples[i].x < 0.99f) soft++;
+                    return soft;
+                }
+
+                int virtualApexTransition = MeasureTransition(0.0f, out float _);
+                int emitterBaselineTransition = MeasureTransition(0.7f, out float borderVisibility);
+                Assert.Greater(emitterBaselineTransition, virtualApexTransition,
+                    $"Emitter-plane baseline ({emitterBaselineTransition}) must yield wider penumbra for near-emitter blocker than virtual apex ({virtualApexTransition}).");
+                Assert.AreEqual(1.0f, borderVisibility, 1e-5f, "Tile edge sampling must clamp inside tile [0.5, 1] and never bleed neighbor blocker.");
+            }
+            finally { output?.Dispose(); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader); }
+        }
+
     }
 }

@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Checkbox, s_Enabled, "m_Enabled", 50),
                 new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Name, s_Name, null, 200),
-                new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom, new GUIContent("Shape"), "m_Shape.type", 110, (r, prop, dep) =>
+                new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom, new GUIContent("Shape"), "m_Shape.kind", 120, (r, prop, dep) =>
                 {
                     var data = prop.serializedObject.targetObject as InfinityAdditionalLightData;
                     EditorGUI.LabelField(r, data != null && data.attachedLight != null ? DescribeShape(data.shape) : "-");
@@ -92,19 +92,25 @@ namespace InfinityTech.Rendering.Editor
 
         static string DescribeShape(in LightSourceShape shape)
         {
-            switch (shape.type)
+            if (!LightShapeUtility.IsValidCombination(shape.kind, shape.emitter, shape.distribution))
             {
-                case EInfinityLightType.Point:
-                    if (shape.sourceLength > 0)
-                    {
-                        return shape.sourceRadius > 0 ? "Tube" : "Line";
-                    }
-                    return shape.sourceRadius > 0 ? "Sphere" : "Point";
-                case EInfinityLightType.Spot:
-                    return shape.spotShape + " Spot";
-                default:
-                    return shape.type.ToString();
+                return "Invalid";
             }
+            return LightShapeUtility.Resolve(shape) switch
+            {
+                EResolvedLightShape.Directional => "Directional",
+                EResolvedLightShape.Point => "Point",
+                EResolvedLightShape.Sphere => "Sphere",
+                EResolvedLightShape.Line => "Line",
+                EResolvedLightShape.Tube => "Tube",
+                EResolvedLightShape.SpotCone => "Cone Spot",
+                EResolvedLightShape.SpotPyramid => "Pyramid Spot",
+                EResolvedLightShape.SpotBox => "Box Spot",
+                EResolvedLightShape.Rect => "Rect",
+                EResolvedLightShape.Disk => "Disk",
+                EResolvedLightShape.DiskCone => "Disk + Cone",
+                _ => shape.kind.ToString(),
+            };
         }
 
         static LightingExplorerTableColumn[] GetInfinityProbeColumns()

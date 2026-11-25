@@ -8,6 +8,7 @@
 #include "../../Library/Lighting.hlsl"
 #include "../../Library/ShadowSampling.hlsl"
 #include "../../Library/Lighting/LightCookie.hlsl"
+#include "../../Library/Lighting/LightShapes.hlsl"
 #include "../../Library/Random.hlsl"
 #include "../../Library/AtmosphereCommon.hlsl"
 #include "../../Library/CloudShell.hlsl"
@@ -153,33 +154,48 @@ float LightMarch(float3 startPos, float3 lightDir, float lightDistance)
 
 float3 EvaluateCloudLight(LightRecord light, float3 samplePos, float3 rayDir, float density, float normalizedHeight)
 {
-    float3 L;
+    float3 L = float3(0.0, 1.0, 0.0);
     float att = 1.0;
     float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
     float viewDepth = -viewPos.z;
-    float shadow;
-    if (IsDirectionalLight(light))
+    float shadow = 1.0;
+    float3 planarCookie = 1.0;
+    bool directional = IsDirectionalLight(light);
+    if (directional)
     {
         L = DirectionalLightL(light);
         shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
     }
     else
     {
-        L = LocalLightL(light, samplePos);
-        att = LocalLightAttenuation(light, samplePos);
-        shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
+        EvaluateVolumeLocalLight(light, samplePos, L, att);
+        if (att > 0.0)
+        {
+            if (IsPlanarLight(light))
+            {
+                float3 planarDiffuse, planarSpecular;
+                LightPlanarCookie(light, 0.5, 1.0, planarDiffuse, planarSpecular);
+                planarCookie = planarDiffuse;
+            }
+            shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
+        }
     }
 
-    float lightDistance = IsDirectionalLight(light) ? 1e20 : length(light.positionRange.xyz - samplePos);
-    float lightEnergy = LightMarch(samplePos, L, lightDistance);
-    float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
-    float3 radialUp = normalize(samplePos - CloudPlanetCenter(VolCloud_PlanetRadius));
-    float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, dot(L, radialUp), VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
-    float phase = CloudPhase(dot(rayDir, L));
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
-    float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * sunTransmittance * lightEnergy * phase * shadow * att;
-    float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
-    return (radiance + ambient) * density;
+    float3 result = 0.0;
+    if (directional || att > 0.0)
+    {
+        float lightDistance = directional ? 1e20 : length(light.positionRange.xyz - samplePos);
+        float lightEnergy = LightMarch(samplePos, L, lightDistance);
+        float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
+        float3 radialUp = normalize(samplePos - CloudPlanetCenter(VolCloud_PlanetRadius));
+        float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, dot(L, radialUp), VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
+        float phase = CloudPhase(dot(rayDir, L));
+        shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
+        float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * planarCookie * sunTransmittance * lightEnergy * phase * shadow * att;
+        float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight) * (directional ? 1.0 : att);
+        result = (radiance + ambient) * density;
+    }
+    return result;
 }
 
 [numthreads(8, 8, 1)]

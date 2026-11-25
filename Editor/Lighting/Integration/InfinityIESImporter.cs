@@ -4,14 +4,15 @@ using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Editor
 {
     // Completes the light prefab of CoreRP's IES importer (UnityEditor.Rendering.IESImporter, *.ies) for Infinity: the
     // prefab gets InfinityAdditionalLightData with the profile texture as iesProfile (Cube for point prefabs, 2D for
-    // spot prefabs) and, when the importer is set to use the file's maximum intensity, that intensity in candela.
+    // spot prefabs) and preserves either the file's photometric intensity (converted via LightIntensityUtility into
+    // canonical units while keeping the imported display unit) or normalized unity intensity.
     // Runs only while an Infinity asset is the active pipeline, so another SRP's handler owns the prefab otherwise.
-    // TODO(UNVERIFIED): prefab sub-asset creation is not verified in the Editor yet.
     [InitializeOnLoad]
     static class InfinityIESImporter
     {
@@ -29,27 +30,72 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 return;
             }
 
-            InfinityAdditionalLightData data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
-            data.iesProfile = ies;
-            if (useIESMaximumIntensity)
-            {
-                light.intensity = CandelaFromIES(light, iesMaximumIntensityUnit, iesMaximumIntensity);
-            }
+            ApplyImportedIES(light, ies, useIESMaximumIntensity, iesMaximumIntensityUnit, iesMaximumIntensity);
             ctx.AddObjectToAsset(iesFileName + "-Infinity", light.gameObject);
         }
 
-        // The pipeline treats Light.intensity of punctual lights as on-axis intensity (candela). Lumen values spread
-        // over the sphere (point) or the cone (spot).
+        internal static void ApplyImportedIES(Light light, Texture ies, bool useIESMaximumIntensity,
+            string iesMaximumIntensityUnit, float iesMaximumIntensity)
+        {
+            InfinityAdditionalLightData data = light.gameObject.GetComponent<InfinityAdditionalLightData>()
+                ?? light.gameObject.AddComponent<InfinityAdditionalLightData>();
+            data.iesProfile = ies;
+            // The IES profile encodes the fixture's angular distribution; keep SpotWindow unattenuated inside outer cone.
+            if (light.type == LightType.Spot)
+            {
+                light.innerSpotAngle = light.spotAngle;
+            }
+            LightSourceShape shape = LightShapeUtility.FromUnityLight(light);
+            LightUnit canonicalUnit = LightIntensityUtility.GetCanonicalUnit(shape);
+            if (useIESMaximumIntensity)
+            {
+                LightUnit sourceUnit = ParseIESUnit(iesMaximumIntensityUnit);
+                light.intensity = CandelaFromIES(light, iesMaximumIntensityUnit, iesMaximumIntensity);
+                light.lightUnit = LightIntensityUtility.IsUnitSupported(shape, sourceUnit) ? sourceUnit : canonicalUnit;
+            }
+            else
+            {
+                // Normalized IES profile: leave peak at 1 in canonical units.
+                light.intensity = 1.0f;
+                light.lightUnit = canonicalUnit;
+            }
+        }
+
+        internal static LightUnit ParseIESUnit(string unit)
+        {
+            if (string.IsNullOrEmpty(unit))
+            {
+                return LightUnit.Candela;
+            }
+            string lower = unit.Trim().ToLowerInvariant();
+            if (lower.StartsWith("lumen"))
+            {
+                return LightUnit.Lumen;
+            }
+            if (lower.StartsWith("lux"))
+            {
+                return LightUnit.Lux;
+            }
+            if (lower.StartsWith("nit"))
+            {
+                return LightUnit.Nits;
+            }
+            return LightUnit.Candela;
+        }
+
+        // Converts an IES maximum intensity (lumens or candelas) to canonical Light.intensity (candela) using the
+        // IES cone opening angle without Unity's default inner-angle cone weighting.
         internal static float CandelaFromIES(Light light, string unit, float value)
         {
-            if (unit != null && unit.ToLowerInvariant().StartsWith("lumen"))
+            LightUnit sourceUnit = ParseIESUnit(unit);
+            if (light == null)
             {
-                float solidAngle = light.type == LightType.Spot
-                    ? 2.0f * Mathf.PI * (1.0f - Mathf.Cos(0.5f * light.spotAngle * Mathf.Deg2Rad))
-                    : 4.0f * Mathf.PI;
-                return value / Mathf.Max(solidAngle, 1e-4f);
+                return value;
             }
-            return value;
+            LightSourceShape shape = LightShapeUtility.FromUnityLight(light);
+            float outerAngle = LightIntensityUtility.GetEffectiveSpotAngle(light);
+            return LightIntensityUtility.ToCanonicalIntensity(
+                value, shape, sourceUnit, outerAngle, outerAngle, LightIntensityUtility.GetEffectiveLuxDistance(light));
         }
     }
 }

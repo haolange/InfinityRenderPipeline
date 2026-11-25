@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEditor;
 using InfinityTech.Component;
 using InfinityTech.Rendering.LightPipeline;
@@ -30,29 +31,38 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return light;
         }
 
-        [TestCase(EInfinityLightType.Point, 0.0f, 0.0f, LightType.Point)]
-        [TestCase(EInfinityLightType.Point, 0.2f, 0.0f, LightType.Point)]
-        [TestCase(EInfinityLightType.Point, 0.0f, 1.5f, LightType.Tube)]
-        [TestCase(EInfinityLightType.Point, 0.1f, 1.5f, LightType.Tube)]
-        [TestCase(EInfinityLightType.Rect, 0.0f, 0.0f, LightType.Rectangle)]
-        [TestCase(EInfinityLightType.Disk, 0.5f, 0.0f, LightType.Rectangle)]
-        [TestCase(EInfinityLightType.Directional, 0.0f, 0.0f, LightType.Directional)]
-        public void ShapeParameters_DeriveTheNativeType(EInfinityLightType type, float radius, float length, LightType expected)
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional, 0.0f, 0.0f, LightType.Point, true)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional, 0.2f, 0.0f, LightType.Point, true)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional, 0.0f, 1.5f, LightType.Tube, false)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional, 0.1f, 1.5f, LightType.Tube, false)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere, 0.0f, 0.0f, LightType.Rectangle, true)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere, 0.5f, 0.0f, LightType.Rectangle, true)]
+        [TestCase(ELightKind.Local, ELocalLightEmitter.Disk, ELocalLightDistribution.Cone, 0.5f, 0.0f, LightType.Rectangle, false)]
+        [TestCase(ELightKind.Directional, ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional, 0.0f, 0.0f, LightType.Directional, true)]
+        public void ShapeParameters_DeriveTheNativeType(
+            ELightKind kind,
+            ELocalLightEmitter emitter,
+            ELocalLightDistribution distribution,
+            float radius,
+            float length,
+            LightType expected,
+            bool expectedBakeable)
         {
-            LightSourceShape shape = LightSourceShape.Default(type);
+            LightSourceShape shape = kind == ELightKind.Directional
+                ? LightSourceShape.DefaultDirectional()
+                : LightSourceShape.DefaultLocal(emitter, distribution);
             shape.sourceRadius = radius;
             shape.sourceLength = length;
             Assert.AreEqual(expected, LightShapeUtility.NativeType(shape));
-            Assert.AreEqual(length <= 0, LightShapeUtility.IsBakeable(shape), "Tubes and lines are realtime only.");
+            Assert.AreEqual(expectedBakeable, LightShapeUtility.IsBakeable(shape));
         }
 
-        [TestCase(ESpotShape.Cone, LightType.Spot)]
-        [TestCase(ESpotShape.Pyramid, LightType.Pyramid)]
-        [TestCase(ESpotShape.Box, LightType.Box)]
-        public void SpotShapes_DeriveTheNativeType(ESpotShape spotShape, LightType expected)
+        [TestCase(ELocalLightDistribution.Cone, LightType.Spot)]
+        [TestCase(ELocalLightDistribution.Pyramid, LightType.Pyramid)]
+        [TestCase(ELocalLightDistribution.ParallelBox, LightType.Box)]
+        public void SpotDistributions_DeriveTheNativeType(ELocalLightDistribution distribution, LightType expected)
         {
-            LightSourceShape shape = LightSourceShape.Default(EInfinityLightType.Spot);
-            shape.spotShape = spotShape;
+            LightSourceShape shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, distribution);
             Assert.AreEqual(expected, LightShapeUtility.NativeType(shape));
         }
 
@@ -64,38 +74,40 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var shapes = new[]
                 {
-                    new LightSourceShape { type = EInfinityLightType.Point, sourceRadius = 0.15f, sourceLength = 2.0f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
-                    new LightSourceShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Pyramid, sourceRadius = 0.05f, pyramidAspect = 2.0f, sourceWidth = 1, sourceHeight = 1, boxSize = Vector2.one },
-                    new LightSourceShape { type = EInfinityLightType.Spot, spotShape = ESpotShape.Box, boxSize = new Vector2(3, 2), sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1 },
-                    new LightSourceShape { type = EInfinityLightType.Rect, sourceWidth = 2.0f, sourceHeight = 0.5f, pyramidAspect = 1, boxSize = Vector2.one },
-                    new LightSourceShape { type = EInfinityLightType.Disk, sourceRadius = 0.75f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
-                    new LightSourceShape { type = EInfinityLightType.Directional, sourceAngle = 0.5357f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { kind = ELightKind.Local, emitter = ELocalLightEmitter.Round, distribution = ELocalLightDistribution.Omnidirectional, sourceRadius = 0.15f, sourceLength = 2.0f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { kind = ELightKind.Local, emitter = ELocalLightEmitter.Round, distribution = ELocalLightDistribution.Pyramid, sourceRadius = 0.05f, pyramidAspect = 2.0f, sourceWidth = 1, sourceHeight = 1, boxSize = Vector2.one },
+                    new LightSourceShape { kind = ELightKind.Local, emitter = ELocalLightEmitter.Round, distribution = ELocalLightDistribution.ParallelBox, boxSize = new Vector2(3, 2), sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1 },
+                    new LightSourceShape { kind = ELightKind.Local, emitter = ELocalLightEmitter.Rectangle, distribution = ELocalLightDistribution.Hemisphere, sourceWidth = 2.0f, sourceHeight = 0.5f, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { kind = ELightKind.Local, emitter = ELocalLightEmitter.Disk, distribution = ELocalLightDistribution.Hemisphere, sourceRadius = 0.75f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
+                    new LightSourceShape { kind = ELightKind.Directional, emitter = ELocalLightEmitter.Round, distribution = ELocalLightDistribution.Omnidirectional, sourceAngle = 0.5357f, sourceWidth = 1, sourceHeight = 1, pyramidAspect = 1, boxSize = Vector2.one },
                 };
                 foreach (LightSourceShape shape in shapes)
                 {
                     LightShapeUtility.ApplyToUnityLight(light, shape);
                     LightSourceShape read = LightShapeUtility.FromUnityLight(light);
-                    if (shape.type == EInfinityLightType.Disk)
+                    if (shape.emitter == ELocalLightEmitter.Disk)
                     {
                         // The carrier does not store Disk identity; authored shape lives on Additional data.
-                        Assert.AreEqual(EInfinityLightType.Rect, read.type);
+                        Assert.AreEqual(ELocalLightEmitter.Rectangle, read.emitter);
+                        Assert.AreEqual(ELocalLightDistribution.Hemisphere, read.distribution);
                         Assert.AreEqual(Mathf.Sqrt(Mathf.PI) * shape.sourceRadius, read.sourceWidth, 1e-5f);
                         Assert.AreEqual(read.sourceWidth, read.sourceHeight, 1e-5f);
                         Assert.IsFalse(LightShapeUtility.ApplyToUnityLight(light, shape), "Second apply is a no-op.");
                         continue;
                     }
-                    Assert.AreEqual(shape.type, read.type);
-                    Assert.AreEqual(shape.sourceRadius, read.sourceRadius, 1e-5f, shape.type + " radius");
-                    Assert.AreEqual(shape.sourceLength, read.sourceLength, 1e-5f, shape.type + " length");
-                    if (shape.type == EInfinityLightType.Spot) Assert.AreEqual(shape.spotShape, read.spotShape);
-                    if (shape.type == EInfinityLightType.Rect)
+                    Assert.AreEqual(shape.kind, read.kind);
+                    Assert.AreEqual(shape.emitter, read.emitter);
+                    Assert.AreEqual(shape.distribution, read.distribution);
+                    Assert.AreEqual(shape.sourceRadius, read.sourceRadius, 1e-5f, shape.emitter + " radius");
+                    Assert.AreEqual(shape.sourceLength, read.sourceLength, 1e-5f, shape.emitter + " length");
+                    if (shape.emitter == ELocalLightEmitter.Rectangle)
                     {
                         Assert.AreEqual(shape.sourceWidth, read.sourceWidth, 1e-5f);
                         Assert.AreEqual(shape.sourceHeight, read.sourceHeight, 1e-5f);
                     }
-                    if (shape.spotShape == ESpotShape.Pyramid) Assert.AreEqual(shape.pyramidAspect, read.pyramidAspect, 1e-5f);
-                    if (shape.spotShape == ESpotShape.Box) Assert.AreEqual(shape.boxSize, read.boxSize);
-                    if (shape.type == EInfinityLightType.Directional) Assert.AreEqual(shape.sourceAngle, read.sourceAngle, 1e-5f);
+                    if (shape.distribution == ELocalLightDistribution.Pyramid) Assert.AreEqual(shape.pyramidAspect, read.pyramidAspect, 1e-5f);
+                    if (shape.distribution == ELocalLightDistribution.ParallelBox) Assert.AreEqual(shape.boxSize, read.boxSize);
+                    if (shape.kind == ELightKind.Directional) Assert.AreEqual(shape.sourceAngle, read.sourceAngle, 1e-5f);
                     Assert.IsFalse(LightShapeUtility.ApplyToUnityLight(light, shape), "A second apply changes nothing.");
                 }
             }
@@ -114,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 light.areaSize = new Vector2(3, 1);
                 var data = go.AddComponent<InfinityAdditionalLightData>();
                 LightSourceShape shape = data.shape;
-                Assert.AreEqual(EInfinityLightType.Rect, shape.type);
+                Assert.AreEqual(EResolvedLightShape.Rect, LightShapeUtility.Resolve(shape));
                 Assert.AreEqual(3.0f, shape.sourceWidth, 1e-5f);
                 Assert.AreEqual(LightType.Rectangle, light.type, "Adding the component never changes the light.");
             }
@@ -176,7 +188,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 string beforeShape = EditorJsonUtility.ToJson(data);
                 Undo.IncrementCurrentGroup();
                 Undo.RecordObjects(new Object[] { light, data }, "Change light shape");
-                var disk = LightSourceShape.Default(EInfinityLightType.Disk);
+                var disk = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere);
                 disk.sourceRadius = 0.85f;
                 data.SetShape(disk);
                 Undo.FlushUndoRecordObjects();
@@ -194,7 +206,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(afterShape, EditorJsonUtility.ToJson(data));
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
-                data.SetShape(LightSourceShape.Default(EInfinityLightType.Rect));
+                data.SetShape(LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere));
                 Assert.AreEqual(mode, light.lightmapBakeType);
                 Undo.ClearUndo(data);
                 Undo.ClearUndo(light);
@@ -220,12 +232,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var data = go.AddComponent<InfinityAdditionalLightData>();
                 light.lightmapBakeType = mode;
-                var disk = LightSourceShape.Default(EInfinityLightType.Disk);
+                var disk = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere);
                 disk.sourceRadius = 0.85f;
                 data.SetShape(disk);
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
-                Assert.AreEqual(EInfinityLightType.Disk, LightRecordPack.ResolveShape(light, data).type);
+                Assert.AreEqual(EResolvedLightShape.Disk, LightShapeUtility.Resolve(LightRecordPack.ResolveShape(light, data)));
                 using (var output = new Unity.Collections.NativeArray<UnityEngine.Experimental.GlobalIllumination.LightDataGI>(1, Unity.Collections.Allocator.Temp))
                 {
                     InfinityLightmapperDelegate.Delegate(new[] { light }, output);
@@ -258,7 +270,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 light.areaSize = new Vector2(0.85f, 1);
                 var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
                 string native = EditorJsonUtility.ToJson(light);
-                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(EResolvedLightShape.Disk, LightShapeUtility.Resolve(data.shape));
                 Assert.AreEqual(LightType.Disc, light.type, "Adoption must not migrate native fields.");
 
                 InfinityLightEditorTransactions.ApplyBakeMode(new[] { light }, mode);
@@ -270,7 +282,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Undo.PerformRedo();
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(mode, light.lightmapBakeType);
-                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(EResolvedLightShape.Disk, LightShapeUtility.Resolve(data.shape));
             }
         }
 
@@ -364,7 +376,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var field = typeof(InfinityLightEditor).GetField("m_After", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                     var snapshots = (InfinityLightInspectorSnapshot[])field.GetValue(inspector);
                     using var serialized = new SerializedObject(snapshots[0]);
-                    Assert.IsTrue(serialized.FindProperty("m_Shape.type").editable);
+                    Assert.IsTrue(serialized.FindProperty("m_Shape.kind").editable);
+                    Assert.IsTrue(serialized.FindProperty("m_Shape.emitter").editable);
+                    Assert.IsTrue(serialized.FindProperty("m_Shape.distribution").editable);
                     Assert.IsTrue(serialized.FindProperty("m_Shape.sourceRadius").editable);
                     Assert.IsTrue(serialized.FindProperty("maxDrawDistance").editable);
                     Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
@@ -574,13 +588,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Light second = fixture.NewLight(LightType.Point);
                 var firstData = first.gameObject.AddComponent<InfinityAdditionalLightData>();
                 var secondData = second.gameObject.AddComponent<InfinityAdditionalLightData>();
-                var firstShape = LightSourceShape.Default(EInfinityLightType.Point);
+                var firstShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
                 firstShape.sourceRadius = 0.1f;
-                firstShape.softSourceRadius = 0.2f;
+                firstShape.sourceLength = 0.2f;
                 firstData.SetShape(firstShape);
-                var secondShape = LightSourceShape.Default(EInfinityLightType.Point);
+                var secondShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
                 secondShape.sourceRadius = 0.3f;
-                secondShape.softSourceRadius = 0.4f;
+                secondShape.sourceLength = 0.4f;
                 secondData.SetShape(secondShape);
                 var before = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
                 var after = new[] { fixture.Snapshot(first), fixture.Snapshot(second) };
@@ -596,8 +610,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 Assert.AreEqual(0.5f, firstData.shape.sourceRadius, 1e-6f);
                 Assert.AreEqual(0.5f, secondData.shape.sourceRadius, 1e-6f);
-                Assert.AreEqual(0.2f, firstData.shape.softSourceRadius, 1e-6f);
-                Assert.AreEqual(0.4f, secondData.shape.softSourceRadius, 1e-6f);
+                Assert.AreEqual(0.2f, firstData.shape.sourceLength, 1e-6f);
+                Assert.AreEqual(0.4f, secondData.shape.sourceLength, 1e-6f);
                 Assert.AreEqual(0.5f, first.shapeRadius, 1e-6f);
                 Assert.AreEqual(0.5f, second.shapeRadius, 1e-6f);
                 Undo.PerformUndo();
@@ -677,7 +691,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 radius.floatValue = 0.25f;
                 InfinityLightEditorTransactions.StageProperty(radius, new[] { firstSnapshot, secondSnapshot });
                 var invalid = after[1].shape;
-                invalid.type = (EInfinityLightType)999;
+                invalid.kind = (ELightKind)999;
                 typeof(InfinityLightInspectorSnapshot).GetField("m_Shape", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                     .SetValue(after[1], invalid);
 
@@ -707,7 +721,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 var data = light.GetComponent<InfinityAdditionalLightData>();
                 Assert.IsNotNull(data);
-                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(EResolvedLightShape.Disk, LightShapeUtility.Resolve(data.shape));
                 Assert.AreEqual(0, data.maxDrawDistance);
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
@@ -717,7 +731,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Undo.PerformRedo();
                 data = light.GetComponent<InfinityAdditionalLightData>();
                 Assert.IsNotNull(data);
-                Assert.AreEqual(EInfinityLightType.Disk, data.shape.type);
+                Assert.AreEqual(EResolvedLightShape.Disk, LightShapeUtility.Resolve(data.shape));
                 Assert.AreEqual(0, data.maxDrawDistance);
                 Assert.AreEqual(LightType.Rectangle, light.type);
                 Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
@@ -883,10 +897,137 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void InvalidRect_IsRejected()
         {
-            LightSourceShape shape = LightSourceShape.Default(EInfinityLightType.Rect);
+            LightSourceShape shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere);
             shape.sourceWidth = 0;
             Assert.IsFalse(LightShapeUtility.IsValid(shape));
-            Assert.IsTrue(LightShapeUtility.IsValid(LightSourceShape.Default(EInfinityLightType.Point)));
+            Assert.IsTrue(LightShapeUtility.IsValid(LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional)));
+        }
+
+        [Test]
+        public void ShapeCombinations_CapabilitiesAndNormalization_AreConsistent()
+        {
+            Assert.IsFalse(LightShapeUtility.IsValidCombination(ELightKind.Local, ELocalLightEmitter.Round, ELocalLightDistribution.Hemisphere));
+            Assert.IsFalse(LightShapeUtility.IsValidCombination(ELightKind.Local, ELocalLightEmitter.Rectangle, ELocalLightDistribution.Cone));
+            Assert.IsFalse(LightShapeUtility.IsValidCombination(ELightKind.Local, ELocalLightEmitter.Disk, ELocalLightDistribution.Pyramid));
+            Assert.IsTrue(LightShapeUtility.IsValidCombination(ELightKind.Local, ELocalLightEmitter.Disk, ELocalLightDistribution.Cone));
+
+            var invalidShape = new LightSourceShape
+            {
+                kind = ELightKind.Local,
+                emitter = ELocalLightEmitter.Rectangle,
+                distribution = ELocalLightDistribution.Omnidirectional,
+                sourceWidth = 1f,
+                sourceHeight = 1f,
+            };
+            Assert.IsFalse(LightShapeUtility.IsValid(invalidShape));
+            Assert.IsFalse(LightShapeUtility.GetCapabilities(invalidShape).validCombination);
+
+            var diskCone = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone);
+            LightCapabilities diskConeCaps = LightShapeUtility.GetCapabilities(diskCone);
+            Assert.IsTrue(diskConeCaps.validCombination);
+            Assert.IsTrue(diskConeCaps.realtimeShading);
+            Assert.IsTrue(diskConeCaps.realtimeShadow);
+            Assert.IsFalse(diskConeCaps.baking);
+            Assert.IsFalse(string.IsNullOrEmpty(diskConeCaps.bakeDisabledReason));
+            Assert.IsTrue(diskConeCaps.supportsPlanarCookie);
+            Assert.IsTrue(diskConeCaps.supports2DIes);
+
+            var tube = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+            tube.sourceLength = 1.5f;
+            LightCapabilities tubeCaps = LightShapeUtility.GetCapabilities(tube);
+            Assert.IsFalse(tubeCaps.baking);
+            Assert.IsFalse(string.IsNullOrEmpty(tubeCaps.bakeDisabledReason));
+
+            Assert.AreEqual((ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere),
+                LightShapeUtility.NormalizeCombination(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Cone, keepEmitter: true));
+            Assert.AreEqual((ELocalLightEmitter.Disk, ELocalLightDistribution.Cone),
+                LightShapeUtility.NormalizeCombination(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone, keepEmitter: false));
+        }
+
+        [Test]
+        public void DiskCone_PacksShiftedApexAndSetsNoBakeWithWarning()
+        {
+            var root = new GameObject("Rig");
+            var child = new GameObject("DiskConeSpot");
+            child.transform.SetParent(root.transform, false);
+            Light light = child.AddComponent<Light>();
+            try
+            {
+                light.lightmapBakeType = LightmapBakeType.Mixed;
+                light.spotAngle = 90f;
+                light.innerSpotAngle = 30f;
+                light.range = 12f;
+                var data = child.AddComponent<InfinityAdditionalLightData>();
+                var diskCone = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone);
+                diskCone.sourceRadius = 0.75f;
+                data.SetShape(diskCone);
+
+                Assert.AreEqual(LightType.Rectangle, light.type);
+                Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, data, data.shape, 0, Vector3.zero, out LightRecord record));
+                Assert.AreEqual(LightRecordFlags.Planar | LightRecordFlags.SpotCone, record.flags & (LightRecordFlags.Planar | LightRecordFlags.SpotCone));
+                Assert.AreEqual(0.75f, record.shape.y, 1e-4f, "90-degree cone from a 0.75m disk has apex 0.75m behind the disk.");
+                Assert.AreEqual(Mathf.Cos(45f * Mathf.Deg2Rad), record.forward.w, 1e-5f);
+
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(@"Rig/DiskConeSpot.*NoBake"));
+                var spotGo = new GameObject("BakeableSpot");
+                try
+                {
+                    Light spotLight = spotGo.AddComponent<Light>();
+                    spotLight.type = LightType.Spot;
+                    spotLight.lightmapBakeType = LightmapBakeType.Baked;
+                    spotLight.color = Color.red;
+                    spotLight.intensity = 42f;
+                    using var output = new Unity.Collections.NativeArray<UnityEngine.Experimental.GlobalIllumination.LightDataGI>(2, Unity.Collections.Allocator.Temp);
+                    InfinityLightmapperDelegate.Delegate(new[] { spotLight, light }, output);
+                    Assert.AreEqual(UnityEngine.Experimental.GlobalIllumination.LightMode.Baked, output[0].mode);
+                    Assert.AreEqual(UnityEngine.Experimental.GlobalIllumination.LightMode.Unknown, output[1].mode);
+                    Assert.AreEqual(0f, output[1].range, "InitNoBake slot must not leak preceding light fields.");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(spotGo);
+                }
+            }
+            finally
+            {
+                Undo.FlushUndoRecordObjects();
+                Undo.ClearAll();
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeEdit_MixedOrBakedToRealtimeOnly_PromptsAndAppliesAtomically()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                light.lightmapBakeType = LightmapBakeType.Mixed;
+                var before = new[] { fixture.Snapshot(light) };
+                var after = new[] { fixture.Snapshot(light) };
+                using (var serializedAfter = new SerializedObject(after[0]))
+                {
+                    serializedAfter.FindProperty("m_Shape.sourceLength").floatValue = 1.5f;
+                    serializedAfter.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                bool declined = InfinityLightEditorTransactions.ApplyShape(new[] { light }, before, after, _ => false);
+                Assert.IsFalse(declined);
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(LightmapBakeType.Mixed, light.lightmapBakeType);
+                Assert.AreEqual(LightType.Point, light.type);
+
+                bool accepted = InfinityLightEditorTransactions.ApplyShape(new[] { light }, before, after, _ => true);
+                Assert.IsTrue(accepted);
+                Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
+                Assert.AreEqual(LightType.Tube, light.type);
+                Assert.AreEqual(1.5f, light.GetComponent<InfinityAdditionalLightData>().shape.sourceLength, 1e-5f);
+
+                Undo.PerformUndo();
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(LightmapBakeType.Mixed, light.lightmapBakeType);
+                Assert.AreEqual(LightType.Point, light.type);
+            }
         }
 
         [Test]
@@ -898,6 +1039,325 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Vector2 tall = LightShapeUtility.PyramidTangents(90, 0.5f);
             Assert.AreEqual(0.5f, tall.x, 1e-4f);
             Assert.AreEqual(1.0f, tall.y, 1e-4f);
+        }
+
+        [Test, Category("LightInspector")]
+        public void DisplayUnitSwitch_PreservesCanonicalIntensityAndSupportsUndo()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light sphere = fixture.NewLight(LightType.Point);
+                var sphereShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+                sphereShape.sourceRadius = 0.5f;
+                sphere.gameObject.AddComponent<InfinityAdditionalLightData>().SetShape(sphereShape);
+                sphere.intensity = 120f;
+                sphere.lightUnit = LightUnit.Candela;
+
+                Light rect = fixture.NewLight(LightType.Rectangle);
+                var rectShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere);
+                rectShape.sourceWidth = 2f;
+                rectShape.sourceHeight = 1f;
+                rect.gameObject.AddComponent<InfinityAdditionalLightData>().SetShape(rectShape);
+                rect.intensity = 50f;
+                rect.lightUnit = LightUnit.Nits;
+
+                InfinityLightEditorTransactions.ApplyDisplayUnit(
+                    new[] { sphere, rect },
+                    new[] { sphereShape, rectShape },
+                    LightUnit.Lumen);
+
+                Assert.AreEqual(LightUnit.Lumen, sphere.lightUnit);
+                Assert.AreEqual(LightUnit.Lumen, rect.lightUnit);
+                Assert.AreEqual(120f, sphere.intensity, 1e-6f);
+                Assert.AreEqual(50f, rect.intensity, 1e-6f);
+
+                Undo.PerformUndo();
+                Assert.AreEqual(LightUnit.Candela, sphere.lightUnit);
+                Assert.AreEqual(LightUnit.Nits, rect.lightUnit);
+                Assert.AreEqual(120f, sphere.intensity, 1e-6f);
+                Assert.AreEqual(50f, rect.intensity, 1e-6f);
+
+                Undo.PerformRedo();
+                Assert.AreEqual(LightUnit.Lumen, sphere.lightUnit);
+                Assert.AreEqual(LightUnit.Lumen, rect.lightUnit);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void DisplayIntensityEdit_ConvertsPhotometricallyAcrossUnitsAndSupportsUndo()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light rect = fixture.NewLight(LightType.Rectangle);
+                var rectShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere);
+                rectShape.sourceWidth = 2f;
+                rectShape.sourceHeight = 1.5f;
+                rect.gameObject.AddComponent<InfinityAdditionalLightData>().SetShape(rectShape);
+                rect.intensity = 10f;
+                rect.lightUnit = LightUnit.Lumen;
+
+                Light sphere = fixture.NewLight(LightType.Point);
+                var sphereShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+                sphereShape.sourceRadius = 0.4f;
+                sphere.gameObject.AddComponent<InfinityAdditionalLightData>().SetShape(sphereShape);
+                sphere.intensity = 10f;
+                sphere.lightUnit = LightUnit.Lumen;
+
+                InfinityLightEditorTransactions.ApplyDisplayIntensity(
+                    new[] { rect, sphere },
+                    new[] { rectShape, sphereShape },
+                    100f * Mathf.PI,
+                    LightUnit.Lumen);
+
+                float expectedRectNits = (100f * Mathf.PI) / (3f * Mathf.PI);
+                float expectedSphereCandela = (100f * Mathf.PI) / (4f * Mathf.PI);
+                Assert.AreEqual(expectedRectNits, rect.intensity, 1e-3f);
+                Assert.AreEqual(expectedSphereCandela, sphere.intensity, 1e-3f);
+
+                Undo.PerformUndo();
+                Assert.AreEqual(10f, rect.intensity, 1e-6f);
+                Assert.AreEqual(10f, sphere.intensity, 1e-6f);
+
+                Undo.PerformRedo();
+                Assert.AreEqual(expectedRectNits, rect.intensity, 1e-3f);
+                Assert.AreEqual(expectedSphereCandela, sphere.intensity, 1e-3f);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShapeAndSpotAngleEdits_RespectIntensityEditModeAndUndo()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light cone = fixture.NewLight(LightType.Spot);
+                var coneData = cone.gameObject.AddComponent<InfinityAdditionalLightData>();
+                coneData.intensityEditMode = ELightIntensityEditMode.PreserveFlux;
+                cone.intensity = 100f;
+                cone.spotAngle = 60f;
+                cone.innerSpotAngle = 20f;
+                float initialFlux = LightIntensityUtility.ToDisplayIntensity(cone, coneData.shape, LightUnit.Lumen);
+
+                var snapshots = new[] { fixture.Snapshot(cone) };
+                InfinityLightEditorTransactions.ApplySpotAngles(new[] { cone }, snapshots, 90f, 30f);
+
+                float editedFlux = LightIntensityUtility.ToDisplayIntensity(cone, coneData.shape, LightUnit.Lumen);
+                Assert.AreEqual(90f, cone.spotAngle, 1e-5f);
+                Assert.AreEqual(30f, cone.innerSpotAngle, 1e-5f);
+                Assert.AreEqual(initialFlux, editedFlux, initialFlux * 1e-4f);
+
+                Undo.PerformUndo();
+                Assert.AreEqual(60f, cone.spotAngle, 1e-5f);
+                Assert.AreEqual(20f, cone.innerSpotAngle, 1e-5f);
+                Assert.AreEqual(100f, cone.intensity, 1e-4f);
+
+                // Scene edit radius change in PreserveFlux adjusts canonical candela intensity and reverts cleanly.
+                Light sphere = fixture.NewLight(LightType.Point);
+                var sphereData = sphere.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var s1 = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+                s1.sourceRadius = 0.2f;
+                sphereData.SetShape(s1);
+                sphereData.intensityEditMode = ELightIntensityEditMode.PhysicallyBased;
+                sphere.intensity = 40f;
+                var s2 = s1;
+                s2.sourceRadius = 0.4f;
+
+                Assert.IsTrue(InfinityLightEditorTransactions.ApplySceneEdit(sphere, s1, s2, sphere.range, sphere.spotAngle));
+                Assert.AreEqual(160f, sphere.intensity, 1e-3f);
+
+                Undo.PerformUndo();
+                Assert.AreEqual(0.2f, sphereData.shape.sourceRadius, 1e-5f);
+                Assert.AreEqual(40f, sphere.intensity, 1e-4f);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void SceneEdit_MixedToRealtimeOnly_PromptsAndSwitchesAtomically()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                light.lightmapBakeType = LightmapBakeType.Baked;
+                LightSourceShape prev = LightShapeUtility.FromUnityLight(light);
+                LightSourceShape next = prev;
+                next.sourceLength = 2.0f;
+
+                bool declined = InfinityLightEditorTransactions.ApplySceneEdit(light, prev, next, light.range, light.spotAngle, _ => false);
+                Assert.IsFalse(declined);
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(LightmapBakeType.Baked, light.lightmapBakeType);
+
+                bool accepted = InfinityLightEditorTransactions.ApplySceneEdit(light, prev, next, light.range + 2f, light.spotAngle, _ => true);
+                Assert.IsTrue(accepted);
+                Assert.AreEqual(LightmapBakeType.Realtime, light.lightmapBakeType);
+                Assert.AreEqual(LightType.Tube, light.type);
+                Assert.AreEqual(2.0f, light.GetComponent<InfinityAdditionalLightData>().shape.sourceLength, 1e-5f);
+
+                Undo.PerformUndo();
+                Assert.IsNull(light.GetComponent<InfinityAdditionalLightData>());
+                Assert.AreEqual(LightmapBakeType.Baked, light.lightmapBakeType);
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void AdditionalLightDataEditor_LeavesExpandedBodyEmpty()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Point);
+                InfinityAdditionalLightData data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var editor = UnityEditor.Editor.CreateEditor(data);
+                try
+                {
+                    Assert.AreEqual("InfinityAdditionalLightDataEditor", editor.GetType().Name);
+                    Assert.DoesNotThrow(() => editor.OnInspectorGUI());
+                }
+                finally
+                {
+                    Object.DestroyImmediate(editor);
+                }
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void InfinityLightEditor_RendersAllShapesAndMultiSelectionWithoutLazyCreation()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light plainSpot = fixture.NewLight(LightType.Spot);
+                Light diskCone = fixture.NewLight(LightType.Rectangle);
+                var diskConeData = diskCone.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var diskConeShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone);
+                diskConeShape.sourceRadius = 0.4f;
+                diskConeData.SetShape(diskConeShape);
+
+                Light boxLight = fixture.NewLight(LightType.Box);
+                var boxData = boxLight.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var boxShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox);
+                boxShape.boxSize = new Vector2(1.5f, 0.8f);
+                boxData.SetShape(boxShape);
+
+                Light tubeLight = fixture.NewLight(LightType.Tube);
+                var tubeData = tubeLight.gameObject.AddComponent<InfinityAdditionalLightData>();
+                var tubeShape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+                tubeShape.sourceRadius = 0.1f;
+                tubeShape.sourceLength = 1.2f;
+                tubeData.SetShape(tubeShape);
+
+                Light directional = fixture.NewLight(LightType.Directional);
+
+                Object[] selections = { plainSpot, diskCone, boxLight, tubeLight, directional };
+                foreach (Object single in selections)
+                    DrawEditorHostPass(new[] { single }, 420f);
+                foreach (Object single in selections)
+                    DrawEditorHostPass(new[] { single }, 260f);
+
+                DrawEditorHostPass(new Object[] { plainSpot, diskCone }, 420f);
+                DrawEditorHostPass(new Object[] { tubeLight, boxLight }, 260f);
+
+                Assert.IsNull(plainSpot.GetComponent<InfinityAdditionalLightData>(),
+                    "Inspecting a plain Unity Light must never lazily add InfinityAdditionalLightData.");
+            }
+        }
+
+        [Test, Category("LightInspector")]
+        public void DragCoalescing_MergesSameControlAndSplitsAfterReleaseOrInterveningEdit()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Spot);
+                light.intensity = 100f;
+                light.spotAngle = 40f;
+                light.innerSpotAngle = 20f;
+                var before = new[] { fixture.Snapshot(light) };
+                var shapes = new[] { before[0].shape };
+
+                int previousHotControl = GUIUtility.hotControl;
+                try
+                {
+                    Undo.IncrementCurrentGroup();
+                    // First drag on control 4242: two consecutive steps must coalesce into one Undo group.
+                    GUIUtility.hotControl = 4242;
+                    InfinityLightEditorTransactions.SyncDragState();
+                    InfinityLightEditorTransactions.ApplyDisplayIntensity(new[] { light }, shapes, 150f, UnityEngine.Rendering.LightUnit.Candela, mergeDrag: true);
+                    int dragGroup = Undo.GetCurrentGroup();
+                    InfinityLightEditorTransactions.ApplyDisplayIntensity(new[] { light }, shapes, 220f, UnityEngine.Rendering.LightUnit.Candela, mergeDrag: true);
+                    Assert.AreEqual(dragGroup, Undo.GetCurrentGroup(), "Consecutive drag steps on the same hotControl must share one Undo group.");
+                    Assert.AreEqual(220f, light.intensity, 1e-4f);
+
+                    // Releasing the mouse clears hotControl; next drag on the exact same control ID must get a new group.
+                    GUIUtility.hotControl = 0;
+                    InfinityLightEditorTransactions.SyncDragState();
+                    GUIUtility.hotControl = 4242;
+                    InfinityLightEditorTransactions.ApplyDisplayIntensity(new[] { light }, shapes, 310f, UnityEngine.Rendering.LightUnit.Candela, mergeDrag: true);
+                    int secondDragGroup = Undo.GetCurrentGroup();
+                    Assert.Greater(secondDragGroup, dragGroup, "A second drag on the same control ID after release must start a new Undo group.");
+
+                    // An intervening Undo group (e.g., native Inspector edit) also splits subsequent drag updates.
+                    Undo.IncrementCurrentGroup();
+                    InfinityLightEditorTransactions.ApplyDisplayIntensity(new[] { light }, shapes, 450f, UnityEngine.Rendering.LightUnit.Candela, mergeDrag: true);
+                    Assert.Greater(Undo.GetCurrentGroup(), secondDragGroup, "An intervening Undo group must split drag coalescing.");
+
+                    // End the active drag (hotControl == 0) before invoking Unity's Undo stack.
+                    GUIUtility.hotControl = 0;
+                    InfinityLightEditorTransactions.SyncDragState();
+                    Undo.PerformUndo();
+                    Assert.AreEqual(310f, light.intensity, 1e-4f);
+                    Undo.PerformUndo();
+                    Assert.AreEqual(220f, light.intensity, 1e-4f);
+                    Undo.PerformUndo();
+                    Assert.AreEqual(100f, light.intensity, 1e-4f);
+                }
+                finally
+                {
+                    GUIUtility.hotControl = previousHotControl;
+                    InfinityLightEditorTransactions.SyncDragState();
+                }
+            }
+        }
+
+        static void DrawEditorHostPass(Object[] targets, float width)
+        {
+            var host = ScriptableObject.CreateInstance<InspectorLayoutTestWindow>();
+            var editor = UnityEditor.Editor.CreateEditor(targets);
+            try
+            {
+                Assert.IsInstanceOf<InfinityLightEditor>(editor);
+                host.editor = editor;
+                host.minSize = new Vector2(width, 400f);
+                host.maxSize = new Vector2(width, 400f);
+                host.position = new Rect(120f, 120f, width, 400f);
+                host.ShowUtility();
+                host.SendEvent(new Event { type = EventType.Layout });
+                host.SendEvent(new Event { type = EventType.Repaint });
+                Assert.Greater(host.drawCount, 0, $"Inspector OnGUI did not execute at width {width}");
+                Assert.IsNull(host.caughtException, $"Inspector GUI threw at width {width}: {host.caughtException}");
+            }
+            finally
+            {
+                if (editor) Object.DestroyImmediate(editor);
+                if (host) host.Close();
+            }
+        }
+
+        sealed class InspectorLayoutTestWindow : EditorWindow
+        {
+            [System.NonSerialized] public UnityEditor.Editor editor;
+            [System.NonSerialized] public System.Exception caughtException;
+            [System.NonSerialized] public int drawCount;
+
+            void OnGUI()
+            {
+                drawCount++;
+                try
+                {
+                    editor?.OnInspectorGUI();
+                }
+                catch (System.Exception ex)
+                {
+                    if (!(ex is ExitGUIException))
+                        caughtException = ex;
+                }
+            }
         }
     }
 }

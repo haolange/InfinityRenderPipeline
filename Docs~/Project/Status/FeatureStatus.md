@@ -2,6 +2,16 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Lighting & shadow refactor (P0–P4) — 2026-11-25 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping `/Volumes/DataDisk/Projects/Unity/InfinityExample` `ProjectSettings/*`, `InfinityExample.slnx`, and source `Assets/Scene/` untouched.
+
+- **Static & schema gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)`; `test_static_check.py` -> `52/52 OK`; `Tests/Editor/Fixtures/LightInspector.prefab` formally migrated (`Save #1 == Save #2`, GUID/local IDs preserved, `.meta` SHA-256 unchanged). `InfinityRenderPipelineAsset` serialized schema unchanged.
+- **Shader diagnostics (`ShaderUtil.GetComputeShaderMessages`)**: `Compute_DeferredShading.compute`, `Compute_VolumetricFog.compute`, `Compute_VolumetricCloud.compute`, and `ShadowSamplingContract.compute` compiled with `0 errors, 0 warnings` on Metal.
+- **EditMode & GPU contract tests**: `LightShapeTests`, `LightIntensityUnitTests`, `LightRecordTests`, `BakedGITests`, `LightShapeGpuTests`, `LightAngularGpuTests`, `DeferredLightLoopGpuTests`, `LocalShadowFrustumTests`, `ShadowSamplingGpuTests`, `ShadowAtlasLayoutTests` (including `0`-byte steady-state `GC.Alloc`), `ShadowResolutionHistoryTests` (`0`-byte steady-state `GC.Alloc`), `ShadowBudgetTests`, `LocalShadowCacheTests` (`0`-byte steady-state `GC.Alloc`), and `GpuRecordLayout` (`33/33` including `96`-byte `LocalShadowSliceGPU`) all passed after final edits.
+- **RenderGraph PlayMode captures (`993×1330` `DisplayColor` + untonemapped `Lighting`)**: `Validation_AreaLights`, `Validation_ShadowShapes` (14-tile P3 `Rect`/`Line`/`Tube`/`Disk` PCSS, `nonFinite: 0` across `5,282,760` samples), and 19-tile mixed-tier `Validation_Shadows` (`100.0%` occupancy `[1024:1, 512:10, 256:8]`, `downgraded: 2`, `dropped: 0`, `cachedTiles: 1`, `renders: 0`, `nonFinite: 0`) visually inspected cleanly.
+- **TODO(UNVERIFIED)**: OS window-chrome screenshot capture via `Tools/CaptureUnityWindow.sh` (`macOS` Screen Recording permission unavailable in headless shell); D3D12 and Vulkan backends untested on this host.
+
 ### Derived remainder view, second local verification — 2026-11-21 (macOS Metal, Unity 6000.6.0f1)
 
 Scene_Spazon, GPU Indirect, Game focused at 993×1330, Scene views closed, still camera. Two branch → `7f64ef22` → `7f64ef22` → branch rounds used 120 deduplicated GPU frame timings per window after 90 warmup timings. These are whole-frame Editor timings, not isolated pass timings. The mean of the four window medians is 22.507 ms on the branch and 22.692 ms on the baseline; no window regressed by more than 5% against its round's higher baseline median. No pass-marker investigation was required.

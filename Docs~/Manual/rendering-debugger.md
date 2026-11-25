@@ -6,7 +6,7 @@ Window > Analysis > Rendering Debugger is Unity's window. Infinity registers the
 |---|---|
 | Infinity Rendering | Debug View for the whole `EDebugView` enumeration, the Rendering subset, Frame Features of the last camera, Frame Settings of the last camera |
 | Infinity Material | Material views: albedo, normal, roughness, metallic, specular, shading model, rendering layers. Shading model draws the forward route, subsurface and the default lit model in different colors |
-| Infinity Lighting | Lighting views, Reflection Probe Index, Complexity Range, Volume selection, and the last camera's directional, local, probe, invalid-shape, distance-culled, cached-shadow and ray-tracing counts |
+| Infinity Lighting | Lighting views, Reflection Probe Index, Complexity Range, Volume selection, and the last camera's directional, local, probe, invalid-shape, distance-culled, local atlas occupancy/tier/budget, cached-shadow render/eviction/relocation and ray-tracing counts |
 | Infinity Screen Space | Ambient occlusion, reflection, indirect diffuse, and the reflection tile, ray, confidence and history views |
 | Volume | Core RP camera, component and contribution panel |
 | Infinity Timings | Record Pass Timings. When recording is on, the previous frame's total and a Passes foldout with one row per pass sampler |

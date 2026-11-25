@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
             ShadowFilterSettings filter = settings.shadowFilter;
             // The cascade atlas holds 2x2 tiles of cascadeShadowMapResolution.
             float cascadeSize = settings.cascadeShadowMapResolution * 2;
-            float localSize = settings.localShadowMapResolution;
+            float localSize = ShadowAllocator.ResolveLocalAtlasResolution(settings.localShadowMapResolution);
             Matrix4x4[] matrices = allocator.CascadeMatrices;
             Vector4[] spheres = allocator.CascadeSpheres;
             Vector4[] cascades = allocator.CascadeParams;

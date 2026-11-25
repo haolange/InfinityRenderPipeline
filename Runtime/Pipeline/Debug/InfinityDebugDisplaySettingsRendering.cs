@@ -57,6 +57,16 @@ namespace InfinityTech.Rendering.Pipeline
         // Cached local shadow tiles drawn this frame (copied or re-rendered) and how many were re-rendered.
         public int lastCachedShadowTiles;
         public int lastCachedShadowRenders;
+        public int lastCachedShadowEvictions;
+        public int lastCachedShadowRelocations;
+        public float lastLocalShadowOccupancy;
+        public int lastLocalShadowTiles;
+        public int lastLocalShadowDowngradedLights;
+        public int lastLocalShadowDroppedLights;
+        public int lastLocalShadowTier1024;
+        public int lastLocalShadowTier512;
+        public int lastLocalShadowTier256;
+        public int lastLocalShadowTier128OrSmaller;
         public ERayTracingBackend rayTracingBackend;
         public string rtaoBlockReason = "URT context is not created.";
         // ReflectionProbeAtlas view: the probe (list order of the last camera) whose six faces are shown.
@@ -77,6 +87,16 @@ namespace InfinityTech.Rendering.Pipeline
             lastDistanceCulledCount = 0;
             lastCachedShadowTiles = 0;
             lastCachedShadowRenders = 0;
+            lastCachedShadowEvictions = 0;
+            lastCachedShadowRelocations = 0;
+            lastLocalShadowOccupancy = 0f;
+            lastLocalShadowTiles = 0;
+            lastLocalShadowDowngradedLights = 0;
+            lastLocalShadowDroppedLights = 0;
+            lastLocalShadowTier1024 = 0;
+            lastLocalShadowTier512 = 0;
+            lastLocalShadowTier256 = 0;
+            lastLocalShadowTier128OrSmaller = 0;
             rayTracingBackend = ERayTracingBackend.Unavailable;
             rtaoBlockReason = "URT context is not created.";
         }

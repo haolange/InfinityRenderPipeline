@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Component.Editor
 {
@@ -8,17 +10,24 @@ namespace InfinityTech.Component.Editor
         const float MinimumKelvin = 1000f;
         const float NeutralKelvin = 6500f;
         const float MaximumKelvin = 20000f;
+        const float NarrowIntensityStackWidth = 320f;
         const float TemperatureStackWidth = 350f;
         const float ControlGap = 4f;
+        const float UnitPopupWidth = 68f;
 
-        static readonly GUIContent s_ColorLabel = new GUIContent("Color / Intensity");
-        static readonly GUIContent s_ColorFilterLabel = new GUIContent("Color / Intensity", "The swatch filters the temperature color.");
-        static readonly GUIContent s_IntensityHint = new GUIContent("", "Intensity");
+        static readonly GUIContent s_ColorLabel = new GUIContent("Color / Intensity", "Light color and physical intensity.");
+        static readonly GUIContent s_ColorFilterLabel = new GUIContent("Color / Intensity", "The swatch filters the temperature color; intensity sits to the right.");
+        static readonly GUIContent s_IntensityLabel = new GUIContent("Intensity", "Light intensity in the selected physical display unit.");
+        static readonly GUIContent s_IntensityTooltip = new GUIContent("", "Intensity");
         static readonly GUIContent s_TemperatureLabel = new GUIContent("Color Temperature", "The light's color temperature in Kelvin.");
         static readonly GUIContent s_KelvinLabel = new GUIContent("K", "Kelvin");
         static Texture2D s_TemperatureGradient;
         static GUIStyle s_SectionTitle;
         static bool s_DarkSectionTitle;
+        static readonly string[] s_UnitBuffer1 = new string[1];
+        static readonly string[] s_UnitBuffer2 = new string[2];
+        static readonly string[] s_UnitBuffer3 = new string[3];
+        static readonly string[] s_UnitBuffer4 = new string[4];
 
         internal static bool Section(string key, string title)
         {
@@ -49,14 +58,95 @@ namespace InfinityTech.Component.Editor
             return expanded;
         }
 
-        internal static void ColorAndIntensity(SerializedProperty color, SerializedProperty intensity, bool useTemperature)
+        internal static void ColorAndIntensity(
+            SerializedProperty color,
+            float displayIntensity,
+            bool mixedIntensity,
+            LightUnit displayUnit,
+            bool mixedUnit,
+            IReadOnlyList<LightUnit> supportedUnits,
+            bool useTemperature,
+            out float nextIntensity,
+            out bool intensityChanged,
+            out LightUnit nextUnit,
+            out bool unitChanged)
         {
-            Rect colorRect = EditorGUILayout.GetControlRect();
-            Rect intensityRect = SplitNumericField(ref colorRect);
-            EditorGUI.PropertyField(colorRect, color, useTemperature ? s_ColorFilterLabel : s_ColorLabel);
+            nextIntensity = displayIntensity;
+            intensityChanged = false;
+            nextUnit = displayUnit;
+            unitChanged = false;
+
+            bool narrow = EditorGUIUtility.currentViewWidth < NarrowIntensityStackWidth;
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            Rect unitRect;
+            Rect intensityRect;
+            if (narrow)
+            {
+                EditorGUILayout.PropertyField(color, useTemperature ? s_ColorFilterLabel : s_ColorLabel);
+                Rect secondRow = EditorGUILayout.GetControlRect(true, lineHeight);
+                Rect indented = EditorGUI.PrefixLabel(secondRow, s_IntensityLabel);
+                unitRect = new Rect(indented.xMax - UnitPopupWidth, indented.y, UnitPopupWidth, lineHeight);
+                intensityRect = new Rect(indented.x, indented.y, Mathf.Max(40f, unitRect.xMin - ControlGap - indented.x), lineHeight);
+            }
+            else
+            {
+                Rect row = EditorGUILayout.GetControlRect(true, lineHeight);
+                unitRect = new Rect(row.xMax - UnitPopupWidth, row.y, UnitPopupWidth, lineHeight);
+                Rect colorAndIntensity = new Rect(row.x, row.y, Mathf.Max(60f, unitRect.xMin - ControlGap - row.x), lineHeight);
+                intensityRect = SplitNumericField(ref colorAndIntensity);
+                EditorGUI.PropertyField(colorAndIntensity, color, useTemperature ? s_ColorFilterLabel : s_ColorLabel);
+            }
+
             using var indent = new EditorGUI.IndentLevelScope(-EditorGUI.indentLevel);
-            EditorGUI.PropertyField(intensityRect, intensity, GUIContent.none);
-            GUI.Label(intensityRect, s_IntensityHint);
+            bool previousMixed = EditorGUI.showMixedValue;
+            EditorGUI.showMixedValue = mixedIntensity;
+            using (var change = new EditorGUI.ChangeCheckScope())
+            {
+                float entered = EditorGUI.DelayedFloatField(intensityRect, GUIContent.none, displayIntensity);
+                if (change.changed && float.IsFinite(entered))
+                {
+                    nextIntensity = Mathf.Max(0f, entered);
+                    intensityChanged = true;
+                }
+            }
+            if (!narrow)
+                GUI.Label(intensityRect, s_IntensityTooltip);
+
+            int unitCount = supportedUnits != null ? supportedUnits.Count : 0;
+            using (new EditorGUI.DisabledScope(unitCount <= 1))
+            {
+                if (unitCount > 0)
+                {
+                    string[] labels = FillUnitLabels(supportedUnits);
+                    int selectedIndex = -1;
+                    if (!mixedUnit)
+                    {
+                        for (int i = 0; i < unitCount; ++i)
+                        {
+                            if (supportedUnits[i] == displayUnit)
+                            {
+                                selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    EditorGUI.showMixedValue = mixedUnit || selectedIndex < 0;
+                    using var unitScope = new EditorGUI.ChangeCheckScope();
+                    int chosen = EditorGUI.Popup(unitRect, selectedIndex, labels);
+                    if (unitScope.changed && chosen >= 0 && chosen < unitCount)
+                    {
+                        nextUnit = supportedUnits[chosen];
+                        unitChanged = true;
+                    }
+                }
+                else
+                {
+                    EditorGUI.showMixedValue = true;
+                    EditorGUI.Popup(unitRect, -1, s_UnitBuffer1);
+                }
+            }
+            EditorGUI.showMixedValue = previousMixed;
         }
 
         internal static void FloatSlider(SerializedProperty property, GUIContent label, Vector2 dragRange)
@@ -85,6 +175,73 @@ namespace InfinityTech.Component.Editor
             if (fieldChange.changed && !float.IsNaN(entered) && !float.IsInfinity(entered))
                 property.floatValue = entered;
         }
+
+        internal static void FloatSliderValue(
+            GUIContent label,
+            float value,
+            bool mixed,
+            Vector2 dragRange,
+            Vector2 clampRange,
+            out float nextValue,
+            out bool changed)
+        {
+            nextValue = value;
+            changed = false;
+            Rect row = EditorGUILayout.GetControlRect();
+            Rect track = EditorGUI.PrefixLabel(row, label);
+            Rect field = SplitNumericField(ref track);
+            using var indent = new EditorGUI.IndentLevelScope(-EditorGUI.indentLevel);
+
+            bool previousMixed = EditorGUI.showMixedValue;
+            if (track.width > 2f)
+            {
+                float position = mixed ? -1f : Mathf.InverseLerp(dragRange.x, dragRange.y, value);
+                GUIStyle thumb = mixed ? GUIStyle.none : GUI.skin.horizontalSliderThumb;
+                using var sliderChange = new EditorGUI.ChangeCheckScope();
+                float next = GUI.HorizontalSlider(track, position, 0f, 1f, GUI.skin.horizontalSlider, thumb);
+                if (sliderChange.changed && next >= 0f)
+                {
+                    nextValue = Mathf.Clamp(Mathf.Round(Mathf.Lerp(dragRange.x, dragRange.y, next) * 1000f) / 1000f, clampRange.x, clampRange.y);
+                    changed = true;
+                }
+            }
+
+            EditorGUI.showMixedValue = mixed;
+            using (var fieldChange = new EditorGUI.ChangeCheckScope())
+            {
+                float entered = EditorGUI.DelayedFloatField(field, value);
+                if (fieldChange.changed && float.IsFinite(entered))
+                {
+                    nextValue = Mathf.Clamp(entered, clampRange.x, clampRange.y);
+                    changed = true;
+                }
+            }
+            EditorGUI.showMixedValue = previousMixed;
+        }
+
+        static string[] FillUnitLabels(IReadOnlyList<LightUnit> units)
+        {
+            string[] labels = units.Count switch
+            {
+                1 => s_UnitBuffer1,
+                2 => s_UnitBuffer2,
+                3 => s_UnitBuffer3,
+                4 => s_UnitBuffer4,
+                _ => new string[units.Count]
+            };
+            for (int i = 0; i < units.Count; ++i)
+                labels[i] = FormatUnitLabel(units[i]);
+            return labels;
+        }
+
+        internal static string FormatUnitLabel(LightUnit unit) => unit switch
+        {
+            LightUnit.Lumen => "Lumen",
+            LightUnit.Candela => "Candela",
+            LightUnit.Nits => "Nits",
+            LightUnit.Lux => "Lux",
+            _ => unit.ToString()
+        };
 
         static Rect SplitNumericField(ref Rect controls)
         {

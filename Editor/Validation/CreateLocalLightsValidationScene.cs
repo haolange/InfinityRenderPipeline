@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             Light rect = rectGo.AddComponent<Light>();
             rect.type = LightType.Rectangle;
             rect.color = new Color(0.25f, 0.45f, 1.0f, 1.0f);
-            rect.intensity = 20.0f;
+            rect.intensity = 8.26f;
             rect.range = 12.0f;
             rect.areaSize = new Vector2(2.2f, 1.1f);
             rect.shadows = LightShadows.None;

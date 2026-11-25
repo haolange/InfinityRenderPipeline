@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void LocalShadowSliceGPU_MatchesHlslByteSize()
         {
             // LocalShadowSlice in Shaders/Library/ShadowSampling.hlsl
-            Assert.AreEqual(64, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
+            Assert.AreEqual(96, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
         }
 
         [Test]

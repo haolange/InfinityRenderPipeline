@@ -293,7 +293,7 @@ float Vis_SmithJointApprox_NoPI(float NoL, float NoV, float Roughness4)
 	float Roughness = sqrt(Roughness4);
 	float LambdaL = NoV * (NoL * (1 - Roughness) + Roughness);
 	float LambdaV = NoL * (NoV * (1 - Roughness) + Roughness);
-	return 0.5 / rcp(LambdaV + LambdaL);
+	return 0.5 * rcp(max(LambdaV + LambdaL, 1e-6));
 }
 
 float Vis_SmithJointApprox(float NoL, float NoV, float Roughness4)
@@ -306,7 +306,7 @@ float Vis_SmithJoint_NoPI(float NoL, float NoV, float Roughness)
 	float Roughness4 = pow4(Roughness);
 	float LambdaV = NoL * sqrt(NoV * (NoV - NoV * Roughness4) + Roughness4);
 	float LambdaL = NoV * sqrt(NoL * (NoL - NoL * Roughness4) + Roughness4);
-	return 0.5 / rcp(LambdaL + LambdaV);
+	return 0.5 * rcp(max(LambdaL + LambdaV, 1e-6));
 }
 
 float Vis_SmithJoint(float NoL, float NoV, float Roughness)
@@ -322,7 +322,7 @@ float Vis_AnisotropyGGX_NoPi(float ToV, float BoV, float NoV, float ToL, float B
 	float LambdaV = NoL * sqrt(RoughnessT * pow2(ToV) + RoughnessB * pow2(BoV) + pow2(NoV));
 	float LambdaL = NoV * sqrt(RoughnessT * pow2(ToL) + RoughnessB * pow2(BoL) + pow2(NoL));
 
-    return 0.5 / rcp(LambdaV + LambdaL);
+    return 0.5 * rcp(max(LambdaV + LambdaL, 1e-6));
 }
 
 float Vis_AnisotropyGGX(float ToV, float BoV, float NoV, float ToL, float BoL, float NoL, float RoughnessT, float RoughnessB) 

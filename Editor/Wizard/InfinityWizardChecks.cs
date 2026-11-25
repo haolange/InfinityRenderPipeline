@@ -139,15 +139,15 @@ namespace InfinityTech.Rendering.Editor
             },
             new InfinityWizardCheck
             {
-                title = "Tube and line lights are realtime",
-                description = "The lightmapper has no tube or line emitter; such lights must use the Realtime mode.",
+                title = "Realtime-only light shapes use Realtime mode",
+                description = "Line, Tube, and Disk + Cone lights have no lightmapper representation and must use the Realtime mode.",
                 scope = EWizardScope.Scene,
-                isSatisfied = () => BakedTubeLights().Count == 0,
+                isSatisfied = () => UnbakeableLightmappedLights().Count == 0,
                 fix = () =>
                 {
-                    foreach (Light light in BakedTubeLights())
+                    foreach (Light light in UnbakeableLightmappedLights())
                     {
-                        Undo.RecordObject(light, "Realtime Tube Light");
+                        Undo.RecordObject(light, "Realtime Only Light");
                         light.lightmapBakeType = LightmapBakeType.Realtime;
                         EditorUtility.SetDirty(light);
                     }
@@ -306,7 +306,7 @@ namespace InfinityTech.Rendering.Editor
         static List<Material> ConvertibleSceneMaterials() => LoadedSceneComponents<Renderer>()
             .SelectMany(r => r.sharedMaterials).Where(m => InfinityMaterialUpgraders.Find(m) != null).Distinct().ToList();
 
-        static List<Light> BakedTubeLights() => LoadedSceneComponents<Light>()
-            .Where(l => l.lightmapBakeType != LightmapBakeType.Realtime && ShapeOf(l).IsTube).ToList();
+        static List<Light> UnbakeableLightmappedLights() => LoadedSceneComponents<Light>()
+            .Where(l => l.lightmapBakeType != LightmapBakeType.Realtime && !LightShapeUtility.IsBakeable(ShapeOf(l))).ToList();
     }
 }

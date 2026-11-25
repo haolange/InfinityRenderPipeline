@@ -30,22 +30,44 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(colorSpace, UnityEditor.PlayerSettings.colorSpace);
         }
 
-        [TestCase(EInfinityLightType.Point)]
-        [TestCase(EInfinityLightType.Spot)]
-        [TestCase(EInfinityLightType.Rect)]
-        [TestCase(EInfinityLightType.Disk)]
-        [TestCase(EInfinityLightType.Directional)]
-        public void LightSourceShape_InSyncAfterApply_OutOfSyncAfterNativeEdit(EInfinityLightType type)
+        [TestCase(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional)]
+        [TestCase(ELocalLightEmitter.Round, ELocalLightDistribution.Cone)]
+        [TestCase(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere)]
+        [TestCase(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere)]
+        [TestCase(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone)]
+        public void LocalLightSourceShape_InSyncAfterApply_OutOfSyncAfterNativeEdit(
+            ELocalLightEmitter emitter,
+            ELocalLightDistribution distribution)
         {
             var go = new GameObject("WizardLight");
             try
             {
                 Light light = go.AddComponent<Light>();
-                LightSourceShape shape = LightSourceShape.Default(type);
+                LightSourceShape shape = LightSourceShape.DefaultLocal(emitter, distribution);
                 LightShapeUtility.ApplyToUnityLight(light, shape);
                 Assert.IsTrue(LightShapeUtility.IsInSync(light, shape));
                 Assert.IsFalse(LightShapeUtility.ApplyToUnityLight(light, shape), "Applying a synced shape changes nothing.");
-                light.type = type == EInfinityLightType.Directional ? LightType.Point : LightType.Directional;
+                light.type = LightType.Directional;
+                Assert.IsFalse(LightShapeUtility.IsInSync(light, shape));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void DirectionalLightSourceShape_InSyncAfterApply_OutOfSyncAfterNativeEdit()
+        {
+            var go = new GameObject("WizardLight");
+            try
+            {
+                Light light = go.AddComponent<Light>();
+                LightSourceShape shape = LightSourceShape.DefaultDirectional();
+                LightShapeUtility.ApplyToUnityLight(light, shape);
+                Assert.IsTrue(LightShapeUtility.IsInSync(light, shape));
+                Assert.IsFalse(LightShapeUtility.ApplyToUnityLight(light, shape), "Applying a synced shape changes nothing.");
+                light.type = LightType.Point;
                 Assert.IsFalse(LightShapeUtility.IsInSync(light, shape));
             }
             finally

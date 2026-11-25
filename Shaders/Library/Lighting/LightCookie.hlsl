@@ -65,13 +65,18 @@ bool SpotProjectionUV(LightRecord light, float3 local, out float2 uv)
 {
     uv = 0.5;
     bool valid = false;
+    if (local.z <= 1e-4)
+    {
+        return false;
+    }
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
     {
         uv = local.xy / max(light.area.xy, 1e-4) + 0.5;
         valid = true;
     }
-    else if (local.z > 1e-4)
+    else
     {
+        float shiftedZ = local.z + (LightHasFlag(light, LIGHT_FLAG_SPOT_CONE) ? light.shape.y : 0.0);
         float2 tangents;
         if (LightHasFlag(light, LIGHT_FLAG_SPOT_PYRAMID))
         {
@@ -82,7 +87,7 @@ bool SpotProjectionUV(LightRecord light, float3 local, out float2 uv)
             float cosOuter = clamp(light.forward.w, 1e-4, 1.0);
             tangents = sqrt(1.0 - cosOuter * cosOuter) / cosOuter;
         }
-        uv = local.xy / (local.z * max(tangents, 1e-4)) * 0.5 + 0.5;
+        uv = local.xy / (shiftedZ * max(tangents, 1e-4)) * 0.5 + 0.5;
         valid = true;
     }
     return valid;
@@ -127,7 +132,15 @@ float3 LightCookieColor(LightRecord light, float3 worldPos)
             {
                 if (cookie.layout.x != 0)
                 {
-                    color *= SampleCookieBlock(cookie.iesRect, CookieOctahedralEncode(normalize(local + 1e-6)), 0, cookie.layout.z);
+                    if (IsPlanarLight(light) && local.z <= 1e-4)
+                    {
+                        color = 0;
+                    }
+                    else
+                    {
+                        float3 iesLocal = local + float3(0, 0, LightHasFlag(light, LIGHT_FLAG_SPOT_CONE) ? light.shape.y : 0.0);
+                        color *= SampleCookieBlock(cookie.iesRect, CookieOctahedralEncode(normalize(iesLocal + 1e-6)), 0, cookie.layout.z);
+                    }
                 }
                 else
                 {

@@ -1,6 +1,9 @@
-// Numeric contracts of Shaders/Library/Lighting/LightShapes.hlsl (0.5.0 S8).
-// Results[i] = (diffuse E / I, reference, specular N.L, energy) for case i.
+// Numeric contracts of Shaders/Library/Lighting/LightShapes.hlsl (P2.2).
 #pragma kernel ShapeIrradiance
+#pragma kernel ShapeQuadrature
+#pragma kernel PlanarRepresentativeSweep
+#pragma kernel VolumeLocalLightContract
+#include "../../../Shaders/Library/BSDF.hlsl"
 #include "../../../Shaders/Library/Lighting/LightShapes.hlsl"
 
 float4 ShapeDistance; // x = distance of the receiver from the light along its forward axis
@@ -17,6 +20,174 @@ LightRecord MakeLight()
     return light;
 }
 
+LightRecord MakeDownwardRect(float3 pos, float width, float height)
+{
+    LightRecord light = MakeLight();
+    light.positionRange = float4(pos, 1000);
+    light.forward = float4(0, -1, 0, 0);
+    light.right = float4(1, 0, 0, 0);
+    light.flags = LIGHT_FLAG_PLANAR;
+    light.area = float4(width, height, 0, 0);
+    return light;
+}
+
+LightRecord MakeDiskLight(float3 pos, float3 forward, float3 right, float radius)
+{
+    LightRecord light = MakeLight();
+    light.positionRange = float4(pos, 1000);
+    light.forward = float4(normalize(forward), 0);
+    light.right = float4(normalize(right), 0);
+    light.flags = LIGHT_FLAG_PLANAR;
+    light.shape.x = radius;
+    return light;
+}
+
+float EvalSpecNoF(float3 N, float3 V, float3 L, float alpha)
+{
+    float NoL = saturate(dot(N, L));
+    float NoV = max(saturate(dot(N, V)), 1e-4);
+    float VoL = dot(V, L);
+    float InvLenH = rsqrt(max(2.0 + 2.0 * VoL, 1e-6));
+    float NoH = saturate((NoL + NoV) * InvLenH);
+    float a2 = alpha * alpha;
+    return D_GGX(NoH, a2) * Vis_SmithJointApprox_NoPI(NoL, NoV, a2) * NoL;
+}
+
+void IntegrateRect(LightRecord light, float3 pos, float3 N, float3 V, float alpha, out float outDiff, out float outSpec)
+{
+    outDiff = 0;
+    outSpec = 0;
+    const int kSteps = 64;
+    float2 halfSize = 0.5 * light.area.xy;
+    float dA = (light.area.x * light.area.y) / (kSteps * kSteps);
+    float3 up = LightUp(light);
+    float3 center = light.positionRange.xyz - pos;
+    float3 nEmit = light.forward.xyz;
+    [loop]
+    for (int iy = 0; iy < kSteps; ++iy)
+    {
+        float ty = ((iy + 0.5) / kSteps * 2.0 - 1.0) * halfSize.y;
+        [loop]
+        for (int ix = 0; ix < kSteps; ++ix)
+        {
+            float tx = ((ix + 0.5) / kSteps * 2.0 - 1.0) * halfSize.x;
+            float3 toQ = center + light.right.xyz * tx + up * ty;
+            float distSqr = dot(toQ, toQ);
+            float3 L = toQ * rsqrt(max(distSqr, 1e-12));
+            float NoL = max(dot(N, L), 0.0);
+            float cosEmit = max(dot(nEmit, -L), 0.0);
+            float geom = cosEmit / max(distSqr, 1e-12) * dA;
+            outDiff += NoL * geom;
+            if (NoL > 0.0 && cosEmit > 0.0)
+                outSpec += EvalSpecNoF(N, V, L, alpha) * geom;
+        }
+    }
+}
+
+void IntegrateDisk(LightRecord light, float3 pos, float3 N, float3 V, float alpha, out float outDiff, out float outSpec)
+{
+    outDiff = 0;
+    outSpec = 0;
+    const int kRad = 48;
+    const int kAng = 64;
+    float radius = light.shape.x;
+    float dA = (LIGHT_SHAPE_PI * radius * radius) / (kRad * kAng);
+    float3 up = LightUp(light);
+    float3 center = light.positionRange.xyz - pos;
+    float3 nEmit = light.forward.xyz;
+    [loop]
+    for (int ir = 0; ir < kRad; ++ir)
+    {
+        float r = radius * sqrt((ir + 0.5) / kRad);
+        [loop]
+        for (int ia = 0; ia < kAng; ++ia)
+        {
+            float phi = (ia + 0.5) / kAng * (2.0 * LIGHT_SHAPE_PI);
+            float3 toQ = center + light.right.xyz * (r * cos(phi)) + up * (r * sin(phi));
+            float distSqr = dot(toQ, toQ);
+            float3 L = toQ * rsqrt(max(distSqr, 1e-12));
+            float NoL = max(dot(N, L), 0.0);
+            float cosEmit = max(dot(nEmit, -L), 0.0);
+            float geom = cosEmit / max(distSqr, 1e-12) * dA;
+            outDiff += NoL * geom;
+            if (NoL > 0.0 && cosEmit > 0.0)
+                outSpec += EvalSpecNoF(N, V, L, alpha) * geom;
+        }
+    }
+}
+
+void IntegrateTubeCapsule(LightRecord light, float3 pos, float3 N, float3 V, float alpha, out float outDiff, out float outSpec)
+{
+    outDiff = 0;
+    outSpec = 0;
+    float radius = light.shape.x;
+    float sourceLen = light.shape.z;
+    float avgArea = 0.5 * LIGHT_SHAPE_PI * radius * sourceLen + LIGHT_SHAPE_PI * radius * radius;
+    float invAvg = rcp(max(avgArea, 1e-8));
+    float3 u = light.right.xyz;
+    float3 upRef = abs(u.y) < 0.9 ? float3(0, 1, 0) : float3(1, 0, 0);
+    float3 e1 = normalize(cross(u, upRef));
+    float3 e2 = cross(u, e1);
+    float3 center = light.positionRange.xyz - pos;
+
+    // Cylinder body.
+    const int kLen = 40;
+    const int kAng = 48;
+    float dACyl = (2.0 * LIGHT_SHAPE_PI * radius * sourceLen) / (kLen * kAng);
+    [loop]
+    for (int il = 0; il < kLen; ++il)
+    {
+        float s = ((il + 0.5) / kLen - 0.5) * sourceLen;
+        [loop]
+        for (int ia = 0; ia < kAng; ++ia)
+        {
+            float phi = (ia + 0.5) / kAng * (2.0 * LIGHT_SHAPE_PI);
+            float3 radialDir = e1 * cos(phi) + e2 * sin(phi);
+            float3 toQ = center + u * s + radialDir * radius;
+            float distSqr = dot(toQ, toQ);
+            float3 L = toQ * rsqrt(max(distSqr, 1e-12));
+            float NoL = max(dot(N, L), 0.0);
+            float cosEmit = max(dot(radialDir, -L), 0.0);
+            float geom = cosEmit / max(distSqr, 1e-12) * dACyl * invAvg;
+            outDiff += NoL * geom;
+            if (NoL > 0.0 && cosEmit > 0.0)
+                outSpec += EvalSpecNoF(N, V, L, alpha) * geom;
+        }
+    }
+
+    // Two hemispherical end-caps.
+    const int kCapMu = 20;
+    const int kCapAng = 40;
+    float dACap = (2.0 * LIGHT_SHAPE_PI * radius * radius) / (kCapMu * kCapAng);
+    [unroll]
+    for (int side = -1; side <= 1; side += 2)
+    {
+        float3 capCenter = center + u * (0.5 * sourceLen * side);
+        float3 capAxis = u * side;
+        [loop]
+        for (int im = 0; im < kCapMu; ++im)
+        {
+            float mu = (im + 0.5) / kCapMu;
+            float sinTheta = sqrt(saturate(1.0 - mu * mu));
+            [loop]
+            for (int ia = 0; ia < kCapAng; ++ia)
+            {
+                float phi = (ia + 0.5) / kCapAng * (2.0 * LIGHT_SHAPE_PI);
+                float3 radialDir = capAxis * mu + (e1 * cos(phi) + e2 * sin(phi)) * sinTheta;
+                float3 toQ = capCenter + radialDir * radius;
+                float distSqr = dot(toQ, toQ);
+                float3 L = toQ * rsqrt(max(distSqr, 1e-12));
+                float NoL = max(dot(N, L), 0.0);
+                float cosEmit = max(dot(radialDir, -L), 0.0);
+                float geom = cosEmit / max(distSqr, 1e-12) * dACap * invAvg;
+                outDiff += NoL * geom;
+                if (NoL > 0.0 && cosEmit > 0.0)
+                    outSpec += EvalSpecNoF(N, V, L, alpha) * geom;
+            }
+        }
+    }
+}
+
 [numthreads(1, 1, 1)]
 void ShapeIrradiance(uint3 id : SV_DispatchThreadID)
 {
@@ -25,12 +196,240 @@ void ShapeIrradiance(uint3 id : SV_DispatchThreadID)
     float3 N = float3(0, 0, -1);
     float3 V = normalize(float3(0.3, 0.2, -1));
     LightRecord light = MakeLight();
-    // 0 punctual, 1 sphere, 2 line, 3 tube, 4 rect, 5 disk: all face the receiver, so far away E / I -> 1 / d^2.
+    float ref = 1.0 / (d * d);
+    // 0 punctual, 1 sphere, 2 line, 3 tube (Candela), 4 rect, 5 disk (Nits).
     if (id.x == 1) light.shape.x = 0.3;
     if (id.x == 2) light.shape.z = 1.0;
-    if (id.x == 3) { light.shape.z = 1.0; light.shape.x = 0.1; }
-    if (id.x == 4) { light.flags = LIGHT_FLAG_PLANAR; light.area = float4(1.0, 0.5, 0, 0); }
-    if (id.x == 5) { light.flags = LIGHT_FLAG_PLANAR; light.shape.x = 0.3; }
+    if (id.x == 3)
+    {
+        light.shape.z = 1.0;
+        light.shape.x = 0.1;
+        float broadside = 2.0 * 0.1 * 1.0 + LIGHT_SHAPE_PI * 0.01;
+        float avgArea = 0.5 * LIGHT_SHAPE_PI * 0.1 * 1.0 + LIGHT_SHAPE_PI * 0.01;
+        ref = (broadside / avgArea) / (d * d);
+    }
+    if (id.x == 4) { light.flags = LIGHT_FLAG_PLANAR; light.area = float4(1.0, 0.5, 0, 0); ref = (1.0 * 0.5) / (d * d); }
+    if (id.x == 5) { light.flags = LIGHT_FLAG_PLANAR; light.shape.x = 0.3; ref = (LIGHT_SHAPE_PI * 0.09) / (d * d); }
     LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, position, N, V, 0.4);
-    Results[id.x] = float4(s.diffuseIrradiance, 1.0 / (d * d), s.specularNoL, s.specularEnergy);
+    Results[id.x] = float4(s.diffuseIrradiance, ref, s.specularNoL, s.specularEnergy);
+}
+
+// Results[i] = (analyticDiff, refDiff, analyticSpec, refSpec) or custom contract scalars per case.
+[numthreads(1, 1, 1)]
+void ShapeQuadrature(uint3 id : SV_DispatchThreadID)
+{
+    float roughness = 0.45;
+    float alpha = max(roughness * roughness, 1e-3);
+    float aDiff = 0, rDiff = 0, aSpec = 0, rSpec = 0;
+
+    if (id.x == 0)
+    {
+        // Horizon-clipped rect (centered on surface horizon y = 0 at z = 2).
+        LightRecord light = MakeLight();
+        light.positionRange = float4(0, 0, 2.0, 1000);
+        light.forward = float4(0, 0, -1, 0);
+        light.right = float4(1, 0, 0, 0);
+        light.flags = LIGHT_FLAG_PLANAR;
+        light.area = float4(2.0, 1.0, 0, 0);
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.0, 0.7, 0.7));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateRect(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x == 1 || id.x == 2)
+    {
+        // Elongated (3.2 x 0.3) vs Square (0.98 x 0.98) same-area Rect, overhead & slightly tilted view.
+        // ShapeDistance.y (0 at runtime) keeps V dynamic so FXC cannot constant-fold NoH inside IntegrateRect.
+        LightRecord light;
+        if (id.x == 1)
+            light = MakeDownwardRect(float3(0, 1.8, 0), 3.2, 0.3);
+        else
+            light = MakeDownwardRect(float3(0, 1.8, 0), 0.98, 0.98);
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.12 + ShapeDistance.y, 1.0, 0.08));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.specularEnergy;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateRect(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x == 3 || id.x == 4)
+    {
+        // 45-degree and 70-degree tilted Disk strictly above horizon (N = Y), on-lobe view.
+        float tiltDeg = id.x == 3 ? 45.0 : 70.0;
+        float rad = tiltDeg * (LIGHT_SHAPE_PI / 180.0);
+        float3 normal = normalize(float3(0, -cos(rad), sin(rad)));
+        LightRecord light = MakeDiskLight(float3(0, 1.8, -0.6), normal, float3(1, 0, 0), 0.5);
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.05 + ShapeDistance.y, 1.0, 0.33));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateDisk(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x == 5)
+    {
+        // Horizon-crossing Disk (centered at y = 0.3, z = 1.6, radius = 0.8).
+        LightRecord light = MakeDiskLight(float3(0, 0.3, 1.6), float3(0, 0, -1), float3(1, 0, 0), 0.8);
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.0, 0.7, 0.7));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateDisk(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x >= 6 && id.x <= 8)
+    {
+        // Tube broadside at r = 0.005 (thin ribbon), 0.08 (thick ribbon), 0.25.
+        float radii[3] = { 0.005, 0.08, 0.25 };
+        LightRecord light = MakeLight();
+        light.positionRange = float4(0, 1.5, 0, 1000);
+        light.shape.z = 1.6;
+        light.shape.x = radii[id.x - 6];
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.1, 1.0, 0.15));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateTubeCapsule(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x == 9 || id.x == 10)
+    {
+        // Tube thin-ribbon continuity right across r / d = 0.02 boundary (d = 1.5, r = 0.02925 vs 0.03075).
+        LightRecord light = MakeLight();
+        light.positionRange = float4(0, 1.5, 0, 1000);
+        light.shape.z = 1.6;
+        light.shape.x = id.x == 9 ? 0.02925 : 0.03075;
+        float3 N = float3(0, 1, 0);
+        float3 V = float3(0, 1, 0);
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        IntegrateTubeCapsule(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+        aSpec = s.specularEnergy;
+    }
+    else if (id.x == 11)
+    {
+        // Tube end-on (L = 1.0, r = 0.2, d = 2.5 along +X); N faces +X toward the light.
+        LightRecord light = MakeLight();
+        light.positionRange = float4(2.5, 0, 0, 1000);
+        light.shape.z = 1.0;
+        light.shape.x = 0.2;
+        float3 N = float3(1, 0, 0);
+        float3 V = normalize(float3(1, 0.2, 0.1));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateTubeCapsule(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+    else if (id.x >= 12 && id.x <= 14)
+    {
+        // Zero-size transitions: (12) Sphere->Point, (13) Line->Point, (14) Tube->Sphere; N faces +Z toward light.
+        LightRecord smallL = MakeLight();
+        smallL.positionRange = float4(0, 0, 2.0, 1000);
+        LightRecord baseL = smallL;
+        if (id.x == 12) smallL.shape.x = 1e-4;
+        if (id.x == 13) smallL.shape.z = 1e-4;
+        if (id.x == 14) { smallL.shape.x = 0.3; smallL.shape.z = 1e-4; baseL.shape.x = 0.3; }
+        float3 N = float3(0, 0, 1);
+        float3 V = normalize(float3(0.2, 0.1, 1));
+        LightSourceShapeSample sA = EvaluateLocalLightSourceShape(smallL, float3(0, 0, 0), N, V, roughness);
+        LightSourceShapeSample sB = EvaluateLocalLightSourceShape(baseL, float3(0, 0, 0), N, V, roughness);
+        aDiff = sA.diffuseIrradiance;
+        rDiff = sB.diffuseIrradiance;
+        aSpec = sA.specularEnergy;
+        rSpec = sB.specularEnergy;
+    }
+    else if (id.x == 15)
+    {
+        // DiskCone beam clipping: x = on-axis window, y = rim-cone window, z = outside-cone window, w = behind-disk window.
+        LightRecord dc = MakeDiskLight(float3(0, 0, 0), float3(0, 0, 1), float3(1, 0, 0), 0.4);
+        dc.flags = LIGHT_FLAG_PLANAR | LIGHT_FLAG_SPOT_CONE;
+        float outerRad = 30.0 * (LIGHT_SHAPE_PI / 180.0);
+        float innerRad = 12.5 * (LIGHT_SHAPE_PI / 180.0);
+        dc.forward.w = cos(outerRad);
+        dc.right.w = 1.0 / max(cos(innerRad) - cos(outerRad), 1e-4);
+        dc.shape.y = 0.4 / tan(outerRad);
+        Results[id.x] = float4(
+            LocalLightWindow(dc, float3(0, 0, 2.0)),
+            LocalLightWindow(dc, float3(0.55, 0, 1.0)),
+            LocalLightWindow(dc, float3(1.2, 0, 1.0)),
+            LocalLightWindow(dc, float3(0, 0, -0.2)));
+        return;
+    }
+    else if (id.x == 16)
+    {
+        // Off-lobe 45-degree tilted Disk check: diffuse <= 2%, finite bounded Karis MRP specular.
+        float rad = 45.0 * (LIGHT_SHAPE_PI / 180.0);
+        float3 normal = normalize(float3(0, -cos(rad), sin(rad)));
+        LightRecord light = MakeDiskLight(float3(0, 1.8, -0.6), normal, float3(1, 0, 0), 0.5);
+        float3 N = float3(0, 1, 0);
+        float3 V = normalize(float3(0.05 + ShapeDistance.y, 1.0, -0.2));
+        LightSourceShapeSample s = EvaluateLocalLightSourceShape(light, float3(0, 0, 0), N, V, roughness);
+        aDiff = s.diffuseIrradiance;
+        aSpec = EvalSpecNoF(N, V, s.specularL, alpha) * s.specularFalloff * s.specularEnergy;
+        IntegrateDisk(light, float3(0, 0, 0), N, V, alpha, rDiff, rSpec);
+    }
+
+    Results[id.x] = float4(aDiff, rDiff, aSpec, rSpec);
+}
+
+// Sweep dot(R, normal) from -0.1 to +0.1 across 21 samples for Rect (0..20) and Disk (21..41).
+[numthreads(1, 1, 1)]
+void PlanarRepresentativeSweep(uint3 id : SV_DispatchThreadID)
+{
+    bool isDisk = id.x >= 21;
+    uint k = isDisk ? (id.x - 21) : id.x;
+    float dn = lerp(-0.1, 0.1, k / 20.0);
+    float sinT = sqrt(saturate(1.0 - dn * dn));
+    float3 R = normalize(float3(sinT, 0.0, dn));
+    LightRecord light;
+    if (isDisk)
+    {
+        light = MakeDiskLight(float3(0, 0, 0), float3(0, 0, 1), float3(1, 0, 0), 0.5);
+    }
+    else
+    {
+        light = MakeLight();
+        light.flags = LIGHT_FLAG_PLANAR;
+        light.area = float4(1.6, 0.8, 0, 0);
+    }
+    float2 uv;
+    float3 rep = PlanarRepresentativePoint(light, float3(0, 0, -2.0), R, !isDisk, 0.5 * light.area.xy, light.shape.x, uv);
+    Results[id.x] = float4(rep, uv.x);
+}
+
+[numthreads(1, 1, 1)]
+void VolumeLocalLightContract(uint3 id : SV_DispatchThreadID)
+{
+    float3 L = 0;
+    float att = 0;
+    if (id.x == 0 || id.x == 1)
+    {
+        // Rect Nits in front (z=4) vs behind (z=-1).
+        LightRecord rect = MakeLight();
+        rect.flags = LIGHT_FLAG_PLANAR;
+        rect.area = float4(2.0, 1.0, 0, 0);
+        EvaluateVolumeLocalLight(rect, float3(0, 0, id.x == 0 ? 4.0 : -1.0), L, att);
+        Results[id.x] = float4(L, att);
+    }
+    else if (id.x == 2 || id.x == 3)
+    {
+        // SpotBox Lux: constant with distance inside box plateau (z=1 vs z=2, range=100).
+        LightRecord box = MakeLight();
+        box.positionRange = float4(0, 0, 0, 100);
+        box.flags = LIGHT_FLAG_SPOT_BOX;
+        box.area = float4(2.0, 2.0, 0, 0);
+        EvaluateVolumeLocalLight(box, float3(0, 0, id.x == 2 ? 1.0 : 2.0), L, att);
+        Results[id.x] = float4(L, att);
+    }
+    else if (id.x == 4)
+    {
+        // Line / Tube: L points toward closest point on segment (x=0.4), not center (0,0,0).
+        LightRecord lineLight = MakeLight();
+        lineLight.shape.z = 2.0;
+        lineLight.shape.x = 0.05;
+        EvaluateVolumeLocalLight(lineLight, float3(0.4, 2.0, 0), L, att);
+        Results[id.x] = float4(L, att);
+    }
 }

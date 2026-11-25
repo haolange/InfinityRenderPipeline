@@ -390,7 +390,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     }
 
                     Vector3 centerVS = worldToView.MultiplyPoint3x4(new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z));
-                    float radius = math.max(record.positionRange.w, 0.01f);
+                    float radius = LightShapeUtility.BoundingRadius(record);
                     bool tiled;
                     using (LightCpuMarkers.s_TileRect.Auto())
                     {
@@ -422,7 +422,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 for (int i = 0; i < m_LocalCandidates.Count; ++i)
                 {
                     LocalCandidate candidate = m_LocalCandidates[i];
-                    float radius = math.max(candidate.record.positionRange.w, 0.01f);
+                    float radius = LightShapeUtility.BoundingRadius(candidate.record);
                     depthRanges[i] = new float2(math.max(candidate.depth - radius, near), math.max(candidate.depth + radius, near));
                     m_Records.Add(candidate.record);
                     m_TileRects.Add(candidate.tileRect);
@@ -538,7 +538,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // Assigns cookie / IES atlas blocks to this camera's records (record.cookieIndex) and queues the uploads of new or
         // changed textures. The cookie texture is the Unity Light's; the IES profile is InfinityAdditionalLightData's.
         // Point lights need cubemap cookies (stored octahedral); every other shape takes a 2D cookie. Cube IES profiles
-        // apply to every local shape by direction; 2D IES profiles only to cone and pyramid spots.
+        // apply to every local shape by direction; 2D IES profiles to Cone, Pyramid, and Disk + Cone lights.
         internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults, int frame)
         {
             m_Cookies.Clear();

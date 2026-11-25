@@ -579,8 +579,10 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowSettings.filterGuardTexels = m_Settings.shadowFilter.pcfRadius + 1;
                     using (PipelineCpuMarkers.s_ProcessLightShadowCache.Auto())
                     {
+                        int localAtlasRes = ShadowAllocator.ResolveLocalAtlasResolution(m_Settings.localShadowMapResolution);
+                        ShadowAllocator.ResolveLocalResolutionBounds(localAtlasRes, out int minCacheTile, out int maxCacheTile);
                         sceneWorld.lights.shadowCache.Configure(m_Settings.cachedShadowAtlasWidth,
-                            m_Settings.localShadowMapResolution, Mathf.Max(1, m_Settings.localShadowMapResolution / 4));
+                            localAtlasRes, minCacheTile, maxCacheTile);
                         if (sceneWorld.lights.shadowCache.SlotCount > 0)
                         {
                             sceneWorld.lights.shadowCache.GetAtlas();

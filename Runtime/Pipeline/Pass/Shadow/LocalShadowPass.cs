@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void RasterLocalShadow(in ViewContext context)
         {
-            int shadowMapResolution = m_Settings.localShadowMapResolution;
+            int shadowMapResolution = ShadowAllocator.ResolveLocalAtlasResolution(m_Settings.localShadowMapResolution);
             ShadowAllocator allocator = context.lights.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);
@@ -106,10 +106,6 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
             RGTextureHandle shadowMapTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
-
-            // Same tile size as ShadowAllocator.Allocate, so a cached tile copies 1:1 into the frame atlas.
-            int tileResolution = math.max(1, shadowMapResolution / 4);
-
 
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(matrixCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
@@ -133,7 +129,8 @@ namespace InfinityTech.Rendering.Pipeline
             int lastRecord = -1;
             int frame = context.frame;
             long production = 0;
-            bool cacheGroupAvailable = false;
+            bool cacheGroupActive = false;
+            ulong sceneMask = CameraSceneCulling.Mask(context.camera);
             for (int slice = 0; slice < sliceCount; ++slice)
             {
                 LocalShadowSlice local = allocator.LocalSlices[slice];
@@ -144,9 +141,56 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     lastRecord = local.recordIndex;
                     production = m_LocalShadowCache.NextProduction();
-                    Light groupLight = context.cullingResults.visibleLights[local.visibleLightIndex].light;
-                    cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
-                        CameraSceneCulling.Mask(context.camera), local.isSpot ? 1 : 6, frame);
+                    VisibleLight groupVisible = context.cullingResults.visibleLights[local.visibleLightIndex];
+                    Light groupLight = groupVisible.light;
+                    ulong groupLightId = UnityEntityId.ToUInt64(groupLight);
+                    int groupFaces = local.isSpot ? 1 : 6;
+                    InfinityAdditionalLightData groupExt = context.lights.AdditionalData(local.visibleLightIndex);
+                    bool groupExcludeStatic = ShadowCasterBounds.ExcludesStatic(groupLight, context.shadowmaskMode);
+                    int groupResolution = (int)local.atlasPixelRect.z;
+                    cacheGroupActive = groupExt != null
+                        && groupExt.shadowUpdateMode != EShadowUpdateMode.EveryFrame
+                        && slice + groupFaces <= sliceCount
+                        && m_LocalShadowCache.CanAcquireGroup(groupLightId, sceneMask, groupFaces, groupResolution, frame);
+                    if (cacheGroupActive)
+                    {
+                        bool allValidAndAcquired = true;
+                        for (int f = 0; f < groupFaces; ++f)
+                        {
+                            LocalShadowSlice faceSlice = allocator.LocalSlices[slice + f];
+                            if (!faceSlice.valid)
+                            {
+                                allValidAndAcquired = false;
+                                break;
+                            }
+                            ShadowCacheKey key = new ShadowCacheKey(groupLightId, faceSlice.face, sceneMask);
+                            cacheKeys[slice + f] = key;
+                            int slot = m_LocalShadowCache.Acquire(key, groupExt.shadowUpdateMode, (int)faceSlice.atlasPixelRect.z,
+                                CachedShadowHash(faceSlice, groupLight, groupExcludeStatic), groupExt.shadowCacheVersion, frame, out cacheRender[slice + f]);
+                            if (slot < 0)
+                            {
+                                allValidAndAcquired = false;
+                                break;
+                            }
+                            cacheSlots[slice + f] = slot;
+                            if (cacheRender[slice + f])
+                                m_LocalShadowCache.SetPendingSampling(key, new LocalShadowCache.SamplingState
+                                {
+                                    slice = faceSlice, gpu = allocator.LocalGPU[slice + f],
+                                    faceCount = groupFaces, tileResolution = (int)faceSlice.atlasPixelRect.z, production = production
+                                });
+                        }
+                        if (!allValidAndAcquired)
+                        {
+                            m_LocalShadowCache.ReleasePendingGroup(groupLightId, sceneMask, groupFaces);
+                            for (int f = 0; f < groupFaces; ++f)
+                            {
+                                cacheSlots[slice + f] = -1;
+                                cacheRender[slice + f] = false;
+                            }
+                            cacheGroupActive = false;
+                        }
+                    }
                 }
 
                 if (!local.valid)
@@ -157,28 +201,14 @@ namespace InfinityTech.Rendering.Pipeline
                 int lightIdx = local.visibleLightIndex;
                 VisibleLight visibleLight = context.cullingResults.visibleLights[lightIdx];
                 Light shadowLight = visibleLight.light;
-                ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
                 bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight, context.shadowmaskMode);
 
-                InfinityAdditionalLightData ext = context.lights.AdditionalData(lightIdx);
-                if (cacheGroupAvailable && ext != null && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
+                if (cacheGroupActive && cacheSlots[slice] >= 0 && !cacheRender[slice])
                 {
-                    cacheKeys[slice] = new ShadowCacheKey(lightInstanceId, local.face, CameraSceneCulling.Mask(context.camera));
-                    cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
-                        CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
-                    if (cacheSlots[slice] >= 0 && cacheRender[slice])
-                        m_LocalShadowCache.SetPendingSampling(cacheKeys[slice], new LocalShadowCache.SamplingState
-                        {
-                            slice = local, gpu = allocator.LocalGPU[slice],
-                            faceCount = local.isSpot ? 1 : 6, production = production
-                        });
-                    if (cacheSlots[slice] >= 0 && !cacheRender[slice])
-                    {
-                        // The cached tile is current: no casters are drawn for it this frame.
-                        continue;
-                    }
+                    // The cached tile is current: no casters are drawn for it this frame.
+                    continue;
                 }
 
                 // Each face is its own light view: no camera occluder and no motion reach it.
@@ -243,7 +273,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            RecordCachedLocalShadows(sliceCount, shadowMapTextureHandle, tileRects, cacheSlots, cacheRender, cacheKeys);
+            RecordCachedLocalShadows(context, sliceCount, shadowMapTextureHandle, tileRects, cacheSlots, cacheRender, cacheKeys);
         }
 
         static void DrawShadowSlice(in RGRasterEncoder cmdEncoder, Vector4 rect, Vector4 casterBias, Vector4 casterLight, Matrix4x4 shadowMatrix,
@@ -269,7 +299,7 @@ namespace InfinityTech.Rendering.Pipeline
         // into its cache slot; a current tile is loaded from its cache slot. Drawing into the frame atlas avoids a
         // partial depth clear of the persistent atlas. Saving is the cache production: the slot commits when this
         // pass is queued and the frame is submitted.
-        void RecordCachedLocalShadows(int sliceCount, RGTextureHandle shadowMapTextureHandle, Vector4[] tileRects, int[] cacheSlots,
+        void RecordCachedLocalShadows(in ViewContext context, int sliceCount, RGTextureHandle shadowMapTextureHandle, Vector4[] tileRects, int[] cacheSlots,
             bool[] cacheRender, ShadowCacheKey[] cacheKeys)
         {
             int saveCount = 0, loadCount = 0;
@@ -289,8 +319,20 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            InfinityDebugDisplaySettings.current.lighting.lastCachedShadowTiles = saveCount + loadCount;
-            InfinityDebugDisplaySettings.current.lighting.lastCachedShadowRenders = saveCount;
+            ShadowAllocator allocator = context.lights.ShadowAllocator;
+            InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
+            lightingDebug.lastCachedShadowTiles = saveCount + loadCount;
+            lightingDebug.lastCachedShadowRenders = saveCount;
+            lightingDebug.lastCachedShadowEvictions = m_LocalShadowCache.EvictedThisFrame;
+            lightingDebug.lastCachedShadowRelocations = m_LocalShadowCache.RelocatedThisFrame;
+            lightingDebug.lastLocalShadowOccupancy = allocator.LocalAtlasOccupancy;
+            lightingDebug.lastLocalShadowTiles = allocator.LocalSliceCount;
+            lightingDebug.lastLocalShadowDowngradedLights = allocator.LocalDowngradedLightCount;
+            lightingDebug.lastLocalShadowDroppedLights = allocator.LocalDroppedLightCount;
+            lightingDebug.lastLocalShadowTier1024 = allocator.LocalTileCount1024;
+            lightingDebug.lastLocalShadowTier512 = allocator.LocalTileCount512;
+            lightingDebug.lastLocalShadowTier256 = allocator.LocalTileCount256;
+            lightingDebug.lastLocalShadowTier128OrSmaller = allocator.LocalTileCount128OrSmaller;
 #endif
             if (saveCount + loadCount == 0)
             {

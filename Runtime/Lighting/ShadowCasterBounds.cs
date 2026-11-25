@@ -174,7 +174,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 lightId = lightId, sceneMask = sceneMask, structural = m_Structural, transform = m_World.transformRevision,
                 cullingMask = light.cullingMask, renderingMask = renderingMask, tileResolution = tileResolution, guardTexels = guardTexels,
-                position = record.positionRange, forward = record.forward, right = record.right, area = record.area, flags = record.flags,
+                position = record.positionRange, forward = record.forward, right = record.right, shape = record.shape, area = record.area, flags = record.flags,
                 shadowNear = light.shadowNearPlane, spotAngle = light.spotAngle, found = found, frame = m_Frame
             };
             if (slot >= 0)
@@ -205,7 +205,7 @@ namespace InfinityTech.Rendering.LightPipeline
             internal int structural, cullingMask, flags, tileResolution;
             internal uint renderingMask;
             internal float guardTexels, shadowNear, spotAngle;
-            internal Vector4 position, forward, right, area;
+            internal Vector4 position, forward, right, shape, area;
             internal bool found;
             internal int frame;
         }
@@ -217,7 +217,8 @@ namespace InfinityTech.Rendering.LightPipeline
             => slot.structural == m_Structural && slot.transform == m_World.transformRevision && slot.cullingMask == light.cullingMask
                 && slot.renderingMask == renderingMask && slot.tileResolution == tileResolution && slot.guardTexels == guardTexels
                 && slot.flags == record.flags && slot.shadowNear == light.shadowNearPlane && slot.spotAngle == light.spotAngle
-                && slot.position == record.positionRange && slot.forward == record.forward && slot.right == record.right && slot.area == record.area;
+                && slot.position == record.positionRange && slot.forward == record.forward && slot.right == record.right
+                && slot.shape == record.shape && slot.area == record.area;
 
         void CompactBounds(int frame)
         {

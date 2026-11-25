@@ -53,23 +53,31 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 float x = side * 5.5f;
                 CreateLight("Sphere", new Vector3(x - 3.0f, 1.0f, 2.5f), Quaternion.identity, LightType.Point, new Color(1, 0.4f, 0.2f), 6,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Point; shape.sourceRadius = 0.3f; });
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional); shape.sourceRadius = 0.3f; });
                 CreateLight("Line", new Vector3(x, 1.0f, 2.5f), Quaternion.identity, LightType.Point, new Color(0.3f, 1, 0.4f), 6,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Point; shape.sourceLength = 1.5f; });
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional); shape.sourceLength = 1.5f; });
                 CreateLight("Tube", new Vector3(x + 3.0f, 1.0f, 2.5f), Quaternion.Euler(0, 30, 0), LightType.Point, new Color(0.3f, 0.5f, 1), 6,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Point; shape.sourceLength = 2.0f; shape.sourceRadius = 0.08f; });
-                CreateLight("Rect", new Vector3(x - 3.0f, 1.5f, -1.5f), Quaternion.Euler(70, 0, 0), LightType.Rectangle, Color.white, 10,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Rect; shape.sourceWidth = 1.6f; shape.sourceHeight = 0.6f; shape.barnDoorAngle = 45; shape.barnDoorLength = 0.4f; });
-                CreateLight("Disk", new Vector3(x, 1.5f, -1.5f), Quaternion.Euler(70, 0, 0), LightType.Disc, new Color(1, 0.9f, 0.6f), 10,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Disk; shape.sourceRadius = 0.5f; });
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional); shape.sourceLength = 2.0f; shape.sourceRadius = 0.08f; });
+                CreateLight("Rect", new Vector3(x - 3.0f, 1.5f, -1.5f), Quaternion.Euler(70, 0, 0), LightType.Rectangle, Color.white, 10.4f,
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere); shape.sourceWidth = 1.6f; shape.sourceHeight = 0.6f; shape.barnDoorAngle = 45; shape.barnDoorLength = 0.4f; });
+                CreateLight("Disk", new Vector3(x, 1.5f, -1.5f), Quaternion.Euler(70, 0, 0), LightType.Rectangle, new Color(1, 0.9f, 0.6f), 12.7f,
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere); shape.sourceRadius = 0.5f; });
                 CreateLight("Pyramid", new Vector3(x + 3.0f, 3.0f, -1.5f), Quaternion.Euler(90, 0, 0), LightType.Pyramid, new Color(1, 0.3f, 0.8f), 20,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Spot; shape.spotShape = ESpotShape.Pyramid; shape.pyramidAspect = 2; });
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid); shape.pyramidAspect = 2; });
+                Light diskCone = CreateLight("DiskCone", new Vector3(x - 3.0f, 1.8f, -4.0f), Quaternion.Euler(75, 0, 0), LightType.Rectangle, new Color(1, 0.65f, 0.25f), 15.0f,
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone); shape.sourceRadius = 0.4f; });
+                diskCone.spotAngle = 60.0f;
+                diskCone.innerSpotAngle = 25.0f;
                 CreateLight("Box", new Vector3(x, 3.0f, -4.0f), Quaternion.Euler(90, 0, 0), LightType.Box, new Color(0.3f, 1, 1), 2,
-                    (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Spot; shape.spotShape = ESpotShape.Box; shape.boxSize = new Vector2(1.5f, 0.75f); });
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox); shape.boxSize = new Vector2(1.5f, 0.75f); });
+                CreateLight("Rect_Elongated", new Vector3(x - 1.8f, 1.3f, 4.8f), Quaternion.Euler(65, 0, 0), LightType.Rectangle, Color.white, 10.4f,
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere); shape.sourceWidth = 3.2f; shape.sourceHeight = 0.3f; });
+                CreateLight("Rect_Square", new Vector3(x + 1.8f, 1.3f, 4.8f), Quaternion.Euler(65, 0, 0), LightType.Rectangle, Color.white, 10.4f,
+                    (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere); shape.sourceWidth = 0.98f; shape.sourceHeight = 0.98f; });
             }
 
             Light sun = CreateLight("Sun", Vector3.zero, Quaternion.Euler(25, 160, 0), LightType.Directional, new Color(1, 0.95f, 0.85f), 0.6f,
-                (ref LightSourceShape shape) => { shape.type = EInfinityLightType.Directional; shape.sourceAngle = 2.0f; });
+                (ref LightSourceShape shape) => { shape = LightSourceShape.DefaultDirectional(); shape.sourceAngle = 2.0f; });
             RenderSettings.sun = sun;
 
             GameObject cameraGo = new GameObject("Camera");

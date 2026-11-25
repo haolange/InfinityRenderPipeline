@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 InfinityAdditionalLightData ext = go.AddComponent<InfinityAdditionalLightData>();
 
                 LightSourceShape shape = LightRecordPack.ResolveShape(light, ext);
-                Assert.AreEqual(EInfinityLightType.Directional, shape.type);
+                Assert.AreEqual(ELightKind.Directional, shape.kind);
                 Assert.IsTrue(LightRecordPack.TryPack(VisibleLightTestUtility.FromLight(light), light, ext, shape, 0, Vector3.zero, out LightRecord record));
                 Assert.AreEqual(light.color.linear.r * light.intensity, record.radiance.x, 1e-4f);
                 Assert.AreEqual(1.0f, record.radiance.w, 1e-4f);

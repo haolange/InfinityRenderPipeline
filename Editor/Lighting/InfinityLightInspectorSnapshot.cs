@@ -10,6 +10,7 @@ namespace InfinityTech.Component.Editor
         [SerializeField] LightSourceShape m_Shape;
         [SerializeField] EShadowFilter m_ShadowFilter;
         [SerializeField] EShadowUpdateMode m_ShadowUpdateMode;
+        [SerializeField] ELightIntensityEditMode m_IntensityEditMode = ELightIntensityEditMode.PhysicallyBased;
 
         public ERenderingLayer lightLayer;
         public float diffuse;
@@ -23,6 +24,7 @@ namespace InfinityTech.Component.Editor
         [Tooltip(InfinityAdditionalLightData.IESTooltip)] public Texture iesProfile;
 
         internal LightSourceShape shape => m_Shape;
+        internal ELightIntensityEditMode intensityEditMode => m_IntensityEditMode;
 
         internal void Read(Light light)
         {
@@ -30,6 +32,7 @@ namespace InfinityTech.Component.Editor
             m_Shape = data ? data.shape : LightShapeUtility.FromUnityLight(light);
             m_ShadowFilter = data ? data.shadowFilter : ResolveNativeShadowFilter(light.shadows);
             m_ShadowUpdateMode = data ? data.shadowUpdateMode : EShadowUpdateMode.EveryFrame;
+            m_IntensityEditMode = data ? data.intensityEditMode : ELightIntensityEditMode.PhysicallyBased;
             lightLayer = data ? data.lightLayer : ERenderingLayer.LightLayerDefault;
             diffuse = data ? data.diffuse : InfinityAdditionalLightData.DefaultDiffuse;
             specular = data ? data.specular : InfinityAdditionalLightData.DefaultSpecular;

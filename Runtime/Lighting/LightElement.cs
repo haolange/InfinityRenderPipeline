@@ -43,14 +43,14 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 forward;
         // xyz = transform.right; w = 1 / (cos inner - cos outer) for cones.
         public Vector4 right;
-        // x = sourceRadius, y = softSourceRadius, z = sourceLength (along right), w = tan(sourceAngle / 2).
+        // x = sourceRadius, y = shifted-apex offset along -forward (DiskCone only), z = sourceLength (along right), w = tan(sourceAngle / 2).
         public Vector4 shape;
         // Rect: x = width, y = height, z = cos(barn door angle), w = barn door length.
         // Pyramid: x, y = half-angle tangents. Box: x, y = size.
         public Vector4 area;
         // x = diffuse weight, y = specular weight, z = volumetric intensity, w = volumetric shadow weight.
         public Vector4 weights;
-        // x = shadow strength, y = tan(softSourceAngle / 2), zw reserved.
+        // x = shadow strength, y = reserved, z = contact shadow bit, w = reserved.
         public Vector4 misc;
         public Vector4 shadowAtlasRect;
         public int lightLayer;
@@ -99,11 +99,12 @@ namespace InfinityTech.Rendering.LightPipeline
                 return false;
             }
 
+            EResolvedLightShape resolved = LightShapeUtility.Resolve(shape);
             Matrix4x4 localToWorld = visible.localToWorldMatrix;
             Vector3 position = localToWorld.GetColumn(3);
             Vector3 forward = ((Vector3)localToWorld.GetColumn(2)).normalized;
             Vector3 right = ((Vector3)localToWorld.GetColumn(0)).normalized;
-            bool directional = shape.type == EInfinityLightType.Directional;
+            bool directional = resolved == EResolvedLightShape.Directional;
 
             float fade = 1;
             if (!directional && ext != null)
@@ -124,43 +125,62 @@ namespace InfinityTech.Rendering.LightPipeline
             record.positionRange = new Vector4(position.x, position.y, position.z, directional ? 0 : visible.range);
             record.forward = new Vector4(forward.x, forward.y, forward.z, 0);
             record.right = new Vector4(right.x, right.y, right.z, 0);
-            record.shape = new Vector4(shape.sourceRadius, shape.softSourceRadius, shape.sourceLength, Mathf.Tan(Mathf.Clamp(shape.sourceAngle, 0, 90) * 0.5f * Mathf.Deg2Rad));
+
+            float packedRadius = resolved is EResolvedLightShape.Sphere or EResolvedLightShape.Tube
+                or EResolvedLightShape.SpotCone or EResolvedLightShape.SpotPyramid
+                or EResolvedLightShape.Disk or EResolvedLightShape.DiskCone
+                ? Mathf.Max(0, shape.sourceRadius) : 0;
+            float packedLength = resolved is EResolvedLightShape.Line or EResolvedLightShape.Tube
+                ? Mathf.Max(0, shape.sourceLength) : 0;
+            float tanSunHalf = directional ? Mathf.Tan(Mathf.Clamp(shape.sourceAngle, 0, 90) * 0.5f * Mathf.Deg2Rad) : 0;
+            record.shape = new Vector4(packedRadius, 0, packedLength, tanSunHalf);
 
             int flags = 0;
-            switch (shape.type)
+            switch (resolved)
             {
-                case EInfinityLightType.Directional:
+                case EResolvedLightShape.Directional:
                     flags |= LightRecordFlags.Directional;
                     break;
-                case EInfinityLightType.Spot:
-                    if (shape.spotShape == ESpotShape.Cone)
-                    {
-                        flags |= LightRecordFlags.SpotCone;
-                        float outerCos = Mathf.Cos(visible.spotAngle * 0.5f * Mathf.Deg2Rad);
-                        float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, visible.spotAngle) * 0.5f * Mathf.Deg2Rad);
-                        record.forward.w = outerCos;
-                        record.right.w = 1.0f / Mathf.Max(innerCos - outerCos, 1e-4f);
-                    }
-                    else if (shape.spotShape == ESpotShape.Pyramid)
-                    {
-                        flags |= LightRecordFlags.SpotPyramid;
-                        Vector2 tangents = LightShapeUtility.PyramidTangents(visible.spotAngle, shape.pyramidAspect);
-                        record.area = new Vector4(tangents.x, tangents.y, 0, 0);
-                    }
-                    else
-                    {
-                        flags |= LightRecordFlags.SpotBox;
-                        record.area = new Vector4(shape.boxSize.x, shape.boxSize.y, 0, 0);
-                    }
+                case EResolvedLightShape.SpotCone:
+                {
+                    flags |= LightRecordFlags.SpotCone;
+                    float outerCos = Mathf.Cos(visible.spotAngle * 0.5f * Mathf.Deg2Rad);
+                    float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, visible.spotAngle) * 0.5f * Mathf.Deg2Rad);
+                    record.forward.w = outerCos;
+                    record.right.w = 1.0f / Mathf.Max(innerCos - outerCos, 1e-4f);
                     break;
-                case EInfinityLightType.Rect:
+                }
+                case EResolvedLightShape.SpotPyramid:
+                {
+                    flags |= LightRecordFlags.SpotPyramid;
+                    Vector2 tangents = LightShapeUtility.PyramidTangents(visible.spotAngle, shape.pyramidAspect);
+                    record.area = new Vector4(tangents.x, tangents.y, 0, 0);
+                    break;
+                }
+                case EResolvedLightShape.SpotBox:
+                    flags |= LightRecordFlags.SpotBox;
+                    record.area = new Vector4(shape.boxSize.x, shape.boxSize.y, 0, 0);
+                    break;
+                case EResolvedLightShape.Rect:
                     flags |= LightRecordFlags.Planar;
                     record.area = new Vector4(shape.sourceWidth, shape.sourceHeight,
                         Mathf.Cos(Mathf.Clamp(shape.barnDoorAngle, 0, 90) * Mathf.Deg2Rad), Mathf.Max(0, shape.barnDoorLength));
                     break;
-                case EInfinityLightType.Disk:
+                case EResolvedLightShape.Disk:
                     flags |= LightRecordFlags.Planar;
                     break;
+                case EResolvedLightShape.DiskCone:
+                {
+                    // Carrier is LightType.Rectangle, so VisibleLight.spotAngle does not carry the cone angle.
+                    float spotAngle = Mathf.Clamp(light.spotAngle, 1f, 179f);
+                    float outerCos = Mathf.Cos(spotAngle * 0.5f * Mathf.Deg2Rad);
+                    float innerCos = Mathf.Cos(Mathf.Min(light.innerSpotAngle, spotAngle) * 0.5f * Mathf.Deg2Rad);
+                    flags |= LightRecordFlags.Planar | LightRecordFlags.SpotCone;
+                    record.forward.w = outerCos;
+                    record.right.w = 1.0f / Mathf.Max(innerCos - outerCos, 1e-4f);
+                    record.shape.y = LightShapeUtility.DiskConeApexOffset(shape.sourceRadius, spotAngle);
+                    break;
+                }
             }
 
             float diffuse = 1.0f;
@@ -190,7 +210,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             record.weights = new Vector4(diffuse, specular, volIntensity, volOcclusion);
-            record.misc = new Vector4(Mathf.Clamp01(light.shadowStrength), Mathf.Tan(Mathf.Clamp(shape.softSourceAngle, 0, 90) * 0.5f * Mathf.Deg2Rad), 0, 0);
+            record.misc = new Vector4(Mathf.Clamp01(light.shadowStrength), 0, 0, 0);
             record.lightLayer = (int)RenderingLayerUtility.Validate((uint)layer);
 
             var baking = light.bakingOutput;

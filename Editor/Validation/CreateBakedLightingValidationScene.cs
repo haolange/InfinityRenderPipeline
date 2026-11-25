@@ -45,12 +45,13 @@ namespace InfinityTech.Rendering.Editor.Validation
             GameObject capsule = fixture.Primitive(PrimitiveType.Capsule, "Dynamic Capsule (probes)", new Vector3(-2.5f, 1.5f, -2.5f), new Vector3(1, 1.5f, 1), dynamic);
             capsule.GetComponent<Renderer>().lightProbeUsage = LightProbeUsage.BlendProbes;
 
-            Light sun = fixture.Light("Sun (Mixed)", Vector3.zero, new Vector3(30, 180, 0), EInfinityLightType.Directional, new Color(1, 0.95f, 0.85f), 3);
+            Light sun = fixture.Light("Sun (Mixed)", Vector3.zero, new Vector3(30, 180, 0), LightSourceShape.DefaultDirectional(), new Color(1, 0.95f, 0.85f), 3);
             sun.lightmapBakeType = LightmapBakeType.Mixed;
             sun.shadows = LightShadows.Soft;
             RenderSettings.sun = sun;
-            Light bulb = fixture.Light("Bulb (Baked)", new Vector3(2.5f, 3, 2.5f), Vector3.zero, EInfinityLightType.Point, new Color(1, 0.7f, 0.4f), 8, 8,
-                (ref LightSourceShape s) => s.sourceRadius = 0.1f);
+            Light bulb = fixture.Light("Bulb (Baked)", new Vector3(2.5f, 3, 2.5f), Vector3.zero,
+                LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional),
+                new Color(1, 0.7f, 0.4f), 8, 8, (ref LightSourceShape s) => s.sourceRadius = 0.1f);
             bulb.lightmapBakeType = LightmapBakeType.Baked;
             bulb.shadows = LightShadows.Soft;
 

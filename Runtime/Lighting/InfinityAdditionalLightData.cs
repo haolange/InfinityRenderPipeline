@@ -23,7 +23,7 @@ namespace InfinityTech.Component
         internal const float DefaultDistanceFade = 1;
         internal const string MaximumDistanceTooltip = "Lights farther than this from the camera are not rendered (meters).";
         internal const string DistanceFadeTooltip = "Distance over which the light fades out before Maximum Distance (meters).";
-        internal const string IESTooltip = "IES profile from an imported .ies file: the Cube texture applies to every local light by direction, the 2D texture to cone and pyramid spots. The cookie is the Light's own Cookie.";
+        internal const string IESTooltip = "IES profile from an imported .ies file: the Cube texture applies to every local light by direction, the 2D texture to Cone, Pyramid, and Disk + Cone lights. The cookie is the Light's own Cookie.";
 
         Light m_UnityLight;
         ulong m_RegisteredLightId;
@@ -43,10 +43,11 @@ namespace InfinityTech.Component
         [Tooltip(IESTooltip)]
         public Texture iesProfile;
 
-        // Source shape in Unreal form. Authority over the native shape fields (type, shapeRadius, areaSize,
-        // shadowAngle) once authored; until then the shape is read from the native Light.
+        // Source shape in Infinity two-dimensional (Emitter x Distribution) form. Authority over the native shape
+        // fields (type, shapeRadius, areaSize, shadowAngle) once authored; until then read from the native Light.
         [SerializeField] bool m_ShapeAuthored;
-        [SerializeField] LightSourceShape m_Shape = LightSourceShape.Default(EInfinityLightType.Point);
+        [SerializeField] LightSourceShape m_Shape = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+        [SerializeField] ELightIntensityEditMode m_IntensityEditMode = ELightIntensityEditMode.PhysicallyBased;
         [SerializeField] EShadowFilter m_ShadowFilter = EShadowFilter.PCF;
         [SerializeField] EShadowUpdateMode m_ShadowUpdateMode = EShadowUpdateMode.EveryFrame;
         int m_ShadowRequestCount;
@@ -56,6 +57,12 @@ namespace InfinityTech.Component
 
         // The shape the renderer uses: the authored shape, or the shape derived from the native Light.
         public LightSourceShape shape => m_ShapeAuthored ? m_Shape : LightShapeUtility.FromUnityLight(attachedLight);
+
+        public ELightIntensityEditMode intensityEditMode
+        {
+            get => m_IntensityEditMode;
+            set => m_IntensityEditMode = value;
+        }
 
         public EShadowFilter shadowFilter
         {

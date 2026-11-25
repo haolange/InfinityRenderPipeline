@@ -9,14 +9,22 @@
 
 // Per local shadow slice (C# LocalShadowSliceGPU). depthParams: x, y = m22, m23 of the GPU projection; z = world
 // texel size at unit depth (perspective) or world texel size (orthographic); w = 1 for orthographic.
-// momentParams: x = 1 / far (moment depth normalization).
+// momentParams: x = 1 / far (moment depth normalization), y = virtual-apex offset behind the emitter plane.
+// emitterAxisU: xy = unit view-XY axis U, z = half-extent along U, w = PCSS shape mode (0 Disk, 1 Rect, 2 Capsule).
+// emitterAxisV: xy = unit view-XY axis V, z = half-extent along V, w = |m11| / max(|m00|, 1e-6).
 struct LocalShadowSlice
 {
     float4 atlasRect;
     float4 depthParams;
     float4 momentParams;
     float4 shadowOriginSize;
+    float4 emitterAxisU;
+    float4 emitterAxisV;
 };
+
+#define PCSS_SHAPE_DISK 0
+#define PCSS_SHAPE_RECT 1
+#define PCSS_SHAPE_CAPSULE 2
 
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
 StructuredBuffer<LocalShadowSlice> SRV_LocalShadowRects;
@@ -153,44 +161,149 @@ float2 VogelDiskSample(uint index, uint count, float rotation)
     return radius * float2(cos(theta), sin(theta));
 }
 
-// Percentage-closer soft shadows (Fernando 2005). lightSize is the source radius in world units for local lights or
-// tan(angular radius) for directional lights; depths are linear distances along the light.
+float2 R2BoxSample(uint index, float2 jitter)
+{
+    // Roberts R2 low-discrepancy sequence on [-1, 1]^2 for anisotropic Rect sampling.
+    float u = frac(jitter.x + (index + 0.5) * 0.7548776662);
+    float v = frac(jitter.y + (index + 0.5) * 0.5698402910);
+    return float2(u, v) * 2.0 - 1.0;
+}
+
+float2 ClampShadowSampleUV(float2 uv, float2 texelSize, int2 tileMin, int2 tileMax)
+{
+    int2 texel = clamp((int2)floor(uv / texelSize), tileMin, tileMax);
+    return (float2(texel) + 0.5) * texelSize;
+}
+
+float2 ShapePCSSSampleOffsetTexels(uint index, uint count, float rotation, float2 jitter, float2 axisU, float2 axisV, float radU, float radV, int shapeMode)
+{
+    float2 offset = 0;
+    if (shapeMode == PCSS_SHAPE_RECT)
+    {
+        float2 boxSample = R2BoxSample(index, jitter);
+        offset = axisU * (boxSample.x * radU) + axisV * (boxSample.y * radV);
+    }
+    else if (shapeMode == PCSS_SHAPE_CAPSULE)
+    {
+        // Decorrelate the longitudinal capsule axis from the transverse Vogel disk sample when radV > 0.
+        float t = radV > 0.0
+            ? frac(jitter.x + (index + 0.5) * 0.7548776662) * 2.0 - 1.0
+            : ((index + frac(jitter.x)) / max((float)count, 1.0)) * 2.0 - 1.0;
+        float2 capDisk = VogelDiskSample(index, count, rotation) * radV;
+        offset = axisU * (t * radU) + capDisk;
+    }
+    else
+    {
+        offset = VogelDiskSample(index, count, rotation) * radU;
+    }
+    return offset;
+}
+
+void ResolveShapePCSSRadii(float factor, float texelWorld, float minTexels, float maxTexels, float4 emitterAxisU, float4 emitterAxisV, int shapeMode,
+    out float radU, out float radV)
+{
+    float rawU = max(emitterAxisU.z, 0.0) * factor / max(texelWorld, 1e-6);
+    float rawV = max(emitterAxisV.z, 0.0) * factor / max(texelWorld, 1e-6);
+    radU = 0;
+    radV = 0;
+
+    if (shapeMode == PCSS_SHAPE_RECT)
+    {
+        float major = max(rawU, rawV);
+        if (major > 0)
+        {
+            float clampedMajor = clamp(major, minTexels, maxTexels);
+            float scale = clampedMajor / max(major, 1e-6);
+            radU = rawU * scale;
+            radV = rawV * scale;
+        }
+        else
+        {
+            radU = minTexels;
+            radV = minTexels;
+        }
+    }
+    else if (shapeMode == PCSS_SHAPE_CAPSULE)
+    {
+        float combined = rawU + rawV;
+        if (combined > 0)
+        {
+            float clampedCombined = clamp(combined, minTexels, maxTexels);
+            float scale = clampedCombined / max(combined, 1e-6);
+            radU = rawU * scale;
+            radV = rawV * scale;
+        }
+        else
+        {
+            radV = minTexels;
+        }
+    }
+    else
+    {
+        radU = clamp(rawU, minTexels, maxTexels);
+        radV = radU;
+    }
+}
+
+// Percentage-closer soft shadows (Fernando 2005) extended for anisotropic Rect/Line/Tube shapes and emitter-plane
+// depth baseline (apexOffset).
 float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient,
-    float4 depthParams, float lightSize, bool directional)
+    float4 depthParams, bool directional, float4 emitterAxisU, float4 emitterAxisV, float apexOffset)
 {
     uint blockerSamples = (uint)max(_ShadowFilterParams.y, 4);
     uint filterSamples = (uint)max(_ShadowFilterParams.z, 4);
     float maxTexels = max(_ShadowFilterParams.w, 2);
     float minTexels = max(_ShadowFilterParams.x, 1);
-    float2 minUV = clipRect.xy + texelSize;
-    float2 maxUV = clipRect.xy + clipRect.zw - texelSize;
-    float receiverDepth = ShadowLinearDepth(compareZ, depthParams);
-    float texelWorld = max(ShadowTexelWorld(receiverDepth, depthParams), 1e-6);
-    float rotation = InterleavedGradientNoise(uv / texelSize, 0) * 6.2831853;
 
-    // Blocker search: where a blocker between the receiver and the light could hide part of the source.
-    float searchWorld = lightSize * receiverDepth;
-    if (!directional)
+    int2 tileMin = (int2)round(clipRect.xy / texelSize);
+    int2 tileMax = max(tileMin, (int2)round((clipRect.xy + clipRect.zw) / texelSize) - 1);
+
+    int shapeMode = (int)round(emitterAxisU.w);
+    float2 axisU = emitterAxisU.xy;
+    float2 axisV = emitterAxisV.xy;
+    float2 texelScale = float2(1.0, max(emitterAxisV.w, 1e-4)) * texelSize;
+
+    float receiverDepth = ShadowLinearDepth(compareZ, depthParams);
+    float receiverFromEmitter = max(receiverDepth - max(apexOffset, 0.0), 1e-4);
+    float texelWorld = max(ShadowTexelWorld(receiverDepth, depthParams), 1e-6);
+
+    float2 pixelPos = uv / texelSize;
+    float noise = InterleavedGradientNoise(pixelPos, 0);
+    float noise2 = InterleavedGradientNoise(pixelPos + float2(37.0, 17.0), 0);
+    float rotation = noise * 6.2831853;
+    float2 jitter = float2(noise, noise2);
+
+    float searchFactor = 1.0;
+    if (directional)
+    {
+        searchFactor = receiverFromEmitter;
+    }
+    else if (depthParams.w == 0)
     {
 #if UNITY_REVERSED_Z
         float nearDepth = ShadowLinearDepth(1.0, depthParams);
 #else
         float nearDepth = ShadowLinearDepth(0.0, depthParams);
 #endif
-        // A blocker can be anywhere from the near plane to the receiver. Project the emitter's largest
-        // possible footprint there; a receiver-plane radius alone misses blockers on the lit penumbra side.
         nearDepth = max(nearDepth, 1e-4);
-        searchWorld = lightSize * max(receiverDepth - nearDepth, 0) / nearDepth;
+        // Planar/DiskCone slices sit behind the emitter by apexOffset (nearDepth == apexOffset), so blockers just
+        // off the emitter plane project up to emitterExtent * receiverDepth / nearDepth on the shadow map.
+        searchFactor = apexOffset > 0.0
+            ? (receiverDepth > nearDepth ? receiverDepth / nearDepth : 0.0)
+            : max(receiverDepth - nearDepth, 0.0) / nearDepth;
     }
-    float searchTexels = clamp(searchWorld / texelWorld, minTexels, maxTexels);
+
+    float searchRadU;
+    float searchRadV;
+    ResolveShapePCSSRadii(searchFactor, texelWorld, minTexels, maxTexels, emitterAxisU, emitterAxisV, shapeMode, searchRadU, searchRadV);
+
     float blockerDepth = 0;
     float blockerCount = 0;
     [loop]
     for (uint i = 0; i < blockerSamples; ++i)
     {
-        float2 tapUV = clamp(uv + VogelDiskSample(i, blockerSamples, rotation) * searchTexels * texelSize, minUV, maxUV);
-        // Point sampling reads the texel center, so the receiver-plane correction must use that same position.
-        tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
+        float2 offsetTexels = ShapePCSSSampleOffsetTexels(i, blockerSamples, rotation, jitter, axisU, axisV, searchRadU, searchRadV, shapeMode);
+        float2 tapUV = ClampShadowSampleUV(uv + offsetTexels * texelScale, texelSize, tileMin, tileMax);
         float stored = shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0);
         if (ShadowCloser(stored, compareZ + dot(gradient, tapUV - uv)))
         {
@@ -198,27 +311,43 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
             blockerCount += 1;
         }
     }
+
     float shadow = 1.0;
     if (blockerCount != 0)
     {
         blockerDepth /= blockerCount;
+        float blockerFromEmitter = max(blockerDepth - max(apexOffset, 0.0), 1e-4);
+        float penumbraFactor = 2.0 * max(receiverFromEmitter - blockerFromEmitter, 0.0);
+        if (!directional && depthParams.w == 0)
+        {
+            penumbraFactor /= blockerFromEmitter;
+        }
 
-        // Penumbra width on the receiver, converted to shadow-map texels.
-        float penumbraWorld = directional
-        ? 2.0 * lightSize * max(receiverDepth - blockerDepth, 0)
-        : 2.0 * lightSize * max(receiverDepth - blockerDepth, 0) / max(blockerDepth, 1e-4);
-        float filterTexels = clamp(0.5 * penumbraWorld / texelWorld, minTexels, maxTexels);
+        // Convert penumbra width to radius (0.5 * penumbraWidth), matching classic 0.5 * 2 * lightSize * factor.
+        float filterFactor = 0.5 * penumbraFactor;
+        float filterRadU;
+        float filterRadV;
+        ResolveShapePCSSRadii(filterFactor, texelWorld, minTexels, maxTexels, emitterAxisU, emitterAxisV, shapeMode, filterRadU, filterRadV);
+
         float lit = 0;
         [loop]
         for (uint j = 0; j < filterSamples; ++j)
         {
-            float2 tapUV = clamp(uv + VogelDiskSample(j, filterSamples, rotation) * filterTexels * texelSize, minUV, maxUV);
-            tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
+            float2 offsetTexels = ShapePCSSSampleOffsetTexels(j, filterSamples, rotation, jitter, axisU, axisV, filterRadU, filterRadV, shapeMode);
+            float2 tapUV = ClampShadowSampleUV(uv + offsetTexels * texelScale, texelSize, tileMin, tileMax);
             lit += ShadowLit(compareZ + dot(gradient, tapUV - uv), shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0));
         }
         shadow = lit / filterSamples;
     }
     return shadow;
+}
+
+float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient,
+    float4 depthParams, float lightSize, bool directional)
+{
+    float4 emitterAxisU = float4(1.0, 0.0, lightSize, PCSS_SHAPE_DISK);
+    float4 emitterAxisV = float4(0.0, 1.0, lightSize, 1.0);
+    return SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, directional, emitterAxisU, emitterAxisV, 0.0);
 }
 
 // Size of the light for PCSS: world radius for local lights, tan(angular radius) for the sun.
@@ -227,13 +356,13 @@ float ShadowLightSize(LightRecord light)
     float size = 0;
     if (IsDirectionalLight(light))
     {
-        size = light.shape.w + light.misc.y;
+        size = light.shape.w;
     }
     else if (IsRectLight(light))
     {
         size = sqrt(light.area.x * light.area.y / 3.14159265);
     }
-    else size = light.shape.x + light.shape.y;
+    else size = light.shape.x;
     return size;
 }
 
@@ -246,21 +375,29 @@ float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, floa
     return ShadowMomentVisibility(moments, ShadowMomentDepth(compareZ, depthParams, invFar), mode, _ShadowMomentParams);
 }
 
-float FilterShadowDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+float FilterShadowDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize,
+    float4 emitterAxisU, float4 emitterAxisV, float apexOffset)
 {
     // A moment filter without its compiled atlas is unshadowed. The keyword is on only when that atlas exists.
     float shadow = 1;
     if (light.shadowFilter == SHADOW_FILTER_HARD)
         shadow = SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
     else if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
-        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
+        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, IsDirectionalLight(light), emitterAxisU, emitterAxisV, apexOffset);
     else if (light.shadowFilter != SHADOW_FILTER_VSM && light.shadowFilter != SHADOW_FILTER_EVSM)
         shadow = SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
     return shadow;
 }
 
+float FilterShadowDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+{
+    return FilterShadowDepth(shadowMap, light, uv, compareZ, texelSize, clipRect, gradient, depthParams, invFar, lightSize,
+        float4(1.0, 0.0, lightSize, PCSS_SHAPE_DISK), float4(0.0, 1.0, lightSize, 1.0), 0.0);
+}
+
 #if defined(INFINITY_CASCADE_SHADOW_MOMENTS) || defined(INFINITY_LOCAL_SHADOW_MOMENTS)
-float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize,
+    float4 emitterAxisU, float4 emitterAxisV, float apexOffset)
 {
     float shadow = 1;
     if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
@@ -271,10 +408,16 @@ float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, Ligh
     else if (light.shadowFilter == SHADOW_FILTER_HARD)
         shadow = SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
     else if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
-        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
+        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, IsDirectionalLight(light), emitterAxisU, emitterAxisV, apexOffset);
     else
         shadow = SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
     return shadow;
+}
+
+float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
+{
+    return FilterShadow(shadowMap, momentMap, light, uv, compareZ, texelSize, clipRect, gradient, depthParams, invFar, lightSize,
+        float4(1.0, 0.0, lightSize, PCSS_SHAPE_DISK), float4(0.0, 1.0, lightSize, 1.0), 0.0);
 }
 #endif
 
@@ -376,10 +519,12 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, floa
                 float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
 #if defined(INFINITY_LOCAL_SHADOW_MOMENTS)
                 shadow = FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x,
+                    sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
 #else
                 shadow = FilterShadowDepth(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x,
+                    sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
 #endif
             }
         }

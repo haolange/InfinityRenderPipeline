@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             fixture.Primitive(PrimitiveType.Cube, "Emissive Bar", new Vector3(0, 0.15f, 6), new Vector3(8, 0.3f, 0.3f), emissive);
             fixture.Primitive(PrimitiveType.Sphere, "Chrome Ball", new Vector3(-1.5f, 0.8f, -2), Vector3.one * 1.6f, fixture.Lit("Chrome", Color.white, 0.05f, 1));
 
-            Light sun = fixture.Light("Sun", Vector3.zero, new Vector3(25, 135, 0), EInfinityLightType.Directional, new Color(1, 0.95f, 0.85f), 2);
+            Light sun = fixture.Light("Sun", Vector3.zero, new Vector3(25, 135, 0), LightSourceShape.DefaultDirectional(), new Color(1, 0.95f, 0.85f), 2);
             sun.shadows = LightShadows.Soft;
             RenderSettings.sun = sun;
 

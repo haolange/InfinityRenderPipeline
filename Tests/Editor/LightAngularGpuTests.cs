@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 SceneManager.MoveGameObjectToScene(go, preview);
                 Light light = go.GetComponent<Light>();
                 var data = go.GetComponent<InfinityAdditionalLightData>() ?? go.AddComponent<InfinityAdditionalLightData>();
-                data.SetShape(LightSourceShape.Default(EInfinityLightType.Spot));
+                data.SetShape(LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone));
                 light.spotAngle = 60;
                 light.innerSpotAngle = 20;
                 light.range = 30;
@@ -108,6 +108,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(i == 0 ? 1 : 0, pyramid[i].x, "Pyramid " + i);
                 Assert.AreEqual(i == 0 ? 1 : 0, box[i].x, "Box " + i);
             }
+        }
+
+        [Test]
+        public void DiskCone_UsesShiftedApexWindowAndRejectsBehindPlaneOnGpu()
+        {
+            float cosOuter = Mathf.Cos(45f * Mathf.Deg2Rad);
+            float invCosDelta = 1.0f / (1.0f - cosOuter);
+            var record = new LightRecord
+            {
+                positionRange = new Vector4(0, 0, 0, 30),
+                forward = new Vector4(0, 0, 1, cosOuter),
+                right = new Vector4(1, 0, 0, invCosDelta),
+                shape = new Vector4(1.0f, LightShapeUtility.DiskConeApexOffset(1.0f, 90f), 0, 0),
+                flags = LightRecordFlags.Planar | LightRecordFlags.SpotCone,
+            };
+            Vector4[] positions =
+            {
+                new Vector4(0, 0, 2, 0),
+                new Vector4(1.5f, 0, 1, 0),
+                new Vector4(3.5f, 0, 1, 0),
+                new Vector4(0, 0, -0.5f, 0),
+            };
+            Vector2[] actual = Evaluate(record, positions);
+            Assert.AreEqual(1.0f, actual[0].x, 1e-5f, "On-axis inside beam.");
+            float shiftedCos = 2.0f / Mathf.Sqrt(1.5f * 1.5f + 2.0f * 2.0f);
+            float expectedAngular = Mathf.Clamp01((shiftedCos - cosOuter) * invCosDelta);
+            Assert.AreEqual(expectedAngular * expectedAngular, actual[1].x, 1e-4f, "Shifted-apex widens beam at rim.");
+            Assert.AreEqual(0.0f, actual[2].x, 1e-5f, "Outside shifted cone beam.");
+            Assert.AreEqual(0.0f, actual[3].x, 1e-5f, "Behind disk plane must stay unlit.");
         }
     }
 }

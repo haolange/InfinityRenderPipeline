@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
                     momentParams[count] = new Vector4(ShadowMomentPassUtilityData.Mode(slice.shadowFilter), filter.evsmExponent, gpu.momentParams.x, filter.momentBlurRadius);
                     count++;
                 }
-                int atlasSize = math.max(1, m_Settings.localShadowMapResolution / 2);
+                int atlasSize = math.max(1, ShadowAllocator.ResolveLocalAtlasResolution(m_Settings.localShadowMapResolution) / 2);
                 AddShadowMomentPass(InfinityShaderIDs.LocalShadowMap, InfinityShaderIDs.LocalShadowMoments, ShadowMomentPassUtilityData.LocalTextureName,
                     ShadowMomentPassUtilityData.LocalBlurTextureName, atlasSize, count, rects, depthParams, momentParams);
             }

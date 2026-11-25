@@ -8,6 +8,7 @@
 //                                     size in area.xy; cone and pyramid may carry a spherical source (shape.x)
 //   rect                              LIGHT_FLAG_PLANAR, area.xy = size, area.zw = barn door cos / length
 //   disk                              LIGHT_FLAG_PLANAR, area.xy = 0, shape.x = radius
+//   disk + cone                       LIGHT_FLAG_PLANAR | LIGHT_FLAG_SPOT_CONE, shape.x = radius, shape.y = shifted apex offset
 
 #define LIGHT_FLAG_SHADOW 1
 #define LIGHT_FLAG_CONTACT 2
@@ -115,9 +116,17 @@ float SpotWindow(LightRecord light, float3 positionWS)
     float window = 1;
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_CONE))
     {
-        float cosAngle = dot(normalize(fromLight), forward);
-        float angular = saturate((cosAngle - light.forward.w) * light.right.w);
-        window = angular * angular;
+        if (IsPlanarLight(light) && dot(fromLight, forward) <= 0)
+        {
+            window = 0;
+        }
+        else
+        {
+            float3 fromApex = fromLight + forward * light.shape.y;
+            float cosAngle = dot(normalize(fromApex), forward);
+            float angular = saturate((cosAngle - light.forward.w) * light.right.w);
+            window = angular * angular;
+        }
     }
     else
     {
@@ -136,21 +145,5 @@ float SpotWindow(LightRecord light, float3 positionWS)
         }
     }
     return window;
-}
-
-// Distance and angular attenuation of a local light at positionWS (shape-independent part).
-float LocalLightAttenuation(LightRecord light, float3 positionWS)
-{
-    float distance = length(light.positionRange.xyz - positionWS);
-    float falloff = LightHasFlag(light, LIGHT_FLAG_SPOT_BOX)
-        ? RangeWindow(dot(positionWS - light.positionRange.xyz, light.forward.xyz), light.positionRange.w)
-        : DistanceAttenuation(distance, light.positionRange.w);
-    return falloff * SpotWindow(light, positionWS);
-}
-
-// Direction toward a local light from positionWS. Box spots are collimated along -forward.
-float3 LocalLightL(LightRecord light, float3 positionWS)
-{
-    return LightHasFlag(light, LIGHT_FLAG_SPOT_BOX) ? -light.forward.xyz : normalize(light.positionRange.xyz - positionWS);
 }
 #endif

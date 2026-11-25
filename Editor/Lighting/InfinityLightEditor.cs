@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -9,9 +10,8 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Component.Editor
 {
-    // Light inspector of InfinityRP: the shape in Unreal form on InfinityAdditionalLightData (synced to the native Light
-    // on edit), the native fields Unity owns, and the Infinity-only fields. Scene view handles edit range, angles and
-    // the source shape with Undo.
+    // Light inspector of InfinityRP: Emitter -> Distribution -> Emission layout backed by LightSourceShape on
+    // InfinityAdditionalLightData (lazily created on Infinity edits) and photometric LightIntensityUtility conversions.
     [CanEditMultipleObjects]
     [CustomEditor(typeof(Light))]
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
@@ -20,9 +20,17 @@ namespace InfinityTech.Component.Editor
         const string FoldoutPrefix = "InfinityRP.Light.Foldout.";
         static readonly GUIContent s_UseTemperatureLabel = new GUIContent("Use Temperature", "Tint the light by its color temperature.");
         static readonly GUIContent s_CasterLayersLabel = new GUIContent("Caster Layers");
+        static readonly GUIContent s_OuterAngleLabel = new GUIContent("Outer Angle", "Outer cone angle in degrees.");
+        static readonly GUIContent s_InnerAngleLabel = new GUIContent("Inner Angle", "Inner cone falloff start angle in degrees.");
+        static readonly GUIContent s_LuxAtDistanceLabel = new GUIContent("Lux At Distance", "Reference distance in meters for local Lux intensity display.");
+        static readonly GUIContent s_SourceLengthDisabledLabel = new GUIContent("Source Length", "Only Omnidirectional Round lights support Source Length.");
         static readonly Vector2 s_UnitDragRange = new Vector2(0f, 1f);
+        static readonly Vector2 s_SunAngleDragRange = new Vector2(0f, 15f);
+        static readonly Vector2 s_BarnDoorAngleDragRange = new Vector2(0f, 90f);
+        static readonly Vector3[] s_ConeHandleAxes = { Vector3.right, Vector3.left, Vector3.up, Vector3.down };
 
         Light[] m_Lights;
+        LightSourceShape[] m_ShapeBuffer;
         Object[] m_AdditionalTargets;
         InfinityLightInspectorSnapshot[] m_Before;
         InfinityLightInspectorSnapshot[] m_After;
@@ -31,12 +39,15 @@ namespace InfinityTech.Component.Editor
         SerializedObject m_Snapshots;
         SerializedObject m_Additional;
         bool m_AllShapesAuthored;
+        readonly List<LightUnit> m_CommonUnits = new List<LightUnit>(4);
         readonly BoxBoundsHandle m_RectHandle = new BoxBoundsHandle { axes = PrimitiveBoundsHandle.Axes.X | PrimitiveBoundsHandle.Axes.Y };
+        readonly BoxBoundsHandle m_BoxBeamHandle = new BoxBoundsHandle { axes = PrimitiveBoundsHandle.Axes.X | PrimitiveBoundsHandle.Axes.Y };
 
         void OnEnable()
         {
             int count = targets.Length;
             m_Lights = new Light[count];
+            m_ShapeBuffer = new LightSourceShape[count];
             m_AdditionalTargets = new Object[count];
             m_Before = new InfinityLightInspectorSnapshot[count];
             m_After = new InfinityLightInspectorSnapshot[count];
@@ -89,6 +100,7 @@ namespace InfinityTech.Component.Editor
                 m_AllShapesAuthored &= data && data.shapeAuthored;
                 m_Before[i].Read(light);
                 m_After[i].Read(light);
+                m_ShapeBuffer[i] = m_Before[i].shape;
                 m_BeforeObjects[i].Update();
                 m_AfterObjects[i].Update();
             }
@@ -108,6 +120,7 @@ namespace InfinityTech.Component.Editor
 
         public override void OnInspectorGUI()
         {
+            InfinityLightEditorTransactions.SyncDragState();
             RefreshBindings();
             serializedObject.Update();
             SerializedObject shapeOwner = m_AllShapesAuthored ? m_Additional : m_Snapshots;
@@ -123,10 +136,15 @@ namespace InfinityTech.Component.Editor
             }
 
             SerializedProperty shape = shapeOwner.FindProperty("m_Shape");
-            SerializedProperty typeProperty = shape.FindPropertyRelative("type");
-            SerializedProperty spotShape = shape.FindPropertyRelative("spotShape");
-            bool mixedType = typeProperty.hasMultipleDifferentValues;
-            var type = (EInfinityLightType)typeProperty.enumValueIndex;
+            SerializedProperty kindProperty = shape.FindPropertyRelative("kind");
+            SerializedProperty emitterProperty = shape.FindPropertyRelative("emitter");
+            SerializedProperty distributionProperty = shape.FindPropertyRelative("distribution");
+            bool mixedKind = kindProperty.hasMultipleDifferentValues;
+            var kind = (ELightKind)kindProperty.enumValueIndex;
+            bool mixedEmitter = !mixedKind && kind == ELightKind.Local && emitterProperty.hasMultipleDifferentValues;
+            var emitter = (ELocalLightEmitter)emitterProperty.enumValueIndex;
+            bool mixedDistribution = !mixedKind && kind == ELightKind.Local && distributionProperty.hasMultipleDifferentValues;
+            var distribution = (ELocalLightDistribution)distributionProperty.enumValueIndex;
 
             bool allLocal = true;
             bool allAngledSpots = true;
@@ -134,64 +152,83 @@ namespace InfinityTech.Component.Editor
             float commonOuterAngle = 179f;
             bool anyCubeCookie = false;
             bool anyPlanarCookie = false;
+            bool allPlanarEmitterCookie = true;
+            bool all2DIesSupported = true;
             bool allShadowed = true;
             bool allDistanceLimited = true;
             bool allAdditionalEnabled = true;
-            bool unbakeableShape = false;
+            bool allRealtimeMode = true;
+            bool anyBakeDisabled = false;
+            bool anyLocalLux = false;
+            string bakeDisabledReason = null;
+            EResolvedLightShape commonResolved = default;
+            bool mixedResolved = false;
+
+            m_CommonUnits.Clear();
+            IReadOnlyList<LightUnit> firstUnits = LightIntensityUtility.GetSupportedUnits(m_ShapeBuffer[0]);
+            for (int u = 0; u < firstUnits.Count; ++u)
+                m_CommonUnits.Add(firstUnits[u]);
+
             for (int i = 0; i < m_Lights.Length; ++i)
             {
                 Light light = m_Lights[i];
                 LightSourceShape source = m_Before[i].shape;
-                allLocal &= source.type != EInfinityLightType.Directional;
-                allAngledSpots &= source.type == EInfinityLightType.Spot && source.spotShape != ESpotShape.Box;
-                bool cone = source.type == EInfinityLightType.Spot && source.spotShape == ESpotShape.Cone;
-                allCones &= cone;
-                if (cone)
+                LightCapabilities capabilities = LightShapeUtility.GetCapabilities(source);
+                allLocal &= source.kind == ELightKind.Local;
+                allAngledSpots &= capabilities.hasSpotAngle;
+                allCones &= capabilities.hasInnerSpotAngle;
+                if (capabilities.hasInnerSpotAngle)
                     commonOuterAngle = Mathf.Min(commonOuterAngle, light.spotAngle);
-                anyCubeCookie |= source.type == EInfinityLightType.Point;
-                anyPlanarCookie |= source.type != EInfinityLightType.Point;
+                anyCubeCookie |= capabilities.supportsCubeCookie;
+                anyPlanarCookie |= !capabilities.supportsCubeCookie;
+                allPlanarEmitterCookie &= capabilities.isPlanar;
+                all2DIesSupported &= capabilities.supports2DIes;
                 allShadowed &= light.shadows != LightShadows.None;
                 allDistanceLimited &= m_Before[i].maxDrawDistance > 0f;
                 allAdditionalEnabled &= m_AdditionalTargets[i] && ((InfinityAdditionalLightData)m_AdditionalTargets[i]).enabled;
-                unbakeableShape |= source.type == EInfinityLightType.Point && source.sourceLength > 0f
-                    && light.lightmapBakeType != LightmapBakeType.Realtime;
-            }
-
-            if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "General", "General"))
-            {
-                EditProperty(typeProperty, "Type", true);
-                if (!mixedType && type == EInfinityLightType.Spot)
-                    EditProperty(spotShape, "Spot Shape", true);
-            }
-
-            bool mixedSpot = !mixedType && type == EInfinityLightType.Spot && spotShape.hasMultipleDifferentValues;
-            if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Shape", "Shape"))
-            {
-                if (mixedType || mixedSpot)
-                    EditorGUILayout.HelpBox("Select lights of the same type and shape to edit dimensions.", MessageType.Info);
-                else
+                allRealtimeMode &= light.lightmapBakeType == LightmapBakeType.Realtime;
+                if (!capabilities.baking)
                 {
-                    DrawShape(shape, type, (ESpotShape)spotShape.enumValueIndex);
-                    foreach (InfinityLightInspectorSnapshot snapshot in m_Before)
-                    {
-                        if (!LightShapeUtility.IsValid(snapshot.shape))
-                        {
-                            EditorGUILayout.HelpBox("The light shape has no valid emitting area.", MessageType.Warning);
-                            break;
-                        }
-                    }
+                    anyBakeDisabled = true;
+                    bakeDisabledReason ??= capabilities.bakeDisabledReason;
+                }
+
+                bool validCombination = LightShapeUtility.IsValidCombination(source.kind, source.emitter, source.distribution);
+                EResolvedLightShape resolved = validCombination ? LightShapeUtility.Resolve(source) : EResolvedLightShape.Point;
+                if (i == 0)
+                    commonResolved = resolved;
+                else if (commonResolved != resolved)
+                    mixedResolved = true;
+
+                LightUnit displayUnit = LightIntensityUtility.ResolveDisplayUnit(light, source);
+                if (source.kind == ELightKind.Local && resolved != EResolvedLightShape.SpotBox && displayUnit == LightUnit.Lux)
+                    anyLocalLux = true;
+
+                for (int u = m_CommonUnits.Count - 1; u >= 0; --u)
+                {
+                    if (!LightIntensityUtility.IsUnitSupported(source, m_CommonUnits[u]))
+                        m_CommonUnits.RemoveAt(u);
                 }
             }
 
+            if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Emitter", "Emitter"))
+                DrawEmitterSection(shape, kindProperty, emitterProperty, mixedKind, kind, mixedEmitter, emitter, mixedDistribution, distribution, commonResolved, mixedResolved);
+
+            if (allLocal || mixedKind)
+            {
+                if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Distribution", "Distribution"))
+                    DrawDistributionSection(shape, emitterProperty, distributionProperty, mixedKind, kind, mixedEmitter, mixedDistribution, emitter, distribution, allLocal, allAngledSpots, allCones, commonOuterAngle);
+            }
+
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Emission", "Emission"))
-                DrawEmission(additionalOwner, allLocal, allAngledSpots, allCones, commonOuterAngle);
+                DrawEmission(additionalOwner, anyLocalLux);
 
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Baking", "Baking"))
-                DrawBaking(unbakeableShape);
+                DrawBaking(anyBakeDisabled, allRealtimeMode, bakeDisabledReason);
 
             bool mixedCookieDimensions = anyCubeCookie && anyPlanarCookie;
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Cookie", "Cookie & IES"))
-                DrawCookies(additionalOwner, mixedType, type, anyCubeCookie, mixedCookieDimensions, allLocal, allAngledSpots);
+                DrawCookies(additionalOwner, !mixedKind && kind == ELightKind.Directional, allPlanarEmitterCookie, anyCubeCookie, mixedCookieDimensions, allLocal, all2DIesSupported);
 
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Shadows", "Shadows"))
                 DrawShadows(additionalOwner, allLocal, allShadowed, allAdditionalEnabled);
@@ -205,30 +242,246 @@ namespace InfinityTech.Component.Editor
                 serializedObject.ApplyModifiedProperties();
                 EditField(additionalOwner, "lightLayer", "Light Layers");
                 if (allLocal)
-                    EditField(additionalOwner, "maxDrawDistance", "Maximum Distance");
+                    EditField(additionalOwner, "maxDrawDistance", "Maximum Distance", clampMinimum: 0f);
                 if (allLocal && allDistanceLimited)
-                    EditField(additionalOwner, "maxDrawDistanceFade", "Distance Fade");
+                    EditField(additionalOwner, "maxDrawDistanceFade", "Distance Fade", clampMinimum: 0f);
             }
         }
 
-        void DrawEmission(SerializedObject additionalOwner, bool allLocal, bool allAngledSpots, bool allCones, float commonOuterAngle)
+        void DrawEmitterSection(
+            SerializedProperty shape,
+            SerializedProperty kindProperty,
+            SerializedProperty emitterProperty,
+            bool mixedKind,
+            ELightKind kind,
+            bool mixedEmitter,
+            ELocalLightEmitter emitter,
+            bool mixedDistribution,
+            ELocalLightDistribution distribution,
+            EResolvedLightShape commonResolved,
+            bool mixedResolved)
+        {
+            EditShapeEnum(kindProperty, "Kind");
+            if (mixedKind)
+            {
+                EditorGUILayout.HelpBox("Select lights with the same kind to edit emitter properties.", MessageType.Info);
+                return;
+            }
+
+            if (kind == ELightKind.Directional)
+            {
+                LightCapabilities directionalCapabilities = LightShapeUtility.GetCapabilities(m_Before[0].shape);
+                if (directionalCapabilities.hasSunAngle)
+                    Relative(shape, "sourceAngle", "Sun Diameter", s_SunAngleDragRange, 0f, 90f);
+                return;
+            }
+
+            DrawEmitterPopup(emitterProperty, mixedEmitter, emitter);
+            if (!mixedEmitter && !mixedResolved)
+                EditorGUILayout.LabelField("Resolved Shape", FormatResolvedShape(commonResolved), EditorStyles.miniLabel);
+
+            if (mixedEmitter || mixedDistribution)
+            {
+                EditorGUILayout.HelpBox("Select lights with the same emitter and distribution to edit dimensions.", MessageType.Info);
+                return;
+            }
+
+            LightCapabilities commonCapabilities = LightShapeUtility.GetCapabilities(m_Before[0].shape);
+            if (!commonCapabilities.validCombination)
+            {
+                EditorGUILayout.HelpBox(commonCapabilities.bakeDisabledReason, MessageType.Warning);
+                return;
+            }
+
+            if (commonCapabilities.hasSourceRadius)
+                Relative(shape, "sourceRadius", "Source Radius", clampMinimum: 0f);
+            if (emitter == ELocalLightEmitter.Round)
+            {
+                if (commonCapabilities.hasSourceLength)
+                {
+                    Relative(shape, "sourceLength", "Source Length", clampMinimum: 0f);
+                }
+                else
+                {
+                    using (new EditorGUI.DisabledScope(true))
+                        EditorGUILayout.FloatField(s_SourceLengthDisabledLabel, 0f);
+                }
+            }
+            if (commonCapabilities.hasRectSize)
+            {
+                Relative(shape, "sourceWidth", "Source Width", clampMinimum: 0f);
+                Relative(shape, "sourceHeight", "Source Height", clampMinimum: 0f);
+            }
+            if (commonCapabilities.hasBarnDoors)
+            {
+                Relative(shape, "barnDoorAngle", "Barn Door Angle", s_BarnDoorAngleDragRange, 0f, 90f);
+                Relative(shape, "barnDoorLength", "Barn Door Length", clampMinimum: 0f);
+            }
+
+            foreach (InfinityLightInspectorSnapshot snapshot in m_Before)
+            {
+                if (!LightShapeUtility.IsValid(snapshot.shape))
+                {
+                    EditorGUILayout.HelpBox("The light shape has no valid emitting area.", MessageType.Warning);
+                    break;
+                }
+            }
+        }
+
+        void DrawDistributionSection(
+            SerializedProperty shape,
+            SerializedProperty emitterProperty,
+            SerializedProperty distributionProperty,
+            bool mixedKind,
+            ELightKind kind,
+            bool mixedEmitter,
+            bool mixedDistribution,
+            ELocalLightEmitter emitter,
+            ELocalLightDistribution distribution,
+            bool allLocal,
+            bool allAngledSpots,
+            bool allCones,
+            float commonOuterAngle)
+        {
+            if (mixedKind || kind != ELightKind.Local)
+            {
+                EditorGUILayout.HelpBox("Select Local lights to edit distribution settings.", MessageType.Info);
+                return;
+            }
+
+            DrawDistributionPopup(mixedEmitter, mixedDistribution, emitter, distribution);
+            if (!mixedEmitter && emitter == ELocalLightEmitter.Rectangle)
+                EditorGUILayout.HelpBox("Rectangle emitters only support Hemisphere distribution.", MessageType.Info);
+
+            if (allLocal)
+            {
+                SerializedProperty range = GetProperty(serializedObject, "m_Range");
+                using (var change = new EditorGUI.ChangeCheckScope())
+                {
+                    EditorGUILayout.PropertyField(range, new GUIContent("Range"));
+                    if (change.changed)
+                    {
+                        range.floatValue = Mathf.Max(0.01f, range.floatValue);
+                        serializedObject.ApplyModifiedProperties();
+                    }
+                }
+            }
+
+            if (allAngledSpots)
+            {
+                SerializedProperty spotAngleProperty = GetProperty(serializedObject, "m_SpotAngle");
+                InfinityLightInspectorGUI.FloatSliderValue(
+                    s_OuterAngleLabel,
+                    spotAngleProperty.floatValue,
+                    spotAngleProperty.hasMultipleDifferentValues,
+                    new Vector2(1f, 179f),
+                    new Vector2(1f, 179f),
+                    out float nextOuter,
+                    out bool outerChanged);
+                if (outerChanged)
+                {
+                    InfinityLightEditorTransactions.ApplySpotAngles(m_Lights, m_Before, nextOuter, null, mergeDrag: true);
+                    serializedObject.Update();
+                    commonOuterAngle = nextOuter;
+                }
+            }
+
+            if (allCones)
+            {
+                SerializedProperty innerAngleProperty = GetProperty(serializedObject, "m_InnerSpotAngle");
+                InfinityLightInspectorGUI.FloatSliderValue(
+                    s_InnerAngleLabel,
+                    innerAngleProperty.floatValue,
+                    innerAngleProperty.hasMultipleDifferentValues,
+                    new Vector2(0f, commonOuterAngle),
+                    new Vector2(0f, commonOuterAngle),
+                    out float nextInner,
+                    out bool innerChanged);
+                if (innerChanged)
+                {
+                    InfinityLightEditorTransactions.ApplySpotAngles(m_Lights, m_Before, null, nextInner, mergeDrag: true);
+                    serializedObject.Update();
+                }
+            }
+
+            if (!mixedEmitter && !mixedDistribution)
+            {
+                LightCapabilities commonCapabilities = LightShapeUtility.GetCapabilities(m_Before[0].shape);
+                if (commonCapabilities.hasPyramidAspect)
+                    Relative(shape, "pyramidAspect", "Aspect Ratio", clampMinimum: 0.01f);
+                if (commonCapabilities.hasBoxSize)
+                {
+                    SerializedProperty boxSize = shape.FindPropertyRelative("boxSize");
+                    Relative(boxSize, "x", "Beam Width", clampMinimum: 0.001f);
+                    Relative(boxSize, "y", "Beam Height", clampMinimum: 0.001f);
+                }
+            }
+        }
+
+        void DrawEmission(SerializedObject additionalOwner, bool anyLocalLux)
         {
             SerializedProperty useTemperature = GetProperty(serializedObject, "m_UseColorTemperature");
             bool temperatureEnabled = !useTemperature.hasMultipleDifferentValues && useTemperature.boolValue;
+
+            LightUnit firstUnit = LightIntensityUtility.ResolveDisplayUnit(m_Lights[0], m_ShapeBuffer[0]);
+            bool mixedUnit = false;
+            float firstDisplayIntensity = LightIntensityUtility.ToDisplayIntensity(m_Lights[0], m_ShapeBuffer[0], firstUnit);
+            bool mixedIntensity = false;
+            for (int i = 1; i < m_Lights.Length; ++i)
+            {
+                LightUnit candidateUnit = LightIntensityUtility.ResolveDisplayUnit(m_Lights[i], m_ShapeBuffer[i]);
+                if (candidateUnit != firstUnit)
+                    mixedUnit = true;
+                float candidateDisplay = LightIntensityUtility.ToDisplayIntensity(m_Lights[i], m_ShapeBuffer[i], candidateUnit);
+                if (Mathf.Abs(candidateDisplay - firstDisplayIntensity) > 1e-4f * Mathf.Max(1f, Mathf.Abs(firstDisplayIntensity)))
+                    mixedIntensity = true;
+            }
+
             InfinityLightInspectorGUI.ColorAndIntensity(
-                GetProperty(serializedObject, "m_Color"), GetProperty(serializedObject, "m_Intensity"), temperatureEnabled);
+                GetProperty(serializedObject, "m_Color"),
+                firstDisplayIntensity,
+                mixedIntensity,
+                firstUnit,
+                mixedUnit,
+                m_CommonUnits,
+                temperatureEnabled,
+                out float nextIntensity,
+                out bool intensityChanged,
+                out LightUnit nextUnit,
+                out bool unitChanged);
+            serializedObject.ApplyModifiedProperties();
+
+            if (unitChanged)
+            {
+                InfinityLightEditorTransactions.ApplyDisplayUnit(m_Lights, m_ShapeBuffer, nextUnit);
+                serializedObject.Update();
+            }
+            if (intensityChanged)
+            {
+                InfinityLightEditorTransactions.ApplyDisplayIntensity(m_Lights, m_ShapeBuffer, nextIntensity, mixedUnit ? null : firstUnit, mergeDrag: true);
+                serializedObject.Update();
+            }
+
+            if (anyLocalLux)
+            {
+                SerializedProperty luxDistance = GetProperty(serializedObject, "m_LuxAtDistance");
+                using var luxChange = new EditorGUI.ChangeCheckScope();
+                EditorGUILayout.PropertyField(luxDistance, s_LuxAtDistanceLabel);
+                if (luxChange.changed)
+                {
+                    luxDistance.floatValue = Mathf.Max(0.01f, luxDistance.floatValue);
+                    serializedObject.ApplyModifiedProperties();
+                }
+            }
+
+            EditField(additionalOwner, "m_IntensityEditMode", "Intensity Edit Mode");
+
             EditorGUILayout.PropertyField(useTemperature, s_UseTemperatureLabel);
             if (temperatureEnabled || useTemperature.hasMultipleDifferentValues)
             {
                 using var disabled = new EditorGUI.DisabledScope(!temperatureEnabled);
                 InfinityLightInspectorGUI.Temperature(GetProperty(serializedObject, "m_ColorTemperature"));
             }
-            if (allLocal)
-                Field(serializedObject, "m_Range", "Range");
-            if (allAngledSpots)
-                EditorGUILayout.Slider(GetProperty(serializedObject, "m_SpotAngle"), 1f, 179f, new GUIContent("Outer Angle"));
-            if (allCones)
-                EditorGUILayout.Slider(GetProperty(serializedObject, "m_InnerSpotAngle"), 0f, commonOuterAngle, new GUIContent("Inner Angle"));
             Slider(serializedObject, "m_BounceIntensity", "Indirect Multiplier", new Vector2(0f, 16f));
             serializedObject.ApplyModifiedProperties();
 
@@ -236,8 +489,131 @@ namespace InfinityTech.Component.Editor
             EditField(additionalOwner, "specular", "Specular Weight", s_UnitDragRange);
         }
 
-        void DrawBaking(bool unbakeableShape)
+        void DrawEmitterPopup(SerializedProperty emitterProperty, bool mixedEmitter, ELocalLightEmitter emitter)
         {
+            using var change = new EditorGUI.ChangeCheckScope();
+            EditorGUI.showMixedValue = mixedEmitter;
+            var next = (ELocalLightEmitter)EditorGUILayout.EnumPopup("Emitter", emitter);
+            EditorGUI.showMixedValue = false;
+            if (!change.changed)
+                return;
+
+            ApplyLocalShapeSelector((LightSourceShape s) =>
+            {
+                var normalized = LightShapeUtility.NormalizeCombination(next, s.distribution, keepEmitter: true);
+                s.kind = ELightKind.Local;
+                s.emitter = normalized.emitter;
+                s.distribution = normalized.distribution;
+                return s;
+            });
+            GUIUtility.ExitGUI();
+        }
+
+        void DrawDistributionPopup(bool mixedEmitter, bool mixedDistribution, ELocalLightEmitter emitter, ELocalLightDistribution distribution)
+        {
+            Rect row = EditorGUILayout.GetControlRect();
+            Rect field = EditorGUI.PrefixLabel(row, new GUIContent("Distribution"));
+            string buttonText = mixedDistribution ? "\u2014" : ObjectNames.NicifyVariableName(distribution.ToString());
+            if (!EditorGUI.DropdownButton(field, new GUIContent(buttonText), FocusType.Keyboard))
+                return;
+
+            Light[] selectedLights = (Light[])m_Lights.Clone();
+            var menu = new GenericMenu();
+            foreach (ELocalLightDistribution candidate in (ELocalLightDistribution[])System.Enum.GetValues(typeof(ELocalLightDistribution)))
+            {
+                string label = ObjectNames.NicifyVariableName(candidate.ToString());
+                bool allowed = mixedEmitter || LightShapeUtility.IsValidCombination(ELightKind.Local, emitter, candidate);
+                if (allowed)
+                {
+                    bool on = !mixedDistribution && distribution == candidate;
+                    menu.AddItem(new GUIContent(label), on, () => ApplyLocalShapeSelectorForLights(selectedLights, (LightSourceShape s) =>
+                    {
+                        var normalized = LightShapeUtility.NormalizeCombination(s.emitter, candidate, keepEmitter: false);
+                        s.kind = ELightKind.Local;
+                        s.emitter = normalized.emitter;
+                        s.distribution = normalized.distribution;
+                        return s;
+                    }));
+                }
+                else
+                {
+                    string reason = emitter == ELocalLightEmitter.Rectangle
+                        ? $"{label} (Rectangle supports Hemisphere only)"
+                        : $"{label} (Unsupported for {emitter})";
+                    menu.AddDisabledItem(new GUIContent(reason));
+                }
+            }
+            menu.ShowAsContext();
+        }
+
+        static string FormatResolvedShape(EResolvedLightShape resolved) => resolved switch
+        {
+            EResolvedLightShape.SpotCone => "Cone",
+            EResolvedLightShape.SpotPyramid => "Pyramid",
+            EResolvedLightShape.SpotBox => "Parallel Box",
+            EResolvedLightShape.DiskCone => "Disk + Cone (Realtime Only)",
+            EResolvedLightShape.Line => "Line (Realtime Only)",
+            EResolvedLightShape.Tube => "Tube (Realtime Only)",
+            _ => resolved.ToString()
+        };
+
+        void EditShapeEnum(SerializedProperty property, string label)
+        {
+            using var change = new EditorGUI.ChangeCheckScope();
+            EditorGUILayout.PropertyField(property, new GUIContent(label));
+            if (!change.changed)
+                return;
+            InfinityLightEditorTransactions.StageProperty(property, m_AfterObjects);
+            if (!InfinityLightEditorTransactions.ApplyShape(m_Lights, m_Before, m_After))
+            {
+                property.serializedObject.Update();
+                return;
+            }
+            GUIUtility.ExitGUI();
+        }
+
+        void ApplyLocalShapeSelector(System.Func<LightSourceShape, LightSourceShape> transform)
+        {
+            ApplyLocalShapeSelectorForLights(m_Lights, transform);
+        }
+
+        static void ApplyLocalShapeSelectorForLights(Light[] lights, System.Func<LightSourceShape, LightSourceShape> transform)
+        {
+            var before = new InfinityLightInspectorSnapshot[lights.Length];
+            var after = new InfinityLightInspectorSnapshot[lights.Length];
+            try
+            {
+                for (int i = 0; i < lights.Length; ++i)
+                {
+                    before[i] = CreateInstance<InfinityLightInspectorSnapshot>();
+                    after[i] = CreateInstance<InfinityLightInspectorSnapshot>();
+                    before[i].hideFlags = HideFlags.DontSave;
+                    after[i].hideFlags = HideFlags.DontSave;
+                    before[i].Read(lights[i]);
+                    after[i].Read(lights[i]);
+                    LightSourceShape updated = transform(after[i].shape);
+                    using var serialized = new SerializedObject(after[i]);
+                    SerializedProperty shapeProperty = serialized.FindProperty("m_Shape");
+                    shapeProperty.FindPropertyRelative("kind").enumValueIndex = (int)updated.kind;
+                    shapeProperty.FindPropertyRelative("emitter").enumValueIndex = (int)updated.emitter;
+                    shapeProperty.FindPropertyRelative("distribution").enumValueIndex = (int)updated.distribution;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                }
+                InfinityLightEditorTransactions.ApplyShape(lights, before, after);
+            }
+            finally
+            {
+                for (int i = 0; i < lights.Length; ++i)
+                {
+                    if (before[i]) DestroyImmediate(before[i]);
+                    if (after[i]) DestroyImmediate(after[i]);
+                }
+            }
+        }
+
+        void DrawBaking(bool anyBakeDisabled, bool allRealtimeMode, string bakeDisabledReason)
+        {
+            using (new EditorGUI.DisabledScope(anyBakeDisabled && allRealtimeMode))
             using (var change = new EditorGUI.ChangeCheckScope())
             {
                 Field(serializedObject, "m_Lightmapping", "Mode");
@@ -245,19 +621,29 @@ namespace InfinityTech.Component.Editor
                 {
                     var mode = (LightmapBakeType)GetProperty(serializedObject, "m_Lightmapping").intValue;
                     serializedObject.Update();
-                    InfinityLightEditorTransactions.ApplyBakeMode(m_Lights, mode);
+                    if (!anyBakeDisabled || mode == LightmapBakeType.Realtime)
+                    {
+                        InfinityLightEditorTransactions.ApplyBakeMode(m_Lights, mode);
+                        GUIUtility.ExitGUI();
+                    }
+                }
+            }
+            if (anyBakeDisabled)
+            {
+                EditorGUILayout.HelpBox(bakeDisabledReason, MessageType.Info);
+                if (!allRealtimeMode && GUILayout.Button("Switch to Realtime"))
+                {
+                    InfinityLightEditorTransactions.ApplyBakeMode(m_Lights, LightmapBakeType.Realtime);
                     GUIUtility.ExitGUI();
                 }
             }
-            if (unbakeableShape)
-                EditorGUILayout.HelpBox("Tube and line lights are realtime only. The lightmapper skips them.", MessageType.Warning);
         }
 
-        void DrawCookies(SerializedObject additionalOwner, bool mixedType, EInfinityLightType type,
+        void DrawCookies(SerializedObject additionalOwner, bool isDirectional, bool isPlanarEmitter,
             bool anyCubeCookie, bool mixedCookieDimensions, bool allLocal, bool supportsPlanarIES)
         {
             SerializedProperty cookie = GetProperty(serializedObject, "m_Cookie");
-            bool directionalCookie = !mixedType && type == EInfinityLightType.Directional
+            bool directionalCookie = isDirectional
                 && !cookie.hasMultipleDifferentValues && cookie.objectReferenceValue is Texture directionalTexture
                 && directionalTexture.dimension == TextureDimension.Tex2D;
             using (new EditorGUI.DisabledScope(mixedCookieDimensions))
@@ -268,7 +654,7 @@ namespace InfinityTech.Component.Editor
             if (mixedCookieDimensions)
                 EditorGUILayout.HelpBox("Edit point-light Cubemap cookies separately from 2D cookies.", MessageType.Info);
             else
-                DrawCookieWarnings(cookie, anyCubeCookie, !mixedType && (type == EInfinityLightType.Rect || type == EInfinityLightType.Disk));
+                DrawCookieWarnings(cookie, anyCubeCookie, isPlanarEmitter);
             if (!allLocal)
                 return;
 
@@ -277,7 +663,7 @@ namespace InfinityTech.Component.Editor
             if (!ies.hasMultipleDifferentValues && ies.objectReferenceValue is Texture iesTexture
                 && iesTexture.dimension == TextureDimension.Tex2D && !supportsPlanarIES)
             {
-                EditorGUILayout.HelpBox("A 2D IES profile applies to cone and pyramid spots only. Use the Cube texture for other local lights.", MessageType.Warning);
+                EditorGUILayout.HelpBox("A 2D IES profile applies to Cone, Pyramid, and Disk + Cone lights only. Use a Cube IES texture for other local lights.", MessageType.Warning);
             }
         }
 
@@ -322,46 +708,8 @@ namespace InfinityTech.Component.Editor
             SerializedProperty enabled = GetProperty(additionalOwner, "enableVolumetric");
             EditProperty(enabled, "Enabled", false);
             using var disabled = new EditorGUI.DisabledScope(enabled.hasMultipleDifferentValues || !enabled.boolValue);
-            EditField(additionalOwner, "volumetricIntensity", "Intensity", new Vector2(0f, 32f));
+            EditField(additionalOwner, "volumetricIntensity", "Intensity", new Vector2(0f, 32f), clampMinimum: 0f);
             EditField(additionalOwner, "volumetricOcclusion", "Shadow Weight", s_UnitDragRange);
-        }
-
-        void DrawShape(SerializedProperty shape, EInfinityLightType type, ESpotShape spot)
-        {
-            switch (type)
-            {
-                case EInfinityLightType.Directional:
-                    Relative(shape, "sourceAngle", "Sun Diameter");
-                    Relative(shape, "softSourceAngle", "Extra Spread", "Additional angular spread in degrees for realtime specular response and PCSS.");
-                    break;
-                case EInfinityLightType.Point:
-                    Relative(shape, "sourceRadius", "Source Radius");
-                    Relative(shape, "sourceLength", "Source Length");
-                    Relative(shape, "softSourceRadius", "Extra Radius", "Additional radius in meters for realtime specular response and PCSS.");
-                    break;
-                case EInfinityLightType.Spot:
-                    if (spot == ESpotShape.Box)
-                    {
-                        SerializedProperty boxSize = shape.FindPropertyRelative("boxSize");
-                        Relative(boxSize, "x", "Width");
-                        Relative(boxSize, "y", "Height");
-                        break;
-                    }
-                    if (spot == ESpotShape.Pyramid)
-                        Relative(shape, "pyramidAspect", "Aspect Ratio");
-                    Relative(shape, "sourceRadius", "Source Radius");
-                    Relative(shape, "softSourceRadius", "Extra Radius", "Additional radius in meters for realtime specular response and PCSS.");
-                    break;
-                case EInfinityLightType.Rect:
-                    Relative(shape, "sourceWidth", "Source Width");
-                    Relative(shape, "sourceHeight", "Source Height");
-                    Relative(shape, "barnDoorAngle", "Barn Door Angle");
-                    Relative(shape, "barnDoorLength", "Barn Door Length");
-                    break;
-                case EInfinityLightType.Disk:
-                    Relative(shape, "sourceRadius", "Source Radius");
-                    break;
-            }
         }
 
         static void DrawCookieWarnings(SerializedProperty cookie, bool usesCube, bool isEmitterTexture)
@@ -404,6 +752,7 @@ namespace InfinityTech.Component.Editor
 
         void OnSceneGUI()
         {
+            InfinityLightEditorTransactions.SyncDragState();
             var light = (Light)target;
             if (light == null)
                 return;
@@ -418,57 +767,82 @@ namespace InfinityTech.Component.Editor
             using (new Handles.DrawingScope(color, frame))
             {
                 EditorGUI.BeginChangeCheck();
-                switch (shape.type)
+                EResolvedLightShape resolved = LightShapeUtility.IsValidCombination(shape.kind, shape.emitter, shape.distribution)
+                    ? LightShapeUtility.Resolve(shape)
+                    : EResolvedLightShape.Point;
+                switch (resolved)
                 {
-                    case EInfinityLightType.Directional:
+                    case EResolvedLightShape.Directional:
                         Handles.ArrowHandleCap(0, Vector3.zero, Quaternion.identity, HandleUtility.GetHandleSize(Vector3.zero), EventType.Repaint);
                         break;
-                    case EInfinityLightType.Point:
+                    case EResolvedLightShape.Point:
+                    case EResolvedLightShape.Sphere:
+                    case EResolvedLightShape.Line:
+                    case EResolvedLightShape.Tube:
                         range = Handles.RadiusHandle(Quaternion.identity, Vector3.zero, range);
                         shape.sourceRadius = SourceRadiusHandle(shape.sourceRadius);
                         if (shape.sourceLength > 0)
                         {
                             Vector3 end = new Vector3(shape.sourceLength * 0.5f, 0, 0);
                             Handles.DrawLine(-end, end);
+                            if (shape.sourceRadius > 0)
+                            {
+                                Handles.DrawWireDisc(-end, Vector3.right, shape.sourceRadius);
+                                Handles.DrawWireDisc(end, Vector3.right, shape.sourceRadius);
+                                Handles.DrawLine(-end + Vector3.up * shape.sourceRadius, end + Vector3.up * shape.sourceRadius);
+                                Handles.DrawLine(-end - Vector3.up * shape.sourceRadius, end - Vector3.up * shape.sourceRadius);
+                                Handles.DrawLine(-end + Vector3.forward * shape.sourceRadius, end + Vector3.forward * shape.sourceRadius);
+                                Handles.DrawLine(-end - Vector3.forward * shape.sourceRadius, end - Vector3.forward * shape.sourceRadius);
+                            }
                             Vector3 moved = Handles.Slider(end, Vector3.right, HandleUtility.GetHandleSize(end) * 0.05f, Handles.DotHandleCap, 0);
                             shape.sourceLength = Mathf.Max(0, moved.x * 2);
                         }
                         break;
-                    case EInfinityLightType.Spot:
+                    case EResolvedLightShape.SpotBox:
+                        m_BoxBeamHandle.center = Vector3.zero;
+                        m_BoxBeamHandle.size = new Vector3(shape.boxSize.x, shape.boxSize.y, 0);
+                        m_BoxBeamHandle.SetColor(color);
+                        m_BoxBeamHandle.DrawHandle();
+                        shape.boxSize = new Vector2(Mathf.Max(0.01f, m_BoxBeamHandle.size.x), Mathf.Max(0.01f, m_BoxBeamHandle.size.y));
                         range = RangeHandle(range);
-                        if (shape.spotShape == ESpotShape.Box)
-                        {
-                            Vector3 size = new Vector3(shape.boxSize.x, shape.boxSize.y, range);
-                            Handles.DrawWireCube(new Vector3(0, 0, range * 0.5f), size);
-                        }
-                        else
-                        {
-                            spotAngle = ConeHandle(range, spotAngle, shape.spotShape == ESpotShape.Pyramid ? shape.pyramidAspect : 0);
-                            shape.sourceRadius = SourceRadiusHandle(shape.sourceRadius);
-                        }
+                        Handles.DrawWireCube(new Vector3(0, 0, range * 0.5f), new Vector3(shape.boxSize.x, shape.boxSize.y, range));
                         break;
-                    case EInfinityLightType.Rect:
+                    case EResolvedLightShape.SpotCone:
+                        range = RangeHandle(range);
+                        spotAngle = ConeHandle(range, spotAngle, 0f);
+                        shape.sourceRadius = SourceRadiusHandle(shape.sourceRadius);
+                        break;
+                    case EResolvedLightShape.SpotPyramid:
+                        range = RangeHandle(range);
+                        PyramidHandle(range, ref spotAngle, ref shape.pyramidAspect);
+                        shape.sourceRadius = SourceRadiusHandle(shape.sourceRadius);
+                        break;
+                    case EResolvedLightShape.Rect:
                         m_RectHandle.center = Vector3.zero;
                         m_RectHandle.size = new Vector3(shape.sourceWidth, shape.sourceHeight, 0);
                         m_RectHandle.SetColor(color);
                         m_RectHandle.DrawHandle();
                         shape.sourceWidth = Mathf.Max(0, m_RectHandle.size.x);
                         shape.sourceHeight = Mathf.Max(0, m_RectHandle.size.y);
+                        if (shape.barnDoorLength > 0)
+                            DrawBarnDoors(shape.sourceWidth * 0.5f, shape.sourceHeight * 0.5f, shape.barnDoorAngle, shape.barnDoorLength);
                         Handles.DrawLine(Vector3.zero, Vector3.forward * Mathf.Min(range, HandleUtility.GetHandleSize(Vector3.zero)));
                         range = RangeHandle(range);
                         break;
-                    case EInfinityLightType.Disk:
+                    case EResolvedLightShape.Disk:
+                    case EResolvedLightShape.DiskCone:
                         Handles.DrawWireDisc(Vector3.zero, Vector3.forward, shape.sourceRadius);
                         Vector3 radiusPoint = new Vector3(shape.sourceRadius, 0, 0);
-                        // An absolute radial slider can grow a zero-radius disk; multiplicative scaling cannot.
                         Vector3 movedRadius = Handles.Slider(radiusPoint, Vector3.right,
                             HandleUtility.GetHandleSize(radiusPoint) * 0.05f, Handles.DotHandleCap, 0);
                         shape.sourceRadius = Mathf.Max(0, movedRadius.x);
+                        if (resolved == EResolvedLightShape.DiskCone)
+                            spotAngle = ConeHandle(range, spotAngle, shape.sourceRadius);
                         range = RangeHandle(range);
                         break;
                 }
                 if (EditorGUI.EndChangeCheck())
-                    InfinityLightEditorTransactions.ApplySceneEdit(light, previous, shape, range, spotAngle);
+                    InfinityLightEditorTransactions.ApplySceneEdit(light, previous, shape, range, spotAngle, mergeDrag: true);
             }
         }
 
@@ -488,45 +862,76 @@ namespace InfinityTech.Component.Editor
             return Mathf.Max(0.01f, moved.z);
         }
 
-        // Cone (aspect 0) or pyramid outline at the range, with a handle on the rim for the outer angle.
-        static float ConeHandle(float range, float spotAngle, float aspect)
+        // Cone outline at range, optionally originating from a disk rim of diskRadius.
+        static float ConeHandle(float range, float spotAngle, float diskRadius)
         {
             float tan = Mathf.Tan(0.5f * spotAngle * Mathf.Deg2Rad);
             Vector3 center = Vector3.forward * range;
-            if (aspect <= 0)
-            {
-                float rim = range * tan;
-                Handles.DrawWireDisc(center, Vector3.forward, rim);
-                foreach (Vector3 dir in new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down })
-                    Handles.DrawLine(Vector3.zero, center + dir * rim);
-            }
-            else
-            {
-                Vector2 tangents = LightShapeUtility.PyramidTangents(spotAngle, aspect);
-                Vector3 a = new Vector3(-tangents.x, -tangents.y, 1) * range, b = new Vector3(tangents.x, -tangents.y, 1) * range;
-                Vector3 c = new Vector3(tangents.x, tangents.y, 1) * range, d = new Vector3(-tangents.x, tangents.y, 1) * range;
-                Handles.DrawPolyLine(a, b, c, d, a);
-                Handles.DrawLine(Vector3.zero, a);
-                Handles.DrawLine(Vector3.zero, b);
-                Handles.DrawLine(Vector3.zero, c);
-                Handles.DrawLine(Vector3.zero, d);
-            }
-            Vector3 handle = center + Vector3.up * range * tan;
+            float rim = diskRadius + range * tan;
+            Handles.DrawWireDisc(center, Vector3.forward, rim);
+            foreach (Vector3 direction in s_ConeHandleAxes)
+                Handles.DrawLine(direction * diskRadius, center + direction * rim);
+            Vector3 handle = center + Vector3.up * rim;
             Vector3 moved = Handles.Slider(handle, Vector3.up, HandleUtility.GetHandleSize(handle) * 0.05f, Handles.DotHandleCap, 0);
-            return 2 * Mathf.Atan2(Mathf.Max(0, moved.y), range) * Mathf.Rad2Deg;
+            return 2 * Mathf.Atan2(Mathf.Max(0, moved.y - diskRadius), range) * Mathf.Rad2Deg;
         }
 
-        void Relative(SerializedProperty parent, string name, string label, string tooltip = null)
+        static void PyramidHandle(float range, ref float spotAngle, ref float aspect)
         {
-            EditProperty(parent.FindPropertyRelative(name), label, true, tooltip: tooltip);
+            Vector2 tangents = LightShapeUtility.PyramidTangents(spotAngle, aspect);
+            Vector3 a = new Vector3(-tangents.x, -tangents.y, 1) * range;
+            Vector3 b = new Vector3(tangents.x, -tangents.y, 1) * range;
+            Vector3 c = new Vector3(tangents.x, tangents.y, 1) * range;
+            Vector3 d = new Vector3(-tangents.x, tangents.y, 1) * range;
+            Handles.DrawPolyLine(a, b, c, d, a);
+            Handles.DrawLine(Vector3.zero, a);
+            Handles.DrawLine(Vector3.zero, b);
+            Handles.DrawLine(Vector3.zero, c);
+            Handles.DrawLine(Vector3.zero, d);
+
+            Vector3 center = Vector3.forward * range;
+            Vector3 upHandle = center + Vector3.up * (range * tangents.y);
+            Vector3 movedUp = Handles.Slider(upHandle, Vector3.up, HandleUtility.GetHandleSize(upHandle) * 0.05f, Handles.DotHandleCap, 0);
+            Vector3 rightHandle = center + Vector3.right * (range * tangents.x);
+            Vector3 movedRight = Handles.Slider(rightHandle, Vector3.right, HandleUtility.GetHandleSize(rightHandle) * 0.05f, Handles.DotHandleCap, 0);
+
+            if ((movedUp - upHandle).sqrMagnitude <= 1e-10f && (movedRight - rightHandle).sqrMagnitude <= 1e-10f)
+                return;
+
+            float nextTanY = Mathf.Max(0.005f, movedUp.y / range);
+            float nextTanX = Mathf.Max(0.005f, movedRight.x / range);
+            spotAngle = Mathf.Clamp(2f * Mathf.Atan(Mathf.Max(nextTanX, nextTanY)) * Mathf.Rad2Deg, 1f, 179f);
+            aspect = Mathf.Clamp(nextTanX / nextTanY, 0.01f, 100f);
         }
 
-        void EditField(SerializedObject owner, string name, string label, Vector2? dragRange = null)
+        static void DrawBarnDoors(float halfWidth, float halfHeight, float angleDegrees, float length)
         {
-            EditProperty(GetProperty(owner, name), label, false, dragRange);
+            float radians = Mathf.Clamp(angleDegrees, 0f, 90f) * Mathf.Deg2Rad;
+            float forward = Mathf.Cos(radians) * length;
+            float flare = Mathf.Sin(radians) * length;
+
+            Vector3 c00 = new Vector3(-halfWidth, -halfHeight, 0f);
+            Vector3 c10 = new Vector3(halfWidth, -halfHeight, 0f);
+            Vector3 c11 = new Vector3(halfWidth, halfHeight, 0f);
+            Vector3 c01 = new Vector3(-halfWidth, halfHeight, 0f);
+
+            Handles.DrawPolyLine(c00, c00 + new Vector3(-flare, 0f, forward), c01 + new Vector3(-flare, 0f, forward), c01);
+            Handles.DrawPolyLine(c10, c10 + new Vector3(flare, 0f, forward), c11 + new Vector3(flare, 0f, forward), c11);
+            Handles.DrawPolyLine(c00, c00 + new Vector3(0f, -flare, forward), c10 + new Vector3(0f, -flare, forward), c10);
+            Handles.DrawPolyLine(c01, c01 + new Vector3(0f, flare, forward), c11 + new Vector3(0f, flare, forward), c11);
         }
 
-        void EditProperty(SerializedProperty property, string label, bool shape, Vector2? dragRange = null, string tooltip = null)
+        void Relative(SerializedProperty parent, string name, string label, Vector2? dragRange = null, float? clampMinimum = null, float? clampMaximum = null, string tooltip = null)
+        {
+            EditProperty(parent.FindPropertyRelative(name), label, true, dragRange, clampMinimum, clampMaximum, tooltip);
+        }
+
+        void EditField(SerializedObject owner, string name, string label, Vector2? dragRange = null, float? clampMinimum = null, float? clampMaximum = null)
+        {
+            EditProperty(GetProperty(owner, name), label, false, dragRange, clampMinimum, clampMaximum);
+        }
+
+        void EditProperty(SerializedProperty property, string label, bool shape, Vector2? dragRange = null, float? clampMinimum = null, float? clampMaximum = null, string tooltip = null)
         {
             if (property == null)
                 throw new System.InvalidOperationException($"Light property '{label}' is unavailable.");
@@ -539,12 +944,27 @@ namespace InfinityTech.Component.Editor
             if (!change.changed)
                 return;
 
+            if (property.propertyType == SerializedPropertyType.Float)
+            {
+                float value = property.floatValue;
+                if (clampMinimum.HasValue) value = Mathf.Max(clampMinimum.Value, value);
+                if (clampMaximum.HasValue) value = Mathf.Min(clampMaximum.Value, value);
+                property.floatValue = value;
+            }
+
             string path = property.propertyPath;
             InfinityLightEditorTransactions.StageProperty(property, m_AfterObjects);
+            bool mergeDrag = dragRange.HasValue;
             if (shape)
-                InfinityLightEditorTransactions.ApplyShape(m_Lights, m_Before, m_After);
+            {
+                if (!InfinityLightEditorTransactions.ApplyShape(m_Lights, m_Before, m_After, mergeDrag: mergeDrag))
+                {
+                    property.serializedObject.Update();
+                    return;
+                }
+            }
             else
-                InfinityLightEditorTransactions.ApplyAdditional(m_Lights, m_BeforeObjects, m_AfterObjects, path);
+                InfinityLightEditorTransactions.ApplyAdditional(m_Lights, m_BeforeObjects, m_AfterObjects, path, mergeDrag);
             GUIUtility.ExitGUI();
         }
 

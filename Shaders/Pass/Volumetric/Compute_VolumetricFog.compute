@@ -9,6 +9,7 @@
 #include "../../Library/Lighting.hlsl"
 #include "../../Library/ShadowSampling.hlsl"
 #include "../../Library/Lighting/LightCookie.hlsl"
+#include "../../Library/Lighting/LightShapes.hlsl"
 #include "../../Library/Random.hlsl"
 #include "../../Library/AtmosphereCommon.hlsl"
 
@@ -77,33 +78,42 @@ float3 FroxelToWorld(uint3 froxelCoord)
     return ViewPositionWS() + viewDir * depth;
 }
 
-float VolumeLightAttenuation(LightRecord light, float3 worldPos)
-{
-    return IsDirectionalLight(light) ? 1.0 : LocalLightAttenuation(light, worldPos);
-}
-
 float3 EvaluateVolumeLight(LightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
 {
-    float3 L;
+    float3 L = float3(0.0, 1.0, 0.0);
     float att = 1.0;
-    float shadow;
-    if (IsDirectionalLight(light))
+    float shadow = 1.0;
+    float3 planarCookie = 1.0;
+    bool directional = IsDirectionalLight(light);
+    if (directional)
     {
         L = DirectionalLightL(light);
         shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, light, worldPos, viewDepth) : 1);
     }
     else
     {
-        L = LocalLightL(light, worldPos);
-        att = VolumeLightAttenuation(light, worldPos);
-        shadow = SampleLocalShadow(localShadowMap, light, worldPos);
+        EvaluateVolumeLocalLight(light, worldPos, L, att);
+        if (att > 0.0)
+        {
+            if (IsPlanarLight(light))
+            {
+                float3 planarDiffuse, planarSpecular;
+                LightPlanarCookie(light, 0.5, 1.0, planarDiffuse, planarSpecular);
+                planarCookie = planarDiffuse;
+            }
+            shadow = SampleLocalShadow(localShadowMap, light, worldPos);
+        }
     }
 
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
-
-    float cosTheta = dot(viewDir, L);
-    float phase = HGPhase(VolFog_Anisotropy, cosTheta);
-    return scattering * VolumeLightRadiance(light) * LightCookieColor(light, worldPos) * phase * shadow * att;
+    float3 result = 0.0;
+    if (directional || att > 0.0)
+    {
+        shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
+        float cosTheta = dot(viewDir, L);
+        float phase = HGPhase(VolFog_Anisotropy, cosTheta);
+        result = scattering * VolumeLightRadiance(light) * LightCookieColor(light, worldPos) * planarCookie * phase * shadow * att;
+    }
+    return result;
 }
 
 void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, float2 screenUV, inout float3 inScatter, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
