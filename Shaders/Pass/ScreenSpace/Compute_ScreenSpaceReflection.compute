@@ -13,7 +13,7 @@
 // (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
 // Resolved / Temporal / SSRTexture (RGBA16F): rgb = hit radiance premultiplied by the hit edge fade, a = that fade.
 // A miss does not enter the average. No hit leaves alpha at 0 so the environment term stays.
-// Meta (RG32UInt): exact depth, oct12x2 world normal, age7 and valid1.
+// Meta (R32UInt): oct12x2 world normal, age7 and valid1; no depth.
 
 #pragma kernel SSRClearArgs
 #pragma kernel SSRClassify
@@ -518,7 +518,8 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     if (!LoadSurface(pixel, surface))
     {
         UAV_Temporal[pixel] = 0;
-        UAV_Meta[pixel] = uint2(asuint(surface.rawDepth), 0);
+        // No surface: the cleared word has no valid bit.
+        UAV_Meta[pixel] = 0;
         return;
     }
 
@@ -561,6 +562,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
         if (!historyHasSignal)
         {
             historyValid = 0;
+            historyAge = 0;
         }
         else
         {

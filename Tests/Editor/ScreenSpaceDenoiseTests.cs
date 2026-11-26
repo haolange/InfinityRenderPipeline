@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
@@ -28,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(ssao);
+                UnityEngine.Object.DestroyImmediate(ssao);
             }
         }
 
@@ -42,46 +44,62 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(ssr);
+                UnityEngine.Object.DestroyImmediate(ssr);
             }
         }
 
-        [Test]
-        public void CompositeShader_DoesNotMultiplyAOOnSSROrSSGI()
+        // SSR and SSGI sample already-lit color. Deferred and forward shading occlude their own indirect diffuse and
+        // environment once, then let the screen-space signal replace that term; nothing occludes the replacement.
+        [TestCase("Shaders/Pass/Lighting/Compute_DeferredShading.compute", "indirectDiffuse *= occlusion;", "* environmentBRDF * occlusion;")]
+        [TestCase("Shaders/Library/ForwardOutput.hlsl", "diffuseColor * irradiance * occlusion;", "environment * environmentBRDF * occlusion;")]
+        public void IndirectComposition_OccludesOnceBeforeScreenSpaceReplacement(string path, string diffuseOcclusion, string specularOcclusion)
         {
-            string shaderPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Shaders/Pass/ScreenSpace/Compute_ScreenSpaceComposite.compute"));
-            Assert.IsTrue(File.Exists(shaderPath), shaderPath);
-            string source = File.ReadAllText(shaderPath);
-            Assert.IsTrue(source.Contains("AO is applied once in DeferredShading on IBL"));
-            Assert.IsFalse(source.Contains("* ao"));
-            Assert.IsFalse(source.Contains("COMPOSITE_AO"));
+            string source = ReadPackageFile(path);
+            AssertOccludedOnceBefore(source, diffuseOcclusion, "ReplaceIndirectDiffuse(");
+            AssertOccludedOnceBefore(source, specularOcclusion, "ReplaceEnvironmentSpecular(");
+            int lastReplacement = source.IndexOf("ReplaceEnvironmentSpecular(", StringComparison.Ordinal);
+            Assert.AreEqual(-1, source.IndexOf("occlusion", lastReplacement, StringComparison.Ordinal), "Nothing after the replacement applies occlusion again.");
         }
 
         [Test]
-        public void CompositePass_DoesNotBindCOMPOSITE_AO()
+        public void DeferredShading_ReadsOptionalInputsOnlyWhenTheirFeaturesRecord()
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/ScreenSpace/ScreenSpaceCompositePass.cs"));
-            Assert.IsTrue(File.Exists(passPath), passPath);
-            string source = File.ReadAllText(passPath);
-            Assert.IsFalse(source.Contains("COMPOSITE_AO"));
-            Assert.IsFalse(source.Contains("hasAO"));
+            string source = ReadPackageFile("Runtime/Pipeline/Pass/Lighting/DeferredShadingPass.cs");
+            // The feature set decides whether an optional input exists; QueryTexture then fails loudly if the producer did not register it.
+            StringAssert.Contains("bool hasOcclusion = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);", source);
+            StringAssert.Contains("bool hasIndirectDiffuse = context.features.ShouldRecord(EFrameFeature.SSGI);", source);
+            StringAssert.Contains("bool hasReflection = context.features.ShouldRecord(EFrameFeature.SSR);", source);
+            StringAssert.Contains("bool hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);", source);
+            AssertGatedRead(source, "hasOcclusion", "occlusionTextureHandle", "OcclusionBuffer");
+            AssertGatedRead(source, "hasIndirectDiffuse", "ssgiTextureHandle", "SSGIBuffer");
+            AssertGatedRead(source, "hasReflection", "ssrTextureHandle", "SSRBuffer");
+            AssertGatedRead(source, "hasContactShadow", "contactShadowTextureHandle", "ContactShadowBuffer");
+            StringAssert.DoesNotContain("TryQueryTexture(", source);
         }
 
-        [Test]
-        public void DeferredShading_ReadsOcclusionAndContactShadowOnlyWhenTheirFeaturesRecord()
+        static string ReadPackageFile(string path)
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/Pipeline/Pass/Lighting/DeferredShadingPass.cs"));
-            Assert.IsTrue(File.Exists(passPath), passPath);
-            string source = File.ReadAllText(passPath);
-            // The feature set decides whether the optional input exists; QueryTexture then fails loudly if the producer did not register it.
-            Assert.IsTrue(source.Contains("bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);"));
-            Assert.IsTrue(source.Contains("hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default"));
-            Assert.IsTrue(source.Contains("bool hasContactShadow = context.features.ShouldRecord(EFrameFeature.ContactShadow);"));
-            Assert.IsTrue(source.Contains("hasContactShadow ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer) : default"));
-            Assert.IsFalse(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));
-            Assert.IsFalse(source.Contains("TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer"));
+            string fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline", path));
+            Assert.IsTrue(File.Exists(fullPath), fullPath);
+            return File.ReadAllText(fullPath);
         }
 
+        static void AssertOccludedOnceBefore(string source, string occlusionProduct, string replacement)
+        {
+            int product = source.IndexOf(occlusionProduct, StringComparison.Ordinal);
+            int replaced = source.IndexOf(replacement, StringComparison.Ordinal);
+            Assert.GreaterOrEqual(product, 0, occlusionProduct);
+            Assert.AreEqual(-1, source.IndexOf(occlusionProduct, product + 1, StringComparison.Ordinal), occlusionProduct + " appears once.");
+            Assert.Greater(replaced, product, replacement + " follows " + occlusionProduct);
+        }
 
+        // The only query of the buffer sits inside the feature's branch.
+        static void AssertGatedRead(string source, string flag, string handle, string buffer)
+        {
+            string query = "QueryTexture(InfinityShaderIDs." + buffer + ")";
+            string pattern = @"if \(" + flag + @"\)\s*\{\s*passData\." + handle + @" = passHandle\.ReadTexture\(m_RGBuilder\.scoper\." + Regex.Escape(query) + @"\);";
+            Assert.IsTrue(Regex.IsMatch(source, pattern), flag + " gates the read of " + buffer);
+            Assert.AreEqual(1, Regex.Matches(source, Regex.Escape(query)).Count, buffer + " is queried once.");
+        }
     }
 }

@@ -4,7 +4,6 @@ using InfinityTech.Rendering.Temporal;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
@@ -94,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsTrue(taaCap.supported);
             Assert.AreEqual(ETemporalBackend.NativeTAA, taaReq.activeBackend);
             Assert.AreEqual(new int2(1920, 1080), taaReq.renderSize);
-            Assert.IsTrue(taaReq.requiresJitter && taaReq.requiresMotionVectors && taaReq.requiresPreviousDepth && taaReq.requiresReactiveMask);
+            Assert.IsTrue(taaReq.requiresJitter && taaReq.requiresMotionVectors && taaReq.requiresReactiveMask);
 
             var taauSettings = new TemporalSettings(ETemporalBackend.NativeTAAU, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Balanced, ERenderResolutionPolicy.QualityPreset, 1.0f, 0.5f);
             TemporalFrameRequirements taauReq = system.PlanFrame(new TemporalPlanInput(new int2(1920, 1080), true, true, taauSettings, false), out var taauCap);
@@ -123,7 +122,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void PipelineConfigurationResolver_Resolves64BitMotionMetadataAndCapabilityStatuses()
+        public void PipelineConfigurationResolver_ReportsTemporalCapabilityStatuses()
         {
             var caps = DeviceCapabilitySnapshot.AllSupported;
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
@@ -132,10 +131,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 InfinityRenderPipelineAsset.Settings settings = asset.ResolveSettings();
                 EffectivePipelineConfiguration cfg = PipelineConfigurationResolver.Evaluate(in settings, in caps);
 
-                Assert.AreEqual(GraphicsFormat.R32G32_SFloat, cfg.motionMetadataFormat);
-                Assert.AreEqual(64, cfg.motionMetadataBitsPerPixel);
-                Assert.AreEqual(EConfigStatus.Supported, cfg.gBufferLayoutState.status);
-                Assert.AreEqual(EConfigStatus.Supported, cfg.directDecalState.status);
+                Assert.AreEqual(EConfigStatus.Supported, cfg.temporalBackendState.status);
                 Assert.AreEqual(EConfigStatus.Inactive, cfg.renderScaleState.status);
 
                 var dlssTemporal = new TemporalSettings(ETemporalBackend.DLSS, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Quality, ERenderResolutionPolicy.QualityPreset, 0.77f, 0.5f);
