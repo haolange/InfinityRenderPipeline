@@ -81,6 +81,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [UnityTest]
+        public IEnumerator GBufferContract_UncoveredSidebandHasNoChannelsOrProfile()
+        {
+            RequireGpu();
+            // The diagonal fixture discards x > y and writes a varying sideband everywhere else.
+            using var run = new GBufferContractGpuRun(LoadRasterShader(), LoadComputeShader(), fixtureId: 4, Vector3.forward);
+            yield return run.Execute();
+            run.AssertSideband(hasDiscardedPixels: true);
+        }
+
         [MenuItem("Window/Infinity/Run GBuffer Contract Tests", false, 65)]
         public static void RunFromMenu()
         {
@@ -171,6 +181,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_GBufferA;
             readonly RenderTexture m_GBufferB;
             readonly RenderTexture m_Sideband;
+            readonly Color m_SidebandClearColor;
             readonly RenderTexture m_Depth;
             readonly RenderTexture m_DecodedAlbedo;
             readonly RenderTexture m_DecodedNormal;
@@ -203,7 +214,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                     m_GBufferA = CreateGBuffer("GBufferContractA", EffectivePipelineConfiguration.GBufferAFormat);
                     m_GBufferB = CreateGBuffer("GBufferContractB", EffectivePipelineConfiguration.GBufferBFormat);
-                    m_Sideband = CreateGBuffer("GBufferContractSideband", EffectivePipelineConfiguration.SidebandFormat);
+                    var sidebandDescriptor = GBufferPassUtilityData.CreateSidebandDescriptor(k_Width, k_Height);
+                    m_Sideband = CreateGBuffer("GBufferContractSideband", sidebandDescriptor.colorFormat);
+                    m_SidebandClearColor = sidebandDescriptor.clearColor;
                     m_Depth = CreateOwned(new RenderTexture(k_Width, k_Height, 24, RenderTextureFormat.Depth)
                     {
                         name = "GBufferContractDepth",
@@ -227,6 +240,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_Sideband }, m_Depth);
                     cmd.ClearRenderTarget(true, true, Color.clear);
+                    cmd.SetRenderTarget(m_Sideband);
+                    cmd.ClearRenderTarget(false, true, m_SidebandClearColor);
+                    cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_Sideband }, m_Depth);
                     cmd.DrawProcedural(Matrix4x4.identity, m_Material, 0, MeshTopology.Triangles, 3, 1);
                     if (m_FixtureId == 6)
                     {
@@ -343,14 +359,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
 
             // Every light channel mask and profile is exact; the diffuse share and both visibilities quantize once to UNorm.
-            public void AssertSideband()
+            public void AssertSideband(bool hasDiscardedPixels = false)
             {
                 for (int y = 0; y < k_Height; ++y)
                 {
                     for (int x = 0; x < k_Width; ++x)
                     {
-                        Vector4 expected = ExpectedSideband(x, y);
                         Color pixel = m_SidebandPixels[y * k_Width + x];
+                        if (hasDiscardedPixels && x > y)
+                        {
+                            Assert.AreEqual(Color.clear, pixel, $"Uncovered sideband at {x},{y}: diffuse share, both visibilities and the packed channel/profile byte must all be zero.");
+                            continue;
+                        }
+                        Vector4 expected = ExpectedSideband(x, y);
                         Assert.AreEqual(expected.x, pixel.r, k_UNormAbsTol, $"Diffuse share at {x},{y}.");
                         Assert.AreEqual(expected.y, pixel.g, k_UNormAbsTol, $"First mixed light visibility at {x},{y}.");
                         Assert.AreEqual(expected.z, pixel.b, k_UNormAbsTol, $"Second mixed light visibility at {x},{y}.");

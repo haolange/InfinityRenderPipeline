@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using NUnit.Framework;
@@ -45,11 +46,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.That(owner.values[pixel * 4 + channel], Is.EqualTo(expected[pixel][channel] * 160 / referenceWhite).Within(.00003f));
         }
 
-        [TestCase(0f)]
-        [TestCase(0.02f)]
-        [TestCase(0.18f)]
-        [TestCase(1f)]
-        public void FilmGrain_PreservesMeanAndBlackWithoutBloomBinding(float signal)
+        static readonly float[] s_GrainSignals = { 0f, 0.02f, 0.18f, 1f };
+
+        [UnityTest]
+        public IEnumerator FilmGrain_PreservesMeanAndBlackWithoutBloomBinding([ValueSource(nameof(s_GrainSignals))] float signal)
         {
             var shader = new Material(AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawFullScreen.shader"));
             Assert.IsNotNull(shader);
@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var source = new Texture2D(1, 1, TextureFormat.RGBAFloat, false, true);
             var lut = new Texture3D(2, 2, 2, TextureFormat.RGBAFloat, false);
             var target = new RenderTexture(width, height, 0, RenderTextureFormat.ARGBFloat) { enableRandomWrite = true };
-            try
+            using (var readback = new RawColorReadback(target, shader, source, lut))
             {
                 source.SetPixel(0, 0, Color.black); source.Apply(false, false);
                 var colors = new Color[8];
@@ -85,10 +85,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         commands.SetRenderTarget(target);
                         commands.SetViewport(new Rect(0, 0, width, height));
                         commands.DrawProcedural(Matrix4x4.identity, shader, pass, MeshTopology.Triangles, 3);
-                        Graphics.ExecuteCommandBuffer(commands);
+                        yield return readback.Execute(commands, "grain-" + signal + "-frame-" + frame,
+                            "Known uniform graded signal; no Bloom resource is bound. PCG grain intensity0.6/response0.8, mean tolerance1%relative, black exact0.");
                     }
-                    float[] values = Read(target, "grain-" + signal + "-frame-" + frame,
-                        "Known uniform graded signal; no Bloom resource is bound. PCG grain intensity0.6/response0.8, mean tolerance1%relative, black exact0.");
+                    float[] values = readback.values;
                     double sum = 0, sumSquares = 0, difference = 0;
                     for (int i = 0; i < width * height; i++)
                     {
@@ -108,24 +108,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     previous = values;
                 }
             }
-            finally
-            {
-                target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(lut); UnityEngine.Object.DestroyImmediate(shader);
-            }
         }
 
-        [TestCase(0f)]
-        [TestCase(0.5f)]
-        [TestCase(1f)]
-        public void BloomScatter_ControlsWidthWithoutMultiplyingConstantEnergy(float scatter)
+        static readonly float[] s_BloomScatterValues = { 0f, 0.5f, 1f };
+
+        [UnityTest]
+        public IEnumerator BloomScatter_ControlsWidthWithoutMultiplyingConstantEnergy([ValueSource(nameof(s_BloomScatterValues))] float scatter)
         {
             // A clone: the pipeline binds constant buffers on the shared asset, which would override values set by name.
             var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_PostProcessing.compute"));
             Assert.IsNotNull(shader);
             var source = new Texture2D(2, 2, TextureFormat.RGBAFloat, false, true);
             var target = new RenderTexture(11, 11, 0, RenderTextureFormat.ARGBFloat) { enableRandomWrite = true };
-            try
+            using (var readback = new RawColorReadback(target, shader, source))
             {
                 source.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white }); source.Apply(false, false);
                 Assert.IsTrue(target.Create());
@@ -139,11 +134,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     using (var commands = new CommandBuffer())
                     {
                         commands.SetRenderTarget(target); commands.ClearRenderTarget(false, true, new Color(high, high, high, 1));
-                        Graphics.ExecuteCommandBuffer(commands);
+                        commands.DispatchCompute(shader, kernel, 1, 1, 1);
+                        yield return readback.Execute(commands, "bloom-scatter-" + scatter + "-high-" + high,
+                            "Low mip constant1; high mip0 or1; active4x4 inside11x11. Scatter0/0.5/1; constant-field energy preserved.");
                     }
-                    shader.Dispatch(kernel, 1, 1, 1);
-                    float[] values = Read(target, "bloom-scatter-" + scatter + "-high-" + high,
-                        "Low mip constant1; high mip0 or1; active4x4 inside11x11. Scatter0/0.5/1; constant-field energy preserved.");
+                    float[] values = readback.values;
                     for (int y = 0; y < 11; y++)
                         for (int x = 0; x < 11; x++)
                         {
@@ -152,14 +147,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         }
                 }
             }
-            finally
-            {
-                target.Release(); UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(shader);
-            }
         }
 
-        [Test]
-        public void ProxyShadowLut_ExistingAssetPassMatchesConeIntegral()
+        [UnityTest]
+        public IEnumerator ProxyShadowLut_ExistingAssetPassMatchesConeIntegral()
         {
             Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawSystemLUT.shader");
             Assert.IsNotNull(shader);
@@ -167,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             material.SetVector("_MainTex_InfinityView",Vector4.zero);
             material.SetVector("SRV_SceneColorTexture_InfinityView",Vector4.zero);
             var target = new RenderTexture(5, 5, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-            try
+            using (var readback = new RawColorReadback(target, material))
             {
                 int pass = material.FindPass("RasterProxy_Shadow");
                 Assert.GreaterOrEqual(pass, 0);
@@ -185,9 +176,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     commands.SetViewport(new Rect(0, 0, 5, 5));
                     commands.ClearRenderTarget(false, true, new Color(-7, -7, -7, -7));
                     commands.DrawProcedural(Matrix4x4.identity, material, pass, MeshTopology.Triangles, 6, 1, properties);
-                    Graphics.ExecuteCommandBuffer(commands);
+                    yield return readback.Execute(commands, "proxy-shadow", "5x5 pixel-center UV. Explicit draw of existing CRT vertex/fragment pass6, cone half-angle0.5rad. Independent256x256 solid-angle quadrature; tolerance0.025. Does not claim automatic CRT update lifecycle.");
                 }
-                float[] values = Read(target, "proxy-shadow", "5x5 pixel-center UV. Explicit draw of existing CRT vertex/fragment pass6, cone half-angle0.5rad. Independent256x256 solid-angle quadrature; tolerance0.025. Does not claim automatic CRT update lifecycle.");
+                float[] values = readback.values;
                 double min = 1, max = 0;
                 for (int y = 0; y < 5; y++)
                     for (int x = 0; x < 5; x++)
@@ -198,11 +189,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         min = Math.Min(min, actual); max = Math.Max(max, actual);
                     }
                 Assert.Greater(max - min, 0.1, "LUT must contain a spatial response.");
-            }
-            finally
-            {
-                target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(material);
             }
         }
 
@@ -225,9 +211,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return (double)hits / (samples * samples);
         }
 
-        [TestCase(GraphicsFormat.R16G16B16A16_SFloat)]
-        [TestCase(GraphicsFormat.R32G32B32A32_SFloat)]
-        public void ProductionLut_NeutralDiagonalIsFiniteMonotonicAndNeutral(GraphicsFormat format)
+        static readonly GraphicsFormat[] s_LutFormats = { GraphicsFormat.R16G16B16A16_SFloat, GraphicsFormat.R32G32B32A32_SFloat };
+
+        [UnityTest]
+        public IEnumerator ProductionLut_NeutralDiagonalIsFiniteMonotonicAndNeutral([ValueSource(nameof(s_LutFormats))] GraphicsFormat format)
         {
             Assert.IsTrue(SystemInfo.supportsComputeShaders && SystemInfo.supportsAsyncGPUReadback);
             var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/Pass/Post/Compute_CombineLUTs.compute"));
@@ -239,8 +226,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 graphicsFormat = format,
                 depthBufferBits = 0, msaaSamples = 1, enableRandomWrite = true
             });
-            try
+            using (var readback = new RawColorReadback(target, shader, profile))
             {
+                foreach (VolumeComponent component in profile.components) readback.Own(component);
                 Assert.IsTrue(target.Create());
                 profile.TryGet(out FilmTonemap film);
                 profile.TryGet(out ColorGrading grading);
@@ -256,8 +244,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 int kernel = shader.FindKernel("MainCS");
                 shader.SetTexture(kernel, "CombineLookupTexture", target);
-                shader.Dispatch(kernel, 4, 4, 4);
-                float[] values = Read(target, "lut-neutral", JsonUtility.ToJson(descriptor));
+                using (var commands = new CommandBuffer())
+                {
+                    commands.DispatchCompute(shader, kernel, 4, 4, 4);
+                    yield return readback.Execute(commands, "lut-neutral", JsonUtility.ToJson(descriptor));
+                }
+                float[] values = readback.values;
                 float previous = -1;
                 for (int i = 0; i < 32; i++)
                 {
@@ -270,14 +262,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 Assert.Less(values[0], 0.001f);
                 Assert.Greater(previous, 0.9f, "LUT did not respond across its input domain.");
-            }
-            finally
-            {
-                target.Release();
-                UnityEngine.Object.DestroyImmediate(target);
-                foreach (VolumeComponent component in profile.components) UnityEngine.Object.DestroyImmediate(component);
-                UnityEngine.Object.DestroyImmediate(profile);
-                UnityEngine.Object.DestroyImmediate(shader);
             }
         }
 
@@ -430,28 +414,90 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return Math.Pow((3424.0 / 4096 + 2413.0 / 128 * p) / (1 + 2392.0 / 128 * p), 2523.0 / 32);
         }
 
-        static float[] Read(RenderTexture target, string label, string input)
+        sealed class RawColorReadback : IDisposable
         {
-            var request = AsyncGPUReadback.Request(target, 0);
-            request.WaitForCompletion();
-            Assert.IsTrue(request.done && !request.hasError, "Raw GPU readback failed.");
-            using var raw = new MemoryStream();
-            for (int layer = 0; layer < request.layerCount; layer++)
+            static readonly List<RawColorReadback> s_Retained = new();
+            readonly RenderTexture m_Target;
+            readonly List<UnityEngine.Object> m_Owned;
+            bool m_Pending, m_DisposeRequested;
+            byte[] m_Bytes;
+            string m_Error;
+
+            public float[] values { get; private set; }
+
+            public RawColorReadback(RenderTexture target, params UnityEngine.Object[] owned)
             {
-                byte[] layerBytes = request.GetData<byte>(layer).ToArray();
-                raw.Write(layerBytes, 0, layerBytes.Length);
+                m_Target = target;
+                m_Owned = new List<UnityEngine.Object>(owned);
             }
-            byte[] bytes = raw.ToArray();
-            TestContext.Progress.WriteLine($"{label}: {target.width}x{target.height}x{target.volumeDepth}, {target.graphicsFormat}. {input}");
-            int scalarBytes = target.graphicsFormat == GraphicsFormat.R16G16B16A16_SFloat ? 2 : 4;
-            Assert.AreEqual(target.width * target.height * target.volumeDepth * 4 * scalarBytes, bytes.Length,
-                "Readback must include every RGBA voxel, not only the first layer.");
-            float[] values = new float[bytes.Length / scalarBytes];
-            if (scalarBytes == 4) Buffer.BlockCopy(bytes, 0, values, 0, bytes.Length);
-            else for (int i = 0; i < values.Length; i++) values[i] = Mathf.HalfToFloat(BitConverter.ToUInt16(bytes, i * 2));
-            for (int i = 0; i < values.Length; i++)
-                if (float.IsNaN(values[i]) || float.IsInfinity(values[i])) Assert.Fail("Raw NaN/Inf at " + i + ": " + label);
-            return values;
+
+            public void Own(UnityEngine.Object resource) => m_Owned.Add(resource);
+
+            public IEnumerator Execute(CommandBuffer commands, string label, string input)
+            {
+                m_Error = null;
+                m_Bytes = null;
+                values = null;
+                commands.RequestAsyncReadback(m_Target, Complete);
+                // Once submission is attempted, only the callback can end GPU ownership.
+                m_Pending = true;
+                Graphics.ExecuteCommandBuffer(commands);
+                double deadline = EditorApplication.timeSinceStartup + 30;
+                while (m_Pending && EditorApplication.timeSinceStartup < deadline)
+                {
+                    EditorApplication.QueuePlayerLoopUpdate();
+                    yield return null;
+                }
+                Assert.IsFalse(m_Pending, $"{label}: GPU readback timed out; resources remain retained until completion.");
+                Assert.IsNull(m_Error, $"{label}: {m_Error}");
+
+                TestContext.Progress.WriteLine($"{label}: {m_Target.width}x{m_Target.height}x{m_Target.volumeDepth}, {m_Target.graphicsFormat}. {input}");
+                int scalarBytes = m_Target.graphicsFormat == GraphicsFormat.R16G16B16A16_SFloat ? 2 : 4;
+                Assert.AreEqual(m_Target.width * m_Target.height * m_Target.volumeDepth * 4 * scalarBytes, m_Bytes.Length,
+                    "Readback must include every RGBA voxel, not only the first layer.");
+                values = new float[m_Bytes.Length / scalarBytes];
+                if (scalarBytes == 4) Buffer.BlockCopy(m_Bytes, 0, values, 0, m_Bytes.Length);
+                else for (int i = 0; i < values.Length; i++) values[i] = Mathf.HalfToFloat(BitConverter.ToUInt16(m_Bytes, i * 2));
+                for (int i = 0; i < values.Length; i++)
+                    if (!float.IsFinite(values[i])) Assert.Fail("Raw NaN/Inf at " + i + ": " + label);
+            }
+
+            void Complete(AsyncGPUReadbackRequest request)
+            {
+                try
+                {
+                    if (request.hasError) throw new InvalidOperationException("Raw GPU readback failed.");
+                    using var raw = new MemoryStream();
+                    for (int layer = 0; layer < request.layerCount; layer++)
+                    {
+                        byte[] layerBytes = request.GetData<byte>(layer).ToArray();
+                        raw.Write(layerBytes, 0, layerBytes.Length);
+                    }
+                    m_Bytes = raw.ToArray();
+                }
+                catch (Exception error) { m_Error = error.ToString(); }
+                finally
+                {
+                    m_Pending = false;
+                    if (m_DisposeRequested) Release();
+                }
+            }
+
+            public void Dispose()
+            {
+                if (m_DisposeRequested) return;
+                m_DisposeRequested = true;
+                if (m_Pending) s_Retained.Add(this);
+                else Release();
+            }
+
+            void Release()
+            {
+                s_Retained.Remove(this);
+                m_Target.Release();
+                UnityEngine.Object.DestroyImmediate(m_Target);
+                foreach (UnityEngine.Object resource in m_Owned) UnityEngine.Object.DestroyImmediate(resource);
+            }
         }
     }
 }

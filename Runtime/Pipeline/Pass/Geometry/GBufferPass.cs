@@ -17,6 +17,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");
         internal static readonly GlobalKeyword SidebandKeyword = GlobalKeyword.Create("INFINITY_SIDEBAND");
         internal static readonly int MixedLightChannelsID = Shader.PropertyToID("_MixedLightChannels");
+
+        internal static TextureDescriptor CreateSidebandDescriptor(int width, int height)
+        {
+            return new TextureDescriptor(width, height, ETextureSizingDomain.Internal)
+            {
+                name = SidebandName,
+                dimension = TextureDimension.Tex2D,
+                colorFormat = EffectivePipelineConfiguration.SidebandFormat,
+                enableRandomWrite = true,
+                // An uncovered pixel has no diffuse share, baked visibility, light channels or profile.
+                clearColor = Color.clear
+            };
+        }
     }
 
     internal sealed class GBufferPass
@@ -87,13 +100,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle sidebandHandle = default;
             if (sideband)
             {
-                TextureDescriptor sidebandDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
-                {
-                    sidebandDsc.name = GBufferPassUtilityData.SidebandName;
-                    sidebandDsc.dimension = TextureDimension.Tex2D;
-                    sidebandDsc.colorFormat = EffectivePipelineConfiguration.SidebandFormat;
-                    sidebandDsc.enableRandomWrite = true;
-                }
+                TextureDescriptor sidebandDsc = GBufferPassUtilityData.CreateSidebandDescriptor(width, height);
                 sidebandHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SidebandBuffer, sidebandDsc);
             }
 

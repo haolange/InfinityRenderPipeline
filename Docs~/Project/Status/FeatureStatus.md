@@ -43,6 +43,21 @@ The channel migration replica was saved at `Assets/Scene/Spazon/__OpaqueColorCha
 
 One repeated test run in `run-01/editmode-final/` stalled in native `AsyncGPUReadbackBuffer::Update` while running `FilmGrain_PreservesMeanAndBlackWithoutBloomBinding(0.02f)`. The separately owned migration mirror completed the final suite. D3D12 and Vulkan remain TODO(UNVERIFIED).
 
+#### Sideband clear and Editor readback follow-up
+
+The Metal follow-up used task-owned `opaque-color-round2-20261126/{candidate,base}` APFS mirrors. Evidence paths below are relative to that run root and identify the raw artifacts at collection time.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| C# compile and reload | Pass | `candidate/refresh.txt` confirmed all five InfinityRP assemblies current, with zero CS errors in the new Editor log window. |
+| Uncovered sideband GPU regression | Pass | `candidate/negative-clear/results.xml` failed at discarded pixel (1, 0) with alpha 255 when the descriptor used the default clear. With the production zero clear, the test passed in both full runs. |
+| Rendering Layers and Subsurface Profile | Pass | `candidate/{RenderingLayers,SubsurfaceProfile}/capture.json` and the Depth, Sideband and DisplayColor readbacks show black sky with all four sideband bytes zero, across 143,866 and 143,932 zero-depth pixels respectively. |
+| EditMode on the same Editor twice | Pass | `candidate/editmode-{1,2}/results.xml` each recorded 1,024 passed, zero failed and one existing hardware skip for async compute. Both runs exited normally. The previous `run-01/editmode-final/editor-sample.txt` shows the FilmGrain test waiting in the native Metal readback update. The shared color-test fixture now queues the callback behind the draw or dispatch and yields the Editor update loop while retaining resources. Numeric assertions are unchanged. |
+| DisplayColor and SSR comparison | Pass | Both builds show the upper-left flag's purple speckles and the upper-right pink flag shape. `base/None-base-lock/` and `candidate/None-candidate-repeat/` contain DisplayColor. `{base,candidate}/SSR-lock/` contains the SSR debug frames. Both use the same Spazon snapshot, Game camera matrices and scene time zero. The baseline uses its InfinityLit SSS route for the temporary skin geometry. |
+| Surface Stencil comparison | Existing behavior in both | `base/ShadingModel-stencil/` and `candidate/SurfaceStencil/` each contain 2,638,173 green-tinted deferred pixels at the same temporal jitter. The legacy debug probe enabled a stencil view and overlaid bit 0 over Shading Model without changing that build's motion submission. `candidate/motion-inventory.tsv` lists 45 static native renderers still configured for object motion with the motion pass enabled. The opaque renderer list includes them, and the depth-equal motion pass writes bit 0 even when velocity is zero. |
+
+The first candidate capture showed a cyan emission control. Two repeat captures, including one using the original capture buffers, both showed the baseline's pink control. SSR was zero at the control sample in all three candidate captures.
+
 ### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
 Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.
