@@ -10,7 +10,7 @@ Infinity Render Pipeline (InfinityRP) is a Scriptable Render Pipeline for Unity 
 - Core RP, Shader Graph and VFX Graph 17.6
 - A platform with compute shaders
 
-Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Quality. Runtime shaders, the blit material and the BestFit LUT resolve from `InfinityRenderPipelineGlobalSettings` through `[ResourcePath]`. The pipeline asset does not reference those runtime shaders. Opening a project does not migrate or repair assets.
+Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Quality. Runtime shaders, the blit material and the noise textures resolve from `InfinityRenderPipelineGlobalSettings` through `[ResourcePath]`. The pipeline asset does not reference those runtime shaders. Opening a project does not migrate or repair assets.
 
 ## Documentation
 
@@ -29,7 +29,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 `InfinityRenderPipelineBase.Render` runs the frame and `InfinityRenderPipeline.RecordCamera`, the desktop pipeline's one hook, records each camera; writing a pass or another pipeline on the base is described in [Passes and pipelines](Docs~/Manual/architecture.md). Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - Mesh drawing through explicit views (`CullMeshView`) and `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`, with one pass cache per entry of the pipeline's mesh pass table (nine for the desktop pipeline), owned by the mesh world
-- Deferred shading from a thin GBuffer, plus a forward surface route
+- One opaque color path for deferred and forward surfaces: two RGBA8 GBuffer targets, an R11G11B10 Scene Color that the geometry draw fills with emission and indirect diffuse, and an optional RGBA8 sideband (diffuse share, two mixed-light visibilities, four light channels, skin profile). Deferred shading runs in place in compute; forward shading writes its complete result in one draw; both compose screen-space reflection and indirect diffuse in the same execution
 - One clustered light list: 128 logarithmic depth bins and 16×16 screen tiles, shared by deferred shading, forward shading, volumetric fog and volumetric clouds
 - Analytic light shapes on `InfinityAdditionalLightData`: point, sphere, line, tube, cone, pyramid and box spots, rectangle, disk and a directional sun disk. Specular uses a representative point on the emitter with energy normalization. Diffuse uses a horizon-clipped form factor for spheres and disks, line irradiance for lines and tubes, and a polygon form factor for rectangles
 - Cookies and IES profiles in one atlas
@@ -39,7 +39,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 - Atmosphere lookup tables from `AtmosphericalProfile`, sky image-based lighting, volumetric fog and volumetric clouds
 - Screen-space ambient occlusion, with ray-traced ambient occlusion when Unified Ray Tracing is ready
 - Stochastic screen-space reflection, and screen-space indirect diffuse that traces the accepted previous color
-- Subsurface diffusion of a separate diffuse component, deferred decals, and three translucent stages
+- Screen-space subsurface scattering of skin (`InfinitySkin`, dual-lobe Beckmann specular), deferred decals, and three translucent stages
 - Temporal anti-aliasing or fixed-ratio super resolution, exposure, bloom, an ACES film curve, color grading, vignette, grain, and one output encode per camera target
 - Editor authoring: Shader Graph targets, inspectors, the Rendering Debugger, a render-graph viewer, material conversion and validation fixtures
 
@@ -47,7 +47,7 @@ Not recorded: depth of field, motion blur, MSAA, dynamic resolution, XR, and har
 
 ## Mesh content
 
-Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` bit mask (`Everything = 0xFF`), not an integer layer index. One component is one mesh entity; its entity slot is its transform slot.
+Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` mask of four light channels (`Everything = 0x0F`), not an integer layer index. One component is one mesh entity; its entity slot is its transform slot.
 
 A component draws a `MeshAsset`: one mesh per LOD level with its screen size, material slots and fade width. Every submesh of every level is one element; the component's materials, indexed by material slot, draw them. Levels switch at `LODGroup` screen sizes and cross-fade with dithering in opaque passes. Authoring is in [Mesh content](Docs~/Manual/mesh.md). The Mesh Component inspector creates a one-level asset from a Mesh. Configure instances through `MeshAsset`, `Mobility`, the typed properties and `SetMaterials`. `Materials` is read-only. Dynamic world matrices, including parent motion, are read automatically. After an in-place mesh edit call `NotifyGeometryChanged(Mesh)`, and after a script edit of a MeshAsset call `NotifyGeometryChanged(MeshAsset)`; inspector edits notify automatically. After a static pose or external entity edit call `NotifyEntityChanged`. After a route or stage edit call `MaterialRouteUtility.ApplyPassState`. After a direct queue or pass edit call `NotifyMaterialRoutingChanged`. Ordinary material uniforms do not rebuild draw structure.
 

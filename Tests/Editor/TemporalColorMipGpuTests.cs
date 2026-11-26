@@ -28,26 +28,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int bw=Math.Max(1,width/2), bh=Math.Max(1,height/2);
             int pw=padded?(bw+63)/64*64:bw, ph=padded?(bh+63)/64*64:bh;
             var color = new Texture2D(sw,sh,TextureFormat.RGBAFloat,false,true);
-            var depth = new Texture2D(sw,sh,TextureFormat.RFloat,false,true);
             var seed = new Texture2D(pw,ph,halfPrecision?TextureFormat.RGBAHalf:TextureFormat.RGBAFloat,true,true);
             var output = new RenderTexture(pw,ph,0,halfPrecision?GraphicsFormat.R16G16B16A16_SFloat:GraphicsFormat.R32G32B32A32_SFloat)
                 {enableRandomWrite=true,useMipMap=true,autoGenerateMips=false};
             using var commands = new CommandBuffer();
+            int parameterSize = Unity.Collections.LowLevel.Unsafe.UnsafeUtility.SizeOf<TemporalColorMipParameters>();
+            using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
             try
             {
                 Assert.IsTrue(output.Create());
-                var pixels = new Color[sw*sh]; var depths = new float[sw*sh];
+                var pixels = new Color[sw*sh];
                 var expected = new Color[width*height];
-                float far = SystemInfo.usesReversedZBuffer?0:1;
                 for(int y=0;y<sh;++y) for(int x=0;x<sw;++x)
                 {
-                    bool surface=x<width && y<height && (x+y)%5!=0;
-                    depths[y*sw+x]=surface?.4f:far;
-                    pixels[y*sw+x]=valid?new Color(.1f+x*.17f,.2f+y*.11f,.3f+(x*y%7)*.2f,8):new Color(float.NaN,float.NaN,float.NaN,0);
-                    if(x<width && y<height) expected[y*width+x]=valid&&surface
+                    bool accepted=(x+y)%5!=0;
+                    pixels[y*sw+x]=valid?new Color(.1f+x*.17f,.2f+y*.11f,.3f+(x*y%7)*.2f,accepted?8:0):new Color(float.NaN,float.NaN,float.NaN,0);
+                    if(x<width && y<height) expected[y*width+x]=valid&&accepted
                         ? new Color(pixels[y*sw+x].r,pixels[y*sw+x].g,pixels[y*sw+x].b,1) : Color.clear;
                 }
-                color.SetPixels(pixels);color.Apply();depth.SetPixelData(depths,0);depth.Apply();
+                color.SetPixels(pixels);color.Apply();
                 for(int mip=0;mip<seed.mipmapCount;++mip)
                 {
                     var poison=new Color[Math.Max(1,pw>>mip)*Math.Max(1,ph>>mip)];
@@ -55,19 +54,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 seed.Apply(false,false);Graphics.CopyTexture(seed,output);
                 int kernel=shader.FindKernel("TemporalColorMip");
+                parameters.SetData(new[] { new TemporalColorMipParameters { sourceValid = valid ? 1 : 0 } });
+                commands.SetComputeConstantBufferParam(shader, Shader.PropertyToID("CBV_TemporalColorMipParameters"), parameters, 0, parameterSize);
                 int count=PyramidMipBatch.MipCount(bw,bh);
                 int iw=width,ih=height;
                 for(int mip=0;mip<count;++mip)
                 {
                     int ow=Math.Max(1,bw>>mip),oh=Math.Max(1,bh>>mip);
-                    commands.SetComputeIntParam(shader,"_TemporalSourceValid",valid?1:0);
                     commands.SetComputeIntParam(shader,"_TemporalMipFirst",mip==0?1:0);
                     commands.SetComputeIntParam(shader,"_TemporalSourceMip",Math.Max(0,mip-1));
-                    commands.SetComputeFloatParam(shader,"_TemporalFarDepth",far);
                     commands.SetComputeVectorParam(shader,"_Size",new Vector4(iw,ih,0,0));
                     commands.SetComputeVectorParam(shader,"_DstSize",new Vector4(ow,oh,0,0));
                     commands.SetComputeTextureParam(shader,kernel,"_Source",mip==0?(Texture)color:output);
-                    commands.SetComputeTextureParam(shader,kernel,"_TemporalSurfaceDepth",depth);
                     commands.SetComputeTextureParam(shader,kernel,"_Result",output,mip);
                     commands.DispatchCompute(shader,kernel,(ow+7)/8,(oh+7)/8,1);
                     iw=ow;ih=oh;
@@ -99,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 output.Release();Object.DestroyImmediate(output);Object.DestroyImmediate(seed);
-                Object.DestroyImmediate(color);Object.DestroyImmediate(depth);Object.DestroyImmediate(shader);
+                Object.DestroyImmediate(color);Object.DestroyImmediate(shader);
             }
         }
         static Color[] Reduce(Color[] source,int width,int height,int outputWidth,int outputHeight,bool valid,bool halfPrecision)

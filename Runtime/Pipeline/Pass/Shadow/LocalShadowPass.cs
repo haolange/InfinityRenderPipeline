@@ -401,7 +401,7 @@ namespace InfinityTech.Rendering.Pipeline
                         commands.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
                         commands.SetGlobalVector(LocalShadowPassUtilityData.InfinityDepthCopyOffsetID,
                             LocalShadowPassUtilityData.DepthCopyOffset(passData.sourceRects[i], rect));
-                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
+                        commands.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                     }
                 });
             }

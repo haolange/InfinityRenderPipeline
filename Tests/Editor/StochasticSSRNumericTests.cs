@@ -169,6 +169,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        // History lives on: reprojected on screen with the receiver's normal, an age-8 history continues at 9. A center
+        // reprojected half a pixel beyond the left edge (motion 5/8 on an 8-pixel row), or a flipped stored normal
+        // (octahedron 1, 1 is -Z), restarts at age 1.
+        [TestCase(0f, 0f, 0f, 9f)]
+        [TestCase(0f, 0f, 0.625f, 1f)]
+        [TestCase(1f, 1f, 0f, 1f)]
+        public void Temporal_KeepsHistoryOnlyOnScreenWithTheSameNormal(float historyOctahedronX, float historyOctahedronY, float motionX, float expectedAge)
+        {
+            RequireGpu();
+            using (var run = new Run(8, 8, false, 0.25f))
+            {
+                float age = run.TemporalHistoryAge(new Vector2(historyOctahedronX, historyOctahedronY), new Vector2(motionX, 0));
+                Assert.AreEqual(expectedAge, age, 1e-6f);
+            }
+        }
+
         [Test]
         public void RoughPlane_SkipsEveryTile()
         {
@@ -240,7 +256,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList, m_Samples;
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_SurfaceMetadata, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_Lighting, m_Motion, m_HistoryRadiance;
             readonly RenderTexture m_HistoryMeta;
             readonly UniformBinding<ViewUniform> m_View;
 
@@ -266,14 +282,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_HiZ = Solid((width + 1) / 2, (height + 1) / 2, new Color(planeDepth, 0, 0, 0), true);
                 m_GBufferA = Solid(width, height, new Color(0, 0, 0, roughness), false);
                 m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 0.0f, 0.5f), false);
-                // Surface route = Deferred (1).
-                m_SurfaceMetadata = Solid(width, height, new Color(1.0f / 255.0f, 0, 0, 0), false);
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
-                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, planeDepth, 8), false));
+                // The plane's own normal (octahedron 0, 0 is +Z), a valid history of age 8.
+                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, 8, 1), false));
                 m_Objects.Add(m_HistoryMeta);
-                m_MotionMetadata = Solid(width,height,new Color(planeDepth,planeDepth,1,0),false);
 
                 m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 3);
                 m_TileList = Buffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, TileCount.x * TileCount.y));
@@ -364,8 +378,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     cmd.SetComputeBufferParam(m_Shader, kernel, "UAV_Samples", m_Samples);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalColor", m_Lighting);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalColorMips", m_Lighting);
-                    cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalDepth", m_Depth);
-                    cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_MotionTexture", m_Motion);
                     m_Shader.SetInt("TemporalColorValid", 0);
                     m_Shader.SetInt("TemporalColorMipCount", m_Lighting.mipmapCount);
@@ -425,51 +437,57 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public Color TemporalClamp(Color history, Color current, Color mean, Color deviation)
             {
                 m_Shader.SetFloat("SSR_HistoryValid", 1);
-                RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
-                int kernel = m_Shader.FindKernel("SSRTemporal");
-                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
-                BindSurface(kernel);
-                m_Shader.SetTexture(kernel, "SRV_Resolved", Solid(m_Width, m_Height, current, false));
-                m_Shader.SetTexture(kernel, "SRV_HitMean", Solid(m_Width, m_Height, mean, false));
-                m_Shader.SetTexture(kernel, "SRV_HitDev", Solid(m_Width, m_Height, deviation, false));
-                m_Shader.SetTexture(kernel, "SRV_HitDistance", m_HitDistance);
-                m_Shader.SetTexture(kernel, "SRV_HistoryVariance", Solid(m_Width, m_Height, Color.clear, false));
-                m_Shader.SetTexture(kernel, "UAV_Variance", Target(m_Width, m_Height, GraphicsFormat.R16_SFloat));
-                m_Shader.SetTexture(kernel, "SRV_MotionTexture", m_Motion);
-                m_Shader.SetTexture(kernel, "SRV_HistoryRadiance", Solid(m_Width, m_Height, history, false));
-                m_Shader.SetTexture(kernel, "SRV_HistoryMeta", m_HistoryMeta);
-                m_Shader.SetTexture(kernel, "UAV_Temporal", temporal);
-                m_Shader.SetTexture(kernel, "UAV_Meta", meta);
-                DispatchFull(kernel);
-                float[] values = Read(temporal, 4);
-                int center = ((m_Height / 2) * m_Width + m_Width / 2) * 4;
+                float[] values = DispatchTemporal(Solid(m_Width, m_Height, current, false), Solid(m_Width, m_Height, mean, false), Solid(m_Width, m_Height, deviation, false),
+                    Solid(m_Width, m_Height, history, false), m_HistoryMeta, m_Motion, out _);
+                int center = CenterIndex();
                 return new Color(values[center], values[center + 1], values[center + 2], values[center + 3]);
+            }
+
+            // The age SSRTemporal writes at the center pixel over a lit history of age 8 with the given normal and motion.
+            public float TemporalHistoryAge(Vector2 historyOctahedron, Vector2 motion)
+            {
+                m_Shader.SetFloat("SSR_HistoryValid", 1);
+                RenderTexture historyMeta = Track(SurfaceMetadataTestUtility.Pack(Solid(m_Width, m_Height, new Color(historyOctahedron.x, historyOctahedron.y, 8, 1), false)));
+                Texture signal = Solid(m_Width, m_Height, new Color(0.8f, 0.4f, 0.2f, 1), false);
+                Texture deviation = Solid(m_Width, m_Height, new Color(0.05f, 0.05f, 0.05f, 0.05f), false);
+                Texture surfaceMotion = Solid(m_Width, m_Height, new Color(motion.x, motion.y, 0, 0), false);
+                DispatchTemporal(signal, signal, deviation, signal, historyMeta, surfaceMotion, out RenderTexture meta);
+                return SurfaceMetadataTestUtility.Read(meta)[CenterIndex() + 3];
             }
 
             public float[] Temporal()
             {
+                float[] values = DispatchTemporal(m_Resolved, Solid(m_Width, m_Height, Color.clear, false), Solid(m_Width, m_Height, new Color(1, 1, 1, 0), false),
+                    m_HistoryRadiance, m_HistoryMeta, m_Motion, out RenderTexture meta);
+                foreach (float value in values)
+                {
+                    Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the current sample is taken as is.");
+                }
+                return SurfaceMetadataTestUtility.Read(meta);
+            }
+
+            float[] DispatchTemporal(Texture resolved, Texture mean, Texture deviation, Texture history, Texture historyMeta, Texture motion, out RenderTexture meta)
+            {
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
+                meta = Target(m_Width, m_Height, GraphicsFormat.R32_UInt);
                 int kernel = m_Shader.FindKernel("SSRTemporal");
-                m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
-                m_Shader.SetTexture(kernel, "SRV_Resolved", m_Resolved);
-                m_Shader.SetTexture(kernel, "SRV_HitMean", Solid(m_Width, m_Height, Color.clear, false));
-                m_Shader.SetTexture(kernel, "SRV_HitDev", Solid(m_Width, m_Height, new Color(1, 1, 1, 0), false));
+                m_Shader.SetTexture(kernel, "SRV_Resolved", resolved);
+                m_Shader.SetTexture(kernel, "SRV_HitMean", mean);
+                m_Shader.SetTexture(kernel, "SRV_HitDev", deviation);
                 m_Shader.SetTexture(kernel, "SRV_HitDistance", m_HitDistance);
                 m_Shader.SetTexture(kernel, "SRV_HistoryVariance", Solid(m_Width, m_Height, Color.clear, false));
                 m_Shader.SetTexture(kernel, "UAV_Variance", Target(m_Width, m_Height, GraphicsFormat.R16_SFloat));
-                m_Shader.SetTexture(kernel, "SRV_MotionTexture", m_Motion);
-                m_Shader.SetTexture(kernel, "SRV_HistoryRadiance", m_HistoryRadiance);
-                m_Shader.SetTexture(kernel, "SRV_HistoryMeta", m_HistoryMeta);
+                m_Shader.SetTexture(kernel, "SRV_MotionTexture", motion);
+                m_Shader.SetTexture(kernel, "SRV_HistoryRadiance", history);
+                m_Shader.SetTexture(kernel, "SRV_HistoryMeta", historyMeta);
                 m_Shader.SetTexture(kernel, "UAV_Temporal", temporal);
                 m_Shader.SetTexture(kernel, "UAV_Meta", meta);
                 DispatchFull(kernel);
-                foreach (float value in Read(temporal, 4))
-                    Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the current sample is taken as is.");
-                return SurfaceMetadataTestUtility.Read(meta);
+                return Read(temporal, 4);
             }
+
+            int CenterIndex() => ((m_Height / 2) * m_Width + m_Width / 2) * 4;
 
             public float[] Spatial(Color input)
             {
@@ -488,7 +506,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetTexture(kernel, "SRV_DepthTexture", m_Depth);
                 m_Shader.SetTexture(kernel, "SRV_GBufferA", m_GBufferA);
                 m_Shader.SetTexture(kernel, "SRV_GBufferB", m_GBufferB);
-                m_Shader.SetTexture(kernel, "SRV_SurfaceMetadata", m_SurfaceMetadata);
             }
 
             void DispatchFull(int kernel)

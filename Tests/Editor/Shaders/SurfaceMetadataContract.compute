@@ -1,23 +1,43 @@
 #pragma kernel Pack
 #pragma kernel Decode
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ScreenSpaceSurfaceMetadata.hlsl"
+
+// Pack
+
+// xy: octahedral normal in [-1, 1]; z: sample age; w: 1 for a valid sample, 0 for an invalid one.
 Texture2D<float4> Source;
-RWTexture2D<uint2> Packed;
+RWTexture2D<uint> Packed;
+
 [numthreads(8,8,1)]
 void Pack(uint3 id : SV_DispatchThreadID)
 {
-    uint width, height; Packed.GetDimensions(width, height);
-    if (id.x >= width || id.y >= height) return;
+    uint width;
+    uint height;
+    Packed.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
     float4 value = Source[id.xy];
-    Packed[id.xy] = EncodeSurfaceMetadata(OctahedronToUnitVector(value.xy), value.z, (uint)value.w, value.w >= 1);
+    Packed[id.xy] = EncodeSurfaceMetadata(OctahedronToUnitVector(value.xy), (uint)value.z, value.w > 0.5);
 }
 
-Texture2D<uint2> PackedSource;
+// Decode
+
+// xyz: the unit normal a consumer reconstructs; w: the decoded age, 0 for an invalid sample.
+Texture2D<uint> PackedSource;
 RWTexture2D<float4> Decoded;
+
 [numthreads(8,8,1)]
 void Decode(uint3 id : SV_DispatchThreadID)
 {
-    uint width, height; Decoded.GetDimensions(width,height);
-    if (id.x >= width || id.y >= height) return;
-    Decoded[id.xy] = DecodeSurfaceMetadata(PackedSource[id.xy]);
+    uint width;
+    uint height;
+    Decoded.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
+    float3 metadata = DecodeSurfaceMetadata(PackedSource[id.xy]);
+    Decoded[id.xy] = float4(OctahedronToUnitVector(metadata.xy), metadata.z);
 }

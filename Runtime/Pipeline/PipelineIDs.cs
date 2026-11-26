@@ -35,12 +35,13 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeScreenSpaceReflection,
         ComputeScreenSpaceIndirect,
         ComputeTemporalColorPyramid,
-        ComputeScreenSpaceComposite,
         CopyHistorySSR,
         CopyHistorySSGI,
         ComputeDeferredShading,
         RasterForward,
-        ComputeBurleySubsurface,
+        RasterSubsurfaceScattering,
+        RasterSubsurfaceExtract,
+        RasterSubsurfaceScatter,
         ComputeAtmosphericSkyAndFog,
         ComputeVolumetricFog,
         ComputeVolumetricCloud,
@@ -73,10 +74,6 @@ namespace InfinityTech.Rendering.Pipeline
     // Semantic graph resources are RGResourceKey (registered in RGScoper); plain shader property IDs stay int.
     public static class InfinityShaderIDs
     {
-        public static readonly RGResourceKey BakedDiffuseBuffer = new RGResourceKey("BakedDiffuseBuffer");
-        public static readonly RGResourceKey BakedShadowmaskBuffer = new RGResourceKey("_BakedShadowmaskTexture");
-        public static readonly RGResourceKey IndirectDiffuseBuffer = new RGResourceKey("IndirectDiffuseBuffer");
-        public static readonly RGResourceKey IndirectSpecularBuffer = new RGResourceKey("IndirectSpecularBuffer");
         public static readonly RGResourceKey PreDebugColorBuffer = new RGResourceKey("_PreDebugColorTexture");
         public static readonly RGResourceKey DebugViewBuffer = new RGResourceKey("_DebugViewTexture");
         public static readonly RGResourceKey DisplayDepthBuffer = new RGResourceKey("_DisplayDepthTexture");
@@ -90,8 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey DBufferC = new RGResourceKey("_DBufferTextureC");
         public static readonly RGResourceKey GBufferA = new RGResourceKey("_GBufferTextureA");
         public static readonly RGResourceKey GBufferB = new RGResourceKey("_GBufferTextureB");
-        public static readonly RGResourceKey SurfaceMetadataBuffer = new RGResourceKey("_SurfaceMetadataTexture");
-        public static readonly RGResourceKey CustomDataBuffer = new RGResourceKey("_CustomDataTexture");
+        public static readonly RGResourceKey SidebandBuffer = new RGResourceKey("_SidebandTexture");
         public static readonly RGResourceKey MotionBuffer = new RGResourceKey("_MotionTexture");
         public static readonly RGResourceKey CascadeShadowMap = new RGResourceKey("_CascadeShadowMapTexture");
         public static readonly RGResourceKey LocalShadowMap = new RGResourceKey("_LocalShadowMapTexture");
@@ -115,7 +111,6 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey OcclusionHalfBuffer = new RGResourceKey("_OcclusionHalfTexture");
         public static readonly RGResourceKey SpatialTempBuffer = new RGResourceKey("_SpatialTempTexture");
         public static readonly RGResourceKey HistoryOcclusionBuffer = new RGResourceKey("_HistoryOcclusionTexture");
-        public static readonly RGResourceKey HistoryOcclusionDepthBuffer = new RGResourceKey("_HistoryOcclusionDepthTexture");
         public static readonly RGResourceKey ContactShadowBuffer = new RGResourceKey("_ContactShadowTexture");
         public static readonly RGResourceKey ContactShadowMaskBuffer = new RGResourceKey("_ContactShadowMaskTexture");
         public static readonly RGResourceKey LightTileMaskBuffer = new RGResourceKey("_LightTileMaskBuffer");
@@ -147,25 +142,19 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey LightingBuffer = new RGResourceKey("_LightingTexture");
         public static readonly RGResourceKey TemporalColorMipBuffer = new RGResourceKey("_TemporalColorMipTexture");
         public static readonly RGResourceKey TemporalColorSourceBuffer = new RGResourceKey("_TemporalColorSourceTexture");
-        public static readonly RGResourceKey TemporalColorDepthBuffer = new RGResourceKey("_TemporalColorDepthTexture");
         public static readonly RGResourceKey FoggedSceneColorBuffer = new RGResourceKey("_FoggedSceneColorTexture");
         public static readonly RGResourceKey ReactiveMaskBuffer = new RGResourceKey("_ReactiveMaskTexture");
         public static readonly RGResourceKey HistoryVolumetricFogBuffer = new RGResourceKey("_HistoryVolumetricFogTexture");
         public static readonly RGResourceKey HistoryVolumetricCloudBuffer = new RGResourceKey("_HistoryVolumetricCloudTexture");
-        public static readonly RGResourceKey ScreenSpaceCompositeBuffer = new RGResourceKey("_ScreenSpaceCompositeTexture");
-        public static readonly RGResourceKey ScatterDiffuseBuffer = new RGResourceKey("_ScatterDiffuseTexture");
-        public static readonly RGResourceKey SubsurfaceBuffer = new RGResourceKey("_SubsurfaceTexture");
+        public static readonly RGResourceKey SubsurfaceIrradianceBuffer = new RGResourceKey("_SubsurfaceIrradianceTexture");
         public static readonly RGResourceKey VolumetricFogBuffer = new RGResourceKey("_VolumetricFogTexture");
         public static readonly RGResourceKey VolumetricCloudBuffer = new RGResourceKey("_VolumetricCloudTexture");
         public static readonly RGResourceKey TranslucentDepthBuffer = new RGResourceKey("_TranslucentDepthTexture");
         public static readonly RGResourceKey ColorPyramidBuffer = new RGResourceKey("_ColorPyramidTexture");
         public static readonly RGResourceKey SuperResolutionBuffer = new RGResourceKey("_SuperResolutionTexture");
         public static readonly RGResourceKey SRAccumulationBuffer = new RGResourceKey("_SRAccumulationBuffer");
-        public static readonly RGResourceKey SRDepthBuffer = new RGResourceKey("_SRDepthBuffer");
         public static readonly RGResourceKey TAAAccumulationBuffer = new RGResourceKey("_TAAAccumulationBuffer");
-        public static readonly RGResourceKey TAADepthBuffer = new RGResourceKey("_TAADepthBuffer");
         public static readonly RGResourceKey TAAReprojectionBuffer = new RGResourceKey("_TAAReprojectionBuffer");
-        public static readonly RGResourceKey MotionMetadataBuffer = new RGResourceKey("_MotionMetadataBuffer");
         public static readonly RGResourceKey AntiAliasingBuffer = new RGResourceKey("_AntiAliasingBuffer");
         public static readonly RGResourceKey TAAConfidenceBuffer = new RGResourceKey("_TAAConfidenceTexture");
         public static readonly RGResourceKey PostProcessBuffer = new RGResourceKey("_PostProcessTexture");

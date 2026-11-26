@@ -10,9 +10,6 @@ CBUFFER_START(UnityPerMaterial)
     float _NormalTile;
     float _BaseColorTile;
     float _SpecularLevel;
-    float _Subsurface;
-    float _SSSProfileIndex;
-    float _SSSThickness;
     float4 _BaseColor;
     float4 _EmissionColor;
     float _RefractionStrength;

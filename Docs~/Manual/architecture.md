@@ -107,7 +107,7 @@ internal sealed class DepthOnlyPipeline : InfinityRenderPipelineBase
 
 | Stage | Written by |
 |---|---|
-| `opaque` | Deferred and forward lighting (`LightingBuffer`), or the screen-space composite when SSR or SSGI records |
+| `opaque` | Deferred and forward lighting with SSR, SSGI and skin scattering composed in place (`LightingBuffer`) |
 | `fogged` | The fog composite when volumetric fog or clouds record; otherwise the opaque stage |
 | `resolved` | Temporal anti-aliasing or super resolution; otherwise the fogged stage |
 | `display` | Post processing, or the debug view when one is active |

@@ -8,28 +8,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class NativeLightingContractTests
     {
-        [TestCase(LightmapBakeType.Realtime, MixedLightingMode.Shadowmask, 0, false)]
-        [TestCase(LightmapBakeType.Baked, MixedLightingMode.Shadowmask, 0, false)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.IndirectOnly, 0, false)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.Subtractive, 0, false)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, -1, false)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 0, true)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 3, true)]
-        [TestCase(LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 4, false)]
-        public void ShadowmaskUsesNativeLightBakeOutput(LightmapBakeType type, MixedLightingMode mode, int channel, bool expected)
+        // Baked visibility belongs to Mixed + Shadowmask directional lights; the native bake output names the shadowmask channel.
+        [TestCase(LightType.Directional, LightmapBakeType.Realtime, MixedLightingMode.Shadowmask, 0, -1)]
+        [TestCase(LightType.Directional, LightmapBakeType.Baked, MixedLightingMode.Shadowmask, 0, -1)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.IndirectOnly, 0, -1)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.Subtractive, 0, -1)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, -1, -1)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 0, 0)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 3, 3)]
+        [TestCase(LightType.Directional, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 4, -1)]
+        [TestCase(LightType.Point, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 1, -1)]
+        [TestCase(LightType.Spot, LightmapBakeType.Mixed, MixedLightingMode.Shadowmask, 2, -1)]
+        public void MixedLightChannelUsesNativeLightBakeOutput(LightType lightType, LightmapBakeType type, MixedLightingMode mode, int channel, int expected)
         {
             var go = new GameObject("OwnedNativeLight");
             try
             {
                 var light = go.AddComponent<Light>();
+                light.type = lightType;
                 light.bakingOutput = new LightBakingOutput { lightmapBakeType = type, mixedLightingMode = mode, occlusionMaskChannel = channel };
-                Assert.AreEqual(expected, LightContext.IsBakedShadowmaskLight(light));
+                Assert.AreEqual(expected, LightContext.MixedLightChannel(light));
             }
-            finally { Object.DestroyImmediate(go); }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
         }
 
         [Test]
-        public void AbsentLightHasNoShadowmask() => Assert.IsFalse(LightContext.IsBakedShadowmaskLight(null));
+        public void AbsentLightHasNoMixedLightChannel() => Assert.AreEqual(-1, LightContext.MixedLightChannel(null));
 
         [TestCase(false)]
         [TestCase(true)]

@@ -192,11 +192,9 @@ namespace InfinityTech.Rendering.Pipeline
         InfinityRenderPipelineBase m_PreviousGlobalStateOwner;
         SupportedRenderingFeatures m_InstalledSupportedFeatures;
         Material m_PreviousBlitMaterial;
-        Texture m_PreviousBestFitTexture;
         int m_PreviousAntiAliasing;
         bool m_InstalledBatching;
         Material m_InstalledBlitMaterial;
-        Texture m_InstalledBestFitTexture;
         VolumeProfile m_InstalledQualityProfile;
         bool m_OwnsVolumeManager;
         bool m_ResourcesDisposed;
@@ -228,6 +226,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_Settings = asset.ResolveSettings();
             if (m_Settings.atmosphericalProfile == null)
                 throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
+            if (m_Settings.config.hasBlockingConflict)
+                throw new NotSupportedException("InfinityRP: " + m_Settings.config.blockingConflict);
             m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources(capabilities.requiredProducers);
             try
@@ -625,7 +625,7 @@ namespace InfinityTech.Rendering.Pipeline
                             setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? sceneWorld.probes.atlas : null,
                             sceneWorld.probes.table, sceneWorld.probes.rasterTable.count, cullingResults, camera, setup.dimensions.internalSize, frameContext.frame);
                     }
-                    sceneWorld.decals.context.Build(sceneWorld.decals.table, camera, setup.dimensions.internalSize, !m_Settings.config.useBestFitYCoCg);
+                    sceneWorld.decals.context.Build(sceneWorld.decals.table, camera, setup.dimensions.internalSize);
                     m_AnalyticLights.Clear();
                     var lightRecords = lightContext.Records;
                     for (int li = 0; li < lightRecords.Length; ++li)
@@ -674,6 +674,7 @@ namespace InfinityTech.Rendering.Pipeline
                     lightingDebug.lastAnalyticDirectClusterEntries = analyticStats.directClusterEntries;
                     lightingDebug.lastUnsupportedShapeCount = lightContext.UnsupportedShapeCount;
                     lightingDebug.lastDistanceCulledCount = lightContext.DistanceCulledCount;
+                    lightingDebug.lastDroppedMixedLightCount = lightContext.DroppedMixedLightCount;
 #endif
 
                     using (PipelineCpuMarkers.s_ProcessLightExecuteCommandBuffer.Auto())
@@ -781,7 +782,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_PreviousUseScriptableRenderPipelineBatching = GraphicsSettings.useScriptableRenderPipelineBatching;
             m_PreviousAntiAliasing = QualitySettings.antiAliasing;
             m_PreviousBlitMaterial = GraphicsUtility.s_BlitMaterial;
-            m_PreviousBestFitTexture = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
         }
 
 #if UNITY_EDITOR
@@ -832,8 +832,6 @@ namespace InfinityTech.Rendering.Pipeline
                 QualitySettings.antiAliasing = m_PreviousAntiAliasing;
             if (GraphicsUtility.s_BlitMaterial == m_InstalledBlitMaterial)
                 GraphicsUtility.s_BlitMaterial = m_PreviousBlitMaterial;
-            if (m_InstalledBestFitTexture != null && Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
-                Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
         }
 
         static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
@@ -887,7 +885,6 @@ namespace InfinityTech.Rendering.Pipeline
             // Resolve dependencies and allocate the feature declaration before any global write.
             m_InstalledBatching = m_Settings.enableSRPBatch;
             m_InstalledBlitMaterial = resources.materials.blitMaterial;
-            m_InstalledBestFitTexture = m_Settings.config.useBestFitYCoCg ? resources.textures.bestFitNormalTexture : null;
             var installedFeatures = new SupportedRenderingFeatures()
             {
                 // Probes are axis aligned (their capture is world aligned); influence and projection boxes blend.
@@ -924,8 +921,6 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
             GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
-            if (m_InstalledBestFitTexture != null)
-                Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
 #if UNITY_EDITOR
             InstallLightmapperState();
 #endif
@@ -1046,6 +1041,7 @@ namespace InfinityTech.Rendering.Pipeline
                 resourceReasons = resources.featureResourceReasons,
                 temporal = policy.temporal,
                 hasDiffusionProfiles = m_Settings.hasDiffusionProfiles,
+                renderingLayers = m_Settings.config.enableRenderingLayers,
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,
             };

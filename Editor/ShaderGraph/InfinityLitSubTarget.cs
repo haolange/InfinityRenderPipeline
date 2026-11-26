@@ -60,6 +60,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             context.AddBlock(BlockFields.SurfaceDescription.Metallic);
             context.AddBlock(InfinityBlockFields.SurfaceDescription.Roughness);
             context.AddBlock(InfinityBlockFields.SurfaceDescription.SpecularLevel);
+            context.AddBlock(BlockFields.SurfaceDescription.Occlusion);
             context.AddBlock(BlockFields.SurfaceDescription.Emission);
             context.AddBlock(BlockFields.SurfaceDescription.Alpha, target.translucent || target.alphaClip);
             context.AddBlock(BlockFields.SurfaceDescription.AlphaClipThreshold, target.alphaClip);
@@ -70,9 +71,8 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             InfinityTarget.AddMaterialFloat(collector, "_SurfaceRoute", (float)target.surfaceRoute);
             InfinityTarget.AddMaterialFloat(collector, "_TranslucentStage", (float)target.translucentStage);
             InfinityTarget.AddMaterialFloat(collector, "_RefractionStrength", 0.04f);
-            InfinityTarget.AddMaterialFloat(collector, "_Subsurface", 0.0f);
-            InfinityTarget.AddMaterialFloat(collector, "_SSSProfileIndex", 0.0f);
-            InfinityTarget.AddMaterialFloat(collector, "_SSSThickness", 0.0f);
+            // MaterialRouteUtility.ApplyPassState rewrites it with the route: Deferred 2, Forward 0.
+            InfinityTarget.AddMaterialFloat(collector, "_StencilRefGBuffer", target.surfaceRoute == InfinitySurfaceRoute.Deferred ? 2.0f : 0.0f);
         }
 
         public override void GetPropertiesGUI(ref TargetPropertyGUIContext context, Action onChange, Action<string> registerUndo)

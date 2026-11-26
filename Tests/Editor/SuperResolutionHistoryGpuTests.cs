@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public void SharpeningDoesNotEnterPendingHistory_AndDepthUsesTheDisplayGrid(bool padded, bool reset)
+        public void SharpeningDoesNotEnterPendingHistory(bool padded, bool reset)
         {
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
                 Assert.Ignore("Compute and GPU readback are required.");
@@ -67,23 +67,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int variant = 0; variant < 2; ++variant)
                 {
                     var colorOutput = Output(GraphicsFormat.R16G16B16A16_SFloat);
-                    var depthOutput = Output(GraphicsFormat.R32_SFloat);
                     var displayOutput = Output(GraphicsFormat.R16G16B16A16_SFloat);
                     shader.SetFloat("SR_Sharpness",variant == 0 ? 0 : .5f);
                     shader.SetTexture(kernel,"UAV_SRHistoryColorTexture",colorOutput);
-                    shader.SetTexture(kernel,"UAV_SRHistoryDepthTexture",depthOutput);
                     shader.SetTexture(kernel,"UAV_SuperResolutionTexture",displayOutput);
                     shader.Dispatch(kernel,(width+7)/8,(height+7)/8,1);
-                    colors[variant] = Read(colorOutput); displays[variant] = Read(displayOutput);
-                    var depths = Read(depthOutput);
-                    for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x)
+                    colors[variant] = Read(colorOutput);
+                    displays[variant] = Read(displayOutput);
+                    for (int y = 0; y < height; ++y)
                     {
-                        int i = y * capacityWidth + x;
-                        int sx = Math.Min(inputWidth-1,(int)((x+.5f)*inputWidth/width));
-                        int sy = Math.Min(inputHeight-1,(int)((y+.5f)*inputHeight/height));
-                        Assert.That(depths[i].r,Is.EqualTo(.1f+.001f*sx+.002f*sy).Within(1e-6));
-                        for (int c=0;c<4;++c) Assert.IsTrue(float.IsFinite(colors[variant][i][c]));
-                        Assert.AreEqual(1, colors[variant][i].a);
+                        for (int x = 0; x < width; ++x)
+                        {
+                            int i = y * capacityWidth + x;
+                            for (int c = 0; c < 4; ++c)
+                            {
+                                Assert.IsTrue(float.IsFinite(colors[variant][i][c]));
+                            }
+                            Assert.AreEqual(1, colors[variant][i].a);
+                        }
                     }
                 }
                 float displayDifference = 0;

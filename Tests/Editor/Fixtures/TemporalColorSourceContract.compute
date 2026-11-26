@@ -3,7 +3,7 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/TemporalColorSource.hlsl"
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;
-float4 ContractMotion, ContractMetadata;
+float4 ContractMotion;
 float4x4 ContractPreviousVP;
 [numthreads(1,1,1)]
 void SampleSource(uint3 id : SV_DispatchThreadID)
@@ -11,7 +11,7 @@ void SampleSource(uint3 id : SV_DispatchThreadID)
     float4 input = ContractInputs[id.x];
     float confidence;
     float4x4 identity = float4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
-    float3 color = SampleTemporalHitColor(input.xy,input.z,ContractMotion.xy,ContractMetadata,input.w,
+    float3 color = SampleTemporalHitColor(input.xy,input.z,ContractMotion.xy,input.w,
         identity,ContractPreviousVP,identity,identity,confidence);
     ContractResults[id.x] = float4(color,confidence);
 }

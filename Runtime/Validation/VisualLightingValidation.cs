@@ -518,9 +518,12 @@ namespace InfinityTech.Rendering.Pipeline
                 RenderCaptureService.Start(new RenderCaptureRequest { outputDirectory = directory, fixture = name, scene = m_Scene.name, camera = m_Camera.name,
                     width = m_Camera.pixelWidth, height = m_Camera.pixelHeight, warmupFrames = temporal ? 16 : 120, frameCount = temporal ? 16 : 3, frameInterval = 1,
                     meshBackend = gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect, includeConfidence = true,
+                    // The sideband carries the mixed light's baked visibility; an indirect-only light (scenario 12) allocates none.
                     buffers = temporal
-                        ? new[] { "DisplayColor", "TAAInput", "TAAAccumulation", "AntiAliasing", "Motion", "MotionMetadata", "Depth", "TAAReprojection" }
-                        : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "BakedDiffuse", "BakedShadowmask", "IndirectDiffuse", "IndirectSpecular", "CascadeShadow" },
+                        ? new[] { "DisplayColor", "TAAInput", "TAAAccumulation", "AntiAliasing", "Motion", "Depth", "TAAReprojection" }
+                        : lightingScenario == 12
+                            ? new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "CascadeShadow" }
+                            : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "Sideband", "CascadeShadow" },
                     roi = new RectInt(0, 0, m_Camera.pixelWidth, m_Camera.pixelHeight) });
                 m_PhaseStarted = Time.realtimeSinceStartupAsDouble;
                 m_Capture = RenderCaptureService.current;

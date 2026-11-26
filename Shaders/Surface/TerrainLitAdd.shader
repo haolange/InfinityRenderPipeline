@@ -60,9 +60,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
             #pragma multi_compile_instancing
             #pragma multi_compile _ _DBUFFER
             #pragma multi_compile _ SHADOWS_SHADOWMASK
-            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
-            #pragma multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE
-            #pragma multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS
+            #pragma multi_compile _ INFINITY_SIDEBAND
             //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
@@ -77,35 +75,5 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
             ENDHLSL
         }
 
-        Pass
-        {
-			Name "RasterTerrainAdd"
-			Tags { "LightMode" = "RasterForwardPass" }
-
-            Blend One One
-			ZTest Equal ZWrite Off Cull Back
-
-            HLSLPROGRAM
-            #pragma vertex SplatmapVert
-            #pragma fragment ForwardFragment
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR
-            #pragma multi_compile _ INFINITY_SSS_OUTPUT
-            #pragma multi_compile _ INFINITY_SSS_ALPHA
-            
-            #pragma multi_compile_instancing
-            //#pragma enable_d3d11_debug_symbols
-            #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
-
-            #pragma shader_feature_local _MASKMAP
-            #pragma shader_feature_local _NORMALMAP
-            #pragma shader_feature_local _TERRAIN_BLEND_HEIGHT
-            #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
-
-            #define TERRAIN_SPLAT_ADDPASS
-    
-            #include "TerrainLitInclude.hlsl"
-            ENDHLSL
-        }
     }
 }

@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.SetExecuteFunc((in DisplayDepthPassData passData, in RGRasterEncoder commands) =>
                 {
                     commands.SetGlobalTexture(PassShaderIDs.InfinitySourceDepth, passData.sourceHandle);
-                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
+                    commands.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                 });
             }
         }

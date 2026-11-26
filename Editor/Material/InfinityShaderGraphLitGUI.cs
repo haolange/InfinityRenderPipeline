@@ -24,27 +24,6 @@ namespace InfinityTech.Rendering.Editor
                 Float(materialEditor, FindProperty("_RefractionStrength", properties, false), "Refraction Strength");
             bool routeChanged = EditorGUI.EndChangeCheck();
 
-            EditorGUILayout.LabelField("Subsurface", EditorStyles.boldLabel);
-            EditorGUI.BeginChangeCheck();
-            MaterialProperty subsurface = FindProperty("_Subsurface", properties, false);
-            if (subsurface != null)
-            {
-                EditorGUI.showMixedValue = subsurface.hasMixedValue;
-                bool on = EditorGUILayout.Toggle("Subsurface", subsurface.floatValue > 0.5f);
-                EditorGUI.showMixedValue = false;
-                if (on != subsurface.floatValue > 0.5f)
-                {
-                    subsurface.floatValue = on ? 1 : 0;
-                }
-                if (on)
-                {
-                    Float(materialEditor, FindProperty("_SSSProfileIndex", properties, false), "SSS Profile Index");
-                    Float(materialEditor, FindProperty("_SSSThickness", properties, false), "SSS Thickness");
-                    InfinityLitGUI.DrawSssIndexWarning(materialEditor.target as Material);
-                }
-            }
-            routeChanged |= EditorGUI.EndChangeCheck();
-
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Graph Inputs", EditorStyles.boldLabel);
             materialEditor.PropertiesDefaultGUI(properties);

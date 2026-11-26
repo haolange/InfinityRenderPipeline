@@ -10,21 +10,16 @@ UNIFIED_RT_DECLARE_ACCEL_STRUCT(g_SceneAccelStruct);
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float4> SRV_NormalTexture;
-Texture2D<float4> SRV_SurfaceMetadata;
 RWTexture2D<float> UAV_OcclusionTexture;
 
 float4 RTAO_Resolution;
 int RTAO_NumRays;
 float RTAO_Radius;
-int RTAO_UseBestFitNormal;
 float4x4 Matrix_InvViewFlipYJitterProj;
 
+// GBuffer B octahedral normal (GBufferPack.hlsl DecodeOctahedralNormal; the unified ray tracing compile unit stays standalone).
 float3 DecodeRTAONormal(float4 packedNormal)
 {
-    if (RTAO_UseBestFitNormal != 0)
-    {
-        return normalize(packedNormal.xyz * 2.0 - 1.0);
-    }
     float2 oct = packedNormal.rg * 2.0 - 1.0;
     float3 n = float3(oct, 1.0 - dot(1.0, abs(oct)));
     if (n.z < 0.0)
@@ -58,10 +53,9 @@ void RTAOTrace(UnifiedRT::DispatchInfo dispatchInfo)
     if (any(id >= size))
         return;
 
+    // Every opaque surface writes GBuffer B; only the far plane has no surface.
     float depth = SRV_DepthTexture[id].r;
-    uint packedMeta = (uint)(SRV_SurfaceMetadata[id].r * 255.0 + 0.5);
-    bool valid = (packedMeta & 0x3u) != 0u;
-    if (depth == 0.0 || !valid)
+    if (depth == 0.0)
     {
         UAV_OcclusionTexture[id] = 1.0;
         return;

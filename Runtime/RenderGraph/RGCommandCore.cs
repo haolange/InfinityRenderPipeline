@@ -163,6 +163,7 @@ namespace InfinityTech.Rendering.RenderGraph
         #region Global parameters
         internal void SetKeyword(GlobalKeyword keyword, bool value) => commands.SetKeyword(keyword, value);
         internal void SetKeyword(ComputeShader computeShader, in LocalKeyword keyword, bool value) => commands.SetKeyword(computeShader, keyword, value);
+        internal void SetKeyword(Material material, in LocalKeyword keyword, bool value) => commands.SetKeyword(material, keyword, value);
         internal void SetGlobalFloat(int nameID, float value) => commands.SetGlobalFloat(nameID, value);
         internal void SetGlobalInt(int nameID, int value) => commands.SetGlobalInt(nameID, value);
         internal void SetGlobalInteger(int nameID, int value) => commands.SetGlobalInteger(nameID, value);

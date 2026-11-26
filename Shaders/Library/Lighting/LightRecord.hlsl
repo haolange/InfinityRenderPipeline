@@ -44,7 +44,7 @@ struct LightRecord
     int shadowSliceCount;
     int shadowFilter;
     int visibleLightIndex;
-    int bakedOcclusionChannel;
+    int bakedVisibilitySlot;
     int cookieIndex;
 };
 

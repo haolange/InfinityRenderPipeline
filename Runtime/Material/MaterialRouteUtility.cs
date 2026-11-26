@@ -62,9 +62,15 @@ namespace InfinityTech.Rendering.MaterialPipeline
             shader = state.shader;
         }
 
-        private static readonly int ID_SurfaceRoute     = Shader.PropertyToID("_SurfaceRoute");
-        private static readonly int ID_TranslucentStage = Shader.PropertyToID("_TranslucentStage");
-        private static readonly int ID_Subsurface       = Shader.PropertyToID("_Subsurface");
+        private static readonly int ID_SurfaceRoute          = Shader.PropertyToID("_SurfaceRoute");
+        private static readonly int ID_TranslucentStage      = Shader.PropertyToID("_TranslucentStage");
+        private static readonly int ID_DiffusionProfileIndex = Shader.PropertyToID("_DiffusionProfileIndex");
+        private static readonly int ID_StencilRefGBuffer     = Shader.PropertyToID("_StencilRefGBuffer");
+
+        // Stencil the GBuffer pass writes under WriteMask 6 (Shaders/Library/Stencil.hlsl): bit 1 admits a deferred pixel to
+        // deferred shading. A skin shader writes its subsurface bit 2 as a constant.
+        private const float k_StencilRefDeferred = 2.0f;
+        private const float k_StencilRefForward  = 0.0f;
 
         public static void Read(Material material, out int surfaceRoute, out int translucentStage)
         {
@@ -73,9 +79,8 @@ namespace InfinityTech.Rendering.MaterialPipeline
 
             surfaceRoute = ReadIndex(material, ID_SurfaceRoute, "_SurfaceRoute", 1);
             translucentStage = ReadIndex(material, ID_TranslucentStage, "_TranslucentStage", 3);
-            if (material.HasProperty(ID_Subsurface) && material.GetFloat(ID_Subsurface) > 0.5f
-                && (surfaceRoute != 0 || translucentStage != 0))
-                throw new InvalidOperationException($"Material '{material.name}' requires Deferred opaque routing for subsurface scattering.");
+            if (material.HasProperty(ID_DiffusionProfileIndex) && (surfaceRoute != 1 || translucentStage != 0))
+                throw new InvalidOperationException($"Material '{material.name}' is a subsurface skin material and requires Forward opaque routing.");
         }
 
         private static int ReadIndex(Material material, int property, string name, int maximum)
@@ -94,11 +99,17 @@ namespace InfinityTech.Rendering.MaterialPipeline
         {
             Read(material, out int route, out int stage);
             bool opaque = stage == 0;
-            // Both opaque routes provide surface data for AO, ray tracing and motion consumers.
-            // Forward pixels are tagged so Deferred never shades them.
+            // Both opaque routes write the GBuffer surface proxy for screen-space, ray-tracing and motion consumers.
+            // Only a deferred pixel carries the stencil bit that admits it to deferred shading.
             foreach (string pass in s_RoutedPasses)
             {
                 SetPass(material, pass, RouteEnablesPass(route, stage, pass));
+            }
+            if (material.HasProperty(ID_StencilRefGBuffer))
+            {
+                float stencilRef = route == 0 ? k_StencilRefDeferred : k_StencilRefForward;
+                if (material.GetFloat(ID_StencilRefGBuffer) != stencilRef)
+                    material.SetFloat(ID_StencilRefGBuffer, stencilRef);
             }
 
             string renderType = opaque ? "Opaque" : "Transparent";

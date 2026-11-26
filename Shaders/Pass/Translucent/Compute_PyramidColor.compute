@@ -143,14 +143,13 @@ void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, u
 #endif
 
 #pragma kernel TemporalColorMip
-Texture2D<float> _TemporalSurfaceDepth;
 // The TemporalColorMipParameters record ComputeTemporalColorPyramid writes, bound as one constant buffer.
 cbuffer CBV_TemporalColorMipParameters
 {
     int _TemporalSourceValid;
-    float _TemporalFarDepth;
     int TemporalColorMipPadding0;
     int TemporalColorMipPadding1;
+    int TemporalColorMipPadding2;
 };
 // Per mip dispatch.
 int _TemporalMipFirst, _TemporalSourceMip;
@@ -185,8 +184,8 @@ void TemporalColorMip(uint3 id : SV_DispatchThreadID)
             float valid = saturate(value.a);
             if (_TemporalMipFirst != 0)
             {
-                float raw = _TemporalSurfaceDepth.Load(int3(x,y,0));
-                valid = value.a >= 1 && isfinite(raw) && raw >= 0 && raw <= 1 && raw != _TemporalFarDepth ? 1 : 0;
+                // A source texel is covered once it holds an accepted temporal sample (age >= 1).
+                valid = value.a >= 1 && all(isfinite(value.rgb)) ? 1 : 0;
             }
             // The first level converts source sample age to coverage. Later levels
             // already carry radiance premultiplied by coverage; never weight it twice.

@@ -7,10 +7,11 @@
 #pragma kernel DebugViewShadow DV_KERNEL_SHADOW
 #pragma kernel DebugViewLightLoop DV_KERNEL_LIGHTLOOP
 #pragma kernel DebugViewProbeAtlas DV_KERNEL_PROBEATLAS
-#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"
+#include "../../Library/Sideband.hlsl"
+#include "../../Library/Stencil.hlsl"
 #include "../../Library/DebugViewModes.hlsl"
 #if defined(DV_KERNEL_LIGHTLOOP)
 #include "../../Library/Lighting/ReflectionProbes.hlsl"
@@ -24,14 +25,15 @@ cbuffer CBV_DebugViewParameters
     float4 DV_Params;
     int DV_Mode;
     float DV_FarDepth;
-    int DV_HasRenderingLayers;
+    int DV_Padding0;
     int DV_Padding1;
 };
 
 #if defined(DV_KERNEL_GBUFFER)
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
-Texture2D SRV_SurfaceMetadata;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<uint2> SRV_StencilTexture;
 #endif
 
 #if defined(DV_KERNEL_MOTION)
@@ -74,17 +76,16 @@ float3 DebugHeatColor(float t)
     return color;
 }
 
-// One color per rendering layer bit, averaged over the set bits.
+// One color per light channel, averaged over the set bits.
 float3 DebugLayerColor(uint mask)
 {
-    static const float3 kLayerColors[8] =
+    static const float3 kLayerColors[4] =
     {
-        float3(1.0, 0.25, 0.25), float3(0.25, 1.0, 0.25), float3(0.3, 0.45, 1.0), float3(1.0, 1.0, 0.25),
-        float3(1.0, 0.25, 1.0), float3(0.25, 1.0, 1.0), float3(1.0, 0.6, 0.2), float3(0.7, 0.7, 0.7)
+        float3(1.0, 0.25, 0.25), float3(0.25, 1.0, 0.25), float3(0.3, 0.45, 1.0), float3(1.0, 1.0, 0.25)
     };
     float3 color = 0;
     uint count = 0;
-    [unroll] for (uint bit = 0; bit < 8; ++bit)
+    [unroll] for (uint bit = 0; bit < 4; ++bit)
     {
         if ((mask >> bit) & 1u)
         {
@@ -109,8 +110,8 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     uint width, height;
     InfinityGetDimensions(SRV_GBufferTextureA, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
-    DecodeSurface(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_SurfaceMetadata, SRV_GBufferTextureA_InfinityView, DV_HasRenderingLayers != 0, surfaceData);
-    bool validSurface = surfaceData.Route != SURFACE_ROUTE_NONE;
+    DecodeSurface(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, surfaceData);
+    bool validSurface = abs(SRV_DepthTexture[inputPixel] - DV_FarDepth) > 1e-5;
     if (DV_Mode == DEBUGVIEW_ALBEDO)
     {
         color = surfaceData.Albedo;
@@ -127,17 +128,18 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     {
         color = surfaceData.Specular.xxx;
     }
-    else if (DV_Mode == DEBUGVIEW_SHADINGMODEL)
+    else if (DV_Mode == DEBUGVIEW_SURFACESTENCIL)
     {
-        // Black: no surface; blue: forward route (shaded in the forward pass); orange: subsurface; gray: default lit.
+        // Black: no surface; gray: deferred; orange: subsurface (skin); blue: other forward. Object motion tints green.
+        uint stencil = LoadStencil(SRV_StencilTexture, inputPixel);
         color = !validSurface ? float3(0, 0, 0)
-            : surfaceData.Route == SURFACE_ROUTE_FORWARD ? float3(0.2, 0.4, 1.0)
-            : (surfaceData.Flags & SURFACE_FLAG_SUBSURFACE) != 0 ? float3(1.0, 0.5, 0.2)
-            : float3(0.7, 0.7, 0.7);
-    }
-    else if (DV_Mode == DEBUGVIEW_RENDERINGLAYERS)
-    {
-        color = validSurface ? DebugLayerColor(surfaceData.RenderingLayer) : float3(0, 0, 0);
+            : (stencil & STENCIL_BIT_DEFERRED) != 0 ? float3(0.7, 0.7, 0.7)
+            : (stencil & STENCIL_BIT_SUBSURFACE) != 0 ? float3(1.0, 0.5, 0.2)
+            : float3(0.2, 0.4, 1.0);
+        if (validSurface && (stencil & STENCIL_BIT_OBJECT_MOTION) != 0)
+        {
+            color = lerp(color, float3(0.2, 1.0, 0.2), 0.4);
+        }
     }
     else
     {
@@ -194,10 +196,29 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     uint width, height;
     InfinityGetDimensions(SRV_OptionalTexture, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
-    float3 color = SRV_OptionalTexture[inputPixel].rgb;
+    float4 value = SRV_OptionalTexture[inputPixel];
+    float3 color = value.rgb;
     if (DV_Mode == DEBUGVIEW_AO || DV_Mode == DEBUGVIEW_CONTACTSHADOWS)
     {
         color = color.r.xxx;
+    }
+    else if (DV_Mode == DEBUGVIEW_DIFFUSERATIO)
+    {
+        color = UnpackSideband(value).DiffuseRatio.xxx;
+    }
+    else if (DV_Mode == DEBUGVIEW_MIXEDLIGHTVISIBILITY)
+    {
+        // Red: first mixed directional light, green: second.
+        color = float3(UnpackSideband(value).BakedVisibility, 0);
+    }
+    else if (DV_Mode == DEBUGVIEW_SUBSURFACEPROFILE)
+    {
+        uint profile = UnpackSideband(value).Profile;
+        color = profile == 0 ? float3(0, 0, 0) : DebugHeatColor(profile / 15.0);
+    }
+    else if (DV_Mode == DEBUGVIEW_RENDERINGLAYERS)
+    {
+        color = DebugLayerColor(UnpackSideband(value).LightChannels);
     }
     else if (DV_Mode == DEBUGVIEW_TAACONFIDENCE)
     {

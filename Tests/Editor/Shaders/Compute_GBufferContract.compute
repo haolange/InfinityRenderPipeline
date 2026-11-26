@@ -1,16 +1,19 @@
 #pragma kernel DecodeGBufferContract
-#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 
 #include "../../../Shaders/Library/GBufferPack.hlsl"
+#include "../../../Shaders/Library/Sideband.hlsl"
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
-Texture2D SRV_SurfaceMetadata;
+Texture2D<float4> SRV_Sideband;
 float4 CBV_Resolution;
 
 RWTexture2D<float4> UAV_DecodedAlbedo;
 RWTexture2D<float4> UAV_DecodedNormal;
+RWTexture2D<float4> UAV_DecodedSideband;
 
+// Decodes through the production readers: rgb albedo and roughness, normal and metallic, then the sideband's diffuse
+// share, both baked visibilities and its A byte as profile + 16 · light channels.
 [numthreads(8, 8, 1)]
 void DecodeGBufferContract(uint3 id : SV_DispatchThreadID)
 {
@@ -20,7 +23,9 @@ void DecodeGBufferContract(uint3 id : SV_DispatchThreadID)
     }
 
     SurfaceData surface;
-    DecodeSurface(id.xy, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_SurfaceMetadata, float4(0,0,0,0), true, surface);
-    UAV_DecodedAlbedo[id.xy] = float4(surface.Albedo, (float)surface.RenderingLayer);
+    DecodeSurface(id.xy, SRV_GBufferTextureA, SRV_GBufferTextureB, surface);
+    SidebandData sideband = UnpackSideband(SRV_Sideband[id.xy]);
+    UAV_DecodedAlbedo[id.xy] = float4(surface.Albedo, surface.Roughness);
     UAV_DecodedNormal[id.xy] = float4(surface.Normal, surface.Metallic);
+    UAV_DecodedSideband[id.xy] = float4(sideband.DiffuseRatio, sideband.BakedVisibility, (float)(sideband.Profile + sideband.LightChannels * 16u));
 }

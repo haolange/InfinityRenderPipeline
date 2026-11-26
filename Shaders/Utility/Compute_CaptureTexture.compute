@@ -10,9 +10,10 @@ void CaptureTexture(uint3 id : SV_DispatchThreadID)
 
 #pragma kernel CaptureSurfaceMetadata
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ScreenSpaceSurfaceMetadata.hlsl"
-Texture2D<uint2> SRV_CaptureMetadata;
+Texture2D<uint> SRV_CaptureMetadata;
+// xy: octahedral normal, z: sample age, w: 0.
 [numthreads(8,8,1)]
 void CaptureSurfaceMetadata(uint3 id : SV_DispatchThreadID)
 {
-    if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Capture[id.xy] = DecodeSurfaceMetadata(SRV_CaptureMetadata.Load(int3(id.xy, 0)));
+    if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Capture[id.xy] = float4(DecodeSurfaceMetadata(SRV_CaptureMetadata.Load(int3(id.xy, 0))), 0);
 }

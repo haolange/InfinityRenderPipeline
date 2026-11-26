@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     using var commands = new CommandBuffer();
                     commands.SetRenderTarget(target, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                     commands.SetViewport(new Rect(0, 0, 4, 4));
-                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, ui, 0, 0);
+                    commands.DrawProcedural(Matrix4x4.identity, ui, 0, MeshTopology.Triangles, 3);
                     Graphics.ExecuteCommandBuffer(commands);
                 }
                 material.SetTexture("_MainTex", linear); material.SetVector("_MainTex_InfinityView",Vector4.zero);
@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 commands.SetRenderTarget(target);
                 commands.ClearRenderTarget(false, true, Color.green);
                 commands.SetViewport(new Rect(2, 1, 4, 3));
-                commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, material.FindPass("RasterFinalOutput"));
+                commands.DrawProcedural(Matrix4x4.identity, material, material.FindPass("RasterFinalOutput"), MeshTopology.Triangles, 3);
                 Graphics.ExecuteCommandBuffer(commands);
                 var pixels = Read(target);
                 int red = 0, green = 0;
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             commands.DisableShaderKeyword("INFINITY_POST_BLOOM");
             commands.SetRenderTarget(target);
             commands.SetViewport(new Rect(0, 0, target.width, target.height));
-            commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, pass);
+            commands.DrawProcedural(Matrix4x4.identity, material, pass, MeshTopology.Triangles, 3);
             Graphics.ExecuteCommandBuffer(commands);
         }
 

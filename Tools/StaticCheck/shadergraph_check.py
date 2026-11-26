@@ -9,7 +9,7 @@ Usage: shadergraph_check.py --repo <repo> --dxc <dxc> --corerp <core package dir
 """
 import argparse, os, subprocess, sys, tempfile
 
-LIT_BLOCKS = ["BaseColor", "NormalTS", "Metallic", "Roughness", "SpecularLevel", "Emission", "Alpha", "AlphaClipThreshold"]
+LIT_BLOCKS = ["BaseColor", "NormalTS", "Metallic", "Roughness", "SpecularLevel", "Occlusion", "Emission", "Alpha", "AlphaClipThreshold"]
 ALPHA_BLOCKS = ["Alpha", "AlphaClipThreshold"]
 META_BLOCKS = ["BaseColor", "Metallic", "Emission", "Alpha", "AlphaClipThreshold"]
 COLOR_BLOCKS = ["BaseColor", "Emission", "Alpha", "AlphaClipThreshold"]
@@ -21,8 +21,8 @@ SURFACE = ["normalOS", "tangentOS", "uv1", "positionWS", "normalWS", "tangentWS"
 PASSES = [
     ("RasterShadowPass", "SHADERPASS_SHADOWS", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["normalOS", "positionWS"], [], True),
     ("RasterDepthPass", "SHADERPASS_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
-    ("RasterGBufferPass", "SHADERPASS_GBUFFER", "InfinitySGBakedLighting.hlsl", "InfinitySGGBufferPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["_DBUFFER"]], True),
-    ("RasterForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_FORWARD_AO"], ["INFINITY_FORWARD_CONTACT_SHADOW"]], True),
+    ("RasterGBufferPass", "SHADERPASS_GBUFFER", "InfinitySGBakedLighting.hlsl", "InfinitySGGBufferPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["_DBUFFER"], ["INFINITY_SIDEBAND"]], True),
+    ("RasterForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_SIDEBAND"], ["INFINITY_FORWARD_AO"], ["INFINITY_FORWARD_SSGI"], ["INFINITY_FORWARD_SSR"], ["INFINITY_FORWARD_CONTACT_SHADOW"], ["INFINITY_FORWARD_ANALYTIC_SHADOW"]], True),
     ("RasterMotionPass", "SHADERPASS_MOTION", None, "InfinitySGMotionPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
     ("RasterTranslucentDepthPass", "SHADERPASS_TRANSLUCENT_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
     ("RasterTranslucentT0Pass", "SHADERPASS_TRANSLUCENT_T0", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_VOLUMETRIC_FOG"], ["_AERIAL_PERSPECTIVE"], ["INFINITY_WRITE_REACTIVE_MASK"]], True),
@@ -70,7 +70,7 @@ def generate(p, alpha_clip):
     out.append("PackedVaryings PackVaryings(Varyings i) { PackedVaryings o = (PackedVaryings)0; " + " ".join(f"o.{n} = i.{n};" for n, _, _ in fields) + " return o; }")
     out.append("Varyings UnpackVaryings(PackedVaryings i) { Varyings o = (Varyings)0; " + " ".join(f"o.{n} = i.{n};" for n, _, _ in fields) + " return o; }")
     if lit:
-        out.append("CBUFFER_START(UnityPerMaterial) float _SurfaceRoute; float _TranslucentStage; float _RefractionStrength; float _Subsurface; float _SSSProfileIndex; float _SSSThickness; float4 _Tint; CBUFFER_END")
+        out.append("CBUFFER_START(UnityPerMaterial) float _SurfaceRoute; float _TranslucentStage; float _RefractionStrength; float _StencilRefGBuffer; float4 _Tint; CBUFFER_END")
     else:
         out.append("CBUFFER_START(UnityPerMaterial) float4 _Tint; CBUFFER_END")
     out.append("struct VertexDescriptionInputs { float3 ObjectSpaceNormal; float3 ObjectSpaceTangent; float3 ObjectSpacePosition; float3 WorldSpaceViewDirection; };")

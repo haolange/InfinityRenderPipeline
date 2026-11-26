@@ -2,6 +2,67 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Opaque color path convergence — 2026-11-26 (Unity 6000.6.0f1, Apple M3 Max, Metal)
+
+Source branch `claude/happy-feynman-ekmpz3`, starting at `dc9a5464`. Runtime contract in ARCHITECTURE.md §§4, 8, 11 and 13. The candidate and exact `04f5a570` baseline ran in isolated APFS projects with the same pre-migration Spazon scene and Game view dimensions. The explicit EVSM and skin cases used a temporary Play Mode scene, volume, diffusion profile and sun filter override alongside Spazon. The run paths below identify raw artifacts at collection time. This section preserves the verified results after task cleanup.
+
+#### Verification
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Static checks | Pass | `static_check.py` reported 0 errors and 0 warnings. `test_static_check.py` passed 52/52. |
+| C# compile and reload | Pass | `run-01/refresh-final.txt` verified fresh Runtime, Editor, Tests, Validation and CLI DLLs. `Application.consoleLogPath` reported 0 CS errors in the marked window. |
+| Shader compilation | Pass | `run-03/shader-diagnostics-final.txt` recorded 28 assets with 0 errors, including forced raster pass compilation, the corrected Temporal Color Source compute fixture and a generated Lit Shader Graph. |
+| EditMode and GPU | Pass | `run-03/editmode-final/results.xml` reported 1023 passed, 0 failed and 1 skipped, matching `run-01/editmode-03/results.xml`. `CrossQueueHazardsAndPhysicalReuse_PreserveValues` requires async compute, which the Metal device does not expose. The production deferred kernel read and wrote R11G11B10F in place and returned the expected 0.25 RGB. |
+| Game frame tree | Pass | `run-01/spazon-fixture-frame/frame-tree.json` captured 172 native events. The final compiled graph in `run-01/final-reflection-on/` recorded ShadowMoments 30, SSR 31, SSGI 32, Deferred 33, Forward 34, both SSGI copies 37–38 and Scatter passes 39–40. `ComputeScreenSpaceComposite` was absent. The native Extract and Scatter draws each used three vertices. |
+| Game image and attachment readback | Pass | Viewed the actual Editor Game window, then the graph-transfer captures from `MainCamera`, 1698×1750. `run-01/spazon-beauty/capture.json` reported 0 non-finite values for each of nine buffers, including R11G11B10F DeferredLighting and Lighting, the two RGBA8 GBuffer targets and RGBA8 Sideband. |
+| Debug views | Pass | Viewed Surface Stencil, Diffuse Ratio, Rendering Layers and Mixed Light Visibility. `run-01/final-stencil/` recorded 91,311 gray deferred, 14,331 orange skin, 25,782 blue forward and 2,638,210 green-tinted deferred pixels. Diffuse Ratio was 0 on sky, 1.0 at the forward sphere center and 254/255 at the skin sphere center. Mixed Light Visibility varied the first baked slot across the scene, with the second slot fully visible. |
+| GTAO, SSGI, SSR and scattering | Pass | Viewed the five control and single-effect-off DisplayColor captures in `run-01/effects-*/` and the final SSR on/off pair. GTAO on/off produced identical RGB at the emission control center. The forward skin reflector had SSR confidence 1 and SSGI confidence 0.113 at the sampled pixel. Its Lighting RGB was (4.375, 0.213, 6.000) with SSR and (0.0161, 0.0159, 0.0205) with SSR disabled. The skin region also wrote nonzero extracted irradiance. Turning scattering off changed packed Lighting RGB by 0.000173 mean absolute per-channel difference over its 4,053-pixel control region. |
+| Source asset migration | Partial | Saved the pipeline asset and 29 routed materials. The protected `Scene_Spazon` contains 37 masks with value `0x21`; the migration replica clamped all 37 to `0x01` and a second invocation changed zero. The protected scene still triggers the source layer validator on entering Play. |
+
+#### GPU frame time
+
+`FrameTimingManager.gpuFrameTime`, 45 warmup frames then 80 positive samples per window, candidate and base alternated, the other Editor paused. Each entry is that window's median. The summary takes the median of the four window medians.
+
+| Build | Round 1 | Round 2 | Round 3 | Round 4 | Median |
+|---|---:|---:|---:|---:|---:|
+| Candidate | 12.9329 ms | 12.9186 ms | 12.9384 ms | 12.9311 ms | 12.9320 ms |
+| `04f5a570` | 18.4801 ms | 18.4649 ms | 18.4931 ms | 18.4808 ms | 18.4805 ms |
+
+The candidate used 5.5485 ms less GPU time per frame, a 30.02% reduction. The windows are `run-01/branch-final-round-{1..4}.txt` and `run-02/base-final-round-{1..4}.txt`.
+
+#### Example assets saved
+
+The source project received the exact bytes verified in its independent APFS copy. The pipeline asset kept its active serialized values, GUID and local ID. Every material's only serialized field change was its disabled shader pass list. The second save was byte-identical and the separate repeat route operation was a no-op. No legacy InfinityLit materials had SSS enabled.
+
+- `Assets/Profile/RenderPipelineAsset.asset` and `Assets/Animation/Anim_MAT.mat`.
+- Under `Assets/Material/` the saves were `M_Black.mat`, `M_BoxA.mat`, `M_BoxA_Instance.mat`, `M_BoxB.mat`, `M_BoxB_Instance.mat`, `M_BoxC.mat`, `M_BoxC_Instance.mat`, `M_MaskA.mat`, `M_MaskB.mat`.
+- Under `Assets/Material/Spazon/` the saves were `M_Spazon_Arch.mat`, `M_Spazon_Brick1.mat`, `M_Spazon_Ceilling.mat`, `M_Spazon_Column1.mat`, `M_Spazon_Column2.mat`, `M_Spazon_Column3.mat`, `M_Spazon_Fabrick1.mat`, `M_Spazon_Fabrick2.mat`, `M_Spazon_Fabrick3.mat`, `M_Spazon_Fabrick4.mat`, `M_Spazon_Fabrick5.mat`, `M_Spazon_Fabrick6.mat`, `M_Spazon_Flagpole.mat`, `M_Spazon_Floor.mat`, `M_Spazon_Lion1.mat`, `M_Spazon_Lion2.mat`, `M_Spazon_Roof.mat`, `M_Spazon_Vase.mat`, `M_Spazon_Window.mat`.
+
+The channel migration replica was saved at `Assets/Scene/Spazon/__OpaqueColorChannelMigration.unity` within each migration mirror. The original source scene's SHA-256 remained `6c7f075f86e1cae95f70561d72fd6ee4c49f66e4d0c64ecd7f764cc5175ae03e`. Source asset hashes and save paths were recorded in `run-03/migration-published.tsv`; scene and material no-op checks were recorded in `run-03/migration-result.tsv`.
+
+One repeated test run in `run-01/editmode-final/` stalled in native `AsyncGPUReadbackBuffer::Update` while running `FilmGrain_PreservesMeanAndBlackWithoutBloomBinding(0.02f)`. The separately owned migration mirror completed the final suite. D3D12 and Vulkan remain TODO(UNVERIFIED).
+
+#### Sideband clear and Editor readback follow-up
+
+The Metal follow-up used task-owned `opaque-color-round2-20261126/{candidate,base}` APFS mirrors. Evidence paths below are relative to that run root and identify the raw artifacts at collection time.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| C# compile and reload | Pass | `candidate/refresh.txt` confirmed all five InfinityRP assemblies current, with zero CS errors in the new Editor log window. |
+| Uncovered sideband GPU regression | Pass | `candidate/negative-clear/results.xml` failed at discarded pixel (1, 0) with alpha 255 when the descriptor used the default clear. With the production zero clear, the test passed in both full runs. |
+| Rendering Layers and Subsurface Profile | Pass | `candidate/{RenderingLayers,SubsurfaceProfile}/capture.json` and the Depth, Sideband and DisplayColor readbacks show black sky with all four sideband bytes zero, across 143,866 and 143,932 zero-depth pixels respectively. |
+| EditMode on the same Editor twice | Pass | `candidate/editmode-{1,2}/results.xml` each recorded 1,024 passed, zero failed and one existing hardware skip for async compute. Both runs exited normally. The previous `run-01/editmode-final/editor-sample.txt` shows the FilmGrain test waiting in the native Metal readback update. The shared color-test fixture now queues the callback behind the draw or dispatch and yields the Editor update loop while retaining resources. Numeric assertions are unchanged. |
+| DisplayColor and SSR comparison | Pass | Both builds show the upper-left flag's purple speckles and the upper-right pink flag shape. `base/None-base-lock/` and `candidate/None-candidate-repeat/` contain DisplayColor. `{base,candidate}/SSR-lock/` contains the SSR debug frames. Both use the same Spazon snapshot, Game camera matrices and scene time zero. The baseline uses its InfinityLit SSS route for the temporary skin geometry. |
+| Surface Stencil comparison | Existing behavior in both | `base/ShadingModel-stencil/` and `candidate/SurfaceStencil/` each contain 2,638,173 green-tinted deferred pixels at the same temporal jitter. The legacy debug probe enabled a stencil view and overlaid bit 0 over Shading Model without changing that build's motion submission. `candidate/motion-inventory.tsv` lists 45 static native renderers still configured for object motion with the motion pass enabled. The opaque renderer list includes them, and the depth-equal motion pass writes bit 0 even when velocity is zero. |
+
+The first candidate capture showed a cyan emission control. Two repeat captures, including one using the original capture buffers, both showed the baseline's pink control. SSR was zero at the control sample in all three candidate captures.
+
+
+#### Convergence follow-up — static gate only
+
+After `e073562`: `DeferredLightLoopGpuTests` and `SubsurfaceGpuTests` await their readbacks through `GpuReadbackTestUtility.Await` instead of `WaitForCompletion`, keeping their targets alive when a request does not finish; the B10G11R11 Scene Color Sample exemption is limited to Metal; the Hi-Z interval sentence moved to the shared trace description in ARCHITECTURE §11. `static_check.py` 0 errors, 0 warnings; `test_static_check.py` 52/52. Editor compile and the two converted fixtures: TODO(UNVERIFIED). 22 other test files still call `WaitForCompletion`; none blocked in the two full runs above.
+
 ### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
 Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.

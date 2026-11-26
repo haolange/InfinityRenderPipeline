@@ -2,7 +2,6 @@
 #define _OcclusionCommon_
 #include "../../Library/ScreenSpaceReprojection.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
-Texture2D SRV_MotionMetadataTexture;
 #include "../../Library/ViewUniform.hlsl"
 
 #define Inv_PI 0.3183091
@@ -35,7 +34,6 @@ Texture2D SRV_DepthTexture;
 Texture2D SRV_NormalTexture;
 Texture2D SRV_OcclusionTexture;
 Texture2D SRV_HistoryTexture;
-Texture2D SRV_HistoryDepthTexture;
 Texture2D SRV_MotionTexture;
 SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
 

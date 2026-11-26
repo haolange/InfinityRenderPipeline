@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal struct TemporalColorView
     {
-        internal RGTextureHandle colorHandle, depthHandle, mipsHandle;
+        internal RGTextureHandle colorHandle, mipsHandle;
         // Written by the reading pass for its own execution; bound by BindTemporalColorView.
         internal RGConstantsHandle parametersHandle;
         internal Vector4 resolution;
@@ -34,9 +34,9 @@ namespace InfinityTech.Rendering.Pipeline
     internal struct TemporalColorMipParameters
     {
         public int sourceValid;
-        public float farDepth;
         public int padding0;
         public int padding1;
+        public int padding2;
     }
 
     internal sealed class TemporalColorSourcePass
@@ -60,11 +60,10 @@ namespace InfinityTech.Rendering.Pipeline
         }
         static class TemporalColorBindings
         {
-            internal static readonly int Color = Shader.PropertyToID("SRV_TemporalColor"), Depth = Shader.PropertyToID("SRV_TemporalDepth"),
+            internal static readonly int Color = Shader.PropertyToID("SRV_TemporalColor"),
                 Mips = Shader.PropertyToID("SRV_TemporalColorMips"),
                 CBV_TemporalColorParameters = Shader.PropertyToID("CBV_TemporalColorParameters"),
                 CBV_TemporalColorMipParameters = Shader.PropertyToID("CBV_TemporalColorMipParameters"),
-                SourceDepth = Shader.PropertyToID("_TemporalSurfaceDepth"),
                 SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst");
         }
         internal void ComputeTemporalColorPyramid(in ViewContext context)
@@ -78,11 +77,8 @@ namespace InfinityTech.Rendering.Pipeline
             int2 size = sr ? context.dimensions.displaySize : context.dimensions.internalSize;
             var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
             int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
-            int depthID = sr ? SuperResolutionPassUtilityData.HistoryDepthTextureID : AntiAliasingUtilityData.HistoryDepthTextureID;
             HistoryRead colorRead = context.historyCache.Read(colorID, AntiAliasingPass.TemporalColorDescriptor(size.x, size.y,
                 sr ? "HistorySuperResolutionColor" : "HistoryColorTexture", true, domain), context.resetsHistory);
-            HistoryRead depthRead = context.historyCache.Read(depthID, AntiAliasingPass.TemporalDepthDescriptor(size.x, size.y,
-                sr ? "HistorySuperResolutionDepth" : "HistoryDepthTexture", true, domain), context.resetsHistory);
             int2 baseSize = math.max(1, size / 2);
             var descriptor = AntiAliasingPass.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
             descriptor.viewDivisor = 2;
@@ -93,14 +89,13 @@ namespace InfinityTech.Rendering.Pipeline
             TemporalCameraState temporalState = state.GetTemporalState();
             var source = new TemporalColorView
             {
-                colorHandle = m_RGBuilder.ImportTexture(colorRead.textureHandle), depthHandle = m_RGBuilder.ImportTexture(depthRead.textureHandle), mipsHandle = mips,
+                colorHandle = m_RGBuilder.ImportTexture(colorRead.textureHandle), mipsHandle = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
-                valid = temporalState.acceptedTemporalColor && temporalState.acceptedTemporalColorIsUpscaled == sr && colorRead.valid && depthRead.valid
+                valid = temporalState.acceptedTemporalColor && temporalState.acceptedTemporalColorIsUpscaled == sr && colorRead.valid
             };
             temporalState.temporalColorView = source;
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.colorHandle);
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depthHandle);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             RenderCaptureService.current?.RecordTemporalColorState(context.camera, source, sr);
 #endif
@@ -112,11 +107,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = m_Resources.kernels.temporalColorMip;
                 passData.source = source;
                 passData.source.colorHandle = passHandle.ReadTexture(source.colorHandle);
-                passData.source.depthHandle = passHandle.ReadTexture(source.depthHandle);
                 passData.parametersHandle = passHandle.WriteConstants(new TemporalColorMipParameters
                 {
-                    sourceValid = source.valid ? 1 : 0,
-                    farDepth = GraphicsConventions.SampledFarDepth
+                    sourceValid = source.valid ? 1 : 0
                 });
                 passData.size = size;
                 passData.mipCount = PyramidMipBatch.MipCount(baseSize.x, baseSize.y);
@@ -127,7 +120,6 @@ namespace InfinityTech.Rendering.Pipeline
                     var shader = computeKernel.shader;
                     int kernel = computeKernel.index;
                     commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorMipParameters, passData.parametersHandle);
-                    commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.SourceDepth, passData.source.depthHandle);
                     int2 inputSize = passData.size;
                     for (int mip = 0; mip < passData.mipCount; ++mip)
                     {
@@ -149,7 +141,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static TemporalColorView ReadTemporalColorView<TPassData>(RGComputePassHandle<TPassData> passHandle, TemporalColorView source) where TPassData : struct
         {
             source.colorHandle = passHandle.ReadTexture(source.colorHandle);
-            source.depthHandle = passHandle.ReadTexture(source.depthHandle);
             source.mipsHandle = passHandle.ReadTexture(source.mipsHandle);
             source.parametersHandle = passHandle.WriteConstants(new TemporalColorParameters
             {
@@ -163,7 +154,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorParameters, source.parametersHandle);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Color,source.colorHandle);
-            commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Depth,source.depthHandle);
             commands.SetComputeTextureParam(shader,kernel,TemporalColorBindings.Mips,source.mipsHandle);
         }
     }

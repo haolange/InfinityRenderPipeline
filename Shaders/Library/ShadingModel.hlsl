@@ -3,19 +3,13 @@
 
 #include "BSDF.hlsl"
 
-half3 SkinLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 AlbedoColor, half3 SpecularColor, half Roughness)
+// Skin specular distribution: two Beckmann lobes, the second at SecondLobeRoughnessScale of the roughness, mixed by
+// SecondLobeMix. Diffuse stays Lambert; subsurface scattering blurs it in screen space afterwards.
+float SkinSpecularDistribution(float NoH, MicrofaceContext microfaceCtx)
 {
-	half3 Diffuse = Diffuse_Lambert(AlbedoColor);
-    //half3 Diffuse = Diffuse_RenormalizeBurley(bsdfContext.LoH, bsdfContext.NoL, bsdfContext.NoV, AlbedoColor, Roughness);
-
-	half pbr_GGX = lerp(D_Beckmann(bsdfContext.NoH, Roughness), D_Beckmann(bsdfContext.NoH, Roughness * 0.5), 0.85);
-	half pbr_Vis = Vis_SmithJointApprox_NoPI(bsdfContext.NoL, bsdfContext.NoV, Roughness);
-	half3 pbr_Fresnel = F_Schlick(SpecularColor, 1, bsdfContext.LoH);
-
-	half3 Specular = pbr_Vis * pbr_GGX * pbr_Fresnel;
-	Specular *= MultiScatterEnergy;
-
-	return saturate(Diffuse + Specular);
+	float firstLobe = D_Beckmann(NoH, microfaceCtx.RoughnessPow2);
+	float secondLobe = D_Beckmann(NoH, pow2(clamp(microfaceCtx.RoughnessClamp * microfaceCtx.SecondLobeRoughnessScale, 0.04, 1)));
+	return lerp(firstLobe, secondLobe, microfaceCtx.SecondLobeMix);
 }
 
 half3 ClearCoatLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 ClearCoat_MultiScatterEnergy, half3 AlbedoColor, half3 SpecularColor, half ClearCoat, half ClearCoat_Roughness, half Roughness)

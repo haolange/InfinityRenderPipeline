@@ -6,43 +6,59 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
+    // Packs and decodes R32_UInt screen-space surface metadata with the production codec.
     internal static class SurfaceMetadataTestUtility
     {
+        const string k_ShaderPath = "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/SurfaceMetadataContract.compute";
+
+        // Source texels: xy octahedral normal in [-1, 1], z age, w 1 for a valid sample and 0 for an invalid one.
         internal static RenderTexture Pack(Texture source)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/SurfaceMetadataContract.compute");
-            var output = new RenderTexture(source.width, source.height, 0, GraphicsFormat.R32G32_UInt) { enableRandomWrite = true };
+            ComputeShader shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_ShaderPath);
+            var output = new RenderTexture(source.width, source.height, 0, GraphicsFormat.R32_UInt) { enableRandomWrite = true };
             output.Create();
             int kernel = shader.FindKernel("Pack");
-            shader.SetTexture(kernel, "Source", source); shader.SetTexture(kernel, "Packed", output);
+            shader.SetTexture(kernel, "Source", source);
+            shader.SetTexture(kernel, "Packed", output);
             shader.Dispatch(kernel, (source.width + 7) / 8, (source.height + 7) / 8, 1);
             return output;
         }
 
+        // Decoded texels: xyz the unit normal, w the age (0 for an invalid sample).
         internal static RenderTexture DecodeTarget(CommandBuffer commands, Texture source)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/SurfaceMetadataContract.compute");
+            ComputeShader shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_ShaderPath);
             var target = new RenderTexture(source.width, source.height, 0, GraphicsFormat.R32G32B32A32_SFloat) { enableRandomWrite = true };
-            target.Create(); int kernel = shader.FindKernel("Decode");
+            target.Create();
+            int kernel = shader.FindKernel("Decode");
             commands.SetComputeTextureParam(shader, kernel, "PackedSource", source);
             commands.SetComputeTextureParam(shader, kernel, "Decoded", target);
             commands.DispatchCompute(shader, kernel, (source.width + 7) / 8, (source.height + 7) / 8, 1);
             return target;
         }
 
+        // Four floats per texel, laid out as DecodeTarget writes them.
         internal static float[] Read(RenderTexture texture)
         {
             using (var commands = new CommandBuffer())
             {
-                var target = DecodeTarget(commands, texture);
+                RenderTexture target = DecodeTarget(commands, texture);
                 try
                 {
                     Graphics.ExecuteCommandBuffer(commands);
-                    var request = AsyncGPUReadback.Request(target); request.WaitForCompletion();
-                    if (request.hasError) throw new InvalidOperationException("Surface metadata readback failed.");
+                    AsyncGPUReadbackRequest request = AsyncGPUReadback.Request(target);
+                    request.WaitForCompletion();
+                    if (request.hasError)
+                    {
+                        throw new InvalidOperationException("Surface metadata readback failed.");
+                    }
                     return request.GetData<float>().ToArray();
                 }
-                finally { target.Release(); UnityEngine.Object.DestroyImmediate(target); }
+                finally
+                {
+                    target.Release();
+                    UnityEngine.Object.DestroyImmediate(target);
+                }
             }
         }
     }

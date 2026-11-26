@@ -14,6 +14,8 @@ namespace InfinityTech.Rendering.Pipeline
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
         public bool temporal;
         public bool hasDiffusionProfiles;
+        // The pipeline writes per-pixel light channels (InfinityRenderPipelineAsset Rendering Layers).
+        public bool renderingLayers;
         // RTAO readiness is decided by the UnifiedRayTracing environment before the registry runs.
         public bool rayTracedOcclusionReady;
         public string rayTracedOcclusionReason;
@@ -117,7 +119,6 @@ namespace InfinityTech.Rendering.Pipeline
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SubsurfaceScattering,
-                kernels = k => new[] { k.burleySubsurface, k.composeSubsurface },
                 cameraSupport = c => c.hasDiffusionProfiles ? null : "The RP Asset has no live diffusion profiles."
             });
             Add(new FeatureDescriptor
@@ -127,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
                 kernels = k => new[]
                 {
-                    k.ssrClearArgs, k.ssrClassify, k.ssrTrace, k.ssrResolve, k.ssrTemporal, k.ssrBilateral, k.screenSpaceComposite,
+                    k.ssrClearArgs, k.ssrClassify, k.ssrTrace, k.ssrResolve, k.ssrTemporal, k.ssrBilateral,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     k.ssrDebug,
 #endif
@@ -141,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
                 kernels = k => new[]
                 {
-                    k.ssgiTrace, k.ssgiTemporal, k.ssgiSpatial, k.ssgiUpsample, k.screenSpaceComposite,
+                    k.ssgiTrace, k.ssgiTemporal, k.ssgiSpatial, k.ssgiUpsample,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     k.ssgiTraceDebug,
 #endif

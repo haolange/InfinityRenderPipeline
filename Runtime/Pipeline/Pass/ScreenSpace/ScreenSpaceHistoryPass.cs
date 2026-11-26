@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle historyHandle;
         }
 
-        void CopyHistoryScalar(in ViewContext context, int sourceId, int historyId, string name)
+        void CopyHistoryScalar(in ViewContext context, CustomSamplerId samplerId, int sourceId, int historyId, string name)
         {
             RGTextureHandle sourceHandle = m_RGBuilder.scoper.QueryTexture(sourceId);
             TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle historyHandle = m_RGBuilder.ImportTexture(context.historyCache.GetWriteTexture(historyId, descriptor));
             context.historyCache.MarkProduced(historyId);
             {
-                RGTransferPassHandle<CopyHistoryScalarPassData> passHandle = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR));
+                RGTransferPassHandle<CopyHistoryScalarPassData> passHandle = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(samplerId));
                 passHandle.ReadTexture(sourceHandle);
                 passHandle.WriteTexture(historyHandle);
                 ref CopyHistoryScalarPassData passData = ref passHandle.GetPassData();
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // SSR history is the temporal output (before the optional spatial pass, so filtering never feeds back) plus
-        // its meta texture (normal, depth, history age).
+        // its metadata texture (normal, history age, validity).
         internal void CopyHistorySSR(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SSR))
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             CopyHistoryRadianceMeta(context, CustomSamplerId.CopyHistorySSR, InfinityShaderIDs.SSRTemporalBuffer, InfinityShaderIDs.SSRMetaBuffer, InfinityShaderIDs.HistorySSRRadianceBuffer, InfinityShaderIDs.HistorySSRMetaBuffer, SSRPassUtilityData.HistoryRadianceName, SSRPassUtilityData.HistoryMetaName);
-            CopyHistoryScalar(context, InfinityShaderIDs.SSRVarianceBuffer, InfinityShaderIDs.HistorySSRVarianceBuffer, "HistorySSRVariance");
+            CopyHistoryScalar(context, CustomSamplerId.CopyHistorySSR, InfinityShaderIDs.SSRVarianceBuffer, InfinityShaderIDs.HistorySSRVarianceBuffer, "HistorySSRVariance");
         }
 
         // Each denoise stage keeps the combiner mix, not the temporal output.
@@ -70,10 +70,10 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             CopyHistoryRadianceMeta(context, CustomSamplerId.CopyHistorySSGI, InfinityShaderIDs.SSGIFilteredBuffer, InfinityShaderIDs.SSGIMetaBuffer, InfinityShaderIDs.HistorySSGIRadianceBuffer, InfinityShaderIDs.HistorySSGIMetaBuffer, SSGIPassUtilityData.HistoryRadianceName, SSGIPassUtilityData.HistoryMetaName);
-            CopyHistoryScalar(context, InfinityShaderIDs.SSGICombinerNarrowBuffer, InfinityShaderIDs.HistorySSGINarrowBuffer, "HistorySSGINarrow");
+            CopyHistoryScalar(context, CustomSamplerId.CopyHistorySSGI, InfinityShaderIDs.SSGICombinerNarrowBuffer, InfinityShaderIDs.HistorySSGINarrowBuffer, "HistorySSGINarrow");
         }
 
-        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
+        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and R32_UInt surface metadata (point).
         void CopyHistoryRadianceMeta(in ViewContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
             RGTextureHandle radianceSourceHandle = m_RGBuilder.scoper.QueryTexture(radianceSourceId);

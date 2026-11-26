@@ -1,36 +1,24 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
-using InfinityTech.Core;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.Volume;
-using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // GPU-RECORD: CBV_SubsurfaceParameters Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct SubsurfaceParameters
-    {
-        public Vector4 resolution;
-        public int numSamples;
-        public int profileCount;
-        public int padding0;
-        public int padding1;
-    }
-
     internal static class SubsurfacePassUtilityData
     {
-        internal static readonly int CBV_SubsurfaceParametersID = Shader.PropertyToID("CBV_SubsurfaceParameters");
-        internal static readonly int SRV_FilteredSubsurfaceID = Shader.PropertyToID("SRV_FilteredSubsurface");
-        internal static readonly string TextureName = "SubsurfaceTexture";
+        internal static readonly string IrradianceTextureName = "SubsurfaceIrradiance";
         internal static readonly int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
-        internal static readonly int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
+        internal static readonly int SRV_SubsurfaceIrradianceID = Shader.PropertyToID("SRV_SubsurfaceIrradiance");
+        internal static readonly int SubsurfaceResolutionID = Shader.PropertyToID("_SubsurfaceResolution");
+        internal static readonly int SubsurfaceSamplingID = Shader.PropertyToID("_SubsurfaceSampling");
     }
 
+    // Screen-space scattering of skin, two full-screen draws admitted by the subsurface stencil bit (Shaders/Library/Subsurface.hlsl):
+    // extract each skin pixel's diffuse into a temporary irradiance target, then blur it within one profile and blend it
+    // over Scene Color. It runs after forward shading, the last writer of the skin's color and diffuse share.
     internal sealed class SubsurfacePass : System.IDisposable
     {
         readonly RGBuilder m_RGBuilder;
@@ -63,19 +51,15 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct SubsurfacePassData
         {
-            public RGConstantsHandle parametersHandle;
-            public ComputeKernel kernel;
-            public LocalKeyword alphaKeyword;
-            public bool alphaMode;
-            public int2 resolution;
+            public int shaderPass;
+            public Vector4 resolution;
+            public Vector4 sampling;
             public RGBufferHandle profileBufferHandle;
-            public RGTextureHandle lightingTextureHandle;
-            public RGTextureHandle sceneColorHandle;
             public RGTextureHandle depthTextureHandle;
             public RGTextureHandle gBufferBHandle;
-            public RGTextureHandle surfaceMetadataHandle;
-            public RGTextureHandle customDataHandle;
-            public RGTextureHandle subsurfaceTextureHandle;
+            public RGTextureHandle sidebandHandle;
+            public RGTextureHandle lightingTextureHandle;
+            public RGTextureHandle irradianceTextureHandle;
         }
 
         int EnsureDiffusionProfileBuffer(DiffusionProfile[] profiles)
@@ -116,107 +100,81 @@ namespace InfinityTech.Rendering.Pipeline
             return profileCount;
         }
 
-        internal void ComputeBurleySubsurface(in ViewContext context)
+        internal void RasterSubsurfaceScattering(in ViewContext context)
         {
             if (!context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
             {
                 return;
             }
-            EffectivePipelineConfiguration config = m_Settings.config;
-            bool alphaMode = config.subsurfaceLightingMode == ESubsurfaceLightingMode.SceneColorAlpha;
-            var volume = context.volumes.subsurfaceScattering;
-            int count = EnsureDiffusionProfileBuffer(m_Settings.diffusionProfiles);
+            int profileCount = EnsureDiffusionProfileBuffer(m_Settings.diffusionProfiles);
             int2 size = context.dimensions.internalSize;
-            int2 halfSize = (size + 1) / 2;
-            var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", config.scatterDiffuseFormat, FilterMode.Point, 2);
-            RGTextureHandle filteredHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
-            RGTextureHandle colorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.opaque);
-            RGTextureHandle lightingSourceHandle = alphaMode ? colorHandle : m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);
-            RGTextureHandle depthHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureHandle gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureHandle metadataHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer);
-            RGTextureHandle customDataHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.CustomDataBuffer);
-            var parameters = new SubsurfaceParameters
-            {
-                resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
-                numSamples = volume.numSamples.value,
-                profileCount = count
-            };
+            var resolution = new Vector4(size.x, size.y, 1.0f / size.x, 1.0f / size.y);
+            var sampling = new Vector4(context.volumes.subsurfaceScattering.numSamples.value, profileCount, 0, 0);
 
-            using (new RGProfilingScope(m_RGBuilder, ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
+            var irradianceDescriptor = new TextureDescriptor(size.x, size.y, ETextureSizingDomain.Internal)
             {
+                name = SubsurfacePassUtilityData.IrradianceTextureName,
+                dimension = TextureDimension.Tex2D,
+                colorFormat = EffectivePipelineConfiguration.SceneColorFormat,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            RGTextureHandle irradianceTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceIrradianceBuffer, irradianceDescriptor);
+            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureHandle sidebandHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SidebandBuffer);
+
+            using (new RGProfilingScope(m_RGBuilder, ProfilingSampler.Get(CustomSamplerId.RasterSubsurfaceScattering)))
+            {
+                // The stencil test reads the depth-stencil attachment; the shaders sample its depth through the same handle.
                 {
-                    RGComputePassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface));
+                    RGRasterPassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddRasterPass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.RasterSubsurfaceExtract));
+                    passHandle.SetColorAttachment(irradianceTextureHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                    passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                     ref SubsurfacePassData passData = ref passHandle.GetPassData();
-                    passData.kernel = m_Resources.kernels.burleySubsurface;
-                    passData.alphaKeyword = m_Resources.kernels.subsurfaceAlpha;
-                    passData.alphaMode = alphaMode;
-                    passData.resolution = size;
-                    passData.parametersHandle = passHandle.WriteConstants(parameters);
-                    passData.profileBufferHandle = passHandle.ReadBuffer(m_RGBuilder.ImportBuffer(m_DiffusionProfileBufferHandle));
-                    passData.lightingTextureHandle = passHandle.ReadTexture(lightingSourceHandle);
-                    passData.depthTextureHandle = passHandle.ReadTexture(depthHandle);
-                    passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
-                    passData.surfaceMetadataHandle = passHandle.ReadTexture(metadataHandle);
-                    passData.customDataHandle = passHandle.ReadTexture(customDataHandle);
-                    passData.subsurfaceTextureHandle = passHandle.WriteTexture(filteredHandle);
-                    passHandle.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands) =>
+                    passData = default;
+                    passData.shaderPass = m_Resources.blitPasses.subsurfaceExtract;
+                    passData.resolution = resolution;
+                    passData.sampling = sampling;
+                    passData.depthTextureHandle = depthTextureHandle;
+                    passData.sidebandHandle = passHandle.ReadTexture(sidebandHandle);
+                    passData.lightingTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
+                    passHandle.SetExecuteFunc((in SubsurfacePassData passData, in RGRasterEncoder cmdEncoder) =>
                     {
-                        var shader = d.kernel.shader;
-                        commands.SetKeyword(shader, d.alphaKeyword, d.alphaMode);
-                        commands.SetComputeConstantBufferParam(shader, SubsurfacePassUtilityData.CBV_SubsurfaceParametersID, d.parametersHandle);
-                        BindSubsurface(commands, shader, d.kernel.index, d);
-                        commands.SetComputeTextureParam(shader, d.kernel.index, PassShaderIDs.SRV_LightingTexture, d.lightingTextureHandle);
-                        commands.SetComputeTextureParam(shader, d.kernel.index, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTextureHandle);
-                        commands.DispatchCompute(shader, d.kernel.index, d.kernel.GroupsX((d.resolution.x + 1) / 2), d.kernel.GroupsY((d.resolution.y + 1) / 2), 1);
+                        cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_Sideband, passData.sidebandHandle);
+                        cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_LightingTexture, passData.lightingTextureHandle);
+                        cmdEncoder.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                     });
                 }
                 {
-                    RGComputePassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface));
+                    RGRasterPassHandle<SubsurfacePassData> passHandle = m_RGBuilder.AddRasterPass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.RasterSubsurfaceScatter));
+                    passHandle.SetColorAttachment(lightingTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                     ref SubsurfacePassData passData = ref passHandle.GetPassData();
-                    passData.kernel = m_Resources.kernels.composeSubsurface;
-                    passData.alphaKeyword = m_Resources.kernels.subsurfaceAlpha;
-                    passData.alphaMode = alphaMode;
-                    passData.resolution = size;
-                    passData.parametersHandle = passHandle.WriteConstants(parameters);
+                    passData = default;
+                    passData.shaderPass = m_Resources.blitPasses.subsurfaceScatter;
+                    passData.resolution = resolution;
+                    passData.sampling = sampling;
                     passData.profileBufferHandle = passHandle.ReadBuffer(m_RGBuilder.ImportBuffer(m_DiffusionProfileBufferHandle));
-                    if (!alphaMode)
-                    {
-                        passData.lightingTextureHandle = passHandle.ReadTexture(lightingSourceHandle);
-                    }
-                    passData.depthTextureHandle = passHandle.ReadTexture(depthHandle);
+                    passData.depthTextureHandle = depthTextureHandle;
                     passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
-                    passData.surfaceMetadataHandle = passHandle.ReadTexture(metadataHandle);
-                    passData.customDataHandle = passHandle.ReadTexture(customDataHandle);
-                    passData.subsurfaceTextureHandle = passHandle.ReadTexture(filteredHandle);
-                    passHandle.ReadTexture(colorHandle);
-                    passData.sceneColorHandle = passHandle.WriteTexture(colorHandle);
-                    passHandle.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands) =>
+                    passData.sidebandHandle = passHandle.ReadTexture(sidebandHandle);
+                    passData.irradianceTextureHandle = passHandle.ReadTexture(irradianceTextureHandle);
+                    passHandle.SetExecuteFunc((in SubsurfacePassData passData, in RGRasterEncoder cmdEncoder) =>
                     {
-                        var shader = d.kernel.shader;
-                        commands.SetKeyword(shader, d.alphaKeyword, d.alphaMode);
-                        commands.SetComputeConstantBufferParam(shader, SubsurfacePassUtilityData.CBV_SubsurfaceParametersID, d.parametersHandle);
-                        BindSubsurface(commands, shader, d.kernel.index, d);
-                        if (!d.alphaMode)
-                        {
-                            commands.SetComputeTextureParam(shader, d.kernel.index, PassShaderIDs.SRV_LightingTexture, d.lightingTextureHandle);
-                        }
-                        commands.SetComputeTextureParam(shader, d.kernel.index, SubsurfacePassUtilityData.SRV_FilteredSubsurfaceID, d.subsurfaceTextureHandle);
-                        commands.SetComputeTextureParam(shader, d.kernel.index, PassShaderIDs.UAV_SceneColor, d.sceneColorHandle);
-                        commands.DispatchCompute(shader, d.kernel.index, d.kernel.GroupsX(d.resolution.x), d.kernel.GroupsY(d.resolution.y), 1);
+                        cmdEncoder.SetGlobalVector(SubsurfacePassUtilityData.SubsurfaceResolutionID, passData.resolution);
+                        cmdEncoder.SetGlobalVector(SubsurfacePassUtilityData.SubsurfaceSamplingID, passData.sampling);
+                        cmdEncoder.SetGlobalBuffer(SubsurfacePassUtilityData.SRV_DiffusionProfilesID, passData.profileBufferHandle);
+                        cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
+                        cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_GBufferTextureB, passData.gBufferBHandle);
+                        cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_Sideband, passData.sidebandHandle);
+                        cmdEncoder.SetGlobalTexture(SubsurfacePassUtilityData.SRV_SubsurfaceIrradianceID, passData.irradianceTextureHandle);
+                        cmdEncoder.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                     });
                 }
             }
             context.features.MarkProduced(EFrameFeature.SubsurfaceScattering);
-        }
-
-        static void BindSubsurface(in RGComputeEncoder commands, ComputeShader shader, int kernel, in SubsurfacePassData d)
-        {
-            commands.SetComputeBufferParam(shader, kernel, SubsurfacePassUtilityData.SRV_DiffusionProfilesID, d.profileBufferHandle);
-            commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, d.depthTextureHandle);
-            commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, d.gBufferBHandle);
-            commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SurfaceMetadata, d.surfaceMetadataHandle);
-            commands.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_CustomData, d.customDataHandle);
         }
     }
 }

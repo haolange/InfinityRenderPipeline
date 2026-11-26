@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void DiffusionProfileRecord_MatchesHlslByteSize()
         {
-            // DiffusionProfileRecord in Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
+            // DiffusionProfileRecord in Shaders/Library/Subsurface.hlsl
             Assert.AreEqual(32, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.DiffusionProfileRecord>());
         }
 
@@ -104,13 +104,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             // CBV_CombineLutParameters in Shaders/Pass/Post/Compute_CombineLUTs.compute
             Assert.AreEqual(384, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.CombineLutParameterDescriptor>());
-        }
-
-        [Test]
-        public void CompositeParameters_MatchesHlslByteSize()
-        {
-            // CBV_CompositeParameters in Shaders/Pass/ScreenSpace/Compute_ScreenSpaceComposite.compute
-            Assert.AreEqual(16, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.CompositeParameters>());
         }
 
         [Test]
@@ -195,13 +188,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             // ShadowUniform in Shaders/Library/ShadowSampling.hlsl
             Assert.AreEqual(480, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.ShadowUniform>());
-        }
-
-        [Test]
-        public void SubsurfaceParameters_MatchesHlslByteSize()
-        {
-            // CBV_SubsurfaceParameters in Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
-            Assert.AreEqual(32, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.SubsurfaceParameters>());
         }
 
         [Test]

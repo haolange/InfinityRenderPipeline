@@ -158,6 +158,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         public void SetKeyword(GlobalKeyword keyword, bool value) => m_Core.SetKeyword(keyword, value);
+        public void SetKeyword(Material material, in LocalKeyword keyword, bool value) => m_Core.SetKeyword(material, keyword, value);
         public void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data) => m_Core.commands.IssuePluginEventAndData(callback, eventId, data);
         public void BeginSample(ProfilingSampler sampler) => m_Core.BeginSample(sampler);
         public void EndSample(ProfilingSampler sampler) => m_Core.EndSample(sampler);

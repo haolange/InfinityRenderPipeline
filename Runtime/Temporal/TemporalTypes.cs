@@ -118,7 +118,6 @@ namespace InfinityTech.Rendering.Temporal
         internal readonly int jitterPhaseCount;
         internal readonly bool requiresJitter;
         internal readonly bool requiresMotionVectors;
-        internal readonly bool requiresPreviousDepth;
         internal readonly bool requiresReactiveMask;
         internal readonly bool requiresTransparencyMask;
         internal readonly bool requiresPreExposure;
@@ -141,7 +140,6 @@ namespace InfinityTech.Rendering.Temporal
             int jitterPhaseCount,
             bool requiresJitter,
             bool requiresMotionVectors,
-            bool requiresPreviousDepth,
             bool requiresReactiveMask,
             bool requiresTransparencyMask,
             bool requiresPreExposure,
@@ -160,7 +158,6 @@ namespace InfinityTech.Rendering.Temporal
             this.jitterPhaseCount = jitterPhaseCount;
             this.requiresJitter = requiresJitter;
             this.requiresMotionVectors = requiresMotionVectors;
-            this.requiresPreviousDepth = requiresPreviousDepth;
             this.requiresReactiveMask = requiresReactiveMask;
             this.requiresTransparencyMask = requiresTransparencyMask;
             this.requiresPreExposure = requiresPreExposure;
@@ -182,7 +179,6 @@ namespace InfinityTech.Rendering.Temporal
                 jitterPhaseCount: 1,
                 requiresJitter: false,
                 requiresMotionVectors: false,
-                requiresPreviousDepth: false,
                 requiresReactiveMask: false,
                 requiresTransparencyMask: false,
                 requiresPreExposure: false,

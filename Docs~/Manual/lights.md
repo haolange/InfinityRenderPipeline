@@ -38,7 +38,11 @@ The cookie is the native Light cookie. Directional lights tile it over Cookie Si
 
 ## Layers and distance
 
-Light Layers on the Infinity component must intersect a receiver's rendering-layer mask. The native Light rendering-layer mask selects casters.
+There are four light channels (`ERenderingLayer`: Light Layer Default and Light Layers 1–3, Everything = all four). Light Layers on the Infinity component must intersect a receiver's channels; the native Light rendering-layer mask selects casters. A mask with a higher bit is an error, not a truncation: run **Window → Infinity → Lighting → Clamp Light Channels In Open Scenes** to keep the four channels of every renderer, light, Infinity light, mesh, decal and analytic occluder mask in the open scenes. The command records Undo, does not save, and warns about each mask left with no channel.
+
+A deferred surface stores its channels in the sideband when the pipeline asset enables Rendering Layers; otherwise deferred surfaces receive every light. Forward surfaces always test their renderer's channels.
+
+Mixed lights: see [Baked lighting](baked-gi.md#mixed-lighting). The Light inspector notes that a Mixed local light reads no shadowmask and warns when more than two Mixed directional lights use Shadowmask.
 
 Local lights fade across Distance Fade meters before Maximum Distance and are skipped beyond it. Zero disables the limit. Rendering Debugger > Infinity Lighting reports how many lights were skipped.
 

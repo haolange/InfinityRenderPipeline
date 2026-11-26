@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor foggedDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
-            foggedDsc.colorFormat = m_Settings.config.sceneColorFormat;
+            foggedDsc.colorFormat = EffectivePipelineConfiguration.SceneColorFormat;
             foggedDsc.enableRandomWrite = true;
             foggedDsc.filterMode = FilterMode.Bilinear;
             foggedDsc.wrapMode = TextureWrapMode.Clamp;

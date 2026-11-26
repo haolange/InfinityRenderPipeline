@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void DecalContext_SplitsModes_FallsBackDirectOnYCoCg_AndBuildsZeroGcClusters()
+        public void DecalContext_SplitsModes_AndBuildsZeroGcClusters()
         {
             var table = new SceneTable<DecalComponent>();
             var registry = new ComponentRegistry<DecalComponent>();
@@ -96,24 +96,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 using var ctx = new DecalContext();
                 var screen = new int2(128, 128);
-                ctx.Build(table, cam, screen, allowDirectGBuffer: true);
+                ctx.Build(table, cam, screen);
                 Assert.AreEqual(1, ctx.DBufferDecalCount);
                 Assert.AreEqual(1, ctx.DirectDecalCount);
                 Assert.AreEqual(2, ctx.ClusteredDecalCount);
                 Assert.AreEqual(4, ctx.TotalDecalCount);
 
                 // Warmup + verify zero GC allocations in steady state.
-                ctx.Build(table, cam, screen, allowDirectGBuffer: true);
+                ctx.Build(table, cam, screen);
                 long before = GC.GetAllocatedBytesForCurrentThread();
-                ctx.Build(table, cam, screen, allowDirectGBuffer: true);
+                ctx.Build(table, cam, screen);
                 long after = GC.GetAllocatedBytesForCurrentThread();
                 Assert.AreEqual(0L, after - before, "Steady-state DecalContext.Build should not allocate managed memory.");
-
-                // Under YCoCg GBuffer layout, DirectGBuffer decals fall back safely to DBuffer.
-                ctx.Build(table, cam, screen, allowDirectGBuffer: false);
-                Assert.AreEqual(2, ctx.DBufferDecalCount);
-                Assert.AreEqual(0, ctx.DirectDecalCount);
-                Assert.AreEqual(2, ctx.ClusteredDecalCount);
             }
             finally
             {
@@ -187,7 +181,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 table.Commit();
 
                 using var ctx = new DecalContext();
-                ctx.Build(table, cam, new int2(128, 128), allowDirectGBuffer: true);
+                ctx.Build(table, cam, new int2(128, 128));
                 Assert.AreEqual(3, ctx.ClusteredDecalCount);
 
                 // Upload via temporary buffers inside SpatialClusterIndex isn't public to raw GraphicsBuffer without TransferEncoder,

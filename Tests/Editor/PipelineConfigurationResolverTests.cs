@@ -7,31 +7,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class PipelineConfigurationResolverTests
     {
-        static InfinityRenderPipelineAsset CreateAsset(
-            EGBufferLayout layout = EGBufferLayout.Compact64Bit,
-            ESceneColorFormat sceneColor = ESceneColorFormat.R11G11B10F,
-            EDepthStencilFormat depthStencil = EDepthStencilFormat.D32FS8,
-            EMotionVectorFormat motionVector = EMotionVectorFormat.RG16F,
-            EIndirectLightingFormat indirectLighting = EIndirectLightingFormat.R11G11B10F,
-            ESubsurfaceLightingMode sssMode = ESubsurfaceLightingMode.SeparateBuffer,
-            bool renderingLayers = true,
-            bool withProfile = false)
+        static InfinityRenderPipelineAsset CreateAsset(EDepthStencilFormat depthStencil = EDepthStencilFormat.D32FS8, bool renderingLayers = true, int profileCount = 0)
         {
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
             using (var serialized = new SerializedObject(asset))
             {
-                serialized.FindProperty("m_GBufferLayout").intValue = (int)layout;
-                serialized.FindProperty("m_SceneColorFormat").intValue = (int)sceneColor;
                 serialized.FindProperty("m_DepthStencilFormat").intValue = (int)depthStencil;
-                serialized.FindProperty("m_MotionVectorFormat").intValue = (int)motionVector;
-                serialized.FindProperty("m_IndirectLightingFormat").intValue = (int)indirectLighting;
-                serialized.FindProperty("m_SubsurfaceLightingMode").intValue = (int)sssMode;
                 serialized.FindProperty("m_EnableRenderingLayers").boolValue = renderingLayers;
-                if (withProfile)
+                SerializedProperty profiles = serialized.FindProperty("diffusionProfiles");
+                profiles.arraySize = profileCount;
+                for (int i = 0; i < profileCount; ++i)
                 {
-                    SerializedProperty profiles = serialized.FindProperty("diffusionProfiles");
-                    profiles.arraySize = 1;
-                    profiles.GetArrayElementAtIndex(0).objectReferenceValue = ScriptableObject.CreateInstance<DiffusionProfile>();
+                    profiles.GetArrayElementAtIndex(i).objectReferenceValue = ScriptableObject.CreateInstance<DiffusionProfile>();
                 }
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
@@ -45,14 +32,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 foreach (var profile in profiles)
                 {
-                    if (profile != null) Object.DestroyImmediate(profile);
+                    if (profile != null)
+                    {
+                        Object.DestroyImmediate(profile);
+                    }
                 }
             }
             Object.DestroyImmediate(asset);
         }
 
+        static DeviceCapabilitySnapshot Capabilities(bool d24s8 = true, bool d32fs8 = true, bool rgba8Srgb = true, bool rgba8LoadStore = true, bool r11g11b10LoadStore = true, bool rg16f = true)
+        {
+            return new DeviceCapabilitySnapshot(d24s8, d32fs8, rgba8Srgb, rgba8LoadStore, r11g11b10LoadStore, rg16f, supportsAsyncCompute: true, supportsRayTracing: true);
+        }
+
         [Test]
-        public void DefaultConfiguration_Compact64BitAndR11G11B10F_NoConflicts()
+        public void DefaultConfiguration_FixedColorPath_NoConflicts()
         {
             var asset = CreateAsset();
             try
@@ -60,88 +55,134 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var settings = asset.ResolveSettings();
                 var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
                 Assert.IsFalse(config.hasBlockingConflict);
-                Assert.AreEqual(EGBufferLayout.Compact64Bit, config.gBufferLayout);
-                Assert.IsFalse(config.useBestFitYCoCg);
-                Assert.AreEqual(GraphicsFormat.R8G8B8A8_SRGB, config.gBufferAFormat);
-                Assert.AreEqual(GraphicsFormat.R8G8B8A8_UNorm, config.gBufferBFormat);
-                Assert.AreEqual(GraphicsFormat.R8G8_UNorm, config.surfaceMetadataFormat);
-                Assert.AreEqual(GraphicsFormat.B10G11R11_UFloatPack32, config.sceneColorFormat);
+                Assert.AreEqual(EConfigStatus.Supported, config.colorPathState.status);
                 Assert.AreEqual(GraphicsFormat.D32_SFloat_S8_UInt, config.depthStencilFormat);
-                Assert.AreEqual(GraphicsFormat.B10G11R11_UFloatPack32, config.indirectLightingFormat);
-                Assert.AreEqual(64, config.coreGBufferBitsPerPixel);
-                Assert.AreEqual(16, config.surfaceMetadataBitsPerPixel);
-                Assert.AreEqual(112, config.commonGBufferPassBitsPerPixel);
+                // GBuffer A, GBuffer B, Scene Color and the sideband: four 32-bit targets.
+                Assert.AreEqual(128, config.geometryColorBitsPerPixel);
+                Assert.AreEqual(GraphicsFormat.R8G8B8A8_SRGB, EffectivePipelineConfiguration.GBufferAFormat);
+                Assert.AreEqual(GraphicsFormat.R8G8B8A8_UNorm, EffectivePipelineConfiguration.GBufferBFormat);
+                Assert.AreEqual(GraphicsFormat.B10G11R11_UFloatPack32, EffectivePipelineConfiguration.SceneColorFormat);
+                Assert.AreEqual(GraphicsFormat.R8G8B8A8_UNorm, EffectivePipelineConfiguration.SidebandFormat);
+                Assert.AreEqual(GraphicsFormat.R16G16_SFloat, EffectivePipelineConfiguration.MotionFormat);
             }
-            finally { DestroyAsset(asset); }
+            finally
+            {
+                DestroyAsset(asset);
+            }
         }
 
-        [Test]
-        public void HighPrecision96Bit_UnsupportedFallback_SelectsCompact64Bit()
+        [TestCase(EDepthStencilFormat.D24S8, GraphicsFormat.D24_UNorm_S8_UInt)]
+        [TestCase(EDepthStencilFormat.D32FS8, GraphicsFormat.D32_SFloat_S8_UInt)]
+        public void AuthoredDepth_SupportedFormat_IsUsed(EDepthStencilFormat authored, GraphicsFormat expected)
         {
-            var asset = CreateAsset(layout: EGBufferLayout.HighPrecision96Bit);
+            var asset = CreateAsset(depthStencil: authored);
             try
             {
                 var settings = asset.ResolveSettings();
-                var caps = new DeviceCapabilitySnapshot(
-                    true, true, true, true, true, true,
-                    supportsRGBA16UnormRT: false,
-                    true, true, true, true, true, true, true);
-                var config = PipelineConfigurationResolver.Evaluate(in settings, in caps);
+                var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
+                Assert.AreEqual(expected, config.depthStencilFormat);
+                Assert.AreEqual(EConfigStatus.Supported, config.depthStencilState.status);
+            }
+            finally
+            {
+                DestroyAsset(asset);
+            }
+        }
+
+        [Test]
+        public void UnsupportedD24S8_FallsBackToD32FS8WithPlatformOverride()
+        {
+            var asset = CreateAsset(depthStencil: EDepthStencilFormat.D24S8);
+            try
+            {
+                var settings = asset.ResolveSettings();
+                var config = PipelineConfigurationResolver.Evaluate(in settings, Capabilities(d24s8: false));
                 Assert.IsFalse(config.hasBlockingConflict);
-                Assert.AreEqual(EGBufferLayout.Compact64Bit, config.gBufferLayout);
-                Assert.AreEqual(EConfigStatus.Unsupported, config.gBufferLayoutState.status);
-                Assert.AreEqual(64, config.coreGBufferBitsPerPixel);
+                Assert.AreEqual(GraphicsFormat.D32_SFloat_S8_UInt, config.depthStencilFormat);
+                Assert.AreEqual(EConfigStatus.PlatformOverride, config.depthStencilState.status);
             }
-            finally { DestroyAsset(asset); }
+            finally
+            {
+                DestroyAsset(asset);
+            }
         }
 
         [Test]
-        public void SceneColorAlphaSSS_WithR11G11B10F_ReportsConflictAndForcesRGBA16F()
+        public void NoStencilDepthFormat_IsBlocking()
         {
-            var asset = CreateAsset(
-                sceneColor: ESceneColorFormat.R11G11B10F,
-                sssMode: ESubsurfaceLightingMode.SceneColorAlpha,
-                withProfile: true);
+            var asset = CreateAsset();
             try
             {
                 var settings = asset.ResolveSettings();
-                var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
+                var config = PipelineConfigurationResolver.Evaluate(in settings, Capabilities(d24s8: false, d32fs8: false));
                 Assert.IsTrue(config.hasBlockingConflict);
-                Assert.AreEqual(EConfigStatus.Conflict, config.subsurfaceModeState.status);
-                Assert.AreEqual(EConfigStatus.Required, config.sceneColorState.status);
-                Assert.AreEqual(GraphicsFormat.R16G16B16A16_SFloat, config.sceneColorFormat);
+                Assert.AreEqual(EConfigStatus.Unsupported, config.depthStencilState.status);
             }
-            finally { DestroyAsset(asset); }
+            finally
+            {
+                DestroyAsset(asset);
+            }
         }
 
-        [TestCase(EDepthStencilFormat.D32F)]
-        [TestCase(EDepthStencilFormat.D16)]
-        public void DepthWithoutStencil_ReportsBlockingConflict(EDepthStencilFormat depthFormat)
+        // Each format of the fixed color path is required: there is no alternative layout to fall back to.
+        [TestCase(false, true, true, true)]
+        [TestCase(true, false, true, true)]
+        [TestCase(true, true, false, true)]
+        [TestCase(true, true, true, false)]
+        public void MissingColorPathFormat_IsBlocking(bool rgba8Srgb, bool rgba8LoadStore, bool r11g11b10LoadStore, bool rg16f)
         {
-            var asset = CreateAsset(depthStencil: depthFormat);
+            var asset = CreateAsset();
             try
             {
                 var settings = asset.ResolveSettings();
-                var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
+                var caps = Capabilities(rgba8Srgb: rgba8Srgb, rgba8LoadStore: rgba8LoadStore, r11g11b10LoadStore: r11g11b10LoadStore, rg16f: rg16f);
+                var config = PipelineConfigurationResolver.Evaluate(in settings, in caps);
                 Assert.IsTrue(config.hasBlockingConflict);
-                Assert.AreEqual(EConfigStatus.Conflict, config.depthStencilState.status);
-                Assert.IsTrue(config.hasStencil);
+                Assert.AreEqual(EConfigStatus.Unsupported, config.colorPathState.status);
+                Assert.AreEqual(config.colorPathState.reason, config.blockingConflict);
             }
-            finally { DestroyAsset(asset); }
+            finally
+            {
+                DestroyAsset(asset);
+            }
         }
 
-        [Test]
-        public void DisabledRenderingLayers_ReducesSurfaceMetadataTo8Bit()
+        [TestCase(0, EConfigStatus.Inactive, false)]
+        [TestCase(1, EConfigStatus.Supported, false)]
+        [TestCase(15, EConfigStatus.Supported, false)]
+        [TestCase(16, EConfigStatus.Conflict, true)]
+        public void DiffusionProfiles_FitTheSidebandNibble(int profileCount, EConfigStatus expected, bool blocking)
         {
-            var asset = CreateAsset(renderingLayers: false);
+            var asset = CreateAsset(profileCount: profileCount);
             try
             {
                 var settings = asset.ResolveSettings();
                 var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
-                Assert.AreEqual(GraphicsFormat.R8_UNorm, config.surfaceMetadataFormat);
-                Assert.AreEqual(8, config.surfaceMetadataBitsPerPixel);
+                Assert.AreEqual(expected, config.subsurfaceState.status);
+                Assert.AreEqual(blocking, config.hasBlockingConflict);
             }
-            finally { DestroyAsset(asset); }
+            finally
+            {
+                DestroyAsset(asset);
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RenderingLayers_PassThroughUnchanged(bool renderingLayers)
+        {
+            var asset = CreateAsset(renderingLayers: renderingLayers);
+            try
+            {
+                var settings = asset.ResolveSettings();
+                var config = PipelineConfigurationResolver.Evaluate(in settings, DeviceCapabilitySnapshot.AllSupported);
+                Assert.AreEqual(renderingLayers, config.enableRenderingLayers);
+                Assert.AreEqual(128, config.geometryColorBitsPerPixel);
+            }
+            finally
+            {
+                DestroyAsset(asset);
+            }
         }
     }
 }

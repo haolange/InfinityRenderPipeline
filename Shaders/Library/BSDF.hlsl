@@ -58,6 +58,9 @@ struct MicrofaceContext
 	float RoughnessClamp;
 	float3 AlbedoColor;
 	float3 SpecularColor;
+	// Dual-lobe specular (skin): weight of the second lobe and its roughness relative to the first. A single lobe is (0, 1).
+	float SecondLobeMix;
+	float SecondLobeRoughnessScale;
 };
 
 MicrofaceContext InitMicrofaceContext(float Specular, float Roughness, float Reflectance, float3 AlbedoColor)
@@ -69,6 +72,8 @@ MicrofaceContext InitMicrofaceContext(float Specular, float Roughness, float Ref
 	microfaceContext.RoughnessPow4 = pow4(microfaceContext.RoughnessClamp);
 	microfaceContext.AlbedoColor = AlbedoColor * (1 - Reflectance);
 	microfaceContext.SpecularColor = lerp(Specular * 0.08, AlbedoColor, Reflectance);
+	microfaceContext.SecondLobeMix = 0;
+	microfaceContext.SecondLobeRoughnessScale = 1;
 	return microfaceContext;
 }
 
@@ -189,8 +194,8 @@ float D_GGX(float NoH, float Roughness4)
 float D_Beckmann_NoPi(float NoH, float Roughness2)
 {
 	float Roughness4 = pow2(Roughness2);
-	float NoH2 = pow2(NoH);
-	return exp( (NoH2 - 1) / (Roughness4 * NoH2) ) / (Roughness4 * NoH2);
+	float NoH2 = max(pow2(NoH), 1e-6);
+	return exp( (NoH2 - 1) / (Roughness4 * NoH2) ) / (Roughness4 * NoH2 * NoH2);
 }
 
 float D_Beckmann(float NoH, float Roughness2)

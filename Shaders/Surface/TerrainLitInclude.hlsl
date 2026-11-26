@@ -4,8 +4,7 @@
 #include "../Library/Common.hlsl"
 #include "../Library/Lighting.hlsl"
 #include "../Library/GBufferPack.hlsl"
-#include "../Library/GBufferOutput.hlsl"
-#include "../Library/ForwardOutput.hlsl"
+#include "../Library/GeometryColor.hlsl"
 #include "../Library/ImageBasedLighting.hlsl"
 #include "../Library/DBuffer.hlsl"
 #include "../Library/ShaderVariables.hlsl"
@@ -466,64 +465,6 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
-ForwardFragmentOutput ForwardFragment(Varyings IN)
-{
-    #ifdef _ALPHATEST_ON
-        ClipHoles(IN.uvMainAndLM.xy);
-    #endif
-
-    half3 normalTS = half3(0, 0, 1);
-    
-    #ifdef TERRAIN_SPLAT_BASEPASS
-        half4 mixedDiffuse = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy);
-        half weight = 1;
-        half4 defaultSmoothness = mixedDiffuse.aaaa;
-    #else
-
-    half4 hasMask = half4(_LayerHasMask0, _LayerHasMask1, _LayerHasMask2, _LayerHasMask3);
-    half4 masks[4];
-    ComputeMasks(masks, hasMask, IN);
-
-    float2 splatUV = (IN.uvMainAndLM.xy * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
-    half4 splatControl = SAMPLE_TEXTURE2D(_Control, sampler_Control, splatUV);
-
-    #ifdef _TERRAIN_BLEND_HEIGHT
-        // disable Height Based blend when there are more than 4 layers (multi-pass breaks the normalization)
-        if (_NumLayersCount <= 4)
-            HeightBasedSplatModify(splatControl, masks);
-    #endif
-
-    half weight;
-    half4 mixedDiffuse;
-    half4 defaultSmoothness;
-    SplatmapMix(IN.uvMainAndLM, IN.uvSplat01, IN.uvSplat23, splatControl, weight, mixedDiffuse, defaultSmoothness, normalTS);
-
-    #endif
-    
-    InputData inputData;
-    InitializeInputData(IN, normalTS, inputData);
-    //IN.normal.xyz inputData.normalWS  mixedDiffuse.rgb
-
-    float3 totalLighting = 0;
-    for(int i = 0; i < g_DirectionalLightCount; ++i)
-    {
-        if ((g_LightRecordBuffer[i].lightLayer & asuint(unity_RenderingLayer.x)) == 0)
-        {
-            continue;
-        }
-        half3 lighting = saturate(dot(DirectionalLightL(g_LightRecordBuffer[i]), inputData.normalWS.xyz));
-        lighting *= 0.318 * mixedDiffuse.rgb * LightRadiance(g_LightRecordBuffer[i]);
-        totalLighting += lighting;
-    }
-    totalLighting *= weight;
-    #if !defined(TERRAIN_SPLAT_ADDPASS)
-    totalLighting += _EmissionColor.rgb;
-    #endif
-    ForwardFragmentOutput output = (ForwardFragmentOutput)0;
-    output.lightingBuffer = float4(totalLighting, weight);
-    return output;
-}
-
 GBufferFragmentOutput DeferredFragment(Varyings IN)
 {
     #ifdef _ALPHATEST_ON
@@ -580,38 +521,22 @@ GBufferFragmentOutput DeferredFragment(Varyings IN)
     surface.Roughness = surfaceRoughness;
     surface.Metallic = surfaceReflactance;
     surface.Normal = surfaceNormal;
-    surface.Route = SURFACE_ROUTE_DEFERRED;
-    surface.Flags = 0u;
-    surface.RenderingLayer = asuint(unity_RenderingLayer.x);
+    EncodeSurfaceGBuffer(surface, output.gBufferA, output.gBufferB);
+#if defined(TERRAIN_SPLAT_ADDPASS)
+    // Additional splat layers blend their weighted surface into the GBuffer; Scene Color and the sideband keep the base pass.
+    output.sceneColor = 0;
+#if defined(INFINITY_SIDEBAND)
+    output.sideband = 0;
+#endif
+#else
+    // Lightmap (uvMainAndLM.zw already carries unity_LightmapST) -> Adaptive Probe Volumes -> probes, else the sky.
     float4 bakedDiffuse = 0;
     float4 bakedMask = 1;
-#if !defined(TERRAIN_SPLAT_ADDPASS)
-    // Lightmap (uvMainAndLM.zw already carries unity_LightmapST) -> Adaptive Probe Volumes -> probes.
     SampleBakedLighting(IN.uvMainAndLM.zw, IN.positionWS, surfaceNormal, normalize(_WorldSpaceCameraPos - IN.positionWS), IN.clipPos.xy,
         asuint(unity_RenderingLayer.x), bakedDiffuse, bakedMask);
-    if (bakedDiffuse.a > 0)
-    {
-        surface.Flags |= SURFACE_FLAG_HAS_BAKED_GI;
-    }
-#endif
-    float2 surfaceMetadata = 0;
-    EncodeSurfaceGBuffer(surface, IN.clipPos.xy, output.gBufferA, output.gBufferB, surfaceMetadata);
-#if defined(TERRAIN_SPLAT_ADDPASS)
-    output.surfaceMetadata = 0;
-    output.lightingBuffer = 0;
-#else
-    output.surfaceMetadata = float4(surfaceMetadata, 0, 0);
-#if defined(INFINITY_GBUFFER_BAKED_DIFFUSE)
-    output.lightingBuffer = float4(_EmissionColor.rgb, 0);
-    output.bakedDiffuse = bakedDiffuse;
-#else
     float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflactance);
-    float3 envDiffuse = diffuseColor * (bakedDiffuse.a > 0 ? bakedDiffuse.rgb : EvaluateSH2Irradiance(surfaceNormal, _AtmosphereSkySH));
-    output.lightingBuffer = float4(_EmissionColor.rgb + envDiffuse, 0);
-#endif
-#if defined(SHADOWS_SHADOWMASK)
-    output.bakedShadowmask = 1 - bakedMask;
-#endif
+    WriteGeometryColor(_EmissionColor.rgb, diffuseColor, 1.0, bakedDiffuse, bakedMask, surfaceNormal, _AtmosphereSkySH,
+        asuint(unity_RenderingLayer.x), 0u, output);
 #endif
     return output;
 }

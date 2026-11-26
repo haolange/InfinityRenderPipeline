@@ -21,18 +21,11 @@ namespace InfinityTech.Rendering.Editor
 
             DrawGroup(materialEditor, properties, "Surface Options", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
             DrawGroup(materialEditor, properties, "Surface Inputs", true,
-                "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor",
+                "UseBaseColorTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor",
                 "_Roughness", "_Reflectance", "_SpecularLevel",
                 "_NormalTexture", "_NormalTile",
-                "_Iridescence", "_Iridescence_Distance",
+                "Iridescence", "_Iridescence_Distance",
                 "_PixelDepthOffset");
-
-            bool subsurface = material != null && material.HasProperty("_Subsurface") && material.GetFloat("_Subsurface") > 0.5f;
-            if (subsurface || SessionState.GetBool(FoldoutPrefix + "Subsurface", false))
-            {
-                DrawGroup(materialEditor, properties, "Subsurface", false, "_Subsurface", "_SSSProfileIndex", "_SSSThickness");
-                DrawSssIndexWarning(material);
-            }
 
             // Keep GI explicit: graph emission cannot be inferred from a fixed _EmissionColor property.
             EditorGUILayout.LabelField("Baked Emission", EditorStyles.boldLabel);
@@ -59,7 +52,7 @@ namespace InfinityTech.Rendering.Editor
             MaterialRouteUtility.Read(material, out _, out _);
         }
 
-        static void DrawGroup(MaterialEditor materialEditor, MaterialProperty[] properties, string title, bool defaultOpen, params string[] names)
+        internal static void DrawGroup(MaterialEditor materialEditor, MaterialProperty[] properties, string title, bool defaultOpen, params string[] names)
         {
             string key = FoldoutPrefix + title;
             bool open = SessionState.GetBool(key, defaultOpen);
@@ -82,28 +75,6 @@ namespace InfinityTech.Rendering.Editor
             }
 
             EditorGUILayout.EndFoldoutHeaderGroup();
-        }
-
-        internal static void DrawSssIndexWarning(Material material)
-        {
-            if (material == null || !material.HasProperty("_SSSProfileIndex"))
-            {
-                return;
-            }
-
-            InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            int index = (int)material.GetFloat("_SSSProfileIndex");
-            DiffusionProfile[] profiles = asset != null ? asset.ReadDiffusionProfiles() : null;
-            if (profiles == null || index < 0 || index >= profiles.Length)
-            {
-                EditorGUILayout.HelpBox("SSS profile index is outside the RP Asset Diffusion Profile list.", MessageType.Warning);
-                return;
-            }
-
-            if (profiles[index] == null)
-            {
-                EditorGUILayout.HelpBox("SSS profile slot " + index + " is empty.", MessageType.Warning);
-            }
         }
 
         static float ReadFloat(Material material, string name)

@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Editor
         SerializedProperty m_ScatterDistance;
         SerializedProperty m_SurfaceAlbedo;
         SerializedProperty m_MaxRadius;
+        SerializedProperty m_Thickness;
 
         void OnEnable()
         {
@@ -22,6 +23,7 @@ namespace InfinityTech.Rendering.Editor
             m_ScatterDistance = serializedObject.FindProperty("scatterDistance");
             m_SurfaceAlbedo = serializedObject.FindProperty("surfaceAlbedo");
             m_MaxRadius = serializedObject.FindProperty("maxRadius");
+            m_Thickness = serializedObject.FindProperty("thickness");
         }
 
         public override void OnInspectorGUI()
@@ -34,6 +36,7 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.PropertyField(m_ScatterDistance, new GUIContent("Scatter Distance"));
                 EditorGUILayout.PropertyField(m_SurfaceAlbedo, new GUIContent("Surface Albedo"));
                 EditorGUILayout.PropertyField(m_MaxRadius, new GUIContent("Max Radius"));
+                EditorGUILayout.PropertyField(m_Thickness, new GUIContent("Thickness", "The share of the skin's diffuse light that scatters: 0 keeps the lit diffuse, 1 replaces it with the scattered diffuse."));
             }
             InfinityInspectorGUI.EndFoldout();
 

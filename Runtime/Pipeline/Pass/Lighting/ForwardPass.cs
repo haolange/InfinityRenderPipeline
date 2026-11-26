@@ -10,14 +10,14 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class ForwardPassUtilityData
     {
         internal static readonly int SRV_ForwardOcclusionID = Shader.PropertyToID("SRV_ForwardOcclusion");
-        internal static readonly GlobalKeyword SubsurfaceKeyword = GlobalKeyword.Create("INFINITY_SSS_OUTPUT");
-        internal static readonly GlobalKeyword SubsurfaceAlphaKeyword = GlobalKeyword.Create("INFINITY_SSS_ALPHA");
-        internal static readonly GlobalKeyword IndirectDiffuseKeyword = GlobalKeyword.Create("INFINITY_FORWARD_INDIRECT_DIFFUSE");
-        internal static readonly GlobalKeyword IndirectSpecularKeyword = GlobalKeyword.Create("INFINITY_FORWARD_INDIRECT_SPECULAR");
+        internal static readonly GlobalKeyword IndirectDiffuseKeyword = GlobalKeyword.Create("INFINITY_FORWARD_SSGI");
+        internal static readonly GlobalKeyword ReflectionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_SSR");
         internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
-        internal static readonly string TextureName = "LightingTexture";
     }
+
+    // Forward materials complete their shading in one execution: Scene Color takes the whole result with blending off,
+    // and the sideband, when allocated, takes the diffuse share in R (the shaders mask that target to R).
 
     internal sealed class ForwardPass
     {
@@ -34,10 +34,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct ForwardPassData
         {
-            public bool hasSeparateSubsurface;
-            public bool hasAlphaSubsurface;
-            public bool needsIndirectDiffuse;
-            public bool needsIndirectSpecular;
+            public bool hasSideband;
+            public bool hasIndirectDiffuse;
+            public bool hasReflection;
+            public RGTextureHandle ssgiTextureHandle;
+            public RGTextureHandle ssrTextureHandle;
             public RGMeshDrawListHandle meshDrawListHandle;
             public RGRendererListHandle rendererListHandle;
             public RGTextureHandle atmosphereGGXHandle;
@@ -47,7 +48,9 @@ namespace InfinityTech.Rendering.Pipeline
             public bool hasContactShadow;
             public RGTextureHandle contactShadowSunHandle, contactShadowMaskHandle;
             public int hasProbes;
-            public bool directionalLightmap, shadowmask;
+            public bool directionalLightmap;
+            public bool shadowmask;
+            public Vector4 mixedLightChannels;
             public RGBufferHandle atmosphereSHHandle;
             public RGBufferHandle lightRecordsHandle;
             public LightLoopInputs lightLoop;
@@ -58,10 +61,17 @@ namespace InfinityTech.Rendering.Pipeline
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
             {
-                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceKeyword, hasSeparateSubsurface);
-                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceAlphaKeyword, hasAlphaSubsurface);
-                commands.SetKeyword(ForwardPassUtilityData.IndirectDiffuseKeyword, needsIndirectDiffuse);
-                commands.SetKeyword(ForwardPassUtilityData.IndirectSpecularKeyword, needsIndirectSpecular);
+                commands.SetKeyword(GBufferPassUtilityData.SidebandKeyword, hasSideband);
+                commands.SetKeyword(ForwardPassUtilityData.IndirectDiffuseKeyword, hasIndirectDiffuse);
+                if (hasIndirectDiffuse)
+                {
+                    commands.SetGlobalTexture(PassShaderIDs.SRV_SSGITexture, ssgiTextureHandle);
+                }
+                commands.SetKeyword(ForwardPassUtilityData.ReflectionKeyword, hasReflection);
+                if (hasReflection)
+                {
+                    commands.SetGlobalTexture(PassShaderIDs.SRV_SSRTexture, ssrTextureHandle);
+                }
                 commands.SetKeyword(ForwardPassUtilityData.OcclusionKeyword, hasOcclusion);
                 if (hasOcclusion)
                 {
@@ -69,6 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
                 commands.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, shadowmask);
+                commands.SetGlobalVector(GBufferPassUtilityData.MixedLightChannelsID, mixedLightChannels);
                 shadows.BindGlobal(commands);
                 commands.SetKeyword(ForwardPassUtilityData.ContactShadowKeyword, hasContactShadow);
                 if (hasContactShadow)
@@ -99,11 +110,9 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.OptimizeStateChanges, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, m_Settings.enableInstanceBatch));
 
-            bool needsIndirectDiffuse = context.features.ShouldRecord(EFrameFeature.SSGI);
-            bool needsIndirectSpecular = context.features.ShouldRecord(EFrameFeature.SSR);
-            bool hasSSS = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
-            bool separateSSS = hasSSS && m_Settings.config.subsurfaceLightingMode == ESubsurfaceLightingMode.SeparateBuffer;
-            bool alphaSSS = hasSSS && m_Settings.config.subsurfaceLightingMode == ESubsurfaceLightingMode.SceneColorAlpha;
+            bool hasSideband = context.sideband;
+            bool hasIndirectDiffuse = context.features.ShouldRecord(EFrameFeature.SSGI);
+            bool hasReflection = context.features.ShouldRecord(EFrameFeature.SSR);
 
             //Add ForwardPass
             {
@@ -111,29 +120,28 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(lightingTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                int nextAttachmentSlot = 1;
-                if (needsIndirectDiffuse)
+                if (hasSideband)
                 {
-                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                }
-                if (needsIndirectSpecular)
-                {
-                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                }
-                if (separateSSS)
-                {
-                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SidebandBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 }
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref ForwardPassData passData = ref passHandle.GetPassData();
                 {
-                    passData.hasSeparateSubsurface = separateSSS;
-                    passData.hasAlphaSubsurface = alphaSSS;
-                    passData.needsIndirectDiffuse = needsIndirectDiffuse;
-                    passData.needsIndirectSpecular = needsIndirectSpecular;
+                    passData.hasSideband = hasSideband;
+                    passData.hasIndirectDiffuse = hasIndirectDiffuse;
+                    if (hasIndirectDiffuse)
+                    {
+                        passData.ssgiTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer));
+                    }
+                    passData.hasReflection = hasReflection;
+                    if (hasReflection)
+                    {
+                        passData.ssrTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSRBuffer));
+                    }
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = context.lights.HasShadowmask;
+                    passData.shadowmask = context.lights.HasMixedLights;
+                    passData.mixedLightChannels = context.lights.MixedLightChannels;
                     ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
                     shadows.Read(passHandle);
                     passData.shadows = shadows;

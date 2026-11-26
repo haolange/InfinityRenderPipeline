@@ -91,12 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
         [SerializeField] EQualityLevel shadowFilterQuality = EQualityLevel.Medium;
         [SerializeField] ShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
 
-        [SerializeField] EGBufferLayout m_GBufferLayout = EGBufferLayout.Compact64Bit;
-        [SerializeField] ESceneColorFormat m_SceneColorFormat = ESceneColorFormat.R11G11B10F;
         [SerializeField] EDepthStencilFormat m_DepthStencilFormat = EDepthStencilFormat.D32FS8;
-        [SerializeField] EMotionVectorFormat m_MotionVectorFormat = EMotionVectorFormat.RG16F;
-        [SerializeField] EIndirectLightingFormat m_IndirectLightingFormat = EIndirectLightingFormat.R11G11B10F;
-        [SerializeField] ESubsurfaceLightingMode m_SubsurfaceLightingMode = ESubsurfaceLightingMode.SeparateBuffer;
         [SerializeField] bool m_EnableRenderingLayers = true;
         [SerializeField] bool m_EnableAnalyticShadow = true;
         [SerializeField] bool m_EnableAnalyticIndirectOcclusion = true;

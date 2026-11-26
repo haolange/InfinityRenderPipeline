@@ -3,10 +3,10 @@
 #include "ScreenSpaceDepth.hlsl"
 void ReprojectSurface(float2 uv, float depth, float2 surfaceMotion, float4x4 inverseJitteredVP,
     float4x4 previousJitteredVP, float4x4 currentMotionVP, float4x4 previousMotionVP,
-    out float2 historyUV, out float expectedDepth)
+    out float2 historyUV, out float previousDepth)
 {
     historyUV = -1;
-    expectedDepth = depth;
+    previousDepth = depth;
     float4 world = mul(inverseJitteredVP, float4(uv * 2 - 1, depth, 1));
     world /= world.w;
     float4 previous = mul(previousJitteredVP, world);
@@ -16,32 +16,8 @@ void ReprojectSurface(float2 uv, float depth, float2 surfaceMotion, float4x4 inv
     {
         float2 cameraMotion = (currentMotion.xy / currentMotion.w - previousMotion.xy / previousMotion.w) * 0.5;
         historyUV = previous.xy / previous.w * 0.5 + 0.5 + cameraMotion - surfaceMotion;
-        expectedDepth = previous.z / previous.w;
+        previousDepth = previous.z / previous.w;
     }
-}
-float HistoryDepthConfidence(Texture2D history, float4 textureView, float2 uv, float expectedDepth, uint channel)
-{
-    float confidence = 0;
-    if (all(uv >= 0) && all(uv < 1))
-    {
-        uint width, height; history.GetDimensions(width, height);
-        if (textureView.x > 0) { width = textureView.x; height = textureView.y; }
-        int2 pixel = (int2)(uv * float2(width, height));
-        float low = View_DepthParameters.y, high = View_DepthParameters.x;
-        [unroll]
-        for (int y = -1; y <= 1; y++)
-        [unroll]
-        for (int x = -1; x <= 1; x++)
-        {
-            float raw = history.Load(int3(clamp(pixel + int2(x, y), 0, int2(width, height) - 1), 0))[channel];
-            float depth = ScreenSpaceLinearEyeDepth(raw);
-            low = min(low, depth); high = max(high, depth);
-        }
-        float expected = ScreenSpaceLinearEyeDepth(expectedDepth);
-        float margin = 0.5 * (high - low) + max(0.01 * expected, 0.001);
-        confidence = expected >= low - margin && expected <= high + margin ? 1 : 0;
-    }
-    return confidence;
 }
 // Reprojects the virtual image of a reflection (hit-point reprojection, Stachowiak 2015): for a planar mirror the
 // reflected object appears behind the surface, along the view ray, at the reflected ray's hit distance. Rough lobes

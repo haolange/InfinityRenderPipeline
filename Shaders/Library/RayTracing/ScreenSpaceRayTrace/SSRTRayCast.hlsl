@@ -296,6 +296,7 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
         bool toward = UNITY_REVERSED_Z ? ray.delta.z > 1e-6 : ray.delta.z < -1e-6;
         // A ray with almost no screen motion still has a depth segment, so it starts at the origin.
         float t = ray.pixelLength >= 1 ? min(1, (1.01 + saturate(jitter)) / ray.pixelLength) : 0;
+        float entryT = t;
         int level = min(2, (int)mipCount - 1);
         bool walking = true;
         // Trace-behind does not stop on a cell the ray has passed. Remember that full-resolution event so a later
@@ -320,6 +321,8 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
                 float tx = abs(ray.delta.x) > 1e-8 ? (boundary.x - samplePos.x) / ray.delta.x : 1e7;
                 float ty = abs(ray.delta.y) > 1e-8 ? (boundary.y - samplePos.y) / ray.delta.y : 1e7;
                 float nextT = min(1, t + max(1e-7, min(tx, ty)));
+                // Bias the cell lookup past the boundary while keeping the depth interval contiguous.
+                samplePos.z = ray.start.z + ray.delta.z * entryT;
                 float endZ = ray.start.z + ray.delta.z * nextT;
                 float closest = LoadTraceDepth(surfaceDepth, closestPyramid, cell, (uint)level);
                 float furthest = level == 0 ? closest : LoadTraceDepth(surfaceDepth, furthestPyramid, cell, (uint)level);
@@ -359,6 +362,7 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
                         }
                         else
                         {
+                            entryT = nextT;
                             t = nextT + (ray.pixelLength >= 1 ? 1e-3 / ray.pixelLength : 1);
                             walking = t < 1;
                             if (!walking) exitReason = SCREEN_TRACE_EXIT_CLIP;
@@ -368,6 +372,7 @@ bool TraceScreenSpaceHiZ(float3 originVS, float3 directionVS, uint budget, float
                 }
                 else
                 {
+                    entryT = nextT;
                     t = nextT + (ray.pixelLength >= 1 ? 1e-3 / ray.pixelLength : 1);
                     walking = t < 1;
                     if (!walking) exitReason = SCREEN_TRACE_EXIT_CLIP;

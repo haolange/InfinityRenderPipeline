@@ -3,7 +3,7 @@
 `InfinityRenderPipelineGlobalSettings` is the project-wide owner for:
 
 - Runtime compute shaders (`InfinityRenderPipelineRuntimeShaders`, one compute shader per feature)
-- Runtime textures (`LUT_BestFit`)
+- Runtime textures (blue-noise tiles for screen-space tracing)
 - Runtime materials (blit, default Lit / Unlit shaders)
 - Default Volume profile
 
