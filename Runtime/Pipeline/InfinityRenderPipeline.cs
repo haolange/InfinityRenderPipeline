@@ -46,6 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
         readonly LocalShadowPass m_LocalShadowPass;
         readonly ShadowMomentPass m_ShadowMomentPass;
         readonly DeferredShadingPass m_DeferredShadingPass;
+        readonly EmissivePass m_EmissivePass;
         readonly ForwardPass m_ForwardPass;
         readonly ScreenSpaceHistoryPass m_ScreenSpaceHistoryPass;
         readonly SubsurfacePass m_SubsurfacePass;
@@ -106,6 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache, InfinityMeshPasses.Shadow);
                 m_ShadowMomentPass = new ShadowMomentPass(graph, resources, settings);
                 m_DeferredShadingPass = new DeferredShadingPass(graph, resources, settings);
+                m_EmissivePass = new EmissivePass(graph, settings, InfinityMeshPasses.Emissive);
                 m_ForwardPass = new ForwardPass(graph, settings, InfinityMeshPasses.Forward);
                 m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
                 m_SubsurfacePass = new SubsurfacePass(graph, resources, settings, renderContext.resourcePool);
@@ -136,6 +138,11 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 // The pass-owned diffusion buffer returns to the pool before the base releases the render context.
                 var failures = new List<Exception> { constructionFailure };
+                if (m_DeferredShadingPass != null)
+                {
+                    try { m_DeferredShadingPass.Dispose(); }
+                    catch (Exception cleanupFailure) { failures.Add(cleanupFailure); }
+                }
                 if (m_SubsurfacePass != null)
                 {
                     try { m_SubsurfacePass.Dispose(); }
@@ -312,9 +319,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_ReflectionProbePass.RasterReflections(context);
             }
-            using (PipelineCpuMarkers.s_RecordComputeDeferredShading.Auto())
+            using (PipelineCpuMarkers.s_RecordRasterDeferredShading.Auto())
             {
-                m_DeferredShadingPass.ComputeDeferredShading(context);
+                m_DeferredShadingPass.RasterDeferredShading(context);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             using (PipelineCpuMarkers.s_RecordRecordDeferredLightingCapture.Auto())
@@ -322,6 +329,10 @@ namespace InfinityTech.Rendering.Pipeline
                 m_RenderCapturePass.RecordDeferredLightingCapture(context);
             }
 #endif
+            using (PipelineCpuMarkers.s_RecordRasterEmissive.Auto())
+            {
+                m_EmissivePass.RasterEmissive(context, meshViews.mainViewHandle);
+            }
             using (PipelineCpuMarkers.s_RecordRasterForward.Auto())
             {
                 m_ForwardPass.RasterForward(context, meshViews.mainViewHandle);
@@ -408,8 +419,10 @@ namespace InfinityTech.Rendering.Pipeline
             Exception passFailure = null;
             if (disposing)
             {
-                try { m_SubsurfacePass.Dispose(); }
+                try { m_DeferredShadingPass.Dispose(); }
                 catch (Exception error) { passFailure = error; }
+                try { m_SubsurfacePass.Dispose(); }
+                catch (Exception error) { if (passFailure == null) passFailure = error; }
             }
             try
             {

@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.Pipeline
 #else
             sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve);
 #endif
-            sideband = ResolveSideband(setup.state.features, setup.frameSettings, setup.featureSupport.renderingLayers, scene.lights, scene.analyticShadows);
+            sideband = ResolveSideband(setup.state.features, setup.featureSupport.renderingLayers, scene.lights);
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;
             cullingResults = scene.cullingResults;
@@ -178,20 +178,13 @@ namespace InfinityTech.Rendering.Pipeline
             shadowmaskMode = frameContext.shadowmaskMode;
         }
 
-        // Readers of the sideband: indirect occlusion (GTAO, RTAO, analytic), SSGI, subsurface scattering, mixed-light baked
-        // visibility and the light channels. Clustered decals change the surface before indirect diffuse is stored, so they
-        // do not read the sideband. Without a reader it is not allocated.
-        static bool ResolveSideband(FrameFeatureSet features, in ResolvedFrameSettings frameSettings, bool renderingLayers, LightContext lights,
-            AnalyticShadowContext analyticShadows)
+        // Readers of the sideband: rendering-layer channels, mixed-light baked visibility and subsurface scattering.
+        // Deferred shading reads G, B and A when the attachment exists and does not write it. Screen-space occlusion,
+        // SSGI and analytic indirect occlusion do not allocate it. Without a reader it is not allocated.
+        static bool ResolveSideband(FrameFeatureSet features, bool renderingLayers, LightContext lights)
         {
-            bool analyticIndirect = analyticShadows != null && analyticShadows.OccluderCount > 0 && analyticShadows.IndirectEnabled
-                && frameSettings.IsEnabled(EFrameSetting.AnalyticShadow);
             return renderingLayers
-                || analyticIndirect
                 || lights.HasMixedLights
-                || features.ShouldRecord(EFrameFeature.GTAO)
-                || features.ShouldRecord(EFrameFeature.RTAO)
-                || features.ShouldRecord(EFrameFeature.SSGI)
                 || features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
         }
     }

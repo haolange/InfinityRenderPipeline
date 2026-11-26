@@ -14,7 +14,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ComputeKernel hiZFurthest;
         internal readonly ComputeKernel halfResDownsample;
 
-        internal readonly ComputeKernel deferredShading;
         internal readonly ComputeKernel lightTileMask;
         internal readonly ComputeKernel cookieCopy2D;
         internal readonly ComputeKernel cookieCubeToOctahedral;
@@ -89,14 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
-        internal readonly LocalKeyword deferredShadingSideband;
-        internal readonly LocalKeyword deferredShadingOcclusion;
-        internal readonly LocalKeyword deferredShadingIndirectDiffuse;
-        internal readonly LocalKeyword deferredShadingReflection;
-        internal readonly LocalKeyword deferredShadingRasterReflection;
-        internal readonly LocalKeyword deferredShadingAnalyticShadow;
         internal readonly LocalKeyword ssgiOcclusion;
-        internal readonly LocalKeyword deferredShadingContactShadow;
         internal readonly LocalKeyword fogCompositeFog;
         internal readonly LocalKeyword fogCompositeCloud;
 
@@ -109,7 +101,6 @@ namespace InfinityTech.Rendering.Pipeline
             hiZFurthest = ComputeKernel.Resolve(shaders.hiZShader, hiZ, "HiZ_FurthestGeneration");
             halfResDownsample = ComputeKernel.Resolve(shaders.halfResDownsampleShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.halfResDownsampleShader), "HalfResDownsample");
 
-            deferredShading = ComputeKernel.Resolve(shaders.deferredShadingShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.deferredShadingShader), "DeferredShadingCS");
             lightTileMask = ComputeKernel.Resolve(shaders.lightTileMaskShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), "BuildTileMask");
             const string cookie = Source + nameof(InfinityRenderPipelineRuntimeShaders.lightCookieShader);
             cookieCopy2D = ComputeKernel.Resolve(shaders.lightCookieShader, cookie, "CookieCopy2D");
@@ -204,13 +195,6 @@ namespace InfinityTech.Rendering.Pipeline
             };
 #endif
 
-            deferredShadingSideband = Keyword(shaders.deferredShadingShader, "INFINITY_SIDEBAND");
-            deferredShadingOcclusion = Keyword(shaders.deferredShadingShader, "DEFERRED_AO");
-            deferredShadingIndirectDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_SSGI");
-            deferredShadingReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_SSR");
-            deferredShadingRasterReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_RASTER_REFLECTION");
-            deferredShadingAnalyticShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_ANALYTIC_SHADOW");
-            deferredShadingContactShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_CONTACT_SHADOW");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
             fogCompositeFog = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_FOG");
             fogCompositeCloud = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_CLOUD");

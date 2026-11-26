@@ -56,8 +56,8 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/Pass/Shadow/Compute_ContactShadow.compute")]
         public ComputeShader contactShadowShader;
 
-        [ResourcePath("Shaders/Pass/Lighting/Compute_DeferredShading.compute")]
-        public ComputeShader deferredShadingShader;
+        [ResourcePath("Shaders/Pass/Lighting/DeferredShading.shader")]
+        public Shader deferredShadingShader;
 
         [ResourcePath("Shaders/Pass/Volumetric/Compute_AtmosphericLUT.compute")]
         public ComputeShader atmosphericLUTShader;

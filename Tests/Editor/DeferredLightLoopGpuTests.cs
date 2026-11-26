@@ -23,12 +23,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             public Vector4 row0, row1, row2, extents, capture, projection, parameters;
         }
-        // The production kernel checks aggregate contribution across words; the exact-index probe and normal multi-tile frames complement it.
+        // The production light loop checks aggregate contribution across words; the exact-index probe and normal multi-tile frames complement it.
         static readonly int[] s_LocalCounts = { 0, 1, 31, 32, 33, 63, 64, 65 };
         static readonly float[] s_Occlusions = { 1.0f, 0.25f, 0.0f };
 
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_AccumulatesLocalLightsAcrossMaskWords([ValueSource(nameof(s_LocalCounts))] int localCount)
+        public IEnumerator RasterDeferred_AccumulatesLocalLightsAcrossMaskWords([ValueSource(nameof(s_LocalCounts))] int localCount)
         {
             Result result = default;
             yield return Dispatch(new Fixture { localCount = localCount }, value => result = value);
@@ -38,11 +38,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             float window = 1 - Mathf.Pow(Mathf.Sqrt(distanceSquared) / 20, 4);
             float expected = localCount == 0 ? 0 : .5f / Mathf.PI * 30 * window * window / distanceSquared * (normalDistance / Mathf.Sqrt(distanceSquared));
             for (int channel = 0; channel < 3; ++channel)
-                Assert.That(actual[channel], Is.EqualTo(expected).Within(.015f), "Actual production Deferred kernel, local=" + localCount);
+                Assert.That(actual[channel], Is.EqualTo(expected).Within(.015f), "Raster deferred local light, local=" + localCount);
         }
 
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_WeightsScaleOnlyTheirLightingTerm()
+        public IEnumerator RasterDeferred_WeightsScaleOnlyTheirLightingTerm()
         {
             Result result = default;
             yield return Dispatch(new Fixture { localCount = 1, weightCases = true }, value => result = value);
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_OddExtentWritesEveryPixel([Values(false, true)] bool ao, [Values(false, true)] bool contact)
+        public IEnumerator RasterDeferred_OddExtentWritesEveryPixel([Values(false, true)] bool ao, [Values(false, true)] bool contact)
         {
             var fixture = new Fixture { localCount = 1, size = 19, occlusion = ao ? 1.0f : (float?)null, contact = contact };
             Result result = default;
@@ -89,49 +89,45 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
-        // Occlusion scales the indirect part decoded from the RGBA8 sideband. Emission passes through.
+        // Scene Color is the indirect term. Occlusion is the blend factor. The sideband is not rewritten.
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_OccludesOnlyTheIndirectShareOfSceneColor([ValueSource(nameof(s_Occlusions))] float occlusion)
+        public IEnumerator RasterDeferred_ScalesIndirectByOcclusion([ValueSource(nameof(s_Occlusions))] float occlusion)
         {
             const float geometryShare = 128.0f / 255.0f;
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = occlusion };
             Result result = default;
             yield return Dispatch(fixture, value => result = value);
-            float indirect = geometryShare * occlusion;
-            float expected = 1.0f - geometryShare + indirect;
-            AssertUniform(result.color[0], expected, 1e-4f, "E + I·ao");
-            AssertUniformRatio(result.sideband, indirect / expected, "diffuse share after deferred shading");
+            AssertUniform(result.color[0], occlusion, 1e-4f, "I·ao");
+            AssertUniformRatio(result.sideband, geometryShare, "sideband is unchanged");
         }
 
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_ReadsAndWritesPackedSceneColorInPlace()
+        public IEnumerator RasterDeferred_ScalesPackedIndirectByOcclusion()
         {
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = 1.0f, occlusion = 0.25f,
                 sceneColorFormat = EffectivePipelineConfiguration.SceneColorFormat };
             Result result = default;
             yield return Dispatch(fixture, value => result = value);
-            AssertUniform(result.color[0], 0.25f, 1e-6f, "Packed Scene Color after in-place deferred shading");
-            AssertUniformRatio(result.sideband, 1.0f, "Packed Scene Color stays all diffuse");
+            AssertUniform(result.color[0], 0.25f, 1e-6f, "Packed indirect scaled by occlusion");
+            AssertUniformRatio(result.sideband, 1.0f, "sideband is unchanged");
         }
 
-        // SSGI replaces the occluded indirect diffuse by its confidence and adds its premultiplied irradiance times the
-        // diffuse color (albedo 0.5, metallic 0): I' = I·ao·(1 − a) + 0.5·ssgi.rgb.
+        // Blend One SrcAlpha: rgb adds albedo · ssgi.rgb, alpha is ao · (1 − ssgi.a). Albedo 0.5, metallic 0.
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_SSGIReplacesTheOccludedIndirectByConfidence()
+        public IEnumerator RasterDeferred_SSGIReplacesTheOccludedIndirectByConfidence()
         {
             const float geometryShare = 128.0f / 255.0f;
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = 0.25f, ssgi = new Color(0.2f, 0.2f, 0.2f, 0.5f) };
             Result result = default;
             yield return Dispatch(fixture, value => result = value);
-            float indirect = geometryShare * 0.25f * (1 - 0.5f) + 0.5f * 0.2f;
-            float expected = 1.0f - geometryShare + indirect;
-            AssertUniform(result.color[0], expected, 1e-4f, "E + SSGI-replaced indirect");
-            AssertUniformRatio(result.sideband, indirect / expected, "diffuse share with SSGI");
+            float expected = 0.5f * 0.2f + 1.0f * (0.25f * (1.0f - 0.5f));
+            AssertUniform(result.color[0], expected, 1e-4f, "I·ao·(1−a) + albedo·ssgi");
+            AssertUniformRatio(result.sideband, geometryShare, "sideband is unchanged");
         }
 
         // Without the deferred stencil bit the pixel is not deferred: Scene Color and the sideband keep the geometry values.
         [UnityTest]
-        public IEnumerator ActualDeferredKernel_LeavesPixelsWithoutTheDeferredBit()
+        public IEnumerator RasterDeferred_LeavesPixelsWithoutTheDeferredBit()
         {
             var fixture = new Fixture { localCount = 1, sceneColor = new Color(0.3f, 0.6f, 0.9f, 1), sidebandRatio = 0.25f, occlusion = 0.0f, stencil = 4 };
             Result result = default;
@@ -193,7 +189,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             internal Color[] sideband;
         }
 
-        // Records one deferred dispatch per weight case and hands the readbacks to complete. A readback that does not finish
+        // Records one deferred draw per weight case and hands the readbacks to complete. A readback that does not finish
         // in time keeps the fixture's targets alive (they are not destroyed under a pending GPU copy).
         static IEnumerator Dispatch(Fixture fixture, Action<Result> complete)
         {
@@ -204,37 +200,27 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             bool contact = fixture.contact;
             bool sideband = fixture.sidebandRatio.HasValue;
             bool ssgi = fixture.ssgi.HasValue;
-            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
-                Assert.Ignore("A compute device with GPU readback is required.");
+            if (!SystemInfo.supportsAsyncGPUReadback || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
+                Assert.Ignore("A graphics device with GPU readback is required.");
             const int directionalCount = 3;
             var owned = new List<UnityEngine.Object>();
             var buffers = new List<GraphicsBuffer>();
             RenderTexture previous = RenderTexture.active;
             bool readbackPending = false;
+            // The open Game view binds the scene light buffer globally between draws and would replace this fixture's records.
+            Camera[] cameras = Camera.allCameras;
+            var cameraEnabled = new bool[cameras.Length];
+            for (int i = 0; i < cameras.Length; ++i)
+            {
+                cameraEnabled[i] = cameras[i].enabled;
+                cameras[i].enabled = false;
+            }
             try
             {
-                var source = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_DeferredShading.compute");
+                var source = AssetDatabase.LoadAssetAtPath<Shader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/DeferredShading.shader");
                 Assert.IsNotNull(source);
-                var shader = UnityEngine.Object.Instantiate(source);
-                owned.Add(shader);
-                shader.shaderKeywords = Array.Empty<string>();
-                if (sideband)
-                {
-                    shader.EnableKeyword("INFINITY_SIDEBAND");
-                }
-                if (ao)
-                {
-                    shader.EnableKeyword("DEFERRED_AO");
-                }
-                if (ssgi)
-                {
-                    shader.EnableKeyword("DEFERRED_SSGI");
-                }
-                if (contact)
-                {
-                    shader.EnableKeyword("DEFERRED_CONTACT_SHADOW");
-                }
-                int kernel = shader.FindKernel("DeferredShadingCS");
+                var material = new Material(source);
+                owned.Add(material);
                 Texture2D Texture(Color color)
                 {
                     var texture = new Texture2D(size, size, TextureFormat.RGBAFloat, false, true);
@@ -309,33 +295,33 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     for (int i = 0; i < localCount; i++) masks[tile * words + i / 32] |= 1u << (i & 31);
                 uint packed = localCount == 0 ? 0x0000ffffu : (uint)(localCount - 1) << 16;
                 var lightBuffer = Buffer(records, Marshal.SizeOf<LightRecord>());
-                shader.SetBuffer(kernel, "g_LightRecordBuffer", lightBuffer);
-                shader.SetBuffer(kernel, "SRV_LightTileMasks", Buffer(masks, 4));
-                shader.SetBuffer(kernel, "SRV_LightZBins", Buffer(new[] { packed }, 4));
-                shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", Buffer(new[] { Matrix4x4.identity }, 64));
+                material.SetBuffer("g_LightRecordBuffer", lightBuffer);
+                material.SetBuffer("SRV_LightTileMasks", Buffer(masks, 4));
+                material.SetBuffer("SRV_LightZBins", Buffer(new[] { packed }, 4));
+                material.SetBuffer("SRV_LocalShadowMatrices", Buffer(new[] { Matrix4x4.identity }, 64));
                 // Replay fixtures bind the actual stage's inactive-resource layout, never a later shader payload.
                 bool shadowSlices = System.IO.File.ReadAllText("Packages/com.infinity.render-pipeline/Shaders/Library/ShadowSampling.hlsl").Contains("struct LocalShadowSlice");
                 if (shadowSlices)
                 {
-                    shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice() }, Marshal.SizeOf<LocalShadowSliceGPU>()));
+                    material.SetBuffer("SRV_LocalShadowRects", Buffer(new[] { new ShadowSlice() }, Marshal.SizeOf<LocalShadowSliceGPU>()));
                 }
-                else shader.SetBuffer(kernel, "SRV_LocalShadowRects", Buffer(new[] { Vector4.zero }, 16));
+                else material.SetBuffer("SRV_LocalShadowRects", Buffer(new[] { Vector4.zero }, 16));
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/LightCookie.hlsl"))
                 {
-                    shader.SetBuffer(kernel, "SRV_LightCookies", Buffer(new[] { Matrix4x4.zero }, 64));
+                    material.SetBuffer("SRV_LightCookies", Buffer(new[] { Matrix4x4.zero }, 64));
                     // The production keywords are global (the pipeline sets them per pass); restored in finally.
                     Shader.EnableKeyword("INFINITY_LIGHT_COOKIES");
-                    shader.SetTexture(kernel, "SRV_LightCookieAtlas", black);
+                    material.SetTexture("SRV_LightCookieAtlas", black);
                 }
                 if (System.IO.File.Exists("Packages/com.infinity.render-pipeline/Shaders/Library/Lighting/ReflectionProbes.hlsl"))
                 {
                     var probe = new ProbeRecord { row0 = Vector4.zero, row1 = Vector4.zero, row2 = Vector4.zero,
                         extents = Vector4.zero, capture = Vector4.zero, projection = Vector4.zero, parameters = Vector4.zero };
-                    shader.SetBuffer(kernel, "SRV_ReflectionProbes", Buffer(new[] { probe }, 112));
-                    shader.SetBuffer(kernel, "SRV_ProbeClusterHeaders", Buffer(new[] { Vector2.zero }, 8));
-                    shader.SetBuffer(kernel, "SRV_ProbeClusterIndices", Buffer(new[] { 0u }, 4));
+                    material.SetBuffer("SRV_ReflectionProbes", Buffer(new[] { probe }, 112));
+                    material.SetBuffer("SRV_ProbeClusterHeaders", Buffer(new[] { Vector2.zero }, 8));
+                    material.SetBuffer("SRV_ProbeClusterIndices", Buffer(new[] { 0u }, 4));
                     Shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
-                    shader.SetTexture(kernel, "SRV_ReflectionProbeAtlas", environment);
+                    material.SetTexture("SRV_ReflectionProbeAtlas", environment);
                 }
                 using var reflection = new UniformBinding<global::InfinityTech.Rendering.Reflection.ReflectionUniform>(default);
                 using var lightLoop = new UniformBinding<LightLoopUniform>(new LightLoopUniform
@@ -348,7 +334,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int parameterSize = Marshal.SizeOf<DeferredShadingParameters>();
                 using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
                 parameters.SetData(new[] { new DeferredShadingParameters { resolution = new Vector4(size, size, 1f / size, 1f / size), hasRenderingLayers = 1 } });
-                shader.SetConstantBuffer(DeferredShadingPassUtilityData.CBV_DeferredShadingParametersID, parameters, 0, parameterSize);
+                material.SetConstantBuffer(DeferredShadingPassUtilityData.CBV_DeferredShadingParametersID, parameters, 0, parameterSize);
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
@@ -356,39 +342,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     matrix_ViewToWorld = Matrix4x4.Translate(new Vector3(0, 0, -2))
                 });
                 using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowDistance = 1000 });
-                shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
-                shader.SetTexture(kernel, "SRV_DepthTexture", depthStencil, 0, RenderTextureSubElement.Depth);
-                shader.SetTexture(kernel, "SRV_StencilTexture", depthStencil, 0, RenderTextureSubElement.Stencil);
+                material.SetTexture("SRV_GBufferTextureA", albedo); material.SetTexture("SRV_GBufferTextureB", normal);
                 if (ao)
                 {
-                    shader.SetTexture(kernel, "SRV_OcclusionTexture", Texture(new Color(fixture.occlusion.Value, 0, 0, 0)));
+                    material.SetTexture("SRV_OcclusionTexture", Texture(new Color(fixture.occlusion.Value, 0, 0, 0)));
                 }
                 if (ssgi)
                 {
-                    shader.SetTexture(kernel, "SRV_SSGITexture", Texture(fixture.ssgi.Value));
+                    material.SetTexture("SRV_SSGITexture", Texture(fixture.ssgi.Value));
                 }
                 if (sideband)
                 {
-                    shader.SetTexture(kernel, "UAV_Sideband", sidebandTarget);
+                    material.SetTexture("SRV_Sideband", sidebandTarget);
                 }
                 if (contact)
                 {
-                    shader.SetTexture(kernel, "SRV_ContactShadowSun", white);
+                    material.SetTexture("SRV_ContactShadowSun", white);
                     var mask = new RenderTexture(new RenderTextureDescriptor(size, size) { graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32_UInt, depthBufferBits = 0, enableRandomWrite = true });
                     owned.Add(mask); Assert.IsTrue(mask.Create());
                     RenderTexture.active = mask; GL.Clear(false, true, Color.clear); RenderTexture.active = previous;
-                    shader.SetTexture(kernel, "SRV_ContactShadowMask", mask);
+                    material.SetTexture("SRV_ContactShadowMask", mask);
                 }
-                shader.SetTexture(kernel, "SRV_CascadeShadowMap", black); shader.SetTexture(kernel, "SRV_LocalShadowMap", black);
-                shader.SetTexture(kernel, "_AtmosphereGGXPrefilter", environment);
-                shader.SetTexture(kernel, "UAV_LightingTexture", output);
+                material.SetTexture("SRV_CascadeShadowMap", black); material.SetTexture("SRV_LocalShadowMap", black);
+                material.SetTexture("_AtmosphereGGXPrefilter", environment);
                 var weights = weightCases ? new[] { Vector2.zero, Vector2.one, new Vector2(0, 1), new Vector2(1, 0), new Vector2(.5f, 1), new Vector2(1, .5f) } : new[] { Vector2.one };
                 var results = new Color[weights.Length][];
                 for (int w = 0; w < weights.Length; ++w)
                 {
                     records[directionalCount].weights = new Vector4(weights[w].x, weights[w].y, 1, 1);
                     lightBuffer.SetData(records);
-                    // Deferred reads Scene Color and the sideband in place; every invocation starts from the same geometry input.
+                    // Scene Color starts as the geometry indirect term. The sideband is only read.
                     using (var cmd = new CommandBuffer())
                     {
                         cmd.SetRenderTarget(output, depthStencil);
@@ -398,10 +381,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             cmd.SetRenderTarget(sidebandTarget);
                             cmd.ClearRenderTarget(RTClearFlags.Color, new Color(fixture.sidebandRatio.Value, 1, 1, Fixture.SidebandAlpha), 1.0f, 0);
                         }
+                        cmd.SetRenderTarget(output, depthStencil);
+                        cmd.SetGlobalTexture(PassShaderIDs.SRV_DepthTexture, depthStencil, RenderTextureSubElement.Depth);
+                        // Global keywords, set in this buffer so a Game view render cannot change them before the draw.
+                        cmd.SetKeyword(new GlobalKeyword("INFINITY_SIDEBAND"), sideband);
+                        cmd.SetKeyword(new GlobalKeyword("DEFERRED_AO"), ao);
+                        cmd.SetKeyword(new GlobalKeyword("DEFERRED_SSGI"), ssgi);
+                        cmd.SetKeyword(new GlobalKeyword("DEFERRED_CONTACT_SHADOW"), contact);
+                        cmd.SetKeyword(new GlobalKeyword("INFINITY_LIGHT_COOKIES"), true);
+                        cmd.SetKeyword(new GlobalKeyword("INFINITY_REFLECTION_PROBES"), true);
+                        cmd.DrawProcedural(Matrix4x4.identity, material, 0, MeshTopology.Triangles, 3);
                         Graphics.ExecuteCommandBuffer(cmd);
                     }
-                    shader.GetKernelThreadGroupSizes(kernel, out uint threadsX, out uint threadsY, out _);
-                    shader.Dispatch(kernel, Mathf.CeilToInt(size / (float)threadsX), Mathf.CeilToInt(size / (float)threadsY), 1);
                     var readback = AsyncGPUReadback.Request(output, 0, TextureFormat.RGBAFloat);
                     readbackPending = true;
                     yield return GpuReadbackTestUtility.Await(readback);
@@ -426,6 +417,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                for (int i = 0; i < cameras.Length; ++i)
+                {
+                    if (cameras[i] != null)
+                    {
+                        cameras[i].enabled = cameraEnabled[i];
+                    }
+                }
+                Shader.DisableKeyword("INFINITY_SIDEBAND");
+                Shader.DisableKeyword("DEFERRED_AO");
+                Shader.DisableKeyword("DEFERRED_SSGI");
+                Shader.DisableKeyword("DEFERRED_CONTACT_SHADOW");
                 Shader.DisableKeyword("INFINITY_LIGHT_COOKIES");
                 Shader.DisableKeyword("INFINITY_REFLECTION_PROBES");
                 RenderTexture.active = previous;

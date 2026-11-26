@@ -73,11 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
             Add(new FeatureDescriptor { id = EFrameFeature.GBuffer });
             Add(new FeatureDescriptor { id = EFrameFeature.DBuffer });
             Add(new FeatureDescriptor { id = EFrameFeature.Motion });
-            Add(new FeatureDescriptor
-            {
-                id = EFrameFeature.DeferredShading,
-                kernels = k => new[] { k.deferredShading }
-            });
+            Add(new FeatureDescriptor { id = EFrameFeature.DeferredShading });
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.HiZ,

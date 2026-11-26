@@ -123,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void DeferredShadingParameters_MatchesHlslByteSize()
         {
-            // CBV_DeferredShadingParameters in Shaders/Pass/Lighting/Compute_DeferredShading.compute
+            // CBV_DeferredShadingParameters in Shaders/Pass/Lighting/DeferredShading.shader
             Assert.AreEqual(32, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.DeferredShadingParameters>());
         }
 

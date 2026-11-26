@@ -24,11 +24,16 @@ namespace InfinityTech.Rendering.Editor
                 {
                     continue;
                 }
+                bool emissiveBefore = material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName);
                 Undo.RecordObject(material, "Apply Surface Route State");
                 try
                 {
                     MaterialRouteUtility.ApplyPassState(material);
                     applied++;
+                    if (material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName) != emissiveBefore)
+                    {
+                        AssetDatabase.SaveAssetIfDirty(material);
+                    }
                 }
                 catch (System.InvalidOperationException error)
                 {

@@ -10,13 +10,13 @@ Blocks are Base Color, Normal (tangent space), Metallic, Roughness, Specular Lev
 - Translucent Stage: None, T0 (lit, before the refraction pyramid), T1 (refraction) or T2 (after refraction).
 - Blending Mode on translucent stages, Render Face, Alpha Clipping, Custom Editor GUI.
 
-Lit graphs use the InfinityLit passes: depth, GBuffer, forward, motion, shadows, the translucent stages, and Meta for baking. Lightmaps, shadowmask, light probes, light-probe proxy volumes, Adaptive Probe Volumes and decals apply to native renderer draws of those graphs. The graph material GUI edits routing. The Occlusion block scales the graph's baked or sky indirect diffuse; it never darkens emission or direct light. Lit graphs do not scatter: skin is the hand-written InfinitySkin shader.
+Lit graphs use the InfinityLit passes: depth, GBuffer, emission, forward, motion, shadows, the translucent stages, and Meta for baking. A deferred opaque graph keeps `RasterEmissivePass` enabled, because emission is the graph output rather than `_EmissionColor`; a black output adds nothing. Lightmaps, shadowmask, light probes, light-probe proxy volumes, Adaptive Probe Volumes and decals apply to native renderer draws of those graphs. The graph material GUI edits routing. The Occlusion block scales the graph's baked or sky indirect diffuse; it never darkens emission or direct light. Lit graphs do not scatter: skin is the hand-written InfinitySkin shader.
 
 The hand-written InfinityLit shader does not have a metallic map. The graph Metallic block is a graph input. The runtime lit buffer stores reflectance.
 
 ## Unlit and Decal
 
-Unlit draws in translucent stage T2. Decal graphs draw into the deferred decal buffer through the projector: Base Color, Normal, Metallic, Roughness, Occlusion and Alpha. Assign the material to a Decal Component.
+Unlit draws in translucent stage T2. Decal graphs project through the box: Base Color, Normal, Metallic, Roughness, Occlusion and Alpha. `_DecalTarget` selects the DBuffer pass or the GBuffer blend; Replace Normal clip-replaces the GBuffer sample. Assign the material to a Decal Component.
 
 ## Limits
 

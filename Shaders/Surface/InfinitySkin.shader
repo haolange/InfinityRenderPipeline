@@ -283,7 +283,7 @@ Shader "InfinityPipeline/InfinitySkin"
 
 				GBufferFragmentOutput output = (GBufferFragmentOutput)0;
 				EncodeSurfaceGBuffer(surface, output.gBufferA, output.gBufferB);
-				WriteGeometryColor(0, skin.albedo, skin.occlusion, bakedDiffuse, shadowMask, skin.normalWS, _AtmosphereSkySH,
+				WriteGeometryColor(skin.albedo, skin.occlusion, bakedDiffuse, shadowMask, skin.normalWS, _AtmosphereSkySH,
 					lightChannels, SkinSidebandProfile(), output);
 				return output;
 			}

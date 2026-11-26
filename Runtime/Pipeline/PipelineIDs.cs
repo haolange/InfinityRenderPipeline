@@ -38,7 +38,8 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeTemporalColorPyramid,
         CopyHistorySSR,
         CopyHistorySSGI,
-        ComputeDeferredShading,
+        RasterDeferredShading,
+        RasterEmissive,
         RasterForward,
         RasterSubsurfaceScattering,
         RasterSubsurfaceExtract,
@@ -176,6 +177,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
         public static readonly ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
         public static readonly ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
+        public static readonly ShaderTagId RasterEmissivePass = new ShaderTagId("RasterEmissivePass");
         public static readonly ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
         public static readonly ShaderTagId RasterReflectionPass = new ShaderTagId("RasterReflectionPass");
         public static readonly ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
@@ -205,11 +207,13 @@ namespace InfinityTech.Rendering.Pipeline
             new MeshPassDesc("RasterTranslucentT1Pass", "TranslucentT1", TranslucentQueueMin, TranslucentQueueMax,
                 requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor),
             new MeshPassDesc("RasterTranslucentT2Pass", "TranslucentT2", TranslucentQueueMin, TranslucentQueueMax,
-                requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor)
+                requirePreviousTransforms: true, sortKey: EMeshSortKey.TranslucentColor),
+            new MeshPassDesc("RasterEmissivePass", "Emissive", 0, OpaqueQueueMax)
         };
 
         internal static readonly MeshPassId Depth = new MeshPassId(0);
         internal static readonly MeshPassId GBuffer = new MeshPassId(1);
+        internal static readonly MeshPassId Emissive = new MeshPassId(9);
         internal static readonly MeshPassId Forward = new MeshPassId(2);
         internal static readonly MeshPassId Motion = new MeshPassId(3);
         internal static readonly MeshPassId Shadow = new MeshPassId(4);

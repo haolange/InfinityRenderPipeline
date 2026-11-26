@@ -288,7 +288,8 @@ namespace InfinityTech.Component
                 return default;
             }
             MaterialRouteUtility.ReadMeshRoute(material, out int route, out int stage, out int queue, out Shader shader);
-            return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage, UnityEntityId.ToUInt64(shader)) };
+            byte emissive = MaterialRouteUtility.EmissionEnables(material) ? (byte)1 : (byte)0;
+            return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage, UnityEntityId.ToUInt64(shader), emissive) };
         }
 
         /// <summary>
@@ -347,7 +348,7 @@ namespace InfinityTech.Component
                 }
                 foreach (MeshPassDesc pass in world.passes)
                 {
-                    if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode))
+                    if (!MaterialRouteUtility.RouteEnablesPass(route, stage, pass.lightMode, MaterialRouteUtility.EmissionEnables(material)))
                     {
                         continue;
                     }

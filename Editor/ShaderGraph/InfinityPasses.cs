@@ -12,6 +12,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         public const string kShadowCaster = "ShadowCaster";
         public const string kRasterDepthPass = "RasterDepthPass";
         public const string kRasterGBufferPass = "RasterGBufferPass";
+        public const string kRasterEmissivePass = "RasterEmissivePass";
         public const string kRasterForwardPass = "RasterForwardPass";
         public const string kRasterMotionPass = "RasterMotionPass";
         public const string kRasterTranslucentDepthPass = "RasterTranslucentDepthPass";
@@ -31,6 +32,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         const string kVaryings = InfinityTarget.kIncludePath + "InfinitySGVaryings.hlsl";
         const string kDepthOnly = InfinityTarget.kIncludePath + "InfinitySGDepthOnlyPass.hlsl";
         const string kGBuffer = InfinityTarget.kIncludePath + "InfinitySGGBufferPass.hlsl";
+        const string kEmissive = InfinityTarget.kIncludePath + "InfinitySGEmissivePass.hlsl";
         const string kForward = InfinityTarget.kIncludePath + "InfinitySGForwardPass.hlsl";
         const string kMotion = InfinityTarget.kIncludePath + "InfinitySGMotionPass.hlsl";
         const string kTranslucentPass = InfinityTarget.kIncludePath + "InfinitySGTranslucentPass.hlsl";
@@ -252,6 +254,13 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             { RenderState.Stencil(new StencilDescriptor { Ref = "[_StencilRefGBuffer]", ReadMask = "6", WriteMask = "6", Comp = "Always", Pass = "Replace" }) },
         };
 
+        static RenderStateCollection EmissiveStates(InfinityTarget target)
+        {
+            RenderStateCollection states = EqualDepthStates(target);
+            states.Add(RenderState.Blend("Blend One One"));
+            return states;
+        }
+
         static RenderStateCollection EqualDepthStates(InfinityTarget target) => new RenderStateCollection
         {
             { RenderState.ZTest(ZTest.Equal) },
@@ -376,6 +385,9 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             Pass(kRasterGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
                 With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ _CLUSTERED_DECALS", "multi_compile _ INFINITY_SIDEBAND"),
                 Defines(target), Includes(kBakedLighting, kGBuffer), true);
+
+        public static PassDescriptor RasterEmissivePass(InfinityTarget target) =>
+            Pass(kRasterEmissivePass, "SHADERPASS_EMISSIVE", LitBlocks, SurfaceFields, EmissiveStates(target), Instanced, Defines(target), Includes(null, kEmissive), false);
 
         public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
             Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, ForwardStates(target),

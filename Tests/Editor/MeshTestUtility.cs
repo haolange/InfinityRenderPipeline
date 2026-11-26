@@ -73,7 +73,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         internal static MeshMaterialState StateOf(Material material, int renderQueue)
         {
             MaterialRouteUtility.Read(material, out int route, out int stage);
-            return new MeshMaterialState(renderQueue, route, stage, UnityEntityId.ToUInt64(material.shader));
+            byte emissive = MaterialRouteUtility.EmissionEnables(material) ? (byte)1 : (byte)0;
+            return new MeshMaterialState(renderQueue, route, stage, UnityEntityId.ToUInt64(material.shader), emissive);
         }
 
         internal static ulong Id(Object value) => UnityEntityId.ToUInt64(value);

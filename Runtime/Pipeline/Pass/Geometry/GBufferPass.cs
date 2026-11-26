@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle gbufferTextureBHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
 
-            // Deferred shading and the atmosphere read and write Scene Color in place.
+            // The atmosphere reads and writes Scene Color in place. Deferred shading blends over it.
             TextureDescriptor sceneColorDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 sceneColorDsc.name = GBufferPassUtilityData.SceneColorName;
@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, sceneColorDsc);
 
-            // Deferred shading rewrites the sideband's diffuse share in place.
+            // Geometry writes the sideband. Deferred shading reads it and does not write it.
             bool sideband = context.sideband;
             RGTextureHandle sidebandHandle = default;
             if (sideband)

@@ -10,7 +10,7 @@ Each native Unity Renderer pixel takes its baked diffuse lighting from the first
 4. **Light probes** (Unity per-renderer interpolation).
 5. **Sky** ambient (the atmosphere's SH).
 
-The geometry draw writes that diffuse lighting, times the material occlusion, into Scene Color together with emission, and stores the share it makes of the pixel's color. Deferred and forward shading then scale only that share by screen-space and analytic occlusion and let screen-space indirect diffuse replace it; emission is never occluded.
+The geometry draw writes that diffuse lighting, times the material occlusion, into Scene Color. It does not write emission. Deferred shading scales that whole indirect term by screen-space and analytic occlusion and replaces it with screen-space indirect diffuse by confidence. Deferred emission is added afterwards and is not scaled. Forward shading includes emission in the same draw and writes the diffuse share for skin. There is no project setting that switches baked lightmaps off in favor of APV, screen-space or ray-traced irradiance.
 
 Shadowmask and probe occlusion come from the same native source. Infinity Mesh instances do not consume lightmaps, LPPV or CPU-interpolated per-instance probes. Their shader may sample APV directly in world space, with atmosphere/IBL used when no APV data is available. Adding a MeshComponent does not disable a MeshRenderer; native and custom content must be authored independently.
 
@@ -48,6 +48,6 @@ Tube and line lights are realtime only.
 
 ## Debugging
 
-Rendering Debugger → Infinity Lighting: Diffuse Ratio (the diffuse share of Scene Color) and Mixed Light Visibility (red:
+Rendering Debugger → Infinity Lighting: Diffuse Ratio (the forward diffuse share of Scene Color; a deferred pixel stays 0) and Mixed Light Visibility (red:
 first mixed directional light, green: second). Fixture: Window → Infinity → Create Baked Lighting Fixture, then Generate
 Lighting.

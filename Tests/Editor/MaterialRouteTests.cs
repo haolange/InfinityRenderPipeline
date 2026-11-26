@@ -36,9 +36,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             Shader skin = Shader.Find("InfinityPipeline/InfinitySkin");
             Assert.NotNull(skin);
-            m_Material.shader = skin;
+            // Skin validation rejects any route but forward opaque, and assigning the shader validates immediately.
             m_Material.SetFloat("_SurfaceRoute", 1);
             m_Material.SetFloat("_TranslucentStage", 0);
+            m_Material.shader = skin;
             InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
             MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out _, out Shader shader);
             Assert.AreSame(skin, shader, "A shader swap is part of the shared route state.");
@@ -79,10 +80,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (m_Material.GetShaderPassEnabled(pass)) ++enabled;
             }
             Assert.AreEqual(stage == 0 && route == 1 ? 2 : 1, enabled);
+            Assert.AreEqual(stage == 0 && route == 0 && m_Material.GetColor("_EmissionColor").maxColorComponent > 0f,
+                m_Material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName));
             Assert.AreEqual(stage == 0, m_Material.GetShaderPassEnabled("RasterDepthPass"));
             Assert.AreEqual(stage != 0, m_Material.GetShaderPassEnabled("RasterTranslucentDepthPass"));
             // Only a deferred surface carries the stencil bit that admits it to deferred shading.
             Assert.AreEqual(route == 0 ? 2.0f : 0.0f, m_Material.GetFloat("_StencilRefGBuffer"));
+            string before = EditorJsonUtility.ToJson(m_Material);
+            MaterialRouteUtility.ApplyPassState(m_Material);
+            Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));
+        }
+
+        [Test]
+        public void EmissionPass_EnablesOnlyDeferredOpaqueWithANonzeroColor()
+        {
+            m_Material.SetFloat("_SurfaceRoute", 0);
+            m_Material.SetFloat("_TranslucentStage", 0);
+            m_Material.SetColor("_EmissionColor", new Color(0.2f, 0, 0, 1));
+            MaterialRouteUtility.ApplyPassState(m_Material);
+            Assert.IsTrue(m_Material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName));
+            Assert.IsTrue(MaterialRouteUtility.EmissionEnables(m_Material));
+
+            m_Material.SetFloat("_SurfaceRoute", 1);
+            MaterialRouteUtility.ApplyPassState(m_Material);
+            Assert.IsFalse(m_Material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName));
+            Assert.IsFalse(MaterialRouteUtility.EmissionEnables(m_Material));
+
+            m_Material.SetFloat("_SurfaceRoute", 0);
+            m_Material.SetColor("_EmissionColor", Color.black);
+            MaterialRouteUtility.ApplyPassState(m_Material);
+            Assert.IsFalse(m_Material.GetShaderPassEnabled(MaterialRouteUtility.EmissivePassName));
             string before = EditorJsonUtility.ToJson(m_Material);
             MaterialRouteUtility.ApplyPassState(m_Material);
             Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));

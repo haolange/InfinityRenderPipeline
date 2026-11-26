@@ -7,8 +7,8 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 // R8G8B8A8_UNorm, allocated only when one of its readers records.
-// R: the diffuse share of Scene Color luminance. The geometry draw writes the share of its indirect diffuse; deferred and
-//    forward shading rewrite it as the share of their whole diffuse. Specular and emission are never counted.
+// R: the diffuse share of a forward pixel's Scene Color luminance, for skin scattering. A pixel that was not forward-shaded
+//    stays 0. Specular and emission are never counted.
 // G, B: baked visibility of the first and second mixed directional light.
 // A: four light channels in the high nibble, subsurface profile 1..15 in the low nibble (0 marks a pixel that is not subsurface).
 #define SIDEBAND_LIGHT_CHANNELS_ALL 0xFu

@@ -15,6 +15,7 @@
 #define SHADERPASS_TRANSLUCENT_T2 8
 #define SHADERPASS_META 9
 #define SHADERPASS_DBUFFER 10
+#define SHADERPASS_EMISSIVE 11
 
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ShaderVariables.hlsl"

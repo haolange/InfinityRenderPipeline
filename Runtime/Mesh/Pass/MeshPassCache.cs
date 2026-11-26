@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             drawMarker = MeshDrawProfiling.CpuMarker("Draw", desc);
             for (int route = 0; route <= 1; ++route)
                 for (int stage = 0; stage <= 3; ++stage)
-                    if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode))
+                    if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode, true))
                     {
                         m_RouteMask |= 1u << (route * 4 + stage);
                     }
@@ -195,6 +195,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             MeshMaterialState state = world.materials[(int)element.material.Index].state;
             if ((m_RouteMask & (1u << (state.route * 4 + state.stage))) == 0)
+            {
+                return false;
+            }
+            if (!MaterialRouteUtility.RouteEnablesPass(state.route, state.stage, desc.lightMode, state.emissive != 0))
             {
                 return false;
             }

@@ -112,7 +112,6 @@ float4 UAV_RayHit_InfinityView;
 float4 UAV_Resolved_InfinityView;
 float4 UAV_SRHistoryColorTexture_InfinityView;
 float4 UAV_SharpenedColorTexture_InfinityView;
-float4 UAV_Sideband_InfinityView;
 float4 UAV_SkyViewLUT_InfinityView;
 float4 UAV_SpatialTexture_InfinityView;
 float4 UAV_SuperResolutionTexture_InfinityView;

@@ -118,7 +118,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     (InfinityMeshPasses.TranslucentDepth, new[] { 2 }),
                     (InfinityMeshPasses.TranslucentT0, new int[0]),
                     (InfinityMeshPasses.TranslucentT1, new[] { 2 }),
-                    (InfinityMeshPasses.TranslucentT2, new int[0])
+                    (InfinityMeshPasses.TranslucentT2, new int[0]),
+                    (InfinityMeshPasses.Emissive, new int[0])
                 };
                 foreach ((MeshPassId pass, int[] members) in expected)
                 {
@@ -344,7 +345,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 (InfinityMeshPasses.Forward, "RasterForwardPass"), (InfinityMeshPasses.Motion, "RasterMotionPass"),
                 (InfinityMeshPasses.Shadow, "RasterShadowPass"), (InfinityMeshPasses.TranslucentDepth, "RasterTranslucentDepthPass"),
                 (InfinityMeshPasses.TranslucentT0, "RasterTranslucentT0Pass"), (InfinityMeshPasses.TranslucentT1, "RasterTranslucentT1Pass"),
-                (InfinityMeshPasses.TranslucentT2, "RasterTranslucentT2Pass")
+                (InfinityMeshPasses.TranslucentT2, "RasterTranslucentT2Pass"),
+                (InfinityMeshPasses.Emissive, "RasterEmissivePass")
             };
             Assert.AreEqual(expected.Length, InfinityMeshPasses.all.Length);
             foreach ((MeshPassId pass, string lightMode) in expected)

@@ -1,7 +1,7 @@
 #ifndef INFINITY_SG_GBUFFER_PASS
 #define INFINITY_SG_GBUFFER_PASS
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/DecalCluster.hlsl"
-// GBufferPass of InfinityLit: the RGBA8 GBuffer, emission and occluded indirect diffuse into Scene Color, and the sideband.
+// GBufferPass of InfinityLit: the RGBA8 GBuffer, occluded indirect diffuse into Scene Color, and the sideband. Emission is a later pass.
 GBufferFragmentOutput frag(PackedVaryings packedInput)
 {
     Varyings input = UnpackVaryings(packedInput);
@@ -38,7 +38,7 @@ GBufferFragmentOutput frag(PackedVaryings packedInput)
     GBufferFragmentOutput output = (GBufferFragmentOutput)0;
     EncodeSurfaceGBuffer(data, output.gBufferA, output.gBufferB);
     float3 diffuseColor = albedo * (1.0 - metallic);
-    WriteGeometryColor(surface.emission, diffuseColor, surface.occlusion, bakedDiffuse, shadowMask, normalWS, _AtmosphereSkySH,
+    WriteGeometryColor(diffuseColor, surface.occlusion, bakedDiffuse, shadowMask, normalWS, _AtmosphereSkySH,
         asuint(unity_RenderingLayer.x), 0u, output);
     return output;
 }

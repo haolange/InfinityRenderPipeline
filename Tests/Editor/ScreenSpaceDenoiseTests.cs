@@ -50,12 +50,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         // SSR and SSGI sample already-lit color. Deferred and forward shading occlude their own indirect diffuse and
         // environment once, then let the screen-space signal replace that term; nothing occludes the replacement.
-        [TestCase("Shaders/Pass/Lighting/Compute_DeferredShading.compute", "indirectDiffuse *= occlusion;", "* environmentBRDF * occlusion;")]
+        [TestCase("Shaders/Pass/Lighting/DeferredShading.shader", "float alpha = occlusion * (1.0 - saturate(ssgi.a));", "* environmentBRDF * occlusion;")]
         [TestCase("Shaders/Library/ForwardOutput.hlsl", "diffuseColor * irradiance * occlusion;", "environment * environmentBRDF * occlusion;")]
         public void IndirectComposition_OccludesOnceBeforeScreenSpaceReplacement(string path, string diffuseOcclusion, string specularOcclusion)
         {
             string source = ReadPackageFile(path);
-            AssertOccludedOnceBefore(source, diffuseOcclusion, "ReplaceIndirectDiffuse(");
+            if (source.Contains("ReplaceIndirectDiffuse("))
+            {
+                AssertOccludedOnceBefore(source, diffuseOcclusion, "ReplaceIndirectDiffuse(");
+            }
+            else
+            {
+                Assert.GreaterOrEqual(source.IndexOf(diffuseOcclusion, StringComparison.Ordinal), 0, diffuseOcclusion);
+            }
             AssertOccludedOnceBefore(source, specularOcclusion, "ReplaceEnvironmentSpecular(");
             int lastReplacement = source.IndexOf("ReplaceEnvironmentSpecular(", StringComparison.Ordinal);
             Assert.AreEqual(-1, source.IndexOf("occlusion", lastReplacement, StringComparison.Ordinal), "Nothing after the replacement applies occlusion again.");

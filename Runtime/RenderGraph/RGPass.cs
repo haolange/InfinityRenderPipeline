@@ -491,6 +491,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal IRGGraphExtension extension => m_Extension;
 
         public void EnableNativeRenderPass(in bool value) => m_Pass.EnableNativeRenderPass(value);
+        public RGConstantsHandle WriteConstants<T>(in T constants) where T : unmanaged => RGPassDeclaration.WriteConstants(m_Pass, m_Resources, constants);
 
         public RGTextureHandle SetColorAttachment(in RGTextureHandle renderTargetHandle, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {

@@ -37,6 +37,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                     InfinityPasses.ShadowCaster(target),
                     InfinityPasses.RasterDepthPass(target),
                     InfinityPasses.RasterGBufferPass(target),
+                    InfinityPasses.RasterEmissivePass(target),
                     InfinityPasses.RasterForwardPass(target),
                     InfinityPasses.RasterMotionPass(target),
                     InfinityPasses.RasterTranslucentDepthPass(target),

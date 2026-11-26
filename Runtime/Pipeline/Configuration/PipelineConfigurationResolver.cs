@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
             TemporalReconstructionSystem planner = temporalSystem ?? s_DefaultTemporalPlanner;
 
             // 1. Opaque color path: fixed RGBA8 sRGB + RGBA8 GBuffer, R11G11B10F Scene Color read and written in place by
-            // deferred shading and the atmosphere, RGBA8 sideband read and written in place by deferred shading, RG16F motion.
+            // the atmosphere, RGBA8 sideband written by geometry, RG16F motion.
             ConfigFieldState colorPathState = ConfigFieldState.Supported;
             string colorPathFailure = !caps.supportsR8G8B8A8SRGB ? "R8G8B8A8_SRGB render target (GBuffer A) is not supported on this device."
                 : !caps.supportsR11G11B10FLoadStore ? "B10G11R11_UFloatPack32 with load/store (Scene Color) is not supported on this device."

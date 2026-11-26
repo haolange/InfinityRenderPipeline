@@ -118,7 +118,6 @@ namespace InfinityTech.Rendering.RenderGraph
             { Shader.PropertyToID("UAV_Resolved"), Shader.PropertyToID("UAV_Resolved_InfinityView") },
             { Shader.PropertyToID("UAV_SRHistoryColorTexture"), Shader.PropertyToID("UAV_SRHistoryColorTexture_InfinityView") },
             { Shader.PropertyToID("UAV_SharpenedColorTexture"), Shader.PropertyToID("UAV_SharpenedColorTexture_InfinityView") },
-            { Shader.PropertyToID("UAV_Sideband"), Shader.PropertyToID("UAV_Sideband_InfinityView") },
             { Shader.PropertyToID("UAV_SkyViewLUT"), Shader.PropertyToID("UAV_SkyViewLUT_InfinityView") },
             { Shader.PropertyToID("UAV_SpatialTexture"), Shader.PropertyToID("UAV_SpatialTexture_InfinityView") },
             { Shader.PropertyToID("UAV_SuperResolutionTexture"), Shader.PropertyToID("UAV_SuperResolutionTexture_InfinityView") },

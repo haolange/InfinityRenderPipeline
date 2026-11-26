@@ -540,7 +540,7 @@ GBufferFragmentOutput DeferredFragment(Varyings IN)
     SampleBakedLighting(IN.uvMainAndLM.zw, IN.positionWS, surfaceNormal, normalize(_WorldSpaceCameraPos - IN.positionWS), IN.clipPos.xy,
         asuint(unity_RenderingLayer.x), bakedDiffuse, bakedMask);
     float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflactance);
-    WriteGeometryColor(_EmissionColor.rgb, diffuseColor, 1.0, bakedDiffuse, bakedMask, surfaceNormal, _AtmosphereSkySH,
+    WriteGeometryColor(diffuseColor, 1.0, bakedDiffuse, bakedMask, surfaceNormal, _AtmosphereSkySH,
         asuint(unity_RenderingLayer.x), 0u, output);
 #endif
     return output;

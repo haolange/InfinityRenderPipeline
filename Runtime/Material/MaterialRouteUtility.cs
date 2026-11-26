@@ -9,17 +9,18 @@ namespace InfinityTech.Rendering.MaterialPipeline
     {
         private sealed class MeshRoute
         {
-            internal int route, stage, queue;
+            internal int route, stage, queue, emissive;
             internal Shader shader;
         }
-        private static readonly string[] s_RoutedPasses = { "RasterGBufferPass", "RasterForwardPass", "RasterDepthPass", "RasterShadowPass", "ShadowCaster", "RasterMotionPass",
+        public const string EmissivePassName = "RasterEmissivePass";
+        private static readonly string[] s_RoutedPasses = { "RasterGBufferPass", "RasterForwardPass", EmissivePassName, "RasterDepthPass", "RasterShadowPass", "ShadowCaster", "RasterMotionPass",
             "RasterTranslucentDepthPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" };
 
         /// <summary>
         /// The one authority for which passes a surface route and translucent stage draw. Pass state on the material and
         /// mesh-pass membership both derive from it.
         /// </summary>
-        public static bool RouteEnablesPass(int route, int stage, string lightMode)
+        public static bool RouteEnablesPass(int route, int stage, string lightMode, bool emissive = false)
         {
             bool opaque = stage == 0;
             switch (lightMode)
@@ -28,6 +29,8 @@ namespace InfinityTech.Rendering.MaterialPipeline
                     return opaque;
                 case "RasterForwardPass":
                     return opaque && route == 1;
+                case EmissivePassName:
+                    return opaque && route == 0 && emissive;
                 case "RasterDepthPass":
                 case "RasterShadowPass":
                 case "ShadowCaster":
@@ -51,7 +54,7 @@ namespace InfinityTech.Rendering.MaterialPipeline
         private static MeshRoute CaptureMeshRoute(Material material)
         {
             Read(material, out int route, out int stage);
-            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, shader = material.shader };
+            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, shader = material.shader, emissive = EmissionActive(material) ? 1 : 0 };
         }
         internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out Shader shader)
         {
@@ -66,6 +69,7 @@ namespace InfinityTech.Rendering.MaterialPipeline
         private static readonly int ID_TranslucentStage      = Shader.PropertyToID("_TranslucentStage");
         private static readonly int ID_DiffusionProfileIndex = Shader.PropertyToID("_DiffusionProfileIndex");
         private static readonly int ID_StencilRefGBuffer     = Shader.PropertyToID("_StencilRefGBuffer");
+        private static readonly int ID_EmissionColor         = Shader.PropertyToID("_EmissionColor");
 
         // Stencil the GBuffer pass writes under WriteMask 6 (Shaders/Library/Stencil.hlsl): bit 1 admits a deferred pixel to
         // deferred shading. A skin shader writes its subsurface bit 2 as a constant. Forward clears both.
@@ -99,11 +103,12 @@ namespace InfinityTech.Rendering.MaterialPipeline
         {
             Read(material, out int route, out int stage);
             bool opaque = stage == 0;
+            bool emissive = EmissionActive(material);
             // Both opaque routes write the GBuffer surface proxy for screen-space, ray-tracing and motion consumers.
             // Only a deferred pixel carries the stencil bit that admits it to deferred shading.
             foreach (string pass in s_RoutedPasses)
             {
-                SetPass(material, pass, RouteEnablesPass(route, stage, pass));
+                SetPass(material, pass, RouteEnablesPass(route, stage, pass, emissive));
             }
             if (material.HasProperty(ID_StencilRefGBuffer))
             {
@@ -134,16 +139,36 @@ namespace InfinityTech.Rendering.MaterialPipeline
             var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
             Read(material, out int route, out int stage);
             int queue = material.renderQueue;
+            int emissive = EmissionActive(material) ? 1 : 0;
             Shader shader = material.shader;
-            if (state.route == route && state.stage == stage && state.queue == queue && state.shader == shader)
+            if (state.route == route && state.stage == stage && state.queue == queue && state.emissive == emissive && state.shader == shader)
             {
                 return;
             }
             state.route = route;
             state.stage = stage;
             state.queue = queue;
+            state.emissive = emissive;
             state.shader = shader;
             routingChanged?.Invoke(material);
+        }
+
+        // Deferred opaque emission. A shader with _EmissionColor enables the pass when any rgb channel is above zero.
+        // A shader that has the pass and no such property (Shader Graph Lit) stays enabled: a black graph output adds nothing.
+        internal static bool EmissionEnables(Material material)
+        {
+            Read(material, out int route, out int stage);
+            return RouteEnablesPass(route, stage, EmissivePassName, EmissionActive(material));
+        }
+
+        static bool EmissionActive(Material material)
+        {
+            if (material.HasProperty(ID_EmissionColor))
+            {
+                Color emission = material.GetColor(ID_EmissionColor);
+                return emission.r > 0.0f || emission.g > 0.0f || emission.b > 0.0f;
+            }
+            return material.FindPass(EmissivePassName) >= 0;
         }
 
         internal static void SetNamedPass(Material material, string name, bool enabled)

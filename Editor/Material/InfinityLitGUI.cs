@@ -17,6 +17,7 @@ namespace InfinityTech.Rendering.Editor
             Material material = materialEditor.target as Material;
             float previousRoute = ReadFloat(material, "_SurfaceRoute");
             float previousStage = ReadFloat(material, "_TranslucentStage");
+            Color previousEmission = material != null && material.HasProperty("_EmissionColor") ? material.GetColor("_EmissionColor") : Color.black;
             EditorGUI.BeginChangeCheck();
 
             DrawGroup(materialEditor, properties, "Surface Options", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
@@ -37,7 +38,8 @@ namespace InfinityTech.Rendering.Editor
             {
                 bool routeChanged = !Mathf.Approximately(ReadFloat(material, "_SurfaceRoute"), previousRoute) ||
                     !Mathf.Approximately(ReadFloat(material, "_TranslucentStage"), previousStage);
-                ApplyTargets(materialEditor, routeChanged);
+                bool emissionChanged = material.HasProperty("_EmissionColor") && material.GetColor("_EmissionColor") != previousEmission;
+                ApplyTargets(materialEditor, routeChanged || emissionChanged);
             }
         }
 

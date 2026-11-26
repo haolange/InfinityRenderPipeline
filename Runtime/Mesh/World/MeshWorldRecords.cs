@@ -31,17 +31,18 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     /// <summary>
-    /// The material state pass membership and command bindings read: queue, surface route, translucent stage and the
-    /// shader identity. A shader swap is a state change, so commands resolve their pass index again.
+    /// The material state pass membership and command bindings read: queue, surface route, translucent stage, whether
+    /// the emissive pass draws, and the shader identity. A shader swap is a state change, so commands resolve their pass index again.
     /// </summary>
     public struct MeshMaterialState : IEquatable<MeshMaterialState>
     {
         public int renderQueue;
         public byte route;
         public byte stage;
+        public byte emissive;
         public ulong shader;
 
-        public MeshMaterialState(int renderQueue, int route, int stage, ulong shader)
+        public MeshMaterialState(int renderQueue, int route, int stage, ulong shader, byte emissive = 0)
         {
             if (route < 0 || route > 1)
             {
@@ -51,15 +52,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 throw new ArgumentOutOfRangeException(nameof(stage));
             }
+            if (emissive > 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(emissive));
+            }
             this.renderQueue = renderQueue;
             this.route = (byte)route;
             this.stage = (byte)stage;
+            this.emissive = emissive;
             this.shader = shader;
         }
 
-        public bool Equals(MeshMaterialState other) => renderQueue == other.renderQueue && route == other.route && stage == other.stage && shader == other.shader;
+        public bool Equals(MeshMaterialState other) => renderQueue == other.renderQueue && route == other.route && stage == other.stage
+            && emissive == other.emissive && shader == other.shader;
         public override bool Equals(object obj) => obj is MeshMaterialState other && Equals(other);
-        public override int GetHashCode() => (renderQueue * 397) ^ (route << 4) ^ stage ^ shader.GetHashCode();
+        public override int GetHashCode() => (renderQueue * 397) ^ (route << 4) ^ stage ^ (emissive << 8) ^ shader.GetHashCode();
     }
 
     /// <summary>

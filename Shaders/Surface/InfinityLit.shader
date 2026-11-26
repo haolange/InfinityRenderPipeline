@@ -378,7 +378,7 @@
 				EncodeSurfaceGBuffer(surface, output.gBufferA, output.gBufferB);
                 float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflctance);
                 // InfinityLit has no occlusion input: the material occlusion is 1.
-                WriteGeometryColor(_EmissionColor.rgb, diffuseColor, 1.0, bakedDiffuse, shadowMask, pnormalWS, _AtmosphereSkySH,
+                WriteGeometryColor(diffuseColor, 1.0, bakedDiffuse, shadowMask, pnormalWS, _AtmosphereSkySH,
                     lightChannels, 0u, output);
                 return output;
 			}
@@ -540,6 +540,62 @@
                 float3 direct = EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, SelectMixedLightVisibility(mask), viewDepth, lightChannels, positionSS, directDiffuse);
                 ForwardFragmentOutput output = WriteForwardColor(_EmissionColor.rgb + indirectDiffuse + direct + environmentSpecular, indirectDiffuse + directDiffuse);
                 return output;
+			}
+			ENDHLSL
+		}
+
+		Pass
+		{
+			Name "RasterEmissivePass"
+			Tags { "LightMode" = "RasterEmissivePass" }
+			ZTest Equal
+			ZWrite Off
+			Cull Back
+			Blend One One
+
+			HLSLPROGRAM
+			#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma multi_compile_instancing
+			#pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
+
+			#include "../Library/ShaderVariables.hlsl"
+			#include "../Library/InfinityLitMaterial.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
+
+			struct Attributes
+			{
+				float4 vertexOS : POSITION;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct Varyings
+			{
+				float4 vertexCS : SV_POSITION;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out = (Varyings)0;
+				UNITY_SETUP_INSTANCE_ID(In);
+				UNITY_TRANSFER_INSTANCE_ID(In, Out);
+				float4 worldPos = mul(UNITY_MATRIX_M, float4(In.vertexOS.xyz, 1.0));
+				Out.vertexCS = mul(UNITY_MATRIX_VP, worldPos);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				LODDitheringTransition(uint2(In.vertexCS.xy), MeshInstanceFade(unity_InstanceID));
+#endif
+				return float4(_EmissionColor.rgb, 0);
 			}
 			ENDHLSL
 		}

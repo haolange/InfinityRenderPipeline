@@ -184,6 +184,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalBuffer(int nameID, GraphicsBuffer value) => m_Core.SetGlobalBuffer(nameID, value);
         public void SetGlobalBuffer(int nameID, RGBufferHandle valueHandle) => m_Core.SetGlobalBuffer(nameID, valueHandle);
         public void SetGlobalConstantBuffer(GraphicsBuffer buffer, int nameID, int offset, int size) => m_Core.SetGlobalConstantBuffer(buffer, nameID, offset, size);
+        public void SetGlobalConstantBuffer(int nameID, in RGConstantsHandle constantsHandle) => m_Core.SetGlobalConstantBuffer(nameID, constantsHandle);
         #endregion SetGlobalParameter
 
         public void SetViewport(in Rect pixelRect)

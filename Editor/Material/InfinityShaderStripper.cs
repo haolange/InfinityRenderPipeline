@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Editor.Build
             ShaderTagId.none, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId("ShadowCaster"), new ShaderTagId("Meta"),
             InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterDirectDecalPass, InfinityPassIDs.RasterDirectDecalNormalPass,
             InfinityPassIDs.RasterGBufferPass, InfinityPassIDs.RasterShadowPass, InfinityPassIDs.RasterMotionPass,
-            InfinityPassIDs.RasterForwardPass, InfinityPassIDs.RasterReflectionPass,
+            InfinityPassIDs.RasterEmissivePass, InfinityPassIDs.RasterForwardPass, InfinityPassIDs.RasterReflectionPass,
             InfinityPassIDs.RasterTranslucentDepthPass, InfinityPassIDs.RasterTranslucentT0Pass,
             InfinityPassIDs.RasterTranslucentT1Pass, InfinityPassIDs.RasterTranslucentT2Pass,
         };
