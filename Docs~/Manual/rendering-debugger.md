@@ -5,7 +5,7 @@ Window > Analysis > Rendering Debugger is Unity's window. Infinity registers the
 | Panel | Contents |
 |---|---|
 | Infinity Rendering | Debug View for the whole `EDebugView` enumeration, the Rendering subset, Frame Features of the last camera, Frame Settings of the last camera |
-| Infinity Material | Material views: albedo, normal, roughness, metallic, specular, surface stencil, rendering layers, subsurface profile. Surface stencil reads the stencil admission bits: gray deferred, orange skin, blue other forward, black empty, with object motion tinted green. Rendering layers shows the sideband's four light channels; subsurface profile its profile 1..15 as a heat color |
+| Infinity Material | Material views: albedo, normal, roughness, metallic, specular, surface stencil, rendering layers, subsurface profile. Surface stencil reads the stencil admission bits: gray deferred, orange skin, blue other forward, black empty, with object motion tinted green. Bits 3–7 are user bits and are not painted as pipeline admission. Rendering layers shows the sideband's four light channels; subsurface profile its profile 1..15 as a heat color |
 | Infinity Lighting | Lighting views (Diffuse Ratio, Mixed Light Visibility and the atlas and complexity views), Reflection Probe Index, Complexity Range, Volume selection, and the last camera's directional, local, probe, invalid-shape, distance-culled, local atlas occupancy/tier/budget, cached-shadow render/eviction/relocation, ray-tracing and mixed-lights-without-baked-visibility counts |
 | Infinity Screen Space | Ambient occlusion, reflection, indirect diffuse, and the reflection tile, ray, confidence and history views |
 | Volume | Core RP camera, component and contribution panel |

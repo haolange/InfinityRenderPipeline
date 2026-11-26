@@ -38,6 +38,7 @@ A pass is an `internal sealed class XxxPass` in `Runtime/Pipeline/Pass/<domain>/
 - The record method takes `in ViewContext` and the handles it consumes, such as the mesh view it draws, and returns the handles it produces. It decides from `context.features` whether to record, reads optional inputs with `QueryTexture`, and registers only its own output key.
 - A pass that produces a required feature calls `context.features.ThrowIfCannotProduce` before it records and `MarkProduced` after.
 - The pipeline builds one instance in its constructor and calls it from `RecordCamera`.
+- A custom pass may use stencil bits 3–7. Pipeline passes only touch bits 0–2, and a new `Stencil` block must set `ReadMask` and `WriteMask` inside `0x07`.
 
 ```csharp
 internal sealed class DepthPass

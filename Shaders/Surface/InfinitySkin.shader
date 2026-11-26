@@ -195,6 +195,7 @@ Shader "InfinityPipeline/InfinitySkin"
 			Stencil
 			{
 				Ref 4
+				ReadMask 6
 				WriteMask 6
 				Comp Always
 				Pass Replace
@@ -413,6 +414,7 @@ Shader "InfinityPipeline/InfinitySkin"
 			Stencil
 			{
 				Ref 1
+				ReadMask 1
 				WriteMask 1
 				Comp Always
 				Pass Replace

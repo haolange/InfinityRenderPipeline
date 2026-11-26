@@ -8,12 +8,13 @@
 		{
 			Name"RasterCameraMotion"
 			ZTest Always ZWrite Off Blend Off Cull Off
-			Stencil 
+			Stencil
 			{
 				Ref 1
 				ReadMask 1
-				comp NotEqual
-				pass keep
+				WriteMask 0
+				Comp NotEqual
+				Pass Keep
 			}
 
 			HLSLPROGRAM
@@ -197,6 +198,7 @@
             {
                 Ref 4
                 ReadMask 4
+                WriteMask 0
                 Comp Equal
                 Pass Keep
             }
@@ -229,6 +231,7 @@
             {
                 Ref 4
                 ReadMask 4
+                WriteMask 0
                 Comp Equal
                 Pass Keep
             }

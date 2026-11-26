@@ -507,6 +507,19 @@ class StaticCheckTests(unittest.TestCase):
                          sorted(o[2] for o in out))
         self.assertTrue(all(o[1] == 'meshpasses' for o in out))
 
+    def test_stencil_mask_rejects_omitted_and_user_bits(self):
+        self.write('Shaders/Ok.shader', 'Stencil { Ref [_StencilRefGBuffer] ReadMask 6 WriteMask 6 Comp Always Pass Replace }')
+        self.write('Shaders/Open.shader', 'Stencil { Ref 1 ReadMask 1 Comp Equal Pass Keep }')
+        self.write('Shaders/User.shader', 'Stencil { Ref 16 ReadMask 0xF8 WriteMask 6 }')
+        out = []
+        static_check.check_stencil_mask(str(self.repo), out)
+        messages = [item[2] for item in out]
+        self.assertTrue(all(item[1] == 'stencilmask' for item in out))
+        self.assertFalse(any('Ok.shader' in message for message in messages))
+        self.assertTrue(any('Open.shader' in message and 'WriteMask is omitted' in message for message in messages))
+        self.assertTrue(any('User.shader' in message and 'ReadMask 0xf8' in message for message in messages))
+        self.assertTrue(any('User.shader' in message and 'Ref 0x10' in message for message in messages))
+
     def test_opaque_mesh_passes_dither_lod_transitions(self):
         dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'
         plain = 'Pass { Tags { "LightMode" = "RasterGBufferPass" } HLSLPROGRAM\nENDHLSL }'

@@ -245,7 +245,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             { RenderState.ZTest(ZTest.LEqual) },
             { RenderState.ZWrite(ZWrite.On) },
             { RenderState.Cull(FaceCull(target)) },
-            { RenderState.Stencil(new StencilDescriptor { Ref = "[_StencilRefGBuffer]", WriteMask = "6", Comp = "Always", Pass = "Replace" }) },
+            { RenderState.Stencil(new StencilDescriptor { Ref = "[_StencilRefGBuffer]", ReadMask = "6", WriteMask = "6", Comp = "Always", Pass = "Replace" }) },
         };
 
         static RenderStateCollection EqualDepthStates(InfinityTarget target) => new RenderStateCollection
@@ -266,7 +266,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         static RenderStateCollection MotionStates(InfinityTarget target)
         {
             RenderStateCollection states = EqualDepthStates(target);
-            states.Add(RenderState.Stencil(new StencilDescriptor { Ref = "1", WriteMask = "1", Comp = "Always", Pass = "Replace" }));
+            states.Add(RenderState.Stencil(new StencilDescriptor { Ref = "1", ReadMask = "1", WriteMask = "1", Comp = "Always", Pass = "Replace" }));
             return states;
         }
 

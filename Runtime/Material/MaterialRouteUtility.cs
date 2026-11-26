@@ -68,8 +68,8 @@ namespace InfinityTech.Rendering.MaterialPipeline
         private static readonly int ID_StencilRefGBuffer     = Shader.PropertyToID("_StencilRefGBuffer");
 
         // Stencil the GBuffer pass writes under WriteMask 6 (Shaders/Library/Stencil.hlsl): bit 1 admits a deferred pixel to
-        // deferred shading. A skin shader writes its subsurface bit 2 as a constant.
-        private const float k_StencilRefDeferred = 2.0f;
+        // deferred shading. A skin shader writes its subsurface bit 2 as a constant. Forward clears both.
+        private const float k_StencilRefDeferred = InfinityTech.Rendering.StencilBits.Deferred;
         private const float k_StencilRefForward  = 0.0f;
 
         public static void Read(Material material, out int surfaceRoute, out int translucentStage)

@@ -30,6 +30,7 @@ Checks
                    and only the view registry schedules the view culling job
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
   lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
+  stencilmask      a shader Stencil block sets ReadMask and WriteMask, and neither mask nor a numeric Ref touches 0xF8
   fprefix          no type name borrows another engine's F prefix
   generationname   no type, file or living-document line carries a generation version (V2, V3)
   agentsize        AGENTS.md stays at or below 15 KiB, the shortest living document
@@ -1074,6 +1075,31 @@ def check_lod_dither(repo, out):
                 out.append(('ERROR', 'lodither', f'{os.path.relpath(p, repo)}: {light} does not cross-fade with INFINITY_LOD_DITHER'))
 
 
+# Bits 3–7 are user stencil. An omitted mask is Unity's default 255, which covers those bits.
+STENCIL_USER_MASK = 0xF8
+
+
+def check_stencil_mask(repo, out):
+    block_re = re.compile(r'\bStencil\s*\{([^{}]*)\}', re.I)
+    for path in all_files(repo, {'.shader'}):
+        text = read(path)
+        rel = os.path.relpath(path, repo).replace('\\', '/')
+        for match in block_re.finditer(text):
+            body = re.sub(r'//.*?$', '', match.group(1), flags=re.M)
+            line = text[:match.start()].count('\n') + 1
+            for kind in ('ReadMask', 'WriteMask'):
+                found = re.search(r'\b%s\s+(0x[0-9a-fA-F]+|\d+)' % kind, body, re.I)
+                if not found:
+                    out.append(('ERROR', 'stencilmask', f'{rel}:{line}: Stencil {kind} is omitted; Unity defaults it to 255'))
+                    continue
+                value = int(found.group(1), 0)
+                if value & STENCIL_USER_MASK:
+                    out.append(('ERROR', 'stencilmask', f'{rel}:{line}: Stencil {kind} {value:#x} touches user bits 0xF8'))
+            ref = re.search(r'\bRef\s+(0x[0-9a-fA-F]+|\d+)\b', body, re.I)
+            if ref and int(ref.group(1), 0) & STENCIL_USER_MASK:
+                out.append(('ERROR', 'stencilmask', f'{rel}:{line}: Stencil Ref {int(ref.group(1), 0):#x} touches user bits 0xF8'))
+
+
 AGENTS_LIMIT = 15 * 1024
 
 
@@ -1392,7 +1418,7 @@ def main():
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('gpurecordlayout', check_gpu_record_layout), ('iteratorref', check_iterator_ref_locals), ('handlename', check_handle_names), ('cbuffermember', check_cbuffer_member_ids), ('silentfallback', check_silent_fallback), ('scalarupload', check_scalar_uploads), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
-                     ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('meshvisibility', check_mesh_visibility), ('findproperty', check_find_property), ('lodither', check_lod_dither),
+                     ('meshpasses', check_mesh_passes), ('meshmechanism', check_mesh_mechanism), ('meshvisibility', check_mesh_visibility), ('findproperty', check_find_property), ('lodither', check_lod_dither), ('stencilmask', check_stencil_mask),
                      ('fprefix', check_fprefix), ('generationname', check_generationname),
                      ('agentsize', check_agents_size), ('docfacts', check_doc_facts),
                      ('legacyresidue', check_legacy_residue), ('unusedtypes', check_unused_types), ('assemblies', check_assemblies),

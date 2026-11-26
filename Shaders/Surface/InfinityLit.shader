@@ -232,6 +232,7 @@
 			Stencil
 			{
 				Ref [_StencilRefGBuffer]
+				ReadMask 6
 				WriteMask 6
 				Comp Always
 				Pass Replace
@@ -502,9 +503,10 @@
             Stencil
 			{
                 Ref 1
+                ReadMask 1
                 WriteMask 1
-                comp always
-                pass replace
+                Comp Always
+                Pass Replace
             }
 
 			HLSLPROGRAM

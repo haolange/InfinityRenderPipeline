@@ -60,6 +60,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
 			Stencil
 			{
 				Ref 2
+				ReadMask 6
 				WriteMask 6
 				Comp Always
 				Pass Replace
