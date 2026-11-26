@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -22,11 +24,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public Vector4 row0, row1, row2, extents, capture, projection, parameters;
         }
         // The production kernel checks aggregate contribution across words; the exact-index probe and normal multi-tile frames complement it.
-        [TestCase(0)] [TestCase(1)] [TestCase(31)] [TestCase(32)]
-        [TestCase(33)] [TestCase(63)] [TestCase(64)] [TestCase(65)]
-        public void ActualDeferredKernel_AccumulatesLocalLightsAcrossMaskWords(int localCount)
+        static readonly int[] s_LocalCounts = { 0, 1, 31, 32, 33, 63, 64, 65 };
+        static readonly float[] s_Occlusions = { 1.0f, 0.25f, 0.0f };
+
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_AccumulatesLocalLightsAcrossMaskWords([ValueSource(nameof(s_LocalCounts))] int localCount)
         {
-            var actual = Dispatch(new Fixture { localCount = localCount }).color[0][8 * 16 + 8];
+            Result result = default;
+            yield return Dispatch(new Fixture { localCount = localCount }, value => result = value);
+            var actual = result.color[0][8 * 16 + 8];
             float normalDistance = 1 + Fixture.SurfaceDepth;
             float distanceSquared = normalDistance * normalDistance + 2 * .0625f * .0625f;
             float window = 1 - Mathf.Pow(Mathf.Sqrt(distanceSquared) / 20, 4);
@@ -35,10 +41,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.That(actual[channel], Is.EqualTo(expected).Within(.015f), "Actual production Deferred kernel, local=" + localCount);
         }
 
-        [Test]
-        public void ActualDeferredKernel_WeightsScaleOnlyTheirLightingTerm()
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_WeightsScaleOnlyTheirLightingTerm()
         {
-            var results = Dispatch(new Fixture { localCount = 1, weightCases = true }).color;
+            Result result = default;
+            yield return Dispatch(new Fixture { localCount = 1, weightCases = true }, value => result = value);
+            var results = result.color;
             float diffuseEnergy = 0, specularEnergy = 0;
             for (int pixel = 0; pixel < 16 * 16; ++pixel)
             {
@@ -63,12 +71,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.Greater(specularEnergy, 0, "Specular control must exercise a nonzero term.");
         }
 
-        [TestCase(false, false)] [TestCase(true, false)]
-        [TestCase(false, true)] [TestCase(true, true)]
-        public void ActualDeferredKernel_OddExtentWritesEveryPixel(bool ao, bool contact)
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_OddExtentWritesEveryPixel([Values(false, true)] bool ao, [Values(false, true)] bool contact)
         {
             var fixture = new Fixture { localCount = 1, size = 19, occlusion = ao ? 1.0f : (float?)null, contact = contact };
-            var values = Dispatch(fixture).color[0];
+            Result result = default;
+            yield return Dispatch(fixture, value => result = value);
+            var values = result.color[0];
             Assert.AreEqual(19 * 19, values.Length);
             foreach (Color pixel in values)
             {
@@ -81,38 +90,39 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         // Occlusion scales the indirect part decoded from the RGBA8 sideband. Emission passes through.
-        [TestCase(1.0f)]
-        [TestCase(0.25f)]
-        [TestCase(0.0f)]
-        public void ActualDeferredKernel_OccludesOnlyTheIndirectShareOfSceneColor(float occlusion)
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_OccludesOnlyTheIndirectShareOfSceneColor([ValueSource(nameof(s_Occlusions))] float occlusion)
         {
             const float geometryShare = 128.0f / 255.0f;
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = occlusion };
-            Result result = Dispatch(fixture);
+            Result result = default;
+            yield return Dispatch(fixture, value => result = value);
             float indirect = geometryShare * occlusion;
             float expected = 1.0f - geometryShare + indirect;
             AssertUniform(result.color[0], expected, 1e-4f, "E + I·ao");
             AssertUniformRatio(result.sideband, indirect / expected, "diffuse share after deferred shading");
         }
 
-        [Test]
-        public void ActualDeferredKernel_ReadsAndWritesPackedSceneColorInPlace()
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_ReadsAndWritesPackedSceneColorInPlace()
         {
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = 1.0f, occlusion = 0.25f,
                 sceneColorFormat = EffectivePipelineConfiguration.SceneColorFormat };
-            Result result = Dispatch(fixture);
+            Result result = default;
+            yield return Dispatch(fixture, value => result = value);
             AssertUniform(result.color[0], 0.25f, 1e-6f, "Packed Scene Color after in-place deferred shading");
             AssertUniformRatio(result.sideband, 1.0f, "Packed Scene Color stays all diffuse");
         }
 
         // SSGI replaces the occluded indirect diffuse by its confidence and adds its premultiplied irradiance times the
         // diffuse color (albedo 0.5, metallic 0): I' = I·ao·(1 − a) + 0.5·ssgi.rgb.
-        [Test]
-        public void ActualDeferredKernel_SSGIReplacesTheOccludedIndirectByConfidence()
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_SSGIReplacesTheOccludedIndirectByConfidence()
         {
             const float geometryShare = 128.0f / 255.0f;
             var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = 0.25f, ssgi = new Color(0.2f, 0.2f, 0.2f, 0.5f) };
-            Result result = Dispatch(fixture);
+            Result result = default;
+            yield return Dispatch(fixture, value => result = value);
             float indirect = geometryShare * 0.25f * (1 - 0.5f) + 0.5f * 0.2f;
             float expected = 1.0f - geometryShare + indirect;
             AssertUniform(result.color[0], expected, 1e-4f, "E + SSGI-replaced indirect");
@@ -120,11 +130,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         // Without the deferred stencil bit the pixel is not deferred: Scene Color and the sideband keep the geometry values.
-        [Test]
-        public void ActualDeferredKernel_LeavesPixelsWithoutTheDeferredBit()
+        [UnityTest]
+        public IEnumerator ActualDeferredKernel_LeavesPixelsWithoutTheDeferredBit()
         {
             var fixture = new Fixture { localCount = 1, sceneColor = new Color(0.3f, 0.6f, 0.9f, 1), sidebandRatio = 0.25f, occlusion = 0.0f, stencil = 4 };
-            Result result = Dispatch(fixture);
+            Result result = default;
+            yield return Dispatch(fixture, value => result = value);
             foreach (Color pixel in result.color[0])
             {
                 Assert.AreEqual(0.3f, pixel.r, 1e-6f);
@@ -182,7 +193,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             internal Color[] sideband;
         }
 
-        static Result Dispatch(Fixture fixture)
+        // Records one deferred dispatch per weight case and hands the readbacks to complete. A readback that does not finish
+        // in time keeps the fixture's targets alive (they are not destroyed under a pending GPU copy).
+        static IEnumerator Dispatch(Fixture fixture, Action<Result> complete)
         {
             int localCount = fixture.localCount;
             bool weightCases = fixture.weightCases;
@@ -197,6 +210,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var owned = new List<UnityEngine.Object>();
             var buffers = new List<GraphicsBuffer>();
             RenderTexture previous = RenderTexture.active;
+            bool readbackPending = false;
             try
             {
                 var source = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Shaders/Pass/Lighting/Compute_DeferredShading.compute");
@@ -388,7 +402,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     }
                     shader.GetKernelThreadGroupSizes(kernel, out uint threadsX, out uint threadsY, out _);
                     shader.Dispatch(kernel, Mathf.CeilToInt(size / (float)threadsX), Mathf.CeilToInt(size / (float)threadsY), 1);
-                    var readback = AsyncGPUReadback.Request(output, 0, TextureFormat.RGBAFloat); readback.WaitForCompletion();
+                    var readback = AsyncGPUReadback.Request(output, 0, TextureFormat.RGBAFloat);
+                    readbackPending = true;
+                    yield return GpuReadbackTestUtility.Await(readback);
+                    readbackPending = !readback.done;
+                    Assert.IsFalse(readbackPending, "Scene Color readback timed out; its targets stay alive until it completes.");
                     Assert.IsFalse(readback.hasError);
                     results[w] = readback.GetData<Color>().ToArray();
                 }
@@ -396,11 +414,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (sideband)
                 {
                     var sidebandReadback = AsyncGPUReadback.Request(sidebandTarget, 0, TextureFormat.RGBAFloat);
-                    sidebandReadback.WaitForCompletion();
+                    readbackPending = true;
+                    yield return GpuReadbackTestUtility.Await(sidebandReadback);
+                    readbackPending = !sidebandReadback.done;
+                    Assert.IsFalse(readbackPending, "Sideband readback timed out; its targets stay alive until it completes.");
                     Assert.IsFalse(sidebandReadback.hasError);
                     sidebandValues = sidebandReadback.GetData<Color>().ToArray();
                 }
-                return new Result { color = results, sideband = sidebandValues };
+                complete(new Result { color = results, sideband = sidebandValues });
 
             }
             finally
@@ -408,8 +429,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Shader.DisableKeyword("INFINITY_LIGHT_COOKIES");
                 Shader.DisableKeyword("INFINITY_REFLECTION_PROBES");
                 RenderTexture.active = previous;
-                foreach (var buffer in buffers) buffer.Dispose();
-                foreach (var item in owned) UnityEngine.Object.DestroyImmediate(item);
+                if (!readbackPending)
+                {
+                    foreach (var buffer in buffers)
+                    {
+                        buffer.Dispose();
+                    }
+                    foreach (var item in owned)
+                    {
+                        UnityEngine.Object.DestroyImmediate(item);
+                    }
+                }
             }
         }
     }

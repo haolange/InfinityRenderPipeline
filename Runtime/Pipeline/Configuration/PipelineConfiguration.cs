@@ -79,14 +79,16 @@ namespace InfinityTech.Rendering.Pipeline
             const GraphicsFormatUsage rtLoadStoreSample = GraphicsFormatUsage.Render | GraphicsFormatUsage.LoadStore | GraphicsFormatUsage.Sample;
             const GraphicsFormatUsage loadStoreSample = GraphicsFormatUsage.LoadStore | GraphicsFormatUsage.Sample;
             bool supportsStencilView = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UInt, GraphicsFormatUsage.StencilSampling);
+            // Scene Color is rendered, loaded and stored, and sampled by later passes. Metal reports Sample as false for
+            // B10G11R11 although the render texture is shader-readable (verified on Apple M3 Max); every other API reports it.
+            GraphicsFormatUsage sceneColorUsage = SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal ? rtLoadStore : rtLoadStoreSample;
             return new DeviceCapabilitySnapshot(
                 // The combined format is the attachment; shaders bind its depth and stencil planes separately.
                 supportsD24S8: supportsStencilView && SystemInfo.IsFormatSupported(GraphicsFormat.D24_UNorm_S8_UInt, GraphicsFormatUsage.Render),
                 supportsD32FS8: supportsStencilView && SystemInfo.IsFormatSupported(GraphicsFormat.D32_SFloat_S8_UInt, GraphicsFormatUsage.Render),
                 supportsR8G8B8A8SRGB: SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_SRGB, rtSample),
                 supportsR8G8B8A8LoadStore: SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_UNorm, rtLoadStoreSample),
-                // Metal reports Sample as false for this format even when the render texture is shader-readable.
-                supportsR11G11B10FLoadStore: SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, rtLoadStore),
+                supportsR11G11B10FLoadStore: SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, sceneColorUsage),
                 supportsRG16F: SystemInfo.IsFormatSupported(GraphicsFormat.R16G16_SFloat, rtSample),
                 supportsAsyncCompute: SystemInfo.supportsAsyncCompute,
                 supportsRayTracing: SystemInfo.IsFormatSupported(GraphicsFormat.R16_SFloat, loadStoreSample));

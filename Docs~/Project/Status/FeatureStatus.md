@@ -58,6 +58,11 @@ The Metal follow-up used task-owned `opaque-color-round2-20261126/{candidate,bas
 
 The first candidate capture showed a cyan emission control. Two repeat captures, including one using the original capture buffers, both showed the baseline's pink control. SSR was zero at the control sample in all three candidate captures.
 
+
+#### Convergence follow-up — static gate only
+
+After `e073562`: `DeferredLightLoopGpuTests` and `SubsurfaceGpuTests` await their readbacks through `GpuReadbackTestUtility.Await` instead of `WaitForCompletion`, keeping their targets alive when a request does not finish; the B10G11R11 Scene Color Sample exemption is limited to Metal; the Hi-Z interval sentence moved to the shared trace description in ARCHITECTURE §11. `static_check.py` 0 errors, 0 warnings; `test_static_check.py` 52/52. Editor compile and the two converted fixtures: TODO(UNVERIFIED). 22 other test files still call `WaitForCompletion`; none blocked in the two full runs above.
+
 ### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
 Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.

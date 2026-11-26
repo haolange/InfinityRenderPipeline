@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -34,15 +36,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             ProfileOutsideList
         }
 
-        [TestCase(EScatterCase.ConstantField)]
-        [TestCase(EScatterCase.Impulse)]
-        [TestCase(EScatterCase.ProfileBoundary)]
-        [TestCase(EScatterCase.NoProfile)]
-        [TestCase(EScatterCase.NoStencilBit)]
-        [TestCase(EScatterCase.ZeroThickness)]
-        [TestCase(EScatterCase.SubPixelFootprint)]
-        [TestCase(EScatterCase.ProfileOutsideList)]
-        public void RasterScatter_ConservesUnscatteredColorAndKeepsProfilesApart(EScatterCase scatterCase)
+        static readonly EScatterCase[] s_ScatterCases = (EScatterCase[])System.Enum.GetValues(typeof(EScatterCase));
+
+        [UnityTest]
+        public IEnumerator RasterScatter_ConservesUnscatteredColorAndKeepsProfilesApart([ValueSource(nameof(s_ScatterCases))] EScatterCase scatterCase)
         {
             if (!SystemInfo.supportsAsyncGPUReadback || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
             {
@@ -52,6 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsNotNull(blit);
             var owned = new List<Object>();
             GraphicsBuffer profiles = null;
+            bool readbackPending = false;
             try
             {
                 T Own<T>(T value) where T : Object
@@ -164,7 +162,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
                 var readback = AsyncGPUReadback.Request(sceneColor);
-                readback.WaitForCompletion();
+                readbackPending = true;
+                yield return GpuReadbackTestUtility.Await(readback);
+                readbackPending = !readback.done;
+                Assert.IsFalse(readbackPending, "Scene Color readback timed out; its targets stay alive until it completes.");
                 Assert.IsFalse(readback.hasError);
                 var result = readback.GetData<Color>();
 
@@ -202,14 +203,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                profiles?.Release();
-                foreach (var value in owned)
+                // A readback that did not finish keeps its targets alive instead of destroying them under a pending GPU copy.
+                if (!readbackPending)
                 {
-                    if (value is RenderTexture target)
+                    profiles?.Release();
+                    foreach (var value in owned)
                     {
-                        target.Release();
+                        if (value is RenderTexture target)
+                        {
+                            target.Release();
+                        }
+                        Object.DestroyImmediate(value);
                     }
-                    Object.DestroyImmediate(value);
                 }
             }
         }

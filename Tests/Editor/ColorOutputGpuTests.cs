@@ -228,7 +228,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             });
             using (var readback = new RawColorReadback(target, shader, profile))
             {
-                foreach (VolumeComponent component in profile.components) readback.Own(component);
+                foreach (VolumeComponent component in profile.components)
+                {
+                    readback.Own(component);
+                }
                 Assert.IsTrue(target.Create());
                 profile.TryGet(out FilmTonemap film);
                 profile.TryGet(out ColorGrading grading);
@@ -456,17 +459,34 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(m_Target.width * m_Target.height * m_Target.volumeDepth * 4 * scalarBytes, m_Bytes.Length,
                     "Readback must include every RGBA voxel, not only the first layer.");
                 values = new float[m_Bytes.Length / scalarBytes];
-                if (scalarBytes == 4) Buffer.BlockCopy(m_Bytes, 0, values, 0, m_Bytes.Length);
-                else for (int i = 0; i < values.Length; i++) values[i] = Mathf.HalfToFloat(BitConverter.ToUInt16(m_Bytes, i * 2));
+                if (scalarBytes == 4)
+                {
+                    Buffer.BlockCopy(m_Bytes, 0, values, 0, m_Bytes.Length);
+                }
+                else
+                {
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        values[i] = Mathf.HalfToFloat(BitConverter.ToUInt16(m_Bytes, i * 2));
+                    }
+                }
                 for (int i = 0; i < values.Length; i++)
-                    if (!float.IsFinite(values[i])) Assert.Fail("Raw NaN/Inf at " + i + ": " + label);
+                {
+                    if (!float.IsFinite(values[i]))
+                    {
+                        Assert.Fail("Raw NaN/Inf at " + i + ": " + label);
+                    }
+                }
             }
 
             void Complete(AsyncGPUReadbackRequest request)
             {
                 try
                 {
-                    if (request.hasError) throw new InvalidOperationException("Raw GPU readback failed.");
+                    if (request.hasError)
+                    {
+                        throw new InvalidOperationException("Raw GPU readback failed.");
+                    }
                     using var raw = new MemoryStream();
                     for (int layer = 0; layer < request.layerCount; layer++)
                     {
@@ -475,20 +495,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     }
                     m_Bytes = raw.ToArray();
                 }
-                catch (Exception error) { m_Error = error.ToString(); }
+                catch (Exception error)
+                {
+                    m_Error = error.ToString();
+                }
                 finally
                 {
                     m_Pending = false;
-                    if (m_DisposeRequested) Release();
+                    if (m_DisposeRequested)
+                    {
+                        Release();
+                    }
                 }
             }
 
             public void Dispose()
             {
-                if (m_DisposeRequested) return;
+                if (m_DisposeRequested)
+                {
+                    return;
+                }
                 m_DisposeRequested = true;
-                if (m_Pending) s_Retained.Add(this);
-                else Release();
+                if (m_Pending)
+                {
+                    s_Retained.Add(this);
+                }
+                else
+                {
+                    Release();
+                }
             }
 
             void Release()
@@ -496,7 +531,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s_Retained.Remove(this);
                 m_Target.Release();
                 UnityEngine.Object.DestroyImmediate(m_Target);
-                foreach (UnityEngine.Object resource in m_Owned) UnityEngine.Object.DestroyImmediate(resource);
+                foreach (UnityEngine.Object resource in m_Owned)
+                {
+                    UnityEngine.Object.DestroyImmediate(resource);
+                }
             }
         }
     }
