@@ -1,6 +1,6 @@
 #ifndef INFINITY_SCREEN_SPACE_SURFACE_METADATA
 #define INFINITY_SCREEN_SPACE_SURFACE_METADATA
-#include "GBufferPack.hlsl"
+#include "GBufferNormal.hlsl"
 
 // R32_UInt: oct12x2 normal + age7 + valid1. Integer Load only. No depth crosses frames: a history sample is validated by
 // reprojection, the normal and the neighborhood, never by a stored depth.

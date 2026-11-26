@@ -119,8 +119,7 @@ Shader "InfinityPipeline/InfinityUnlit"
 #if defined(INFINITY_WRITE_REACTIVE_MASK)
                 out float4 reactive : SV_Target1,
 #endif
-                out float4 motion : INFINITY_MOTION_TARGET,
-                out float4 metadata : INFINITY_METADATA_TARGET)
+                out float4 motion : INFINITY_MOTION_TARGET)
             {
                 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv) * _BaseColor * input.color;
 #if defined(INFINITY_WRITE_REACTIVE_MASK)

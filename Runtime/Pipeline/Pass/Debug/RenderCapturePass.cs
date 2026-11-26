@@ -401,7 +401,8 @@ namespace InfinityTech.Rendering.Pipeline
                 sourceHandle = ConvertCaptureDepth(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             }
-            if (descriptor.colorFormat == GraphicsFormat.R32_UInt)
+            // SSR and SSGI surface metadata decode to normal and age; other R32_UInt captures (contact mask, tile class) stay raw.
+            if (semantic == "SSRMeta" || semantic == "SSGIMeta")
             {
                 sourceHandle = ConvertCaptureMetadata(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);

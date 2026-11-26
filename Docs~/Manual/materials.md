@@ -1,6 +1,6 @@
 # Materials
 
-InfinityLit inspector groups: Surface Options, Surface Inputs, Baked Emission, Advanced / Render State. `ValidateMaterial` is read-only. Pass state is applied only on user edit or shader assign. Surface Route selects Deferred or Forward; both draw the GBuffer, and the material writes the stencil bit that admits a deferred pixel to deferred shading (applied with the route).
+InfinityLit inspector groups: Surface Options, Surface Inputs, Baked Emission, Advanced / Render State. `ValidateMaterial` is read-only. Pass state is applied only on user edit or shader assign. Surface Route selects Deferred or Forward; both draw the GBuffer, and the material writes the stencil bit that admits a deferred pixel to deferred shading (applied with the route). A Forward material authored before that stencil reference existed keeps the deferred default until its route is applied: run **Window > Infinity > Materials > Apply Surface Route State To Project Materials** once and save the project. Until then such a pixel is shaded twice (deferred, then forward over it) and shows as deferred in the Surface Stencil view.
 
 ## Skin
 

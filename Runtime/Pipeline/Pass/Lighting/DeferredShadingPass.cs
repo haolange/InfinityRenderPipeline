@@ -114,11 +114,15 @@ namespace InfinityTech.Rendering.Pipeline
             });
 
             // In place: Scene Color and the sideband are read and written by the same lane.
-            passData.lightingTextureHandle = passHandle.WriteTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer));
+            RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            passHandle.ReadTexture(lightingTextureHandle);
+            passData.lightingTextureHandle = passHandle.WriteTexture(lightingTextureHandle);
             passData.hasSideband = hasSideband;
             if (hasSideband)
             {
-                passData.sidebandHandle = passHandle.WriteTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SidebandBuffer));
+                RGTextureHandle sidebandHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SidebandBuffer);
+                passHandle.ReadTexture(sidebandHandle);
+                passData.sidebandHandle = passHandle.WriteTexture(sidebandHandle);
             }
             passData.gBufferAHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA));
             passData.gBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));

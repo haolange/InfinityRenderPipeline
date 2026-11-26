@@ -16,6 +16,8 @@ Assigning an Infinity pipeline asset selects the camera, light and Volume Profil
 | Light Explorer | Window > Rendering > Light Explorer | Adds Infinity Lights and Infinity Probes beside Unity's lights, probes, volumes and static emissives. Infinity light columns show the native type and the analytic shape, read-only. |
 | Lighting Environment | Window > Rendering > Lighting > Environment | Realtime and baked environment, atmosphere profile, baking sky, ambient and reflection intensity. |
 | Use Atmosphere As Baking Sky | Window > Infinity > Lighting > Use Atmosphere As Baking Sky | Writes the baking-sky assets for the saved scene. See [Baked lighting](baked-gi.md). |
+| Clamp light channels | Window > Infinity > Lighting > Clamp Light Channels In Open Scenes | Keeps the four light channels of every mask in the open scenes, with Undo; warns about each mask left empty. Does not save. See [Lights](lights.md). |
+| Apply surface route state | Window > Infinity > Materials > Apply Surface Route State To Project Materials | Applies pass enables and the GBuffer stencil reference from each routed material's route under `Assets`, with Undo; reports materials with an invalid route. Does not save. See [Materials](materials.md). |
 | Rendering Debugger | Window > Analysis > Rendering Debugger | See [Rendering Debugger](rendering-debugger.md). |
 | Render Graph Viewer | Window > Analysis > Infinity Render Graph Viewer | See below. |
 | Validation fixtures | Window > Infinity > Create … Fixture | Scenes for lights, shadows, cookies, probes, baked lighting, screen space, decals, translucency, temporal effects, output, volumes and UI. |

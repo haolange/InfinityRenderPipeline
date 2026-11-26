@@ -43,7 +43,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_OcclusionTexture = Shader.PropertyToID("UAV_OcclusionTexture");
         internal static readonly int UAV_Output = Shader.PropertyToID("UAV_Output");
         internal static readonly int UAV_RayHit = Shader.PropertyToID("UAV_RayHit");
-        internal static readonly int UAV_SceneColor = Shader.PropertyToID("UAV_SceneColor");
         internal static readonly int UAV_Sideband = Shader.PropertyToID("UAV_Sideband");
         internal static readonly int UAV_Temporal = Shader.PropertyToID("UAV_Temporal");
         internal static readonly int UAV_TileArgs = Shader.PropertyToID("UAV_TileArgs");

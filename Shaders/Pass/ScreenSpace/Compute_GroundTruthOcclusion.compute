@@ -2,7 +2,7 @@
 #include "Common.hlsl"
 #include "Occlusion.hlsl"
 #include "SpatialFilter.hlsl"
-#include "../../Library/GBufferPack.hlsl"
+#include "../../Library/GBufferNormal.hlsl"
 
 #pragma kernel OcclusionTrace
 #pragma kernel OcclusionSpatialX
