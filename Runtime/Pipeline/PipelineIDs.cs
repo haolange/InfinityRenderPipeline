@@ -12,6 +12,7 @@ namespace InfinityTech.Rendering.Pipeline
         RasterDepth,
         RasterDepthRecovery,
         RasterDBuffer,
+        RasterDirectDecals,
         RasterGBuffer,
         RasterObjectMotion,
         RasterCameraMotion,
@@ -26,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeLightTileMask,
         ComputeLightCookies,
         ComputeReflectionProbes,
-        ComputeProbeTileMask,
+        RasterReflections,
         ComputeGroundTruthOcclusion,
         ComputeRayTracedOcclusion,
         RayTracingOcclusion,
@@ -73,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
     public static class InfinityShaderIDs
     {
         public static readonly RGResourceKey BakedDiffuseBuffer = new RGResourceKey("BakedDiffuseBuffer");
-        public static readonly RGResourceKey BakedOcclusionBuffer = new RGResourceKey("BakedOcclusionBuffer");
+        public static readonly RGResourceKey BakedShadowmaskBuffer = new RGResourceKey("_BakedShadowmaskTexture");
         public static readonly RGResourceKey IndirectDiffuseBuffer = new RGResourceKey("IndirectDiffuseBuffer");
         public static readonly RGResourceKey IndirectSpecularBuffer = new RGResourceKey("IndirectSpecularBuffer");
         public static readonly RGResourceKey PreDebugColorBuffer = new RGResourceKey("_PreDebugColorTexture");
@@ -89,12 +90,13 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey DBufferC = new RGResourceKey("_DBufferTextureC");
         public static readonly RGResourceKey GBufferA = new RGResourceKey("_GBufferTextureA");
         public static readonly RGResourceKey GBufferB = new RGResourceKey("_GBufferTextureB");
-        public static readonly RGResourceKey GBufferC = new RGResourceKey("_GBufferTextureC");
+        public static readonly RGResourceKey SurfaceMetadataBuffer = new RGResourceKey("_SurfaceMetadataTexture");
+        public static readonly RGResourceKey CustomDataBuffer = new RGResourceKey("_CustomDataTexture");
         public static readonly RGResourceKey MotionBuffer = new RGResourceKey("_MotionTexture");
         public static readonly RGResourceKey CascadeShadowMap = new RGResourceKey("_CascadeShadowMapTexture");
         public static readonly RGResourceKey LocalShadowMap = new RGResourceKey("_LocalShadowMapTexture");
         public static readonly RGResourceKey ReflectionProbeAtlas = new RGResourceKey("_ReflectionProbeAtlasTexture");
-        public static readonly RGResourceKey ProbeTileMaskBuffer = new RGResourceKey("_ProbeTileMaskBuffer");
+        public static readonly RGResourceKey RasterReflectionBuffer = new RGResourceKey("_RasterReflectionTexture");
         public static readonly RGResourceKey LightCookieAtlas = new RGResourceKey("_LightCookieAtlasTexture");
         public static readonly RGResourceKey CachedLocalShadowMap = new RGResourceKey("_CachedLocalShadowMapTexture");
         public static readonly RGResourceKey CascadeShadowMoments = new RGResourceKey("_CascadeShadowMomentsTexture");
@@ -179,10 +181,12 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public static readonly ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
         public static readonly ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
+        public static readonly ShaderTagId RasterDirectDecalPass = new ShaderTagId("RasterDirectDecalPass");
         public static readonly ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
         public static readonly ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
         public static readonly ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
         public static readonly ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
+        public static readonly ShaderTagId RasterReflectionPass = new ShaderTagId("RasterReflectionPass");
         public static readonly ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
         public static readonly ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
         public static readonly ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");

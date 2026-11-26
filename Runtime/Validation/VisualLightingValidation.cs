@@ -520,7 +520,7 @@ namespace InfinityTech.Rendering.Pipeline
                     meshBackend = gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect, includeConfidence = true,
                     buffers = temporal
                         ? new[] { "DisplayColor", "TAAInput", "TAAAccumulation", "AntiAliasing", "Motion", "MotionMetadata", "Depth", "TAAReprojection" }
-                        : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "BakedDiffuse", "BakedOcclusion", "IndirectDiffuse", "IndirectSpecular", "CascadeShadow" },
+                        : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "BakedDiffuse", "BakedShadowmask", "IndirectDiffuse", "IndirectSpecular", "CascadeShadow" },
                     roi = new RectInt(0, 0, m_Camera.pixelWidth, m_Camera.pixelHeight) });
                 m_PhaseStarted = Time.realtimeSinceStartupAsDouble;
                 m_Capture = RenderCaptureService.current;

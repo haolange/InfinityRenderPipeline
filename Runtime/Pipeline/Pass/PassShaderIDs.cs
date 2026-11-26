@@ -12,12 +12,12 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int InfinityHasProbes = Shader.PropertyToID("_InfinityHasProbes");
         internal static readonly int InfinitySourceDepth = Shader.PropertyToID("_InfinitySourceDepth");
         internal static readonly int SRV_AerialPerspectiveLUT = Shader.PropertyToID("SRV_AerialPerspectiveLUT");
+        internal static readonly int SRV_CustomData = Shader.PropertyToID("SRV_CustomData");
         internal static readonly int SRV_DepthTexture = Shader.PropertyToID("SRV_DepthTexture");
         internal static readonly int SRV_GBufferB = Shader.PropertyToID("SRV_GBufferB");
-        internal static readonly int SRV_GBufferC = Shader.PropertyToID("SRV_GBufferC");
         internal static readonly int SRV_GBufferTextureA = Shader.PropertyToID("SRV_GBufferTextureA");
         internal static readonly int SRV_GBufferTextureB = Shader.PropertyToID("SRV_GBufferTextureB");
-        internal static readonly int SRV_GBufferTextureC = Shader.PropertyToID("SRV_GBufferTextureC");
+        internal static readonly int SRV_SurfaceMetadata = Shader.PropertyToID("SRV_SurfaceMetadata");
         internal static readonly int SRV_HiZClosestTexture = Shader.PropertyToID("SRV_HiZClosestTexture");
         internal static readonly int SRV_HistoryColorTexture = Shader.PropertyToID("SRV_HistoryColorTexture");
         internal static readonly int SRV_HistoryDepthTexture = Shader.PropertyToID("SRV_HistoryDepthTexture");

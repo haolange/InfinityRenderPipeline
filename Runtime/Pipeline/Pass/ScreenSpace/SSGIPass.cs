@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle hiZTextureHandle;
             public RGTextureHandle hiZFurthestTextureHandle;
             public RGTextureHandle gBufferBHandle;
-            public RGTextureHandle gBufferCHandle;
+            public RGTextureHandle surfaceMetadataHandle;
             public TemporalColorView temporalColor;
             public RGTextureHandle motionMetadataHandle;
             public RGTextureHandle motionTextureHandle;
@@ -169,7 +169,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceHandle);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGINarrowBuffer, historyNarrowHandle);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaHandle);
-            bool historyValid = context.state.acceptedSSGI && radianceRead.valid && narrowRead.valid && metaRead.valid;
+            ScreenSpaceCameraState ssState = context.state.GetScreenSpaceState();
+            bool historyValid = ssState.acceptedSSGI && radianceRead.valid && narrowRead.valid && metaRead.valid;
             bool hasAO = context.features.ShouldRecord(EFrameFeature.GTAO) || context.features.ShouldRecord(EFrameFeature.RTAO);
             RGTextureHandle occlusionHandle = hasAO ? m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer) : default;
 
@@ -184,7 +185,7 @@ namespace InfinityTech.Rendering.Pipeline
                     traceResolution = new Vector4(traceResolution.x, traceResolution.y, 1.0f / traceResolution.x, 1.0f / traceResolution.y),
                     traceScale = 2,
                     frameIndex = (uint)context.frame,
-                    previousFrameIndex = (uint)context.state.acceptedSSGIFrameIndex,
+                    previousFrameIndex = (uint)ssState.acceptedSSGIFrameIndex,
                     intensity = settings.intensity,
                     hiZSteps = (uint)math.max(1, settings.hiZSteps),
                     traceFlags = (uint)((settings.traceBehind ? 1 : 0) | (settings.traceToward ? 2 : 0)),
@@ -212,8 +213,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hiZTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
                 passData.hiZFurthestTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.HiZFurthestBuffer));
                 passData.gBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.temporalColor = TemporalColorSourcePass.ReadTemporalColorView(passHandle, context.state.temporalColorView);
+                passData.surfaceMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer));
+                passData.temporalColor = TemporalColorSourcePass.ReadTemporalColorView(passHandle, context.state.GetTemporalState().temporalColorView);
                 passData.motionMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadianceHandle = passHandle.ReadTexture(historyRadianceHandle);
@@ -344,7 +345,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferB, passData.gBufferBHandle);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferC, passData.gBufferCHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SurfaceMetadata, passData.surfaceMetadataHandle);
         }
     }
 }

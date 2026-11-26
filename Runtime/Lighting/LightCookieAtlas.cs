@@ -171,7 +171,7 @@ namespace InfinityTech.Rendering.LightPipeline
             descriptor.name = "LightCookieAtlasTexture";
             descriptor.dimension = TextureDimension.Tex2D;
             descriptor.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-            descriptor.depthBufferBits = EDepthBits.None;
+            descriptor.depthStencilFormat = GraphicsFormat.None;
             descriptor.enableRandomWrite = true;
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;

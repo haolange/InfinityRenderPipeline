@@ -4,6 +4,7 @@ using InfinityTech.Rendering;
 using InfinityTech.Rendering.Atmosphere;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -36,6 +37,18 @@ namespace InfinityTech.Rendering.Pipeline
             internal readonly bool supportProbeVolumeGPUStreaming, supportProbeVolumeDiskStreaming, supportProbeVolumeScenarios, supportProbeVolumeScenarioBlending;
             internal readonly FrameSettings defaultFrameSettings, reflectionFrameSettings;
             internal readonly int reflectionProbeResolution, maxReflectionProbes, cookieAtlasResolution, cookieMaxSize;
+            internal readonly EGBufferLayout gBufferLayout;
+            internal readonly ESceneColorFormat sceneColorFormat;
+            internal readonly EDepthStencilFormat depthStencilFormat;
+            internal readonly EMotionVectorFormat motionVectorFormat;
+            internal readonly EIndirectLightingFormat indirectLightingFormat;
+            internal readonly ESubsurfaceLightingMode subsurfaceLightingMode;
+            internal readonly bool enableRenderingLayers;
+            internal readonly bool enableAnalyticShadow;
+            internal readonly bool enableAnalyticIndirectOcclusion;
+            internal readonly bool enableAnalyticDirectShadow;
+            internal readonly TemporalSettings temporal;
+            internal readonly EffectivePipelineConfiguration config;
 
             internal Settings(InfinityRenderPipelineAsset asset)
             {
@@ -76,6 +89,27 @@ namespace InfinityTech.Rendering.Pipeline
                 maxReflectionProbes = asset.maxReflectionProbes;
                 cookieAtlasResolution = asset.cookieAtlasResolution;
                 cookieMaxSize = asset.cookieMaxSize;
+                gBufferLayout = asset.m_GBufferLayout;
+                sceneColorFormat = asset.m_SceneColorFormat;
+                depthStencilFormat = asset.m_DepthStencilFormat;
+                motionVectorFormat = asset.m_MotionVectorFormat;
+                indirectLightingFormat = asset.m_IndirectLightingFormat;
+                subsurfaceLightingMode = asset.m_SubsurfaceLightingMode;
+                enableRenderingLayers = asset.m_EnableRenderingLayers;
+                enableAnalyticShadow = asset.m_EnableAnalyticShadow;
+                enableAnalyticIndirectOcclusion = asset.m_EnableAnalyticIndirectOcclusion;
+                enableAnalyticDirectShadow = asset.m_EnableAnalyticDirectShadow;
+                ETemporalBackend authoredBackend = asset.m_TemporalBackend;
+                if (authoredBackend == ETemporalBackend.NativeTAA && asset.enableSuperResolution)
+                {
+                    authoredBackend = ETemporalBackend.NativeTAAU;
+                }
+                ETemporalReconstructionMode authoredMode = asset.enableSuperResolution && asset.m_TemporalMode == ETemporalReconstructionMode.NativeAA
+                    ? ETemporalReconstructionMode.Upscaling
+                    : asset.m_TemporalMode;
+                temporal = new TemporalSettings(authoredBackend, authoredMode, asset.m_TemporalQuality, asset.m_RenderResolutionPolicy, asset.m_RenderScale, asset.m_TemporalSharpness);
+                config = default;
+                config = PipelineConfigurationResolver.Evaluate(in this, DeviceCapabilitySnapshot.FromCurrentDevice());
             }
 
             internal bool supportProbeVolume => lightProbeSystem == ELightProbeSystem.ProbeVolumes;

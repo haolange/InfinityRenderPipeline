@@ -1,0 +1,31 @@
+#pragma kernel EvaluateContract
+
+#include "../../../Shaders/Library/AnalyticShadow.hlsl"
+
+RWStructuredBuffer<float4> UAV_OutResults;
+float4 _TestLightDir;
+float4 _TestPointPos[8];
+float4 _TestPointNormal[8];
+float4 _TestPointLayer[8];
+
+[numthreads(8, 1, 1)]
+void EvaluateContract(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= 8)
+    {
+        return;
+    }
+
+    float3 posWS = _TestPointPos[i].xyz;
+    float linearDepth = _TestPointPos[i].w;
+    float3 normalWS = normalize(_TestPointNormal[i].xyz);
+    uint2 pixelCoord = uint2(_TestPointLayer[i].xy);
+    uint layerMask = (uint)_TestPointLayer[i].z;
+    float3 lightDirWS = normalize(_TestLightDir.xyz);
+
+    float indirectVis = EvaluateAnalyticIndirectOcclusion(pixelCoord, linearDepth, posWS, normalWS, layerMask);
+    float directVis = EvaluateAnalyticDirectShadow(pixelCoord, linearDepth, posWS, lightDirWS, 100.0, _TestLightDir.w, layerMask);
+
+    UAV_OutResults[i] = float4(indirectVis, directVis, 0.0, 1.0);
+}

@@ -1,8 +1,17 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 #pragma kernel DeferredShadingCS
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 #pragma multi_compile_local _ INFINITY_SSS_OUTPUT
+#pragma multi_compile_local _ INFINITY_SSS_ALPHA
+#pragma multi_compile_local _ DEFERRED_BAKED_DIFFUSE
+#pragma multi_compile_local _ DEFERRED_SHADOWMASK
+#pragma multi_compile_local _ DEFERRED_INDIRECT_DIFFUSE
+#pragma multi_compile_local _ DEFERRED_INDIRECT_SPECULAR
 #pragma multi_compile_local _ DEFERRED_AO
 #pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
+#pragma multi_compile_local _ DEFERRED_RASTER_REFLECTION
+#pragma multi_compile_local _ DEFERRED_CLUSTERED_DECALS
+#pragma multi_compile_local _ DEFERRED_ANALYTIC_SHADOW
 #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LIGHT_COOKIES
@@ -11,7 +20,6 @@
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"
 #include "../../Library/BSDF.hlsl"
-#include "../../Library/ShadingModel.hlsl"
 #include "../../Library/Lighting.hlsl"
 #include "../../Library/ImageBasedLighting.hlsl"
 
@@ -24,24 +32,39 @@ cbuffer CBV_DeferredShadingParameters
     float4 DeferredShading_Resolution;
     float DeferredShading_FarDepth;
     float _AtmosphereIBLMaxMip;
-    int DeferredShading_Padding0;
+    int DeferredShading_HasRenderingLayers;
     int DeferredShading_Padding1;
 };
 #include "../../Library/ViewUniform.hlsl"
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
-Texture2D SRV_GBufferTextureC;
+Texture2D SRV_SurfaceMetadata;
 Texture2D<float> SRV_DepthTexture;
 #if defined(DEFERRED_AO)
 Texture2D<float> SRV_OcclusionTexture;
 #endif
-
-Texture2D<float4> SRV_BakedDiffuse, SRV_BakedOcclusion;
-RWTexture2D<float4> UAV_IndirectDiffuse, UAV_IndirectSpecular;
+#if defined(DEFERRED_BAKED_DIFFUSE)
+Texture2D<float4> SRV_BakedDiffuse;
+#endif
+#if defined(DEFERRED_SHADOWMASK)
+Texture2D<float4> SRV_BakedShadowmask;
+#endif
+#if defined(DEFERRED_INDIRECT_DIFFUSE)
+RWTexture2D<float4> UAV_IndirectDiffuse;
+#endif
+#if defined(DEFERRED_INDIRECT_SPECULAR)
+RWTexture2D<float4> UAV_IndirectSpecular;
+#endif
 RWTexture2D<float4> UAV_LightingTexture;
 #if defined(INFINITY_SSS_OUTPUT)
 RWTexture2D<float4> UAV_ScatterDiffuse;
+#endif
+#if defined(DEFERRED_RASTER_REFLECTION)
+Texture2D<float4> SRV_RasterReflection;
+#endif
+#if defined(DEFERRED_CLUSTERED_DECALS)
+#include "../../Library/DecalCluster.hlsl"
 #endif
 
 #include "../../Library/SurfaceLighting.hlsl"
@@ -62,31 +85,43 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     if (abs(rawDepth - DeferredShading_FarDepth) <= 1e-5)
     {
         UAV_LightingTexture[pixelCoord] = 0;
+#if defined(DEFERRED_INDIRECT_DIFFUSE)
         UAV_IndirectDiffuse[pixelCoord] = 0;
+#endif
+#if defined(DEFERRED_INDIRECT_SPECULAR)
         UAV_IndirectSpecular[pixelCoord] = 0;
+#endif
         return;
     }
 
-    GBufferData gbufferData;
-    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
+    SurfaceData surfaceData;
+    DecodeSurface(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_SurfaceMetadata, SRV_GBufferTextureA_InfinityView, DeferredShading_HasRenderingLayers != 0, surfaceData);
 
-    if ((gbufferData.Flags & GBUFFER_FLAG_FORWARD) != 0)
+    if (surfaceData.Route != SURFACE_ROUTE_DEFERRED)
     {
+#if defined(DEFERRED_INDIRECT_DIFFUSE)
         UAV_IndirectDiffuse[pixelCoord] = 0;
+#endif
+#if defined(DEFERRED_INDIRECT_SPECULAR)
         UAV_IndirectSpecular[pixelCoord] = 0;
+#endif
         return;
     }
-    float3 albedo = gbufferData.Albedo;
-    float3 normal = gbufferData.Normal;
-    float roughness = gbufferData.Roughness;
-    float reflectance = gbufferData.Reflactance;
-    float specular = gbufferData.Specular;
+    float3 albedo = surfaceData.Albedo;
+    float3 normal = surfaceData.Normal;
+    float roughness = surfaceData.Roughness;
+    float reflectance = surfaceData.Metallic;
+    float specular = surfaceData.Specular;
 
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
     float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
     float3 viewDir = normalize(ViewPositionWS() - worldPos);
     float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvFlipYJitterProj);
     float viewDepth = -viewPos.z;
+
+#if defined(DEFERRED_CLUSTERED_DECALS)
+    ApplyClusteredDecals(pixelCoord, viewDepth, worldPos, surfaceData.RenderingLayer, albedo, normal, roughness, reflectance, specular);
+#endif
 
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);
 
@@ -95,6 +130,9 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 #else
     float ao = 1.0;
 #endif
+#if defined(DEFERRED_ANALYTIC_SHADOW)
+    ao *= EvaluateAnalyticIndirectOcclusion(pixelCoord, viewDepth, worldPos, normal, surfaceData.RenderingLayer);
+#endif
 #if defined(DEFERRED_CONTACT_SHADOW)
     float contactShadow = SRV_ContactShadowSun[pixelCoord];
     uint contactMask = SRV_ContactShadowMask[pixelCoord];
@@ -102,18 +140,22 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float contactShadow = 1.0;
     uint contactMask = 0;
 #endif
-    float4 bakedMask = 1 - SRV_BakedOcclusion[pixelCoord];
+#if defined(DEFERRED_SHADOWMASK)
+    float4 bakedMask = 1 - SRV_BakedShadowmask[pixelCoord];
+#else
+    float4 bakedMask = 1;
+#endif
     float3 lighting = 0;
     float3 directDiffuse = 0;
 
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
-        if ((g_LightRecordBuffer[d].lightLayer & gbufferData.RenderingLayer) == 0)
+        if ((g_LightRecordBuffer[d].lightLayer & surfaceData.RenderingLayer) == 0)
         {
             continue;
         }
         float3 contribution;
-        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask, contribution);
+        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask, pixelCoord, surfaceData.RenderingLayer, contribution);
         directDiffuse += contribution;
     }
 
@@ -124,29 +166,51 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     while (NextLight(lightLoop, recordIndex))
     {
         LightRecord light = g_LightRecordBuffer[recordIndex];
-        if ((light.lightLayer & gbufferData.RenderingLayer) == 0)
+        if ((light.lightLayer & surfaceData.RenderingLayer) == 0)
         {
             continue;
         }
         float3 contribution;
-        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask, contribution);
+        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask, pixelCoord, surfaceData.RenderingLayer, contribution);
         directDiffuse += contribution;
     }
 
-    float4 baked = SRV_BakedDiffuse[pixelCoord];
-    float3 diffuse = microfaceCtx.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(normal, _AtmosphereSkySH)) * ao;
-    // Specular environment: reflection probes front to back, the sky for the remainder (SSR replaces it by confidence).
+#if defined(DEFERRED_BAKED_DIFFUSE)
+    float3 envIrradiance = (surfaceData.Flags & SURFACE_FLAG_HAS_BAKED_GI) != 0
+        ? SRV_BakedDiffuse[pixelCoord].rgb
+        : EvaluateSH2Irradiance(normal, _AtmosphereSkySH);
+    float3 diffuse = microfaceCtx.AlbedoColor * envIrradiance * ao;
+#if defined(DEFERRED_INDIRECT_DIFFUSE)
+    UAV_IndirectDiffuse[pixelCoord] = float4(diffuse, 1);
+#endif
+    lighting += diffuse;
+#else
+    float3 diffuse = 0;
+#endif
+    // Specular environment: raster reflection volume overrides clustered probes front to back, sky for the remainder.
     float3 reflectionWS = reflect(-viewDir, normal);
     float3 sky = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflectionWS, microfaceCtx.RoughnessClamp, _AtmosphereIBLMaxMip);
-    float3 specularIBL = BlendReflectionProbesWithSky(worldPos, reflectionWS, microfaceCtx.RoughnessClamp, pixelCoord, viewDepth, sky)
+#if defined(DEFERRED_RASTER_REFLECTION)
+    float4 rasterReflection = SRV_RasterReflection[pixelCoord];
+#else
+    float4 rasterReflection = 0;
+#endif
+    float3 specularIBL = ComposeSpecularEnvironment(rasterReflection, worldPos, reflectionWS, microfaceCtx.RoughnessClamp, pixelCoord, viewDepth, sky)
         * EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(normal, viewDir))).rgb * ao;
-    UAV_IndirectDiffuse[pixelCoord] = float4(diffuse, 1);
+#if defined(DEFERRED_INDIRECT_SPECULAR)
     UAV_IndirectSpecular[pixelCoord] = float4(specularIBL, 1);
-    lighting += diffuse + specularIBL;
+#endif
+    lighting += specularIBL;
 #if defined(INFINITY_SSS_OUTPUT)
     UAV_ScatterDiffuse[pixelCoord] = float4(directDiffuse + diffuse, 1);
 #endif
 
-    float3 emissive = UAV_LightingTexture[pixelCoord].rgb;
-    UAV_LightingTexture[pixelCoord] = float4(max(0, lighting) + emissive, 1);
+    float3 emissiveAndBaked = UAV_LightingTexture[pixelCoord].rgb;
+    float3 totalColor = max(0, lighting) + emissiveAndBaked;
+#if defined(INFINITY_SSS_ALPHA)
+    float diffuseLuma = (surfaceData.Flags & SURFACE_FLAG_SUBSURFACE) != 0 ? Luminance(max(0, directDiffuse + diffuse)) : 0.0;
+    UAV_LightingTexture[pixelCoord] = float4(totalColor, diffuseLuma);
+#else
+    UAV_LightingTexture[pixelCoord] = float4(totalColor, 1);
+#endif
 }

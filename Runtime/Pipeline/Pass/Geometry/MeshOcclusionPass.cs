@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (history)
             {
                 previous = context.historyCache.Read(HiZPassUtilityData.HistoryFurthest, HiZPass.HiZDescriptor(size.x, size.y, "HiZFurthest"), context.resetsHistory);
-                history = previous.valid && context.state.acceptedHiZ;
+                history = previous.valid && context.state.GetScreenSpaceState().acceptedHiZ;
             }
             if (!history)
             {

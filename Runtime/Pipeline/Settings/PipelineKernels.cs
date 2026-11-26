@@ -93,10 +93,20 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
         internal readonly LocalKeyword deferredShadingSubsurface;
+        internal readonly LocalKeyword deferredShadingSubsurfaceAlpha;
+        internal readonly LocalKeyword deferredShadingBakedDiffuse;
+        internal readonly LocalKeyword deferredShadingShadowmask;
+        internal readonly LocalKeyword deferredShadingIndirectDiffuse;
+        internal readonly LocalKeyword deferredShadingIndirectSpecular;
         internal readonly LocalKeyword deferredShadingOcclusion;
+        internal readonly LocalKeyword deferredShadingRasterReflection;
+        internal readonly LocalKeyword deferredShadingClusteredDecals;
+        internal readonly LocalKeyword deferredShadingAnalyticShadow;
         internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword deferredShadingContactShadow;
+        internal readonly LocalKeyword subsurfaceAlpha;
         internal readonly LocalKeyword compositeSubsurface;
+        internal readonly LocalKeyword compositeSubsurfaceAlpha;
         internal readonly LocalKeyword compositeSSR;
         internal readonly LocalKeyword compositeSSGI;
         internal readonly LocalKeyword fogCompositeFog;
@@ -211,10 +221,20 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
             deferredShadingSubsurface = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_OUTPUT");
+            deferredShadingSubsurfaceAlpha = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_ALPHA");
+            deferredShadingBakedDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_BAKED_DIFFUSE");
+            deferredShadingShadowmask = Keyword(shaders.deferredShadingShader, "DEFERRED_SHADOWMASK");
+            deferredShadingIndirectDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_INDIRECT_DIFFUSE");
+            deferredShadingIndirectSpecular = Keyword(shaders.deferredShadingShader, "DEFERRED_INDIRECT_SPECULAR");
             deferredShadingOcclusion = Keyword(shaders.deferredShadingShader, "DEFERRED_AO");
+            deferredShadingRasterReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_RASTER_REFLECTION");
+            deferredShadingClusteredDecals = Keyword(shaders.deferredShadingShader, "DEFERRED_CLUSTERED_DECALS");
+            deferredShadingAnalyticShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_ANALYTIC_SHADOW");
             deferredShadingContactShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_CONTACT_SHADOW");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
+            subsurfaceAlpha = Keyword(shaders.subsurfaceShader, "INFINITY_SSS_ALPHA");
             compositeSubsurface = Keyword(shaders.screenSpaceCompositeShader, "INFINITY_SSS_OUTPUT");
+            compositeSubsurfaceAlpha = Keyword(shaders.screenSpaceCompositeShader, "INFINITY_SSS_ALPHA");
             compositeSSR = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSR");
             compositeSSGI = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSGI");
             fogCompositeFog = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_FOG");

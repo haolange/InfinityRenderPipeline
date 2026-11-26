@@ -90,6 +90,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var shader = UnityEngine.Object.Instantiate(source);
                 owned.Add(shader);
                 shader.shaderKeywords = Array.Empty<string>();
+                shader.EnableKeyword("DEFERRED_BAKED_DIFFUSE");
+                shader.EnableKeyword("DEFERRED_INDIRECT_DIFFUSE");
+                shader.EnableKeyword("DEFERRED_INDIRECT_SPECULAR");
                 if (ao) shader.EnableKeyword("DEFERRED_AO");
                 if (contact) shader.EnableKeyword("DEFERRED_CONTACT_SHADOW");
                 int kernel = shader.FindKernel("DeferredShadingCS");
@@ -115,11 +118,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, data.Length, stride); buffers.Add(buffer); buffer.SetData(data); return buffer;
                 }
                 var black = Texture(Color.clear);
-                var layer = Texture(new Color(64f / 255, 0, 0, 1f / 255));
+                var metadata = Texture(new Color(5f / 255f, 1f / 255f, 0, 0));
                 var white = Texture(Color.white);
                 var baked = Texture(new Color(0, 0, 0, 1));
-                var normal = Texture(new Color(.5f, .5f, 0, weightCases ? .5f : 0));
-                var albedo = Texture(new Color(.5f, 128f / 255, weightCases ? .12f : .65f, 0));
+                var normal = Texture(new Color(1f, 1f, 0f, weightCases ? .5f : 0f));
+                var albedo = Texture(new Color(.5f, .5f, .5f, weightCases ? .12f : .65f));
                 var environment = new Texture2DArray(1, 1, 6, TextureFormat.RGBAFloat, false, true);
                 owned.Add(environment);
                 for (int i = 0; i < 6; i++) environment.SetPixels(new[] { Color.clear }, i);
@@ -169,12 +172,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var probe = new ProbeRecord { row0 = Vector4.zero, row1 = Vector4.zero, row2 = Vector4.zero,
                         extents = Vector4.zero, capture = Vector4.zero, projection = Vector4.zero, parameters = Vector4.zero };
                     shader.SetBuffer(kernel, "SRV_ReflectionProbes", Buffer(new[] { probe }, 112));
-                    shader.SetBuffer(kernel, "SRV_ProbeZBins", Buffer(new[] { 0x0000ffffu }, 4));
-                    shader.SetBuffer(kernel, "SRV_ProbeTileMasks", Buffer(new[] { 0u }, 4));
+                    shader.SetBuffer(kernel, "SRV_ProbeClusterHeaders", Buffer(new[] { Vector2.zero }, 8));
+                    shader.SetBuffer(kernel, "SRV_ProbeClusterIndices", Buffer(new[] { 0u }, 4));
                     Shader.EnableKeyword("INFINITY_REFLECTION_PROBES");
                     shader.SetTexture(kernel, "SRV_ReflectionProbeAtlas", environment);
                 }
                 shader.SetBuffer(kernel, "_AtmosphereSkySH", Buffer(new Vector4[9], 16));
+                using var reflection = new UniformBinding<global::InfinityTech.Rendering.Reflection.ReflectionUniform>(default);
                 using var lightLoop = new UniformBinding<LightLoopUniform>(new LightLoopUniform
                 {
                     tileParameters = new Vector4(size, size, tileCount, words),
@@ -184,6 +188,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 });
                 shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
                 shader.SetFloat("DeferredShading_FarDepth", 1);
+                shader.SetInt("DeferredShading_HasRenderingLayers", 1);
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
@@ -193,7 +198,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowDistance = 1000 });
                 shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
-                shader.SetTexture(kernel, "SRV_GBufferTextureC", layer); shader.SetTexture(kernel, "SRV_DepthTexture", black);
+                shader.SetTexture(kernel, "SRV_SurfaceMetadata", metadata); shader.SetTexture(kernel, "SRV_DepthTexture", black);
                 if (ao) shader.SetTexture(kernel, "SRV_OcclusionTexture", white);
                 if (contact)
                 {
@@ -203,7 +208,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RenderTexture.active = mask; GL.Clear(false, true, Color.clear); RenderTexture.active = previous;
                     shader.SetTexture(kernel, "SRV_ContactShadowMask", mask);
                 }
-                shader.SetTexture(kernel, "SRV_BakedDiffuse", baked); shader.SetTexture(kernel, "SRV_BakedOcclusion", black);
+                shader.SetTexture(kernel, "SRV_BakedDiffuse", baked);
                 shader.SetTexture(kernel, "SRV_CascadeShadowMap", black); shader.SetTexture(kernel, "SRV_LocalShadowMap", black);
                 shader.SetTexture(kernel, "_AtmosphereGGXPrefilter", environment);
                 shader.SetTexture(kernel, "UAV_LightingTexture", output); shader.SetTexture(kernel, "UAV_IndirectDiffuse", diffuse);

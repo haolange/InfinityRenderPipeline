@@ -9,6 +9,34 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class GpuRecordLayout
     {
         [Test]
+        public void AnalyticOccluderRecord_MatchesHlslByteSize()
+        {
+            // AnalyticOccluderRecord in Shaders/Library/AnalyticShadow.hlsl
+            Assert.AreEqual(112, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.AnalyticShadow.AnalyticOccluderRecord>());
+        }
+
+        [Test]
+        public void AnalyticShadowUniform_MatchesHlslByteSize()
+        {
+            // AnalyticShadowUniform in Shaders/Library/AnalyticShadow.hlsl
+            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.AnalyticShadow.AnalyticShadowUniform>());
+        }
+
+        [Test]
+        public void DecalRecord_MatchesHlslByteSize()
+        {
+            // DecalRecord in Shaders/Library/DecalCluster.hlsl
+            Assert.AreEqual(128, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Decal.DecalRecord>());
+        }
+
+        [Test]
+        public void DecalUniform_MatchesHlslByteSize()
+        {
+            // DecalUniform in Shaders/Library/DecalCluster.hlsl
+            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Decal.DecalUniform>());
+        }
+
+        [Test]
         public void DiffusionProfileRecord_MatchesHlslByteSize()
         {
             // DiffusionProfileRecord in Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
@@ -34,13 +62,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             // LocalShadowSlice in Shaders/Library/ShadowSampling.hlsl
             Assert.AreEqual(96, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
-        }
-
-        [Test]
-        public void ReflectionProbeRecord_MatchesHlslByteSize()
-        {
-            // ReflectionProbeRecord in Shaders/Library/Lighting/ReflectionProbes.hlsl
-            Assert.AreEqual(112, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.LightPipeline.ReflectionProbeRecord>());
         }
 
         [Test]
@@ -138,7 +159,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void LightLoopUniform_MatchesHlslByteSize()
         {
             // LightLoopUniform in Shaders/Library/Lighting/LightLoopUniform.hlsl
-            Assert.AreEqual(64, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.LightLoopUniform>());
+            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.LightLoopUniform>());
         }
 
         [Test]
@@ -237,6 +258,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             // CBV_VolumetricFogParameters in Shaders/Pass/Volumetric/Compute_VolumetricFog.compute
             Assert.AreEqual(96, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.VolumetricFogParameters>());
+        }
+
+        [Test]
+        public void ReflectionProbeRecord_MatchesHlslByteSize()
+        {
+            // ReflectionProbeRecord in Shaders/Library/Lighting/ReflectionProbes.hlsl
+            Assert.AreEqual(112, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Reflection.ReflectionProbeRecord>());
+        }
+
+        [Test]
+        public void ReflectionUniform_MatchesHlslByteSize()
+        {
+            // ReflectionUniform in Shaders/Library/Lighting/ReflectionProbes.hlsl
+            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Reflection.ReflectionUniform>());
         }
     }
 }

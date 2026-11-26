@@ -11,7 +11,7 @@ struct InfinityTranslucentOutput
     float reactive : SV_Target1;
 #endif
     float2 motion : INFINITY_MOTION_TARGET;
-    float4 motionMetadata : INFINITY_METADATA_TARGET;
+    float2 motionMetadata : INFINITY_METADATA_TARGET;
 };
 
 InfinityTranslucentOutput frag(PackedVaryings packedInput)

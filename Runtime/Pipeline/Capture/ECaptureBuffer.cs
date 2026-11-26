@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
         DBufferC = 1UL << 30,
         GBufferA = 1UL << 31,
         GBufferB = 1UL << 32,
-        GBufferC = 1UL << 33,
+        SurfaceMetadata = 1UL << 33,
         Occlusion = 1UL << 34,
         SSR = 1UL << 35,
         SSGI = 1UL << 36,
@@ -65,12 +65,13 @@ namespace InfinityTech.Rendering.Pipeline
         SSGITraceRadiance = 1UL << 54,
         SSGITemporal = 1UL << 55,
         BakedDiffuse = 1UL << 56,
-        BakedOcclusion = 1UL << 57,
+        BakedShadowmask = 1UL << 57,
         IndirectDiffuse = 1UL << 58,
         IndirectSpecular = 1UL << 59,
         HalfResDepth = 1UL << 60,
         HalfResNormal = 1UL << 61,
-        VolumetricCloud = 1UL << 62
+        VolumetricCloud = 1UL << 62,
+        CustomData = 1UL << 63
     }
 }
 #endif

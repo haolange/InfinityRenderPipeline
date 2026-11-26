@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.name = CascadeShadowPassUtilityData.TextureName;
                 shadowMapDsc.dimension = TextureDimension.Tex2D;
                 shadowMapDsc.colorFormat = GraphicsFormat.None;
-                shadowMapDsc.depthBufferBits = EDepthBits.Depth32;
+                shadowMapDsc.depthStencilFormat = GraphicsFormat.D32_SFloat;
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }

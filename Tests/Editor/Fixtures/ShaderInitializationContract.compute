@@ -12,7 +12,7 @@
 #include "../../../Shaders/Library/GBufferPack.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
-Texture2D SRV_GBufferB, SRV_GBufferC;
+Texture2D SRV_GBufferB, SRV_SurfaceMetadata;
 float4 SSGI_Resolution;
 float4x4 ContractInvViewProj;
 #include "../../../Shaders/Library/ScreenSpaceIndirectSurface.hlsl"

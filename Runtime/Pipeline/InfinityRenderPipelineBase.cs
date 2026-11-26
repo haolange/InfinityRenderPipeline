@@ -14,6 +14,8 @@ using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.AnalyticShadow;
+using InfinityTech.Rendering.Temporal;
 using InfinityTech.Rendering.TerrainPipeline;
 using InfinityTech.Rendering.SceneModules;
 
@@ -202,6 +204,8 @@ namespace InfinityTech.Rendering.Pipeline
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
         // What the derived pipeline records and requires; fixed for the pipeline's lifetime.
         readonly PipelineCapabilities m_Capabilities;
+        readonly List<AnalyticShadowLight> m_AnalyticLights = new List<AnalyticShadowLight>(64);
+        internal readonly TemporalReconstructionSystem temporalSystem = new TemporalReconstructionSystem();
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
@@ -442,7 +446,6 @@ namespace InfinityTech.Rendering.Pipeline
             state.preparedThisRender = true;
             state.cameraType = camera.cameraType;
             state.executeSucceeded = false;
-            state.temporalColorView = default;
             return state;
         }
 
@@ -454,13 +457,27 @@ namespace InfinityTech.Rendering.Pipeline
             ResolvedFrameSettings frameSettings = FrameSettingsUtility.Resolve(m_Settings.defaultFrameSettings, m_Settings.reflectionFrameSettings,
                 camera.cameraType == CameraType.Reflection, cameraData != null && cameraData.customFrameSettings,
                 cameraData != null ? cameraData.frameSettings : default);
-            // Super resolution and TAA resolve only in a pipeline that records them.
-            CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera,
-                m_Settings.enableSuperResolution && m_Capabilities.Records(EFrameFeature.SuperResolution), m_Settings.renderScale, cameraData);
-            EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, frameContext.frame, dimensions);
-            ETemporalResolve temporalResolve = !policy.temporal ? ETemporalResolve.None
-                : dimensions.superResolution ? ETemporalResolve.SuperResolution
-                : m_Capabilities.Records(EFrameFeature.TAA) ? ETemporalResolve.TAA : ETemporalResolve.None;
+            // Select TRC backend & declare FrameRequirements BEFORE CameraDimensionDescriptor and resource production (PRD §9.3).
+            bool allowSuperResolution = m_Capabilities.Records(EFrameFeature.SuperResolution)
+                && camera.cameraType == CameraType.Game
+                && (cameraData == null || cameraData.superResolutionOverride != ESuperResolutionOverride.Off);
+            bool allowTemporal = policy.temporal && (m_Capabilities.Records(EFrameFeature.TAA) || allowSuperResolution);
+            int2 displaySize = new int2(math.max(1, camera.pixelWidth), math.max(1, camera.pixelHeight));
+            TemporalFrameRequirements temporalRequirements = temporalSystem.PlanFrame(
+                new TemporalPlanInput(displaySize, allowTemporal, allowSuperResolution, m_Settings.temporal, newlyCreated),
+                out _);
+            CameraDimensionDescriptor dimensions = new CameraDimensionDescriptor(
+                temporalRequirements.displaySize,
+                temporalRequirements.renderScale,
+                temporalRequirements.activeBackend == ETemporalBackend.NativeTAAU,
+                camera.pixelRect);
+            TemporalCameraState temporalState = state.GetTemporalState();
+            bool backendChanged = temporalState.RequiresBackendSwitchReset(in temporalRequirements);
+            EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, frameContext.frame, dimensions, backendChanged);
+            temporalState.PrepareFrame(in temporalRequirements);
+            ETemporalResolve temporalResolve = temporalRequirements.activeBackend == ETemporalBackend.NativeTAAU ? ETemporalResolve.SuperResolution
+                : temporalRequirements.activeBackend == ETemporalBackend.NativeTAA ? ETemporalResolve.TAA
+                : ETemporalResolve.None;
             dimensions = dimensions.WithCapacity(state.internalCapacity.Prepare(dimensions.internalSize), state.displayCapacity.Prepare(dimensions.displaySize));
             state.preparedDimensions = dimensions;
             renderContext.graph.SetTextureCapacity(dimensions.textureCapacity);
@@ -484,6 +501,10 @@ namespace InfinityTech.Rendering.Pipeline
             InfinityDebugDisplaySettings.current.rendering.lastFeatures = state.features;
             InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
             InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
+            InfinityDebugDisplaySettings.current.rendering.lastConfiguration = m_Settings.config;
+            InfinityDebugDisplaySettings.current.rendering.hasConfiguration = true;
+            InfinityDebugDisplaySettings.current.rendering.lastTemporalRequirements = temporalRequirements;
+            InfinityDebugDisplaySettings.current.rendering.hasTemporalRequirements = true;
 #endif
             // Unity keeps previous object transforms only for a camera that declares motion vectors. Declare them once,
             // before camera setup and culling; the flag stays on the camera.
@@ -498,7 +519,7 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.current.ResolveDebugView(camera),
 #endif
-                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport);
+                ResolveOutputDecision(camera, state), volumes, atmosphere, featureSupport, temporalRequirements);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             PipelineDiagnostics.BeforeCamera(frameContext, setup);
 #endif
@@ -600,9 +621,30 @@ namespace InfinityTech.Rendering.Pipeline
                     using (PipelineCpuMarkers.s_ProcessLightResolveProbes.Auto())
                     {
                         sceneWorld.probes.atlas.Configure(m_Settings.reflectionProbeResolution, m_Settings.maxReflectionProbes);
-                        lightContext.ResolveReflectionProbes(setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? sceneWorld.probes.atlas : null,
-                            sceneWorld.probes.table, cullingResults, frameContext.frame);
+                        sceneWorld.probes.context.Build(
+                            setup.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? sceneWorld.probes.atlas : null,
+                            sceneWorld.probes.table, sceneWorld.probes.rasterTable.count, cullingResults, camera, setup.dimensions.internalSize, frameContext.frame);
                     }
+                    sceneWorld.decals.context.Build(sceneWorld.decals.table, camera, setup.dimensions.internalSize, !m_Settings.config.useBestFitYCoCg);
+                    m_AnalyticLights.Clear();
+                    var lightRecords = lightContext.Records;
+                    for (int li = 0; li < lightRecords.Length; ++li)
+                    {
+                        LightRecord lr = lightRecords[li];
+                        bool isDir = (lr.flags & LightRecordFlags.Directional) != 0;
+                        m_AnalyticLights.Add(new AnalyticShadowLight
+                        {
+                            isDirectional = isDir,
+                            positionWS = new float3(lr.positionRange.x, lr.positionRange.y, lr.positionRange.z),
+                            toLightDirWS = -new float3(lr.forward.x, lr.forward.y, lr.forward.z),
+                            range = lr.positionRange.w,
+                            angularRadius = isDir ? lr.shape.w : lr.shape.x
+                        });
+                    }
+                    bool allowAnalytic = m_Settings.enableAnalyticShadow && setup.frameSettings.IsEnabled(EFrameSetting.AnalyticShadow);
+                    sceneWorld.analyticShadows.context.Build(sceneWorld.analyticShadows.table, camera, setup.dimensions.internalSize, m_AnalyticLights,
+                        allowAnalytic && m_Settings.enableAnalyticIndirectOcclusion,
+                        allowAnalytic && m_Settings.enableAnalyticDirectShadow);
                     using (PipelineCpuMarkers.s_ProcessLightContentFeatures.Auto())
                     {
                         ShadowAllocator shadowAllocator = lightContext.ShadowAllocator;
@@ -613,7 +655,7 @@ namespace InfinityTech.Rendering.Pipeline
                             contactShadowVolume = VolumeComponentActive(setup.volumes.contactShadow),
                             contactShadowCasters = lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0,
                             lightCookies = lightContext.CookieCount > 0,
-                            reflectionProbes = lightContext.ReflectionProbeCount > 0,
+                            reflectionProbes = sceneWorld.probes.context.ProbeCount > 0,
                             shadowMoments = shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0,
                         }, setup.featureSupport);
                     }
@@ -621,7 +663,15 @@ namespace InfinityTech.Rendering.Pipeline
                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                     lightingDebug.lastDirectionalCount = lightContext.DirectionalLightCount;
                     lightingDebug.lastLocalCount = lightContext.LocalLightCount;
-                    lightingDebug.lastReflectionProbeCount = lightContext.ReflectionProbeCount;
+                    lightingDebug.lastReflectionProbeCount = sceneWorld.probes.context.ProbeCount;
+                    lightingDebug.lastRasterReflectionCount = sceneWorld.probes.context.RasterReflectionCount;
+                    lightingDebug.lastDBufferDecalCount = sceneWorld.decals.context.DBufferDecalCount;
+                    lightingDebug.lastDirectDecalCount = sceneWorld.decals.context.DirectDecalCount;
+                    lightingDebug.lastClusteredDecalCount = sceneWorld.decals.context.ClusteredDecalCount;
+                    AnalyticShadowStats analyticStats = sceneWorld.analyticShadows.context.Stats;
+                    lightingDebug.lastAnalyticOccluderCount = analyticStats.visibleOccluders;
+                    lightingDebug.lastAnalyticIndirectClusterEntries = analyticStats.indirectClusterEntries;
+                    lightingDebug.lastAnalyticDirectClusterEntries = analyticStats.directClusterEntries;
                     lightingDebug.lastUnsupportedShapeCount = lightContext.UnsupportedShapeCount;
                     lightingDebug.lastDistanceCulledCount = lightContext.DistanceCulledCount;
 #endif
@@ -642,7 +692,7 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdBuffer.Clear();
             }
 
-            return new SceneCullingResults(cullingResults, mainCulling, lightContext, sceneWorld.meshes, sceneWorld.decals.table.count);
+            return new SceneCullingResults(cullingResults, mainCulling, lightContext, sceneWorld.probes.context, sceneWorld.decals.context, sceneWorld.analyticShadows.context, sceneWorld.meshes, sceneWorld.decals.context.TotalDecalCount);
         }
 
         // The derived pipeline's pass list in submission order, recorded into the render context's graph. cmdBuffer is the
@@ -702,6 +752,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             renderContext.graph.FlushRetiredResources(reuseFence);
             renderContext.sceneWorld.lights.context.FlushRetiredBuffers();
+            renderContext.sceneWorld.probes.context.FlushRetiredBuffers();
+            renderContext.sceneWorld.decals.context.FlushRetiredBuffers();
+            renderContext.sceneWorld.analyticShadows.context.FlushRetiredBuffers();
             IFrameTransaction[] frameTransactions = renderContext.frameTransactions;
             for (int i = 0; i < frameTransactions.Length; ++i)
             {
@@ -779,7 +832,7 @@ namespace InfinityTech.Rendering.Pipeline
                 QualitySettings.antiAliasing = m_PreviousAntiAliasing;
             if (GraphicsUtility.s_BlitMaterial == m_InstalledBlitMaterial)
                 GraphicsUtility.s_BlitMaterial = m_PreviousBlitMaterial;
-            if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
+            if (m_InstalledBestFitTexture != null && Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
         }
 
@@ -834,7 +887,7 @@ namespace InfinityTech.Rendering.Pipeline
             // Resolve dependencies and allocate the feature declaration before any global write.
             m_InstalledBatching = m_Settings.enableSRPBatch;
             m_InstalledBlitMaterial = resources.materials.blitMaterial;
-            m_InstalledBestFitTexture = resources.textures.bestFitNormalTexture;
+            m_InstalledBestFitTexture = m_Settings.config.useBestFitYCoCg ? resources.textures.bestFitNormalTexture : null;
             var installedFeatures = new SupportedRenderingFeatures()
             {
                 // Probes are axis aligned (their capture is world aligned); influence and projection boxes blend.
@@ -871,7 +924,8 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
             GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
-            Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
+            if (m_InstalledBestFitTexture != null)
+                Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
 #if UNITY_EDITOR
             InstallLightmapperState();
 #endif

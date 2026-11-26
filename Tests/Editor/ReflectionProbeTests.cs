@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
-using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.Reflection;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline.Tests

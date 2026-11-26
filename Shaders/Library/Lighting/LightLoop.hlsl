@@ -1,73 +1,26 @@
 #ifndef INFINITY_LIGHT_LOOP
 #define INFINITY_LIGHT_LOOP
-// Shared clustered light loop for Deferred, Forward and the volumetrics. Local lights are sorted by view depth on the
-// CPU (LightBinning.cs). Each logarithmic depth bin holds the [min, max] range of local indices whose depth range
-// overlaps it (16 bits each); each 16x16 tile holds a bitmask of the lights whose screen rectangle covers it. A pixel
-// visits the set bits of its tile mask inside its bin's index range. Local index i is record g_DirectionalLightCount + i.
-//
-//   LightLoopState loop;
-//   BeginLightLoop(pixelCoord, viewDepth, loop);
-//   uint recordIndex;
-//   while (NextLight(loop, recordIndex)) { ... g_LightRecordBuffer[recordIndex] ... }
+// Shared clustered light loop for Deferred, Forward and the volumetrics built on SpatialZBinTile.
+// Local index i is record g_DirectionalLightCount + i.
 
 #define LIGHT_TILE_SIZE 16u
 
 #include "LightLoopUniform.hlsl"
+#include "../Spatial/SpatialZBinTile.hlsl"
 StructuredBuffer<uint> SRV_LightZBins;
 StructuredBuffer<uint> SRV_LightTileMasks;
 
-struct LightLoopState
-{
-    uint maskBase;
-    uint word;
-    uint lastWord;
-    uint mask;
-    uint minIndex;
-    uint maxIndex;
-};
+#define LightLoopState SpatialZBinTileState
 
 uint LightZBin(float viewDepth)
 {
-    float bin = floor(log2(max(viewDepth, 1e-6)) * g_LightZBinParams.y + g_LightZBinParams.z);
-    return (uint)clamp(bin, 0.0, g_LightZBinParams.x - 1.0);
+    return SpatialDepthToZBin(viewDepth, g_LightZBinParams);
 }
 
-uint LoadLightLoopWord(LightLoopState loop)
-{
-    uint mask = SRV_LightTileMasks[loop.maskBase + loop.word];
-    uint lowBit = loop.word == (loop.minIndex >> 5) ? (loop.minIndex & 31u) : 0u;
-    uint highBit = loop.word == (loop.maxIndex >> 5) ? (loop.maxIndex & 31u) : 31u;
-    return mask & (0xFFFFFFFFu << lowBit) & (0xFFFFFFFFu >> (31u - highBit));
-}
-
-// Initialize caller-owned integer state. Return-by-value produced incorrect state in the observed Unity 6000.6
-// Metal Deferred kernel: tile base 110 became 0x36dc0000 and mask 1 became 0x33800000.
 void BeginLightLoop(uint2 pixelCoord, float viewDepth, out LightLoopState loop)
 {
-    loop = (LightLoopState)0;
-    loop.mask = 0;
-    loop.word = 1;
-    loop.lastWord = 0;
-    if (g_LocalLightCount <= 0)
-    {
-        return;
-    }
-
-    uint packed = SRV_LightZBins[LightZBin(viewDepth)];
-    loop.minIndex = packed & 0xFFFFu;
-    loop.maxIndex = packed >> 16;
-    if (loop.minIndex > loop.maxIndex)
-    {
-        return;
-    }
-
-    uint2 tile = min(pixelCoord / LIGHT_TILE_SIZE, (uint2)(ceil(g_LightTileParams.xy / LIGHT_TILE_SIZE)) - 1u);
-    uint wordCount = (uint)g_LightTileParams.w;
-    loop.maskBase = (tile.y * (uint)g_LightTileParams.z + tile.x) * wordCount;
-    loop.word = loop.minIndex >> 5;
-    loop.lastWord = loop.maxIndex >> 5;
-    loop.mask = LoadLightLoopWord(loop);
-    return;
+    SpatialBeginZBinTileLoop(pixelCoord, viewDepth, g_LocalLightCount, LIGHT_TILE_SIZE,
+        g_LightTileParams, g_LightZBinParams, SRV_LightZBins, SRV_LightTileMasks, loop);
 }
 
 void BeginLightLoopUV(float2 screenUV, float viewDepth, out LightLoopState loop)
@@ -78,19 +31,12 @@ void BeginLightLoopUV(float2 screenUV, float viewDepth, out LightLoopState loop)
 bool NextLight(inout LightLoopState loop, out uint recordIndex)
 {
     recordIndex = 0;
-    [loop]
-    while (loop.mask == 0)
+    uint localIndex = 0;
+    bool found = SpatialNextZBinTileItem(loop, SRV_LightTileMasks, localIndex);
+    if (found)
     {
-        if (loop.word >= loop.lastWord)
-        {
-            return false;
-        }
-        loop.word++;
-        loop.mask = LoadLightLoopWord(loop);
+        recordIndex = (uint)g_DirectionalLightCount + localIndex;
     }
-    uint bit = firstbitlow(loop.mask);
-    loop.mask &= loop.mask - 1u;
-    recordIndex = (uint)g_DirectionalLightCount + loop.word * 32u + bit;
-    return true;
+    return found;
 }
 #endif

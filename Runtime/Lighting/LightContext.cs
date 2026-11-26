@@ -25,39 +25,11 @@ namespace InfinityTech.Rendering.LightPipeline
         public static readonly int LightTileRectBuffer = Shader.PropertyToID("_LightTileRectBuffer");
         public static readonly int LightZBinBuffer = Shader.PropertyToID("_LightZBinBuffer");
         public static readonly int EmptyLightTileMaskBuffer = Shader.PropertyToID("_EmptyLightTileMaskBuffer");
-        // Reflection probes (Lighting/ReflectionProbes.hlsl).
-        public static readonly int ReflectionProbes = Shader.PropertyToID("SRV_ReflectionProbes");
-        public static readonly int ProbeZBins = Shader.PropertyToID("SRV_ProbeZBins");
-        public static readonly int ProbeTileMasks = Shader.PropertyToID("SRV_ProbeTileMasks");
-        public static readonly int ReflectionProbeAtlas = Shader.PropertyToID("SRV_ReflectionProbeAtlas");
-        public static readonly GlobalKeyword ReflectionProbesKeyword = GlobalKeyword.Create("INFINITY_REFLECTION_PROBES");
-        public static readonly int ReflectionProbeBuffer = Shader.PropertyToID("_ReflectionProbeBuffer");
-        public static readonly int ProbeTileRectBuffer = Shader.PropertyToID("_ProbeTileRectBuffer");
-        public static readonly int ProbeZBinBuffer = Shader.PropertyToID("_ProbeZBinBuffer");
         // Light cookies (Lighting/LightCookie.hlsl).
         public static readonly int LightCookies = Shader.PropertyToID("SRV_LightCookies");
         public static readonly int LightCookieAtlas = Shader.PropertyToID("SRV_LightCookieAtlas");
         public static readonly GlobalKeyword LightCookiesKeyword = GlobalKeyword.Create("INFINITY_LIGHT_COOKIES");
         public static readonly int LightCookieBuffer = Shader.PropertyToID("_LightCookieBuffer");
-    }
-
-    // One reflection probe of the camera's list (Unity order: importance, then smaller first).
-    // GPU-RECORD: ReflectionProbeRecord Shaders/Library/Lighting/ReflectionProbes.hlsl
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct ReflectionProbeRecord
-    {
-        // World to influence-box space (rows of a 3x4 affine; identity rotation, the box center at the origin).
-        public Vector4 worldToBox0;
-        public Vector4 worldToBox1;
-        public Vector4 worldToBox2;
-        // xyz = influence half extents including the blend band (sphere: radius in x); w = blend distance.
-        public Vector4 extents;
-        // xyz = capture position in box space; w = 1 with box projection.
-        public Vector4 capture;
-        // xyz = projection half extents (sphere: radius in x).
-        public Vector4 projection;
-        // x = intensity (HDR decode multiplier); y = first atlas slice; z = atlas mip count - 1; w = 1 sphere influence.
-        public Vector4 parameters;
     }
 
     // Cookie and IES data of one light (record.cookieIndex). Rects are atlas uv (offset xy, scale zw); z = 0 means none.
@@ -119,20 +91,6 @@ namespace InfinityTech.Rendering.LightPipeline
         GraphicsBuffer m_EmptyTileMaskBuffer;
         GraphicsBuffer m_LocalShadowMatrixBuffer;
         GraphicsBuffer m_LocalShadowRectBuffer;
-        GraphicsBuffer m_ProbeBuffer;
-        GraphicsBuffer m_ProbeTileRectBuffer;
-        GraphicsBuffer m_ProbeZBinBuffer;
-        int m_ProbeCapacity;
-        readonly List<ReflectionProbeRecord> m_Probes = new List<ReflectionProbeRecord>();
-        readonly List<int> m_ProbeOrder = new List<int>();
-        ReflectionProbeRecord[] m_ProbeUpload = new ReflectionProbeRecord[1];
-        NativeList<int4> m_ProbeTileRects;
-        NativeArray<uint> m_ProbeZBins;
-        static readonly int ProbeStride = Marshal.SizeOf<ReflectionProbeRecord>();
-        Matrix4x4 m_WorldToView;
-        Matrix4x4 m_GpuProjection;
-        bool m_Orthographic;
-        float m_Near;
         GraphicsBuffer m_CookieBuffer;
         int m_CookieCapacity;
         readonly List<LightCookieGPU> m_Cookies = new List<LightCookieGPU>();
@@ -191,12 +149,6 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalShadowRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, LocalShadowSliceStride);
             m_CookieCapacity = 1;
             m_CookieBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_CookieCapacity, CookieStride);
-            m_ProbeCapacity = 1;
-            m_ProbeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_ProbeCapacity, ProbeStride);
-            m_ProbeTileRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_ProbeCapacity, 16);
-            m_ProbeZBinBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, LightBinning.ZBinCount, sizeof(uint));
-            m_ProbeTileRects = new NativeList<int4>(8, Allocator.Persistent);
-            m_ProbeZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
             m_Records = new NativeList<LightRecord>(8, Allocator.Persistent);
             m_TileRects = new NativeList<int4>(8, Allocator.Persistent);
             m_ZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
@@ -234,20 +186,11 @@ namespace InfinityTech.Rendering.LightPipeline
         internal GraphicsBuffer LocalShadowMatrixBuffer => m_LocalShadowMatrixBuffer;
         internal GraphicsBuffer LocalShadowRectBuffer => m_LocalShadowRectBuffer;
         internal GraphicsBuffer CookieBuffer => m_CookieBuffer;
-        internal GraphicsBuffer ReflectionProbeBuffer => m_ProbeBuffer;
-        internal GraphicsBuffer ProbeTileRectBuffer => m_ProbeTileRectBuffer;
-        internal GraphicsBuffer ProbeZBinBuffer => m_ProbeZBinBuffer;
-        // Reflection probes of this camera (record order = blending priority).
-        internal int ReflectionProbeCount => m_Probes.Count;
-        // First probe-atlas slice of list entry index (six faces from there; record parameters.y).
-        internal int ReflectionProbeFirstSlice(int index) => (int)m_Probes[index].parameters.y;
-        internal int ProbeTileWordCount => LightBinning.WordCount(m_Probes.Count);
-        // x, y = screen size; z = tiles per row; w = mask words per tile.
-        internal Vector4 ProbeTileParams => new Vector4(m_ScreenSize.x, m_ScreenSize.y, TileCount.x, ProbeTileWordCount);
         // Records with a cookie or IES profile in the atlas this camera.
         internal int CookieCount => m_Cookies.Count;
         internal ShadowAllocator ShadowAllocator => m_ShadowAllocator;
         internal NativeArray<uint> ZBins => m_ZBins;
+        internal NativeArray<LightRecord> Records => m_Records.AsArray();
 
         internal static bool HasLocalLightList(int localLightCount)
         {
@@ -275,12 +218,6 @@ namespace InfinityTech.Rendering.LightPipeline
             m_SunRecordIndex = -1;
             m_ContactLightCount = 0;
             m_Cookies.Clear();
-            m_Probes.Clear();
-            m_ProbeTileRects.Clear();
-            for (int b = 0; b < m_ProbeZBins.Length; ++b)
-            {
-                m_ProbeZBins[b] = LightBinning.EmptyBin;
-            }
             m_ShadowAllocator.Reset();
         }
 
@@ -314,10 +251,6 @@ namespace InfinityTech.Rendering.LightPipeline
                 gpuProjection = camera != null ? GraphicsConventions.GetComputeGpuProjection(camera) : Matrix4x4.identity;
                 orthographic = camera != null && camera.orthographic;
                 near = camera != null ? camera.nearClipPlane : 0.1f;
-                m_WorldToView = worldToView;
-                m_GpuProjection = gpuProjection;
-                m_Orthographic = orthographic;
-                m_Near = near;
                 far = camera != null ? camera.farClipPlane : 1000.0f;
                 m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
             }
@@ -445,93 +378,6 @@ namespace InfinityTech.Rendering.LightPipeline
             using (LightCpuMarkers.s_EnsureCapacity.Auto())
             {
                 EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
-            }
-        }
-
-        // Builds this camera's reflection probe list from Unity's visible probes (already sorted by importance, then size),
-        // assigns atlas slots (queuing filter passes) and bins the probes like local lights: logarithmic z-bins over the
-        // list order and conservative tile rectangles of each influence volume's bounding sphere.
-        NativeArray<VisibleReflectionProbe> m_ProbeSortInput;
-        Comparison<int> m_ProbeComparison;
-        int CompareProbes(int a, int b) => ReflectionProbePriority.Compare(m_ProbeSortInput[a].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[a].bounds),
-            m_ProbeSortInput[b].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[b].bounds));
-
-        internal void ResolveReflectionProbes(ReflectionProbeAtlas atlas, SceneTable<InfinityAdditionalReflectionProbeData> probeTable, in CullingResults cullingResults, int frame)
-        {
-            m_Probes.Clear();
-            m_ProbeTileRects.Clear();
-            NativeArray<VisibleReflectionProbe> visible = cullingResults.visibleReflectionProbes;
-            var depthRanges = new NativeArray<float2>(math.max(1, visible.Length), Allocator.Temp);
-            // List order is the blending priority: higher importance first, then the smaller volume.
-            m_ProbeOrder.Clear();
-            for (int i = 0; i < visible.Length; ++i)
-            {
-                m_ProbeOrder.Add(i);
-            }
-            m_ProbeSortInput = visible;
-            if (m_ProbeComparison == null)
-            {
-                m_ProbeComparison = CompareProbes;
-            }
-            m_ProbeOrder.Sort(m_ProbeComparison);
-            m_ProbeSortInput = default;
-            for (int order = 0; atlas != null && atlas.Enabled && order < m_ProbeOrder.Count && m_Probes.Count < LightBinning.MaxLocalLights; ++order)
-            {
-                VisibleReflectionProbe probe = visible[m_ProbeOrder[order]];
-                ReflectionProbe component = probe.reflectionProbe;
-                Texture texture = probe.texture;
-                if (component == null || texture == null || texture.dimension != TextureDimension.Cube)
-                {
-                    continue;
-                }
-
-                Bounds bounds = probe.bounds;
-                Vector3 center = bounds.center;
-                Vector3 extents = bounds.extents;
-                float blend = math.max(probe.blendDistance, 0.0f);
-                bool sphere = probeTable.TryGet(UnityEntityId.ToUInt64(component), out InfinityAdditionalReflectionProbeData ext) && ext.influence == EReflectionProbeInfluence.Sphere;
-                float radius = sphere ? (ext.sphereRadius > 0 ? ext.sphereRadius : math.cmax(new float3(extents.x, extents.y, extents.z))) : 0.0f;
-                float boundingRadius = sphere ? radius + blend : (extents + Vector3.one * blend).magnitude;
-
-                Vector3 centerVS = m_WorldToView.MultiplyPoint3x4(center);
-                if (!LightBinning.TryComputeTileRect(centerVS, boundingRadius, m_GpuProjection, m_Orthographic, m_Near, m_ScreenSize, out int4 rect))
-                {
-                    continue;
-                }
-
-                bool realtime = component.mode == ReflectionProbeMode.Realtime;
-                var key = new ProbeCubeKey(UnityEntityId.ToUInt64(component), UnityEntityId.ToUInt64(texture));
-                if (!atlas.Acquire(key, texture, texture.updateCount, realtime, frame, out int slot))
-                {
-                    continue;
-                }
-
-                Vector3 capture = component.transform.position - center;
-                var record = new ReflectionProbeRecord
-                {
-                    worldToBox0 = new Vector4(1, 0, 0, -center.x),
-                    worldToBox1 = new Vector4(0, 1, 0, -center.y),
-                    worldToBox2 = new Vector4(0, 0, 1, -center.z),
-                    extents = sphere ? new Vector4(radius + blend, 0, 0, blend) : new Vector4(extents.x + blend, extents.y + blend, extents.z + blend, blend),
-                    capture = new Vector4(capture.x, capture.y, capture.z, probe.isBoxProjection ? 1 : 0),
-                    projection = sphere ? new Vector4(radius, 0, 0, 0) : new Vector4(extents.x, extents.y, extents.z, 0),
-                    parameters = new Vector4(probe.hdrData.x, slot * 6, atlas.MipCount - 1, sphere ? 1 : 0),
-                };
-                float depth = -centerVS.z;
-                depthRanges[m_Probes.Count] = new float2(math.max(depth - boundingRadius, m_Near), math.max(depth + boundingRadius, m_Near));
-                m_Probes.Add(record);
-                m_ProbeTileRects.Add(rect);
-            }
-
-            LightBinning.BuildZBins(depthRanges, m_Probes.Count, m_ZBinParams, m_ProbeZBins);
-            depthRanges.Dispose();
-
-            if (m_ProbeCapacity < m_Probes.Count)
-            {
-                int capacity = math.max(m_Probes.Count, m_ProbeCapacity * 2);
-                ReplaceBuffer(ref m_ProbeBuffer, capacity, ProbeStride);
-                ReplaceBuffer(ref m_ProbeTileRectBuffer, capacity, 16);
-                m_ProbeCapacity = capacity;
             }
         }
 
@@ -707,18 +553,6 @@ namespace InfinityTech.Rendering.LightPipeline
 
             cmdBuffer.SetBufferData(m_EmptyTileMaskBuffer, s_EmptyMask, 0, 0, 1);
 
-            cmdBuffer.SetBufferData(m_ProbeZBinBuffer, m_ProbeZBins);
-            if (m_Probes.Count > 0)
-            {
-                if (m_ProbeUpload.Length < m_Probes.Count)
-                {
-                    m_ProbeUpload = new ReflectionProbeRecord[m_Probes.Count];
-                }
-                m_Probes.CopyTo(m_ProbeUpload);
-                cmdBuffer.SetBufferData(m_ProbeBuffer, m_ProbeUpload, 0, 0, m_Probes.Count);
-                cmdBuffer.SetBufferData(m_ProbeTileRectBuffer, m_ProbeTileRects.AsArray());
-            }
-
             if (m_Cookies.Count > 0)
             {
                 if (m_CookieUpload.Length < m_Cookies.Count)
@@ -808,17 +642,6 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalShadowMatrixBuffer?.Release();
             m_LocalShadowRectBuffer?.Release();
             m_CookieBuffer?.Release();
-            m_ProbeBuffer?.Release();
-            m_ProbeTileRectBuffer?.Release();
-            m_ProbeZBinBuffer?.Release();
-            if (m_ProbeTileRects.IsCreated)
-            {
-                m_ProbeTileRects.Dispose();
-            }
-            if (m_ProbeZBins.IsCreated)
-            {
-                m_ProbeZBins.Dispose();
-            }
             if (m_Records.IsCreated)
             {
                 m_Records.Dispose();

@@ -52,6 +52,22 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_DefaultLineMaterial;
         SerializedProperty m_DefaultTerrainMaterial;
         SerializedProperty m_Default2DMaterial;
+        SerializedProperty m_GBufferLayout;
+        SerializedProperty m_SceneColorFormat;
+        SerializedProperty m_DepthStencilFormat;
+        SerializedProperty m_MotionVectorFormat;
+        SerializedProperty m_IndirectLightingFormat;
+        SerializedProperty m_SubsurfaceLightingMode;
+        SerializedProperty m_EnableRenderingLayers;
+        SerializedProperty m_EnableAnalyticShadow;
+        SerializedProperty m_EnableAnalyticIndirectOcclusion;
+        SerializedProperty m_EnableAnalyticDirectShadow;
+        SerializedProperty m_TemporalBackend;
+        SerializedProperty m_TemporalMode;
+        SerializedProperty m_TemporalQuality;
+        SerializedProperty m_RenderResolutionPolicy;
+        SerializedProperty m_TemporalSharpness;
+        bool m_ShowEffectiveConfiguration;
 
         void OnEnable()
         {
@@ -95,6 +111,60 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_DefaultLineMaterial = serializedObject.FindProperty("m_DefaultLineMaterial");
             m_DefaultTerrainMaterial = serializedObject.FindProperty("m_DefaultTerrainMaterial");
             m_Default2DMaterial = serializedObject.FindProperty("m_Default2DMaterial");
+            m_GBufferLayout = serializedObject.FindProperty("m_GBufferLayout");
+            m_SceneColorFormat = serializedObject.FindProperty("m_SceneColorFormat");
+            m_DepthStencilFormat = serializedObject.FindProperty("m_DepthStencilFormat");
+            m_MotionVectorFormat = serializedObject.FindProperty("m_MotionVectorFormat");
+            m_IndirectLightingFormat = serializedObject.FindProperty("m_IndirectLightingFormat");
+            m_SubsurfaceLightingMode = serializedObject.FindProperty("m_SubsurfaceLightingMode");
+            m_EnableRenderingLayers = serializedObject.FindProperty("m_EnableRenderingLayers");
+            m_EnableAnalyticShadow = serializedObject.FindProperty("m_EnableAnalyticShadow");
+            m_EnableAnalyticIndirectOcclusion = serializedObject.FindProperty("m_EnableAnalyticIndirectOcclusion");
+            m_EnableAnalyticDirectShadow = serializedObject.FindProperty("m_EnableAnalyticDirectShadow");
+            m_TemporalBackend = serializedObject.FindProperty("m_TemporalBackend");
+            m_TemporalMode = serializedObject.FindProperty("m_TemporalMode");
+            m_TemporalQuality = serializedObject.FindProperty("m_TemporalQuality");
+            m_RenderResolutionPolicy = serializedObject.FindProperty("m_RenderResolutionPolicy");
+            m_TemporalSharpness = serializedObject.FindProperty("m_TemporalSharpness");
+        }
+
+        static void DrawResolvedField(SerializedProperty property, GUIContent label, in ConfigFieldState state, bool allowEditWhenUnsupported = true)
+        {
+            string tooltip = string.IsNullOrEmpty(state.reason) ? label.tooltip : $"{label.tooltip}\n[{state.status}] {state.reason}";
+            var resolvedLabel = new GUIContent(label.text, tooltip);
+            bool disabled = state.status == EConfigStatus.Inactive
+                || state.status == EConfigStatus.Required
+                || (!allowEditWhenUnsupported && state.status == EConfigStatus.Unsupported);
+
+            using (new EditorGUI.DisabledScope(disabled))
+            {
+                EditorGUILayout.PropertyField(property, resolvedLabel);
+            }
+
+            switch (state.status)
+            {
+                case EConfigStatus.Conflict:
+                    EditorGUILayout.HelpBox(state.reason, MessageType.Error);
+                    break;
+                case EConfigStatus.Unsupported:
+                case EConfigStatus.Required:
+                case EConfigStatus.PlatformOverride:
+                    EditorGUILayout.HelpBox(state.reason, MessageType.Warning);
+                    break;
+                case EConfigStatus.Inactive:
+                    EditorGUILayout.HelpBox(state.reason, MessageType.Info);
+                    break;
+            }
+        }
+
+        static void DrawStatusLine(string label, in ConfigFieldState state)
+        {
+            MessageType type = state.status == EConfigStatus.Conflict ? MessageType.Error
+                : (state.status == EConfigStatus.Unsupported || state.status == EConfigStatus.Required || state.status == EConfigStatus.PlatformOverride)
+                    ? MessageType.Warning
+                    : MessageType.Info;
+            string msg = string.IsNullOrEmpty(state.reason) ? $"{label}: {state.status}" : $"{label} [{state.status}]: {state.reason}";
+            EditorGUILayout.HelpBox(msg, type);
         }
 
         // Filter quality follows the Quality preset pattern: Low..Ultra show the hardcoded preset read-only, Custom edits
@@ -147,19 +217,57 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
+            var pipelineAsset = (InfinityRenderPipelineAsset)target;
+            EffectivePipelineConfiguration resolvedConfig = pipelineAsset.ResolveSettings().config;
 
+            // 1. Rendering
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Rendering", "Rendering"))
             {
-                EditorGUILayout.PropertyField(m_SuperResolution, new GUIContent("Super Resolution"));
-                EditorGUILayout.PropertyField(m_RenderScale, new GUIContent("Render Scale"));
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batcher"));
                 EditorGUILayout.PropertyField(m_MeshBackendPolicy);
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instancing"));
                 EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("Refresh Renderer Proxy"));
                 EditorGUILayout.PropertyField(m_RayTrace, new GUIContent("Unified Ray Tracing"));
+                EditorGUILayout.PropertyField(m_QualityVolumeProfile, new GUIContent("Quality Volume Profile"));
+                EditorGUILayout.PropertyField(m_OutputMode, new GUIContent("Output Mode"));
+                EditorGUILayout.PropertyField(m_HDREncoding, new GUIContent("HDR Encoding"));
             }
             InfinityInspectorGUI.EndFoldout();
 
+            // 2. Surface & Attachments
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "SurfaceAttachments", "Surface & Attachments"))
+            {
+                DrawResolvedField(m_GBufferLayout, new GUIContent("GBuffer Layout", "Compact64Bit: full RGB albedo + Oct8x2 normal (default). HighPrecision96Bit: RGB + Oct16x2. BestFitYCoCg64Bit: YCoCg checkerboard + BestFit normal."), resolvedConfig.gBufferLayoutState);
+                DrawResolvedField(m_SceneColorFormat, new GUIContent("Scene Color Format", "R11G11B10F (32 bit, default) or RGBA16F (64 bit, required by SceneColorAlpha SSS)."), resolvedConfig.sceneColorState);
+                DrawResolvedField(m_DepthStencilFormat, new GUIContent("Depth Stencil Format", "Main camera depth buffer format. MotionPass requires a stencil channel."), resolvedConfig.depthStencilState);
+                DrawResolvedField(m_MotionVectorFormat, new GUIContent("Motion Vector Format"), resolvedConfig.motionVectorState);
+                DrawResolvedField(m_IndirectLightingFormat, new GUIContent("Indirect Lighting Format"), resolvedConfig.indirectLightingState);
+                DrawResolvedField(m_SubsurfaceLightingMode, new GUIContent("Subsurface Lighting Mode", "SeparateBuffer uses on-demand R11G11B10F ScatterDiffuse; SceneColorAlpha stores diffuse luminance in RGBA16F SceneColor alpha."), resolvedConfig.subsurfaceModeState);
+                DrawResolvedField(m_EnableRenderingLayers, new GUIContent("Rendering Layers", "Stores object rendering layers in SurfaceMetadata.g (R8G8_UNorm vs R8_UNorm)."), resolvedConfig.renderingLayersState);
+
+                m_ShowEffectiveConfiguration = EditorGUILayout.Foldout(m_ShowEffectiveConfiguration, "Effective Configuration", true);
+                if (m_ShowEffectiveConfiguration)
+                {
+                    ++EditorGUI.indentLevel;
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        EditorGUILayout.TextField("GBuffer A / B", $"{resolvedConfig.gBufferAFormat} / {resolvedConfig.gBufferBFormat}");
+                        EditorGUILayout.TextField("Surface Metadata", resolvedConfig.surfaceMetadataFormat.ToString());
+                        EditorGUILayout.TextField("Motion / Metadata", $"{resolvedConfig.motionVectorFormat} / {resolvedConfig.motionMetadataFormat} ({resolvedConfig.motionMetadataBitsPerPixel} bit)");
+                        EditorGUILayout.TextField("Scene Color", resolvedConfig.sceneColorFormat.ToString());
+                        EditorGUILayout.TextField("Depth Stencil", resolvedConfig.depthStencilFormat.ToString());
+                        EditorGUILayout.TextField("Indirect Lighting", resolvedConfig.indirectLightingFormat.ToString());
+                        EditorGUILayout.TextField("Baked / SSS Format", $"{resolvedConfig.bakedDiffuseFormat} / {resolvedConfig.scatterDiffuseFormat}");
+                        EditorGUILayout.TextField("CustomData SSS", resolvedConfig.customDataSSSFormat.ToString());
+                        EditorGUILayout.TextField("Common BPP", $"Core {resolvedConfig.coreGBufferBitsPerPixel} + Meta {resolvedConfig.surfaceMetadataBitsPerPixel} = {resolvedConfig.commonGBufferPassBitsPerPixel} bit");
+                        EditorGUILayout.TextField("Effective TRC", $"{resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x)");
+                    }
+                    --EditorGUI.indentLevel;
+                }
+            }
+            InfinityInspectorGUI.EndFoldout();
+
+            // 3. Lighting & Shadows
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Lighting", "Lighting & Shadows"))
             {
                 EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"));
@@ -186,8 +294,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 DrawShadowFilter();
                 EditorGUILayout.PropertyField(m_CookieAtlasResolution, new GUIContent("Cookie Atlas Resolution", "Power-of-two atlas for light cookies and IES profiles (RGBA8 with mips). 0 disables cookies."));
                 EditorGUILayout.PropertyField(m_CookieMaxSize, new GUIContent("Cookie Max Size", "Largest atlas block of one cookie; larger textures are minified."));
-                EditorGUILayout.PropertyField(m_ReflectionProbeResolution, new GUIContent("Reflection Probe Resolution", "Face size of each probe in the probe atlas (GGX-prefiltered mips). 0 disables probes."));
-                EditorGUILayout.PropertyField(m_MaxReflectionProbes, new GUIContent("Max Reflection Probes", "Probe slots in the atlas (6 slices each)."));
                 EditorGUILayout.PropertyField(m_LightProbeSystem, new GUIContent("Light Probe System", "Light Probe Groups (with Light Probe Proxy Volumes) or Adaptive Probe Volumes. Changing it recreates the pipeline."));
                 if (m_LightProbeSystem.enumValueIndex == (int)ELightProbeSystem.ProbeVolumes || m_LightProbeSystem.hasMultipleDifferentValues)
                 {
@@ -207,28 +313,58 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             }
             InfinityInspectorGUI.EndFoldout();
 
-            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Post", "Post-processing & Output"))
+            // 4. Reflection
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Reflection", "Reflection"))
             {
-                EditorGUILayout.PropertyField(m_QualityVolumeProfile, new GUIContent("Quality Volume Profile"));
-                EditorGUILayout.HelpBox("The project default Volume profile lives on Infinity Global Settings. This optional profile is the Quality layer passed to VolumeManager.Initialize.", MessageType.Info);
-                EditorGUILayout.PropertyField(m_OutputMode, new GUIContent("Output Mode"));
-                EditorGUILayout.PropertyField(m_HDREncoding, new GUIContent("HDR Encoding"));
+                EditorGUILayout.PropertyField(m_ReflectionProbeResolution, new GUIContent("Reflection Probe Resolution", "Face size of each probe in the probe atlas (GGX-prefiltered mips). 0 disables probes."));
+                EditorGUILayout.PropertyField(m_MaxReflectionProbes, new GUIContent("Max Reflection Probes", "Probe slots in the atlas (6 slices each)."));
+                DrawStatusLine("Clustered Reflection Atlas", resolvedConfig.reflectionState);
+                EditorGUILayout.HelpBox("Dual execution active: Spatially Indexed Reflection Probes (Box / OrientedBox / Sphere) + Raster Reflection Volumes compose into specular IBL before Sky.", MessageType.None);
             }
             InfinityInspectorGUI.EndFoldout();
 
-            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "FrameSettings", "Frame Settings"))
+            // 5. Decal
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Decal", "Decal"))
             {
-                EditorGUILayout.LabelField("Cameras", EditorStyles.miniBoldLabel);
+                DrawStatusLine("Direct GBuffer Decal Path", resolvedConfig.directDecalState);
+                EditorGUILayout.HelpBox("Supported paths execute in order: DBuffer -> Direct GBuffer -> Clustered Decals (priority by drawOrder, filtered by Rendering Layer).", MessageType.None);
+            }
+            InfinityInspectorGUI.EndFoldout();
+
+            // 6. Analytic Shadow
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "AnalyticShadow", "Analytic Shadow"))
+            {
+                DrawResolvedField(m_EnableAnalyticShadow, new GUIContent("Analytic Shadow", "Enables InfinityAnalyticOccluder volumes for low-frequency indirect occlusion and direct soft shadows."), ConfigFieldState.Supported);
+                ++EditorGUI.indentLevel;
+                DrawResolvedField(m_EnableAnalyticIndirectOcclusion, new GUIContent("Indirect Occlusion", "Hemisphere visibility modulation on ambient indirect lighting."), resolvedConfig.analyticIndirectState);
+                DrawResolvedField(m_EnableAnalyticDirectShadow, new GUIContent("Direct Soft Shadow", "Per-light analytical cone visibility attenuation on directional and local lights."), resolvedConfig.analyticDirectState);
+                --EditorGUI.indentLevel;
+            }
+            InfinityInspectorGUI.EndFoldout();
+
+            // 7. Temporal Reconstruction (TRC)
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "TemporalReconstruction", "Temporal Reconstruction"))
+            {
+                DrawResolvedField(m_TemporalBackend, new GUIContent("Temporal Backend", "Unified Temporal Reconstruction provider backend (Native TAA, Native TAAU, or extensible external SDK backends)."), resolvedConfig.temporalBackendState);
+                DrawResolvedField(m_TemporalMode, new GUIContent("Reconstruction Mode", "NativeAA (1.0x), Upscaling, or Supersampling."), resolvedConfig.temporalModeState);
+                DrawResolvedField(m_RenderResolutionPolicy, new GUIContent("Resolution Policy", "Controls whether render scale is fixed manually or driven by Quality Preset."), ConfigFieldState.Supported);
+                DrawResolvedField(m_TemporalQuality, new GUIContent("Quality Preset", "Quality preset scale factor when Resolution Policy is QualityPreset."), resolvedConfig.temporalQualityState);
+                DrawResolvedField(m_RenderScale, new GUIContent("Render Scale", "Manual render scale [0.5, 1.0] when FixedScale upscaling is active."), resolvedConfig.renderScaleState);
+                EditorGUILayout.PropertyField(m_TemporalSharpness, new GUIContent("Output Sharpness", "Display-only contrast adaptive sharpening (never fed back into history)."));
+                EditorGUILayout.PropertyField(m_SuperResolution, new GUIContent("Legacy Super Resolution Toggle", "Synchronized with Native TAAU when m_TemporalBackend is NativeTAA."));
+            }
+            InfinityInspectorGUI.EndFoldout();
+
+            // 8. Advanced
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Advanced", "Advanced"))
+            {
+                EditorGUILayout.LabelField("Frame Settings · Cameras", EditorStyles.miniBoldLabel);
                 InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawSettings(serializedObject.FindProperty("defaultFrameSettings"));
                 EditorGUILayout.Space();
-                EditorGUILayout.LabelField("Reflection Probe Captures", EditorStyles.miniBoldLabel);
+                EditorGUILayout.LabelField("Frame Settings · Reflection Probe Captures", EditorStyles.miniBoldLabel);
                 InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawSettings(serializedObject.FindProperty("reflectionFrameSettings"));
-                EditorGUILayout.HelpBox("Frame Settings only withhold features; Volumes and scene content still decide whether an enabled feature records. Cameras can override single settings.", MessageType.None);
-            }
-            InfinityInspectorGUI.EndFoldout();
-
-            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Defaults", "Default Materials"))
-            {
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Default Materials", EditorStyles.miniBoldLabel);
                 EditorGUILayout.PropertyField(m_DefaultShader, new GUIContent("Default Shader"));
                 EditorGUILayout.PropertyField(m_DefaultMaterial, new GUIContent("Default Material"));
                 EditorGUILayout.PropertyField(m_DefaultParticleMaterial, new GUIContent("Default Particle Material"));

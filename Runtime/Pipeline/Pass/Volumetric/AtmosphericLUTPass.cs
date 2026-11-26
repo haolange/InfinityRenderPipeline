@@ -232,8 +232,9 @@ namespace InfinityTech.Rendering.Pipeline
             BufferDescriptor shDsc = new BufferDescriptor(9, sizeof(float) * 4, GraphicsBuffer.Target.Structured);
             shDsc.name = AtmosphericLUTPassUtilityData.SkySHName;
 
+            AtmosphereCameraState atmosphereState = context.state.GetAtmosphereState();
             m_AtmosphereSharedCache.ResolveShared(parameter, transmittanceDsc, multiScatterDsc, out TextureHandle transmittanceHandle, out TextureHandle multiScatterHandle, out bool sharedHit);
-            context.state.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
+            atmosphereState.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
             m_AtmosphereSharedCache.ResolveIBL(iblKey, cubemapDsc, prefilterDsc, shDsc, out TextureHandle cubemapHandle, out TextureHandle prefilterHandle, out BufferHandle shHandle, out bool iblHit);
 
             RGTextureHandle transmittanceLUTHandle = m_RGBuilder.ImportTexture(transmittanceHandle);
@@ -277,7 +278,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGComputePassHandle<AtmosphericLUTPassData> passHandle = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT));
                 m_AtmosphereProduction.shared = m_AtmosphereSharedCache;
-                m_AtmosphereProduction.view = context.state.atmosphereViewCache;
+                m_AtmosphereProduction.view = atmosphereState.atmosphereViewCache;
                 m_AtmosphereProduction.generateShared = generateShared;
                 m_AtmosphereProduction.generateView = generateView;
                 m_AtmosphereProduction.generateIBL = generateIBL;

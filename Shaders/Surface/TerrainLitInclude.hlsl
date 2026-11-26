@@ -4,6 +4,9 @@
 #include "../Library/Common.hlsl"
 #include "../Library/Lighting.hlsl"
 #include "../Library/GBufferPack.hlsl"
+#include "../Library/GBufferOutput.hlsl"
+#include "../Library/ForwardOutput.hlsl"
+#include "../Library/ImageBasedLighting.hlsl"
 #include "../Library/DBuffer.hlsl"
 #include "../Library/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -13,6 +16,8 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
 #include "../Library/Lightmap.hlsl"
 #include "../Library/ShadowCaster.hlsl"
+
+StructuredBuffer<float4> _AtmosphereSkySH;
 
 #if defined(UNITY_INSTANCING_ENABLED) && defined(_TERRAIN_INSTANCED_PERPIXEL_NORMAL)
     #define ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -461,7 +466,7 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
-void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
+ForwardFragmentOutput ForwardFragment(Varyings IN)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -499,7 +504,7 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     InitializeInputData(IN, normalTS, inputData);
     //IN.normal.xyz inputData.normalWS  mixedDiffuse.rgb
 
-    LightingBuffer = 0;
+    float3 totalLighting = 0;
     for(int i = 0; i < g_DirectionalLightCount; ++i)
     {
         if ((g_LightRecordBuffer[i].lightLayer & asuint(unity_RenderingLayer.x)) == 0)
@@ -508,16 +513,18 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
         }
         half3 lighting = saturate(dot(DirectionalLightL(g_LightRecordBuffer[i]), inputData.normalWS.xyz));
         lighting *= 0.318 * mixedDiffuse.rgb * LightRadiance(g_LightRecordBuffer[i]);
-        LightingBuffer.rgb += lighting;
+        totalLighting += lighting;
     }
-    LightingBuffer *= weight;
+    totalLighting *= weight;
     #if !defined(TERRAIN_SPLAT_ADDPASS)
-    LightingBuffer.rgb += _EmissionColor.rgb;
+    totalLighting += _EmissionColor.rgb;
     #endif
+    ForwardFragmentOutput output = (ForwardFragmentOutput)0;
+    output.lightingBuffer = float4(totalLighting, weight);
+    return output;
 }
 
-void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3,
-    out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
+GBufferFragmentOutput DeferredFragment(Varyings IN)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -558,38 +565,55 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     float3 surfaceAlbedo = mixedDiffuse.rgb * weight;
     float surfaceRoughness = mixedDiffuse.r;
     float surfaceReflactance = mixedDiffuse.b;
+    float surfaceSpecular = mixedDiffuse.g;
     float3 surfaceNormal = normalize(inputData.normalWS);
 
     #if defined(_DBUFFER)
     float2 screenUV = IN.clipPos.xy * rcp(_ScreenParams.xy);
-    ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance);
+    ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
     #endif
 
-    GBufferData GBufferData;
-    GBufferData.Albedo = surfaceAlbedo;
-    GBufferData.Specular = mixedDiffuse.g;
-    GBufferData.Roughness = surfaceRoughness;
-    GBufferData.Reflactance = surfaceReflactance;
-    GBufferData.Normal = surfaceNormal;
-    GBufferData.ShadingModel = GBUFFER_SHADING_MODEL_DEFAULT_LIT;
-    GBufferData.Flags = 0;
-    GBufferData.SSSProfileIndex = 0;
-    GBufferData.Thickness = 0;
-    GBufferData.RenderingLayer = asuint(unity_RenderingLayer.x);
-    EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB, GBufferC);
-    #if defined(TERRAIN_SPLAT_ADDPASS)
-    LightingBuffer = 0;
-    // Additive layer passes add nothing to the baked targets of the base pass.
-    BakedDiffuse = 0;
-    BakedOcclusion = 0;
-    #else
-    LightingBuffer = float4(_EmissionColor.rgb, 0);
+    GBufferFragmentOutput output = (GBufferFragmentOutput)0;
+    SurfaceData surface;
+    surface.Albedo = surfaceAlbedo;
+    surface.Specular = surfaceSpecular;
+    surface.Roughness = surfaceRoughness;
+    surface.Metallic = surfaceReflactance;
+    surface.Normal = surfaceNormal;
+    surface.Route = SURFACE_ROUTE_DEFERRED;
+    surface.Flags = 0u;
+    surface.RenderingLayer = asuint(unity_RenderingLayer.x);
+    float4 bakedDiffuse = 0;
+    float4 bakedMask = 1;
+#if !defined(TERRAIN_SPLAT_ADDPASS)
     // Lightmap (uvMainAndLM.zw already carries unity_LightmapST) -> Adaptive Probe Volumes -> probes.
-    float4 bakedMask;
     SampleBakedLighting(IN.uvMainAndLM.zw, IN.positionWS, surfaceNormal, normalize(_WorldSpaceCameraPos - IN.positionWS), IN.clipPos.xy,
-        asuint(unity_RenderingLayer.x), BakedDiffuse, bakedMask);
-    BakedOcclusion = 1 - bakedMask;
-    #endif
+        asuint(unity_RenderingLayer.x), bakedDiffuse, bakedMask);
+    if (bakedDiffuse.a > 0)
+    {
+        surface.Flags |= SURFACE_FLAG_HAS_BAKED_GI;
+    }
+#endif
+    float2 surfaceMetadata = 0;
+    EncodeSurfaceGBuffer(surface, IN.clipPos.xy, output.gBufferA, output.gBufferB, surfaceMetadata);
+#if defined(TERRAIN_SPLAT_ADDPASS)
+    output.surfaceMetadata = 0;
+    output.lightingBuffer = 0;
+#else
+    output.surfaceMetadata = float4(surfaceMetadata, 0, 0);
+#if defined(INFINITY_GBUFFER_BAKED_DIFFUSE)
+    output.lightingBuffer = float4(_EmissionColor.rgb, 0);
+    output.bakedDiffuse = bakedDiffuse;
+#else
+    float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflactance);
+    float3 envDiffuse = diffuseColor * (bakedDiffuse.a > 0 ? bakedDiffuse.rgb : EvaluateSH2Irradiance(surfaceNormal, _AtmosphereSkySH));
+    output.lightingBuffer = float4(_EmissionColor.rgb + envDiffuse, 0);
+#endif
+#if defined(SHADOWS_SHADOWMASK)
+    output.bakedShadowmask = 1 - bakedMask;
+#endif
+#endif
+    return output;
 }
 
 // Shadow pass

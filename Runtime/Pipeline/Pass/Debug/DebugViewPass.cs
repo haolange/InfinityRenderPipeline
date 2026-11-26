@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 parameters;
         public int mode;
         public float farDepth;
-        public int padding0;
+        public int hasRenderingLayers;
         public int padding1;
     }
 
@@ -115,11 +115,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
-        internal DebugViewPass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        internal DebugViewPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
+            m_Settings = settings;
         }
 
         struct DebugViewPassData
@@ -129,11 +131,12 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeKernel kernel;
             public EDebugViewKernel kind;
             public LightLoopInputs lightLoop;
+            public ReflectionInputs reflections;
             public RGTextureHandle depthTextureHandle;
             public ComputeShader debugViewShader;
             public RGTextureHandle gBufferAHandle;
             public RGTextureHandle gBufferBHandle;
-            public RGTextureHandle gBufferCHandle;
+            public RGTextureHandle surfaceMetadataHandle;
             public RGTextureHandle motionTextureHandle;
             public RGTextureHandle sceneColorTextureHandle;
             public RGTextureHandle optionalTextureHandle;
@@ -154,7 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
             // A view whose optional input is not registered, or a probe atlas view with no probe, shows the Missing kernel.
             DebugViewBinding binding = DebugViewPassUtilityData.BindingOf(view);
             EDebugViewKernel kind = binding.kernel;
-            int probeCount = context.lights.ReflectionProbeCount;
+            int probeCount = context.reflections.ProbeCount;
             RGTextureHandle optionalTextureHandle = default;
             if (binding.inputs.Length > 0)
             {
@@ -181,7 +184,7 @@ namespace InfinityTech.Rendering.Pipeline
             InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
             RGTextureHandle gBufferAHandle = default;
             RGTextureHandle gBufferBHandle = default;
-            RGTextureHandle gBufferCHandle = default;
+            RGTextureHandle surfaceMetadataHandle = default;
             RGTextureHandle motionTextureHandle = default;
             RGTextureHandle sceneColorTextureHandle = default;
             switch (kind)
@@ -189,7 +192,7 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugViewKernel.GBuffer:
                     gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
                     gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-                    gBufferCHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
+                    surfaceMetadataHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer);
                     break;
                 case EDebugViewKernel.Motion:
                     motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
@@ -202,7 +205,7 @@ namespace InfinityTech.Rendering.Pipeline
                     break;
                 case EDebugViewKernel.ProbeAtlas:
                     // Six faces per probe; the atlas slot of list entry i is its first slice (record parameters.y).
-                    parameters.x = context.lights.ReflectionProbeFirstSlice(Mathf.Clamp(lightingDebug.reflectionProbeAtlasIndex, 0, probeCount - 1));
+                    parameters.x = context.reflections.FirstSlice(Mathf.Clamp(lightingDebug.reflectionProbeAtlasIndex, 0, probeCount - 1));
                     break;
             }
 
@@ -225,7 +228,8 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y),
                     parameters = parameters,
                     mode = (int)view,
-                    farDepth = GraphicsConventions.SampledFarDepth
+                    farDepth = GraphicsConventions.SampledFarDepth,
+                    hasRenderingLayers = m_Settings.config.enableRenderingLayers ? 1 : 0
                 });
                 passData.debugViewShader = m_Resources.shaders.debugViewShader;
                 switch (kind)
@@ -233,7 +237,7 @@ namespace InfinityTech.Rendering.Pipeline
                     case EDebugViewKernel.GBuffer:
                         passData.gBufferAHandle = passHandle.ReadTexture(gBufferAHandle);
                         passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
-                        passData.gBufferCHandle = passHandle.ReadTexture(gBufferCHandle);
+                        passData.surfaceMetadataHandle = passHandle.ReadTexture(surfaceMetadataHandle);
                         break;
                     case EDebugViewKernel.Motion:
                         passData.motionTextureHandle = passHandle.ReadTexture(motionTextureHandle);
@@ -250,6 +254,9 @@ namespace InfinityTech.Rendering.Pipeline
                         LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                         lightLoop.Read(passHandle);
                         passData.lightLoop = lightLoop;
+                        ReflectionInputs reflections = ReflectionInputs.Query(m_RGBuilder, context);
+                        reflections.Read(passHandle);
+                        passData.reflections = reflections;
                         passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                         break;
                 }
@@ -268,7 +275,7 @@ namespace InfinityTech.Rendering.Pipeline
                         case EDebugViewKernel.GBuffer:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferAHandle);
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferBHandle);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferCHandle);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SurfaceMetadata, passData.surfaceMetadataHandle);
                             break;
                         case EDebugViewKernel.Motion:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);
@@ -285,6 +292,7 @@ namespace InfinityTech.Rendering.Pipeline
                         case EDebugViewKernel.LightLoop:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
                             passData.lightLoop.Bind(cmdEncoder, shader, kernel);
+                            passData.reflections.Bind(cmdEncoder, shader, kernel);
                             break;
                         case EDebugViewKernel.ProbeAtlas:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ProbeAtlasTextureID, passData.optionalTextureHandle);

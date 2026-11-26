@@ -54,8 +54,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Color Diffuse(int x, int y) => (mode == 5 || mode == 6) ? (x == 8 && y == 8 ? new Color(1,.5f,.25f,1) : new Color(.1f,.05f,.025f,1)) : (mode == 1 || mode == 4) ? (x < width / 2 ? new Color(.2f, .1f, .05f, 1) : new Color(.8f, .4f, .2f, 1)) : new Color(.25f, .125f, .0625f, 1);
                 var diffuse = Texture(Diffuse);
                 var rawDepth = Texture((x, y) => new Color(depth, 0, 0, 0));
-                var b = Texture((x, y) => mode == 4 && x >= width / 2 ? new Color(1, .5f, .5f, .5f) : new Color(.5f, .5f, 1, .5f));
-                var c = Texture((x, y) => new Color(mode == 2 ? 64f / 255 : 81f / 255, (mode == 1 && x >= width / 2 || mode == 6) ? 1f / 255 : 0, 1, 1));
+                var b = Texture((x, y) => mode == 4 && x >= width / 2 ? new Color(1f, .5f, 0f, .5f) : new Color(.5f, .5f, 0f, .5f));
+                var metadata = Texture((x, y) => new Color(mode == 2 ? 1f / 255f : 9f / 255f, 0, 0, 0));
+                var customData = Texture((x, y) => new Color((mode == 1 && x >= width / 2 || mode == 6) ? 1f / 255f : 0f, 1f, 0f, 0f));
                 var filtered = Target((width + 1) / 2 + 3, (height + 1) / 2 + 3, GraphicsFormat.R16G16B16A16_SFloat);
                 var scene = Target(width + 7, height + 5, GraphicsFormat.R32G32B32A32_SFloat);
                 // Upload a nonuniform specular/emissive residual through a CPU-created texture.
@@ -66,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("SSS_Resolution", new Vector4(width, height, 1f / width, 1f / height));
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform { matrix_FlipYJitterProj = projection, matrix_InvFlipYJitterProj = projection.inverse });
                 shader.SetInt("SSS_NumSamples", 32); shader.SetInt("SSS_ProfileCount", 2);
-                foreach (string name in new[] { "SRV_LightingTexture", "SRV_DepthTexture", "SRV_GBufferTextureB", "SRV_GBufferTextureC", "SRV_FilteredSubsurface" })
+                foreach (string name in new[] { "SRV_LightingTexture", "SRV_DepthTexture", "SRV_GBufferTextureB", "SRV_SurfaceMetadata", "SRV_FilteredSubsurface" })
                 {
                     bool half = name == "SRV_FilteredSubsurface";
                     shader.SetVector(name + "_InfinityView", half ? new Vector4((width + 1) / 2, (height + 1) / 2, filtered.width, filtered.height) : new Vector4(width, height, original.width, original.height));
@@ -76,7 +77,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     shader.SetBuffer(kernel, "SRV_DiffusionProfiles", profiles);
                     shader.SetTexture(kernel, "SRV_LightingTexture", diffuse); shader.SetTexture(kernel, "SRV_DepthTexture", rawDepth);
-                    shader.SetTexture(kernel, "SRV_GBufferTextureB", b); shader.SetTexture(kernel, "SRV_GBufferTextureC", c);
+                    shader.SetTexture(kernel, "SRV_GBufferTextureB", b); shader.SetTexture(kernel, "SRV_SurfaceMetadata", metadata);
+                    shader.SetTexture(kernel, "SRV_CustomData", customData);
                 }
                 shader.SetTexture(blur, "UAV_SubsurfaceTexture", filtered);
                 shader.Dispatch(blur, (((width + 1) / 2) + 7) / 8, (((height + 1) / 2) + 7) / 8, 1);

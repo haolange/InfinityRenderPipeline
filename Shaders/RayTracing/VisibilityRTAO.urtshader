@@ -10,13 +10,29 @@ UNIFIED_RT_DECLARE_ACCEL_STRUCT(g_SceneAccelStruct);
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float4> SRV_NormalTexture;
-Texture2D<float4> SRV_GBufferTextureC;
+Texture2D<float4> SRV_SurfaceMetadata;
 RWTexture2D<float> UAV_OcclusionTexture;
 
 float4 RTAO_Resolution;
 int RTAO_NumRays;
 float RTAO_Radius;
+int RTAO_UseBestFitNormal;
 float4x4 Matrix_InvViewFlipYJitterProj;
+
+float3 DecodeRTAONormal(float4 packedNormal)
+{
+    if (RTAO_UseBestFitNormal != 0)
+    {
+        return normalize(packedNormal.xyz * 2.0 - 1.0);
+    }
+    float2 oct = packedNormal.rg * 2.0 - 1.0;
+    float3 n = float3(oct, 1.0 - dot(1.0, abs(oct)));
+    if (n.z < 0.0)
+    {
+        n.xy = (1.0 - abs(n.yx)) * (n.xy >= 0.0 ? float2(1.0, 1.0) : float2(-1.0, -1.0));
+    }
+    return normalize(n);
+}
 
 float Hash21(uint2 p)
 {
@@ -43,8 +59,8 @@ void RTAOTrace(UnifiedRT::DispatchInfo dispatchInfo)
         return;
 
     float depth = SRV_DepthTexture[id].r;
-    uint packedC = (uint)(SRV_GBufferTextureC[id].r * 255.0 + 0.5);
-    bool valid = (packedC & (4u << 4)) != 0;
+    uint packedMeta = (uint)(SRV_SurfaceMetadata[id].r * 255.0 + 0.5);
+    bool valid = (packedMeta & 0x3u) != 0u;
     if (depth == 0.0 || !valid)
     {
         UAV_OcclusionTexture[id] = 1.0;
@@ -55,7 +71,7 @@ void RTAOTrace(UnifiedRT::DispatchInfo dispatchInfo)
     float4 clip = float4(uv * 2.0 - 1.0, depth, 1.0);
     float4 worldH = mul(Matrix_InvViewFlipYJitterProj, clip);
     float3 worldPos = worldH.xyz / max(worldH.w, 1e-6);
-    float3 normal = normalize(SRV_NormalTexture[id].xyz * 2.0 - 1.0);
+    float3 normal = DecodeRTAONormal(SRV_NormalTexture[id]);
 
     UnifiedRT::RayTracingAccelStruct accel = UNIFIED_RT_GET_ACCEL_STRUCT(g_SceneAccelStruct);
     int rays = max(1, RTAO_NumRays);

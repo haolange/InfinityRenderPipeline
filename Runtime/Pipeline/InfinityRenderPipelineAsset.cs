@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Atmosphere;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -89,6 +90,23 @@ namespace InfinityTech.Rendering.Pipeline
         // Shadow filtering quality: Low..Ultra pick QualityPresets.ShadowFilter; Custom uses customShadowFilter.
         [SerializeField] EQualityLevel shadowFilterQuality = EQualityLevel.Medium;
         [SerializeField] ShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
+
+        [SerializeField] EGBufferLayout m_GBufferLayout = EGBufferLayout.Compact64Bit;
+        [SerializeField] ESceneColorFormat m_SceneColorFormat = ESceneColorFormat.R11G11B10F;
+        [SerializeField] EDepthStencilFormat m_DepthStencilFormat = EDepthStencilFormat.D32FS8;
+        [SerializeField] EMotionVectorFormat m_MotionVectorFormat = EMotionVectorFormat.RG16F;
+        [SerializeField] EIndirectLightingFormat m_IndirectLightingFormat = EIndirectLightingFormat.R11G11B10F;
+        [SerializeField] ESubsurfaceLightingMode m_SubsurfaceLightingMode = ESubsurfaceLightingMode.SeparateBuffer;
+        [SerializeField] bool m_EnableRenderingLayers = true;
+        [SerializeField] bool m_EnableAnalyticShadow = true;
+        [SerializeField] bool m_EnableAnalyticIndirectOcclusion = true;
+        [SerializeField] bool m_EnableAnalyticDirectShadow = true;
+
+        [SerializeField] ETemporalBackend m_TemporalBackend = ETemporalBackend.NativeTAA;
+        [SerializeField] ETemporalReconstructionMode m_TemporalMode = ETemporalReconstructionMode.NativeAA;
+        [SerializeField] ETemporalQuality m_TemporalQuality = ETemporalQuality.Quality;
+        [SerializeField] ERenderResolutionPolicy m_RenderResolutionPolicy = ERenderResolutionPolicy.FixedScale;
+        [SerializeField, Range(0.0f, 1.0f)] float m_TemporalSharpness = 0.35f;
 
         [SerializeField] Shader m_DefaultShader;
         [SerializeField] Material m_DefaultMaterial;

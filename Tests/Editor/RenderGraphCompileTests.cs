@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 RGTextureHandle depthHandle = graph.CreateTexture(new TextureDescriptor(4, 4)
                 {
-                    name = "UnwrittenDepth", dimension = TextureDimension.Tex2D, depthBufferBits = EDepthBits.Depth32
+                    name = "UnwrittenDepth", dimension = TextureDimension.Tex2D, depthStencilFormat = GraphicsFormat.D32_SFloat
                 });
                 {
                     RGRasterPassHandle<PassData> passHandle = graph.AddRasterPass<PassData>(new ProfilingSampler("LoadDepth"));
@@ -314,7 +314,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 RGTextureHandle depthHandle = graph.CreateTexture(new TextureDescriptor(4, 4)
                 {
-                    name = "Depth", dimension = TextureDimension.Tex2D, depthBufferBits = EDepthBits.Depth32
+                    name = "Depth", dimension = TextureDimension.Tex2D, depthStencilFormat = GraphicsFormat.D32_SFloat
                 });
                 var colors = new RGTextureHandle[8];
                 for (int i = 0; i < colors.Length; ++i)

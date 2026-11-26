@@ -186,7 +186,8 @@ namespace InfinityTech.Rendering.Pipeline
             combineLookupTextureDescriptor.filterMode = FilterMode.Trilinear;
             combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
 
-            context.state.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
+            AtmosphereCameraState atmosphereState = context.state.GetAtmosphereState();
+            atmosphereState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
             RGTextureHandle combineLookupTextureHandle = m_RGBuilder.ImportTexture(lutHandle);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTextureHandle);
 
@@ -218,7 +219,7 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            context.state.combineLutCache.MarkProduced();
+            atmosphereState.combineLutCache.MarkProduced();
         }
     }
 }

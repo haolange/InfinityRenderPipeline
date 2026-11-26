@@ -151,7 +151,7 @@ float4 ResolveTemporalPixel(int2 pixel, out float depth, out float4 diagnostics,
 {
     float2 uv = (pixel + 0.5) * TAA_Resolution.zw;
     float2 velocity = SRV_MotionTexture.Load(int3(pixel, 0));
-    float4 metadata = SRV_MotionMetadata.Load(int3(pixel, 0));
+    float2 metadata = SRV_MotionMetadata.Load(int3(pixel, 0)).xy;
     float2 historyUV = uv - velocity;
     float2 historyDepthUV = historyUV + View_JitterUV.zw - View_JitterUV.xy;
     float3 currentLinear = max(SRV_AliasingColorTexture.Load(int3(pixel, 0)).rgb, 0);
@@ -177,8 +177,9 @@ float4 ResolveTemporalPixel(int2 pixel, out float depth, out float4 diagnostics,
     float4 history = 0;
     float coverage = 0, weight = 0, count = 1;
     // 1 reset, 2 invalid motion, 3 offscreen, 4 depth/footprint rejection.
-    float reason = TAA_ResetBlend <= 0 ? 1 : metadata.z <= 0 ? 2 : any(historyUV < 0) || any(historyUV >= 1) ? 3 : 4;
-    bool valid = TAA_ResetBlend > 0 && metadata.z > 0 && all(isfinite(velocity));
+    bool validMotionMeta = isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1;
+    float reason = TAA_ResetBlend <= 0 ? 1 : !validMotionMeta ? 2 : any(historyUV < 0) || any(historyUV >= 1) ? 3 : 4;
+    bool valid = TAA_ResetBlend > 0 && validMotionMeta && all(isfinite(velocity));
     if (valid)
     {
         valid = TaaReadHistory(historyUV, historyDepthUV, metadata.x, history, coverage);

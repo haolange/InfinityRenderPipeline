@@ -1,5 +1,6 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.Temporal;
 using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -12,12 +13,30 @@ namespace InfinityTech.Rendering.Pipeline
         // Frame Settings of the most recently configured camera.
         public ResolvedFrameSettings lastFrameSettings;
         public bool hasFrameSettings;
+        internal EffectivePipelineConfiguration lastConfiguration;
+        internal bool hasConfiguration;
+        internal TemporalFrameRequirements lastTemporalRequirements;
+        internal bool hasTemporalRequirements;
 
         public void Reset()
         {
             debugView = EDebugView.None;
             lastFeatures = null;
             hasFrameSettings = false;
+            hasConfiguration = false;
+            hasTemporalRequirements = false;
+        }
+
+        internal string DescribeConfigurationSummary()
+        {
+            if (!hasConfiguration)
+            {
+                return "-";
+            }
+            string trc = hasTemporalRequirements
+                ? $" | TRC={lastTemporalRequirements.activeBackend} ({lastTemporalRequirements.renderSize.x}x{lastTemporalRequirements.renderSize.y} -> {lastTemporalRequirements.displaySize.x}x{lastTemporalRequirements.displaySize.y})"
+                : $" | TRC={lastConfiguration.effectiveTemporalBackend}";
+            return $"{lastConfiguration.gBufferLayout} ({lastConfiguration.coreGBufferBitsPerPixel}+{lastConfiguration.surfaceMetadataBitsPerPixel} bit) | MotionMeta={lastConfiguration.motionMetadataFormat} ({lastConfiguration.motionMetadataBitsPerPixel} bit) | SceneColor={lastConfiguration.sceneColorFormat}{trc}";
         }
 
         public string DescribeFrameSetting(EFrameSetting setting)
@@ -75,12 +94,26 @@ namespace InfinityTech.Rendering.Pipeline
         public int complexityRange = DefaultComplexityRange;
         public const int DefaultComplexityRange = 16;
         public int lastReflectionProbeCount;
+        public int lastRasterReflectionCount;
+        public int lastDBufferDecalCount;
+        public int lastDirectDecalCount;
+        public int lastClusteredDecalCount;
+        public int lastAnalyticOccluderCount;
+        public int lastAnalyticIndirectClusterEntries;
+        public int lastAnalyticDirectClusterEntries;
 
         public void Reset()
         {
             reflectionProbeAtlasIndex = 0;
             complexityRange = DefaultComplexityRange;
             lastReflectionProbeCount = 0;
+            lastRasterReflectionCount = 0;
+            lastDBufferDecalCount = 0;
+            lastDirectDecalCount = 0;
+            lastClusteredDecalCount = 0;
+            lastAnalyticOccluderCount = 0;
+            lastAnalyticIndirectClusterEntries = 0;
+            lastAnalyticDirectClusterEntries = 0;
             lastDirectionalCount = 0;
             lastLocalCount = 0;
             lastUnsupportedShapeCount = 0;

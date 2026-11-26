@@ -182,16 +182,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 state.features.MarkProduced(EFrameFeature.GTAO);
                 state.executeSucceeded = true;
                 state.CommitFrame();
-                Assert.IsTrue(state.acceptedSSR && state.acceptedSSGI && state.acceptedGTAO);
-                int phase = state.acceptedSSGIFrameIndex;
+                ScreenSpaceCameraState ssState = state.GetScreenSpaceState();
+                Assert.IsTrue(ssState.acceptedSSR && ssState.acceptedSSGI && ssState.acceptedGTAO);
+                int phase = ssState.acceptedSSGIFrameIndex;
                 state.features.Reset();
                 state.RollbackFrame();
                 state.CommitFrame();
-                Assert.IsTrue(state.acceptedSSR && state.acceptedSSGI && state.acceptedGTAO, "Rejected camera submissions preserve accepted history facts.");
-                Assert.AreEqual(phase, state.acceptedSSGIFrameIndex);
+                Assert.IsTrue(ssState.acceptedSSR && ssState.acceptedSSGI && ssState.acceptedGTAO, "Rejected camera submissions preserve accepted history facts.");
+                Assert.AreEqual(phase, ssState.acceptedSSGIFrameIndex);
                 state.executeSucceeded = true;
                 state.CommitFrame();
-                Assert.IsFalse(state.acceptedSSR || state.acceptedSSGI || state.acceptedGTAO, "A successfully rendered disabled frame breaks effect-history continuity.");
+                Assert.IsFalse(ssState.acceptedSSR || ssState.acceptedSSGI || ssState.acceptedGTAO, "A successfully rendered disabled frame breaks effect-history continuity.");
             }
             finally { state?.Dispose(); pool.Dispose(); if (initialize) manager.Deinitialize(); }
         }

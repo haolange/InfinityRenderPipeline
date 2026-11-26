@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 
-namespace InfinityTech.Rendering.LightPipeline
+namespace InfinityTech.Rendering.Reflection
 {
     // A probe's cube in the atlas: the probe and the texture it currently shows.
     internal readonly struct ProbeCubeKey : IEquatable<ProbeCubeKey>
@@ -159,7 +159,7 @@ namespace InfinityTech.Rendering.LightPipeline
             descriptor.name = "ReflectionProbeAtlasTexture";
             descriptor.dimension = TextureDimension.Tex2DArray;
             descriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            descriptor.depthBufferBits = EDepthBits.None;
+            descriptor.depthStencilFormat = GraphicsFormat.None;
             descriptor.enableRandomWrite = true;
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;

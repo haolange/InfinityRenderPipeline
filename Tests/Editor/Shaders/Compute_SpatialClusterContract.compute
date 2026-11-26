@@ -1,0 +1,43 @@
+#pragma kernel ClusterPriorityOrder
+
+#include "../../../Shaders/Library/Spatial/SpatialClusterList.hlsl"
+#include "../../../Shaders/Library/Spatial/SpatialGeometry.hlsl"
+
+cbuffer CBV_SpatialClusterContract
+{
+    float4 _ClusterParams;
+    float4 _ZSliceParams;
+    int _ItemCount;
+    int _Padding0;
+    int _Padding1;
+    int _Padding2;
+};
+
+StructuredBuffer<uint2> SRV_ClusterHeaders;
+StructuredBuffer<uint> SRV_ClusterIndices;
+RWStructuredBuffer<uint> UAV_Results;
+
+[numthreads(1, 1, 1)]
+void ClusterPriorityOrder(uint3 id : SV_DispatchThreadID)
+{
+    SpatialClusterLoopState loop;
+    SpatialBeginClusterLoop(uint2(32, 32), 10.0, _ItemCount, _ClusterParams, _ZSliceParams, SRV_ClusterHeaders, loop);
+
+    uint count = 0;
+    uint packed = 0;
+    uint itemIndex;
+    [loop]
+    while (SpatialNextClusterItem(loop, SRV_ClusterIndices, itemIndex))
+    {
+        if (count < 4u)
+        {
+            packed |= ((itemIndex + 1u) & 0xFFu) << (count * 8u);
+        }
+        count++;
+    }
+
+    UAV_Results[0] = count;
+    UAV_Results[1] = packed;
+    UAV_Results[2] = asuint(SpatialRayIntersectBox(float3(0, 0, 0), float3(1, 0, 0), float3(4, 2, 2)));
+    UAV_Results[3] = asuint(SpatialRayIntersectSphere(float3(0, 0, 0), float3(0, 1, 0), 3.0));
+}

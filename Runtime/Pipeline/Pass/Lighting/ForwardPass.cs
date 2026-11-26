@@ -11,6 +11,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         internal static readonly int SRV_ForwardOcclusionID = Shader.PropertyToID("SRV_ForwardOcclusion");
         internal static readonly GlobalKeyword SubsurfaceKeyword = GlobalKeyword.Create("INFINITY_SSS_OUTPUT");
+        internal static readonly GlobalKeyword SubsurfaceAlphaKeyword = GlobalKeyword.Create("INFINITY_SSS_ALPHA");
+        internal static readonly GlobalKeyword IndirectDiffuseKeyword = GlobalKeyword.Create("INFINITY_FORWARD_INDIRECT_DIFFUSE");
+        internal static readonly GlobalKeyword IndirectSpecularKeyword = GlobalKeyword.Create("INFINITY_FORWARD_INDIRECT_SPECULAR");
         internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
         internal static readonly string TextureName = "LightingTexture";
@@ -31,7 +34,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct ForwardPassData
         {
-            public bool hasSubsurface;
+            public bool hasSeparateSubsurface;
+            public bool hasAlphaSubsurface;
+            public bool needsIndirectDiffuse;
+            public bool needsIndirectSpecular;
             public RGMeshDrawListHandle meshDrawListHandle;
             public RGRendererListHandle rendererListHandle;
             public RGTextureHandle atmosphereGGXHandle;
@@ -45,11 +51,17 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle atmosphereSHHandle;
             public RGBufferHandle lightRecordsHandle;
             public LightLoopInputs lightLoop;
+            public ReflectionInputs reflections;
+            public bool hasAnalyticShadow;
+            public AnalyticShadowInputs analyticShadows;
             public float iblMaxMip;
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
             {
-                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceKeyword, hasSubsurface);
+                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceKeyword, hasSeparateSubsurface);
+                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceAlphaKeyword, hasAlphaSubsurface);
+                commands.SetKeyword(ForwardPassUtilityData.IndirectDiffuseKeyword, needsIndirectDiffuse);
+                commands.SetKeyword(ForwardPassUtilityData.IndirectSpecularKeyword, needsIndirectSpecular);
                 commands.SetKeyword(ForwardPassUtilityData.OcclusionKeyword, hasOcclusion);
                 if (hasOcclusion)
                 {
@@ -64,8 +76,14 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSunHandle);
                     commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowMaskID, contactShadowMaskHandle);
                 }
+                commands.SetKeyword(AnalyticShadowPassUtilityData.ForwardAnalyticShadowKeyword, hasAnalyticShadow);
+                if (hasAnalyticShadow)
+                {
+                    analyticShadows.BindGlobal(commands);
+                }
                 commands.SetGlobalInt(PassShaderIDs.InfinityHasProbes, hasProbes);
                 lightLoop.BindGlobal(commands);
+                reflections.BindGlobal(commands);
                 commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecordsHandle);
                 commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGXHandle);
                 commands.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, atmosphereSHHandle);
@@ -81,23 +99,39 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListHandle forwardRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterForwardPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.OptimizeStateChanges, PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume, m_Settings.enableInstanceBatch));
 
+            bool needsIndirectDiffuse = context.features.ShouldRecord(EFrameFeature.SSGI);
+            bool needsIndirectSpecular = context.features.ShouldRecord(EFrameFeature.SSR);
+            bool hasSSS = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
+            bool separateSSS = hasSSS && m_Settings.config.subsurfaceLightingMode == ESubsurfaceLightingMode.SeparateBuffer;
+            bool alphaSSS = hasSSS && m_Settings.config.subsurfaceLightingMode == ESubsurfaceLightingMode.SceneColorAlpha;
+
             //Add ForwardPass
             {
                 RGRasterPassHandle<ForwardPassData> passHandle = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward));
                 //Setup Phase
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(lightingTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                if (context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering))
+                int nextAttachmentSlot = 1;
+                if (needsIndirectDiffuse)
                 {
-                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                }
+                if (needsIndirectSpecular)
+                {
+                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                }
+                if (separateSSS)
+                {
+                    passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), nextAttachmentSlot++, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 }
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref ForwardPassData passData = ref passHandle.GetPassData();
                 {
-                    passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
+                    passData.hasSeparateSubsurface = separateSSS;
+                    passData.hasAlphaSubsurface = alphaSSS;
+                    passData.needsIndirectDiffuse = needsIndirectDiffuse;
+                    passData.needsIndirectSpecular = needsIndirectSpecular;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = context.lights.HasShadowmask;
                     ShadowInputs shadows = ShadowInputs.Query(m_RGBuilder, context);
@@ -125,6 +159,13 @@ namespace InfinityTech.Rendering.Pipeline
                     LightLoopInputs lightLoop = LightTileMaskPass.QueryLightLoop(m_RGBuilder, context);
                     lightLoop.Read(passHandle);
                     passData.lightLoop = lightLoop;
+                    ReflectionInputs reflections = ReflectionInputs.Query(m_RGBuilder, context);
+                    reflections.Read(passHandle);
+                    passData.reflections = reflections;
+                    AnalyticShadowInputs analyticShadows = AnalyticShadowInputs.Query(m_RGBuilder, context);
+                    passData.hasAnalyticShadow = analyticShadows.active && context.frameSettings.IsEnabled(EFrameSetting.AnalyticShadow);
+                    analyticShadows.Read(passHandle);
+                    passData.analyticShadows = analyticShadows;
                 }
 
                 //Execute Phase

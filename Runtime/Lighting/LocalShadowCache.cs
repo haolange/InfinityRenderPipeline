@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.LightPipeline
             descriptor.name = "CachedLocalShadowMapTexture";
             descriptor.dimension = TextureDimension.Tex2D;
             descriptor.colorFormat = GraphicsFormat.None;
-            descriptor.depthBufferBits = EDepthBits.Depth32;
+            descriptor.depthStencilFormat = GraphicsFormat.D32_SFloat;
             descriptor.isShadowMap = true;
             descriptor.filterMode = FilterMode.Bilinear;
             return descriptor;

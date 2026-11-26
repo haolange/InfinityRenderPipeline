@@ -240,7 +240,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList, m_Samples;
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_SurfaceMetadata, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
             readonly RenderTexture m_HistoryMeta;
             readonly UniformBinding<ViewUniform> m_View;
 
@@ -264,10 +264,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 m_Depth = Solid(width, height, new Color(planeDepth, 0, 0, 0), false);
                 m_HiZ = Solid((width + 1) / 2, (height + 1) / 2, new Color(planeDepth, 0, 0, 0), true);
-                m_GBufferA = Solid(width, height, new Color(0, 0, roughness, 0), false);
-                m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 1.0f, 0.5f), false);
-                // Default lit, flags = valid surface (4) in the high nibble.
-                m_GBufferC = Solid(width, height, new Color((4 << 4) / 255.0f, 0, 0, 0), false);
+                m_GBufferA = Solid(width, height, new Color(0, 0, 0, roughness), false);
+                m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 0.0f, 0.5f), false);
+                // Surface route = Deferred (1).
+                m_SurfaceMetadata = Solid(width, height, new Color(1.0f / 255.0f, 0, 0, 0), false);
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
@@ -488,7 +488,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetTexture(kernel, "SRV_DepthTexture", m_Depth);
                 m_Shader.SetTexture(kernel, "SRV_GBufferA", m_GBufferA);
                 m_Shader.SetTexture(kernel, "SRV_GBufferB", m_GBufferB);
-                m_Shader.SetTexture(kernel, "SRV_GBufferC", m_GBufferC);
+                m_Shader.SetTexture(kernel, "SRV_SurfaceMetadata", m_SurfaceMetadata);
             }
 
             void DispatchFull(int kernel)

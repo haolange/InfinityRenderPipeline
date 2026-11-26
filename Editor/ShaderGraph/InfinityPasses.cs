@@ -255,7 +255,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         static RenderStateCollection MotionStates(InfinityTarget target)
         {
             RenderStateCollection states = EqualDepthStates(target);
-            states.Add(RenderState.Stencil(new StencilDescriptor { Ref = "5", Comp = "Always", Pass = "Replace" }));
+            states.Add(RenderState.Stencil(new StencilDescriptor { Ref = "1", WriteMask = "1", Comp = "Always", Pass = "Replace" }));
             return states;
         }
 
@@ -360,12 +360,12 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor RasterGBufferPass(InfinityTarget target) =>
             Pass(kRasterGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG", "multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE", "multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS"),
                 Defines(target), Includes(kBakedLighting, kGBuffer), true);
 
         public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
             Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_SSS_OUTPUT", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW", "multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE", "multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR", "multi_compile _ INFINITY_SSS_OUTPUT", "multi_compile _ INFINITY_SSS_ALPHA", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
         public static PassDescriptor RasterMotionPass(InfinityTarget target) =>

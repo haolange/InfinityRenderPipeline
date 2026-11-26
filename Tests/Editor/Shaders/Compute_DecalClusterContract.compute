@@ -1,0 +1,20 @@
+#pragma kernel ClusteredDecalContract
+
+#include "../../../Shaders/Library/DecalCluster.hlsl"
+
+RWStructuredBuffer<float4> UAV_DecalResults;
+
+[numthreads(1, 1, 1)]
+void ClusteredDecalContract(uint3 id : SV_DispatchThreadID)
+{
+    float3 albedo = float3(0.2, 0.2, 0.2);
+    float3 normal = float3(0, 1, 0);
+    float roughness = 0.8;
+    float metallic = 0.0;
+    float specular = 0.5;
+    // Pixel hits cluster inside box center at worldPos = (0, 0, 10), viewDepth = 10, renderingLayer = 1 (bit 0).
+    ApplyClusteredDecals(uint2(32, 32), 10.0, float3(0.0, 0.0, 10.0), 1u, albedo, normal, roughness, metallic, specular);
+
+    UAV_DecalResults[0] = float4(albedo, roughness);
+    UAV_DecalResults[1] = float4(normal, specular);
+}

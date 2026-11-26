@@ -7,6 +7,7 @@
 #pragma kernel DebugViewShadow DV_KERNEL_SHADOW
 #pragma kernel DebugViewLightLoop DV_KERNEL_LIGHTLOOP
 #pragma kernel DebugViewProbeAtlas DV_KERNEL_PROBEATLAS
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"
@@ -23,14 +24,14 @@ cbuffer CBV_DebugViewParameters
     float4 DV_Params;
     int DV_Mode;
     float DV_FarDepth;
-    int DV_Padding0;
+    int DV_HasRenderingLayers;
     int DV_Padding1;
 };
 
 #if defined(DV_KERNEL_GBUFFER)
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
-Texture2D SRV_GBufferTextureC;
+Texture2D SRV_SurfaceMetadata;
 #endif
 
 #if defined(DV_KERNEL_MOTION)
@@ -104,43 +105,43 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     }
 
     float3 color;
-    GBufferData gbuffer;
+    SurfaceData surfaceData;
     uint width, height;
     InfinityGetDimensions(SRV_GBufferTextureA, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
-    DecodeGBuffer(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbuffer);
-    bool validSurface = (gbuffer.Flags & GBUFFER_FLAG_VALID_SURFACE) != 0;
+    DecodeSurface(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_SurfaceMetadata, SRV_GBufferTextureA_InfinityView, DV_HasRenderingLayers != 0, surfaceData);
+    bool validSurface = surfaceData.Route != SURFACE_ROUTE_NONE;
     if (DV_Mode == DEBUGVIEW_ALBEDO)
     {
-        color = gbuffer.Albedo;
+        color = surfaceData.Albedo;
     }
     else if (DV_Mode == DEBUGVIEW_NORMAL)
     {
-        color = gbuffer.Normal * 0.5 + 0.5;
+        color = surfaceData.Normal * 0.5 + 0.5;
     }
     else if (DV_Mode == DEBUGVIEW_METALLIC)
     {
-        color = gbuffer.Reflactance.xxx;
+        color = surfaceData.Metallic.xxx;
     }
     else if (DV_Mode == DEBUGVIEW_SPECULAR)
     {
-        color = gbuffer.Specular.xxx;
+        color = surfaceData.Specular.xxx;
     }
     else if (DV_Mode == DEBUGVIEW_SHADINGMODEL)
     {
         // Black: no surface; blue: forward route (shaded in the forward pass); orange: subsurface; gray: default lit.
         color = !validSurface ? float3(0, 0, 0)
-            : (gbuffer.Flags & GBUFFER_FLAG_FORWARD) != 0 ? float3(0.2, 0.4, 1.0)
-            : gbuffer.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE ? float3(1.0, 0.5, 0.2)
+            : surfaceData.Route == SURFACE_ROUTE_FORWARD ? float3(0.2, 0.4, 1.0)
+            : (surfaceData.Flags & SURFACE_FLAG_SUBSURFACE) != 0 ? float3(1.0, 0.5, 0.2)
             : float3(0.7, 0.7, 0.7);
     }
     else if (DV_Mode == DEBUGVIEW_RENDERINGLAYERS)
     {
-        color = validSurface ? DebugLayerColor(gbuffer.RenderingLayer) : float3(0, 0, 0);
+        color = validSurface ? DebugLayerColor(surfaceData.RenderingLayer) : float3(0, 0, 0);
     }
     else
     {
-        color = SRV_GBufferTextureA[inputPixel].b.xxx;
+        color = surfaceData.Roughness.xxx;
     }
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
@@ -279,7 +280,8 @@ void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
     uint index;
     if (DV_Mode == DEBUGVIEW_REFLECTIONPROBECOMPLEXITY)
     {
-        LightLoopState loop = BeginProbeLoop(pixelCoord, viewDepth);
+        SpatialClusterLoopState loop;
+        BeginProbeLoop(pixelCoord, viewDepth, loop);
         [loop] while (NextProbe(loop, index)) count++;
     }
     else

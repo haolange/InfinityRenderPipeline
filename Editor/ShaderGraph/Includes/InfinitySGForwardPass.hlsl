@@ -1,12 +1,9 @@
 #ifndef INFINITY_SG_FORWARD_PASS
 #define INFINITY_SG_FORWARD_PASS
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ForwardOutput.hlsl"
 // ForwardPass of InfinityLit (Forward surface route): shared light loop, baked / probe / sky diffuse, reflection probes
 // blended with the sky, forward AO.
-void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2
-#if defined(INFINITY_SSS_OUTPUT)
-                , out float4 scatterDiffuse : SV_Target3
-#endif
-                )
+ForwardFragmentOutput frag(PackedVaryings packedInput)
 {
     Varyings input = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(input);
@@ -31,13 +28,30 @@ void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, ou
     diffuse *= ao;
     specular *= ao;
 #endif
-    indirectDiffuse = float4(diffuse, 1);
-    indirectSpecular = float4(specular, 1);
-    float3 directDiffuse;
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, normalWS, viewDir, microface, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)input.positionCS.xy, directDiffuse)
-        + diffuse + specular + surface.emission, 1);
-#if defined(INFINITY_SSS_OUTPUT)
-                scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#if defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
+    float analyticIndirectAO = EvaluateAnalyticIndirectOcclusion((uint2)input.positionCS.xy, viewDepth, positionWS, normalWS, asuint(unity_RenderingLayer.x));
+    diffuse *= analyticIndirectAO;
+    specular *= analyticIndirectAO;
 #endif
+    ForwardFragmentOutput output = (ForwardFragmentOutput)0;
+#if defined(INFINITY_FORWARD_INDIRECT_DIFFUSE)
+    output.indirectDiffuse = float4(diffuse, 1);
+#endif
+#if defined(INFINITY_FORWARD_INDIRECT_SPECULAR)
+    output.indirectSpecular = float4(specular, 1);
+#endif
+    float3 directDiffuse;
+    float3 totalLighting = EvaluateSurfaceLights(positionWS, normalWS, viewDir, microface, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)input.positionCS.xy, directDiffuse)
+        + diffuse + specular + surface.emission;
+#if defined(INFINITY_SSS_ALPHA)
+    float diffuseLuma = _Subsurface > 0.5 ? Luminance(max(0, directDiffuse + diffuse)) : 0.0;
+    output.lightingBuffer = float4(totalLighting, diffuseLuma);
+#else
+    output.lightingBuffer = float4(totalLighting, 1);
+#endif
+#if defined(INFINITY_SSS_OUTPUT)
+    output.scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#endif
+    return output;
 }
 #endif

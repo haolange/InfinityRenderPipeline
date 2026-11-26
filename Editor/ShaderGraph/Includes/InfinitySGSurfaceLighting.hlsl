@@ -10,7 +10,6 @@ Texture2D<float> SRV_ForwardOcclusion;
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/BSDF.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/Lightmap.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/Lighting.hlsl"
-#include "Packages/com.infinity.render-pipeline/Shaders/Library/ShadingModel.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/GBufferPack.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ImageBasedLighting.hlsl"
 StructuredBuffer<float4> _AtmosphereSkySH;

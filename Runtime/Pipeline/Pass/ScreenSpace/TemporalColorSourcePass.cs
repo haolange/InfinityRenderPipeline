@@ -90,14 +90,15 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.autoGenerateMips = false;
             descriptor.filterMode = FilterMode.Bilinear;
             var mips = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
+            TemporalCameraState temporalState = state.GetTemporalState();
             var source = new TemporalColorView
             {
                 colorHandle = m_RGBuilder.ImportTexture(colorRead.textureHandle), depthHandle = m_RGBuilder.ImportTexture(depthRead.textureHandle), mipsHandle = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
-                valid = state.acceptedTemporalColor && state.acceptedTemporalColorIsSR == sr && colorRead.valid && depthRead.valid
+                valid = temporalState.acceptedTemporalColor && temporalState.acceptedTemporalColorIsUpscaled == sr && colorRead.valid && depthRead.valid
             };
-            state.temporalColorView = source;
+            temporalState.temporalColorView = source;
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.colorHandle);
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorDepthBuffer, source.depthHandle);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

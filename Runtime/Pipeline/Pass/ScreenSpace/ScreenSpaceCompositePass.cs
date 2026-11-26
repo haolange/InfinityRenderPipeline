@@ -29,29 +29,32 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
-        internal ScreenSpaceCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        internal ScreenSpaceCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
+            m_Settings = settings;
         }
 
         struct ScreenSpaceCompositePassData
         {
             public RGConstantsHandle parametersHandle;
-            public bool hasSubsurface;
+            public bool hasSeparateSubsurface;
+            public bool hasAlphaSubsurface;
             public RGTextureHandle scatterDiffuseHandle;
             public int hasSSR;
             public int hasSSGI;
             public ComputeShader compositeShader;
             public int kernel;
             public int2 groups;
-            public LocalKeyword subsurfaceKeyword, ssrKeyword, ssgiKeyword;
+            public LocalKeyword subsurfaceKeyword, subsurfaceAlphaKeyword, ssrKeyword, ssgiKeyword;
             public RGTextureHandle lightingTextureHandle;
             public RGTextureHandle indirectDiffuseHandle, indirectSpecularHandle;
             public RGTextureHandle gBufferAHandle;
             public RGTextureHandle gBufferBHandle;
-            public RGTextureHandle gBufferCHandle;
+            public RGTextureHandle surfaceMetadataHandle;
             public RGTextureHandle depthTextureHandle;
             public RGTextureHandle ssrTextureHandle;
             public RGTextureHandle ssgiTextureHandle;
@@ -70,21 +73,26 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
+            EffectivePipelineConfiguration config = m_Settings.config;
             int width = context.dimensions.internalSize.x;
             int height = context.dimensions.internalSize.y;
 
             TextureDescriptor compositeDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             compositeDsc.name = ScreenSpaceCompositePassUtilityData.TextureName;
             compositeDsc.dimension = TextureDimension.Tex2D;
-            compositeDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
+            compositeDsc.colorFormat = config.sceneColorFormat;
             compositeDsc.enableRandomWrite = true;
             RGTextureHandle compositeTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
 
             RGTextureHandle lightingTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGTextureHandle gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
             RGTextureHandle gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureHandle gBufferCHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC);
+            RGTextureHandle surfaceMetadataHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+
+            bool hasSSS = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
+            bool separateSSS = hasSSS && config.subsurfaceLightingMode == ESubsurfaceLightingMode.SeparateBuffer;
+            bool alphaSSS = hasSSS && config.subsurfaceLightingMode == ESubsurfaceLightingMode.SceneColorAlpha;
 
             {
                 RGComputePassHandle<ScreenSpaceCompositePassData> passHandle = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite));
@@ -93,8 +101,9 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     resolution = new Vector4(width, height, 1.0f / width, 1.0f / height)
                 });
-                passData.hasSubsurface = context.features.ShouldRecord(EFrameFeature.SubsurfaceScattering);
-                if (passData.hasSubsurface && hasSSGI)
+                passData.hasSeparateSubsurface = separateSSS;
+                passData.hasAlphaSubsurface = alphaSSS;
+                if (separateSSS && hasSSGI)
                 {
                     passData.scatterDiffuseHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);
                     passHandle.ReadTexture(passData.scatterDiffuseHandle);
@@ -106,14 +115,21 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.kernel = m_Resources.kernels.screenSpaceComposite.index;
                 passData.groups = new int2(m_Resources.kernels.screenSpaceComposite.GroupsX(width), m_Resources.kernels.screenSpaceComposite.GroupsY(height));
                 passData.subsurfaceKeyword = m_Resources.kernels.compositeSubsurface;
+                passData.subsurfaceAlphaKeyword = m_Resources.kernels.compositeSubsurfaceAlpha;
                 passData.ssrKeyword = m_Resources.kernels.compositeSSR;
                 passData.ssgiKeyword = m_Resources.kernels.compositeSSGI;
                 passData.lightingTextureHandle = passHandle.ReadTexture(lightingTextureHandle);
-                passData.indirectDiffuseHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
-                passData.indirectSpecularHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
+                if (hasSSGI)
+                {
+                    passData.indirectDiffuseHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
+                }
+                if (hasSSR)
+                {
+                    passData.indirectSpecularHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
+                }
                 passData.gBufferAHandle = passHandle.ReadTexture(gBufferAHandle);
                 passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
-                passData.gBufferCHandle = passHandle.ReadTexture(gBufferCHandle);
+                passData.surfaceMetadataHandle = passHandle.ReadTexture(surfaceMetadataHandle);
                 passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 if (hasSSR)
                 {
@@ -129,20 +145,27 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.compositeShader;
-                    cmdEncoder.SetKeyword(shader, passData.subsurfaceKeyword, passData.hasSubsurface);
-                    if (passData.hasSubsurface && passData.hasSSGI != 0)
+                    cmdEncoder.SetKeyword(shader, passData.subsurfaceKeyword, passData.hasSeparateSubsurface);
+                    cmdEncoder.SetKeyword(shader, passData.subsurfaceAlphaKeyword, passData.hasAlphaSubsurface);
+                    if (passData.hasSeparateSubsurface && passData.hasSSGI != 0)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.UAV_ScatterDiffuse, passData.scatterDiffuseHandle);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectDiffuseID, passData.indirectDiffuseHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectSpecularID, passData.indirectSpecularHandle);
+                    if (passData.hasSSGI != 0)
+                    {
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectDiffuseID, passData.indirectDiffuseHandle);
+                    }
+                    if (passData.hasSSR != 0)
+                    {
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ScreenSpaceCompositePassUtilityData.SRV_IndirectSpecularID, passData.indirectSpecularHandle);
+                    }
                     cmdEncoder.SetComputeConstantBufferParam(shader, ScreenSpaceCompositePassUtilityData.CBV_CompositeParametersID, passData.parametersHandle);
                     cmdEncoder.SetKeyword(shader, passData.ssrKeyword, passData.hasSSR != 0);
                     cmdEncoder.SetKeyword(shader, passData.ssgiKeyword, passData.hasSSGI != 0);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_LightingTexture, passData.lightingTextureHandle);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferAHandle);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferBHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferCHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_SurfaceMetadata, passData.surfaceMetadataHandle);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
                     if (passData.hasSSR != 0)
                     {

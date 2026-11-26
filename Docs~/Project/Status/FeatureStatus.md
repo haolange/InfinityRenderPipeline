@@ -2,6 +2,52 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.
+
+- **Static & metadata gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)` (including `Runtime/Temporal` layering and hot-path rules); `test_static_check.py` -> `52/52 OK`; `GpuRecordLayout.generated.cs` current.
+- **Shader diagnostics (`ShaderUtil`)**: `Compute_TemporalAntiAliasing.compute`, `Compute_GroundTruthOcclusion.compute`, `Compute_ScreenSpaceReflection.compute`, `Compute_ScreenSpaceIndirectDiffuse.compute`, `Compute_DeferredShading.compute`, `InfinityLit.shader`, `InfinityLit-Instanced.shader`, and `DrawFullScreen.shader` -> `0` error issues (`SHADER_ISSUES=0`).
+- **EditMode & Metal GPU contract tests (`112/112` passed, `0` failed, `0` skipped)**: `TemporalAndCameraStateTests` (`3/3`), `CameraFrameStateTests` (`11/11`), `MeshOcclusionIntegrationTests` (`1/1`), `TemporalResolveGpuTests` (`14/14`), `GtaoTemporalGpuTests` (`18/18`), `AnalyticShadowTests` (`3/3`), `ReflectionAndDecalTests` (`3/3`), `ReflectionProbeTests` (`7/7`), `DBufferCompositeGpuTests` (`1/1`), `GBufferContractTests` (`13/13`), and `GpuRecordLayout` (`38/38`).
+- **Metal PlayMode capture (`Scene_Spazon`, `993×1330`, `MainCamera`)**: `spazon-capture` `Completed` (`nonFinite: 0` across `Lighting`, `DisplayColor`, `AntiAliasing`, `Motion` `R16G16_SFloat`, `MotionMetadata` `R32G32_SFloat`, `GBufferA` `R8G8B8A8_SRGB`, `GBufferB` `R8G8B8A8_UNorm`, `Depth` `R32_SFloat`, `TAAConfidence` `R32G32B32A32_SFloat`), `DisplayColor.png` & `Lighting.png` visually inspected cleanly, `0` InfinityRP/Shader/Metal errors in `Editor.log`.
+
+### Phase P1-B: Analytic Shadow & Occlusion — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.
+
+- **Static & metadata gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)` (including `Runtime/AnalyticShadow` layering and hot-path rules); `test_static_check.py` -> `52/52 OK`; `GpuRecordLayout.generated.cs` updated (`AnalyticOccluderRecord` 112B, `AnalyticShadowUniform` 48B).
+- **Shader diagnostics (`ShaderUtil`)**: `Compute_DeferredShading.compute`, `Compute_AnalyticShadowContract.compute`, `InfinityLit.shader`, and `InfinityLit-Instanced.shader` -> `0` error issues (`SHADER_ISSUES=0`).
+- **EditMode & GPU contract tests**: `AnalyticShadowTests` (`3/3`, covering Geometry vs Indirect vs Light-Extruded Direct Shadow bounds, zero-GC `AnalyticShadowContext.Build`, and Metal GPU contract separating Indirect Occlusion & Direct Soft Shadow across Sphere/Capsule/Box/Ellipsoid + `ERenderingLayer` filtering) and `GpuRecordLayout` (`38/38`) passed (`41/41`).
+- **Metal PlayMode capture (`Scene_Spazon`, `993×1330`, `MainCamera`)**: `spazon-capture` `Completed` (`nonFinite: 0` across `Lighting`, `DisplayColor`, `GBufferA`, `GBufferB`, `SurfaceMetadata`, `Depth`, `TAAConfidence`), `DisplayColor.png` & `Lighting.png` visually inspected cleanly, `0` InfinityRP/Shader/Metal errors in `Editor.log`.
+
+### Phase P1-A: Reflection & Decal Systems — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.
+
+- **Static & metadata gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)` (including `Runtime/Decal` & `Runtime/Reflection` layering and hot-path rules); `test_static_check.py` -> `52/52 OK`; `GpuRecordLayout.generated.cs` updated (`DecalRecord` 128B, `DecalUniform` 48B).
+- **Shader diagnostics (`ShaderUtil`)**: `Compute_DeferredShading.compute`, `Compute_DebugView.compute`, `Compute_DBufferContract.compute`, `Compute_DecalClusterContract.compute`, `InfinityDecal.shader`, `InfinityRasterReflection.shader`, `InfinityLit.shader`, and `InfinityLit-Instanced.shader` -> `0` error issues (`SHADER_ISSUES=0`).
+- **EditMode & GPU contract tests**: `ReflectionAndDecalTests` (`3/3`, incl. `OrientedBox`/independent projection proxy/capture origin, zero-GC `DecalContext.Build`, and Metal `ClusteredDecal_And_RasterReflection_ComposeCleanly` GPU contract), `ReflectionProbeTests` (`7/7`), `DBufferCompositeGpuTests` (`1/1`), and `GpuRecordLayout` (`36/36`) all passed (`47/47`).
+- **Metal PlayMode capture (`Scene_Spazon`, `993×1330`, `MainCamera`)**: `spazon-capture` `Completed` (`nonFinite: 0` across `Lighting`, `DisplayColor`, `GBufferA`, `GBufferB`, `SurfaceMetadata`, `Depth`, `TAAConfidence`), `DisplayColor.png` & `Lighting.png` visually inspected cleanly, `0` InfinityRP/Shader/Metal errors in `Editor.log`.
+
+### Phase P0-B: Spatial Foundation & Reflection Decoupling — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.
+
+- **Static & layering gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)` (including `Runtime/Spatial` & `Runtime/Reflection` layering and hot-path rules); `test_static_check.py` -> `52/52 OK`; `GpuRecordLayout.generated.cs` updated (`LightLoopUniform` 48B, `ReflectionUniform` 48B, `ReflectionProbeRecord` 112B).
+- **Shader diagnostics (`ShaderUtil`)**: `Compute_DeferredShading.compute`, `Compute_DebugView.compute`, `Compute_ContactShadow.compute`, `Compute_VolumetricFog.compute`, `Compute_VolumetricCloud.compute`, `Compute_SpatialClusterContract.compute`, `Compute_CubemapArraySamplingContract.compute`, `InfinityLit.shader`, and `InfinityLit-Instanced.shader` -> `0` issues (`SHADER_ISSUES=0`) after single-exit fixes in `SpatialZBinTile.hlsl`, `SpatialClusterList.hlsl`, and `LightLoop.hlsl`.
+- **EditMode & GPU contract tests**: `SpatialFoundationTests` (`4/4`, incl. zero-GC steady-state cluster rebuild and Metal `ClusterPriorityOrder` GPU readback), `ReflectionProbeTests` (`7/7`), `ReflectionProbeTransactionTests` (`11/11`), `DeferredLightLoopGpuTests` (`13/13` warm), and `GpuRecordLayout` (`34/34`) all passed (`69/69`).
+- **Metal PlayMode capture (`Scene_Spazon`, `993×1330`, `MainCamera`)**: `spazon-capture` `Completed` (`successfulFrames: 31`, `capturedFrames: 1`, `nonFinite: 0` across `Lighting`, `DisplayColor`, `GBufferA`, `GBufferB`, `SurfaceMetadata`, `Depth`), `DisplayColor` & `Lighting` visually inspected cleanly, `0` InfinityRP/Metal errors in `Editor.log`.
+
+### Phase P0-A: Surface, Lighting & Attachment Configuration — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
+
+Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) unmodified.
+
+- **Static & metadata gates**: `python3 -B Tools/StaticCheck/static_check.py --repo .` -> `0 error(s), 0 warning(s)`; `test_static_check.py` -> `52/52 OK`; `.meta`, `TextureViews.py --write`, and `GpuRecordLayout.generated.cs` up to date. `InfinityRenderPipelineAsset` uses additive serialized configuration fields only (`Compact64Bit` default, `SeparateBuffer` SSS default).
+- **Shader & Editor compilation**: `Tools/RefreshUnityEditor.sh` -> `EDITOR_READY=1`, `ASSEMBLIES_CURRENT=1`, `REFRESH_STABLE=1`. `ShaderUtil` reported `0` errors and `0` warnings across the 11 core compute and surface shaders.
+- **EditMode & GPU contract tests**: full run `editmode-tests-1` (`987` discovered: `983` passed, `1` pre-existing skipped `RenderGraphQueueGpuTests.CrossQueueHazardsAndPhysicalReuse_PreserveValues`, `1` pre-existing baseline failure `VisualContractGpuTests.HierarchicalRay_HitIsOneActualSurfaceTexel(True)`, plus `GBufferContractTests` `13/13` and `ShaderStrippingTests` `16/16` passing on targeted re-runs after fixes).
+- **Metal PlayMode capture & CPU probes (`Scene_Spazon`, `1698×1750`, `MainCamera`)**: `spazon-capture-3` completed cleanly (`status: "Completed"`, `successfulFrames: 31`, `capturedFrames: 1`, `error: ""`, `nonFinite: 0` across all 9 captured buffers: `Lighting`, `DisplayColor`, `GBufferA` `R8G8B8A8_SRGB`, `GBufferB` `R8G8B8A8_UNorm`, `SurfaceMetadata` `R8G8_UNorm`, `Depth` `R32_SFloat`, `Occlusion` `R8_UNorm`, `SSR`, `SSGI`). Visually inspected GPU readback PNG conversions (`DisplayColor`, `GBufferA`, `GBufferB`, `Lighting`, `SurfaceMetadata`). CPU marker probe (`60` sample frames, `Release`): `Inl_RecordRG` `0.50 ms`, `Inl_ExecuteRG` `1.13 ms`, `Game` `nativeSubmitAllocationsMean: 0`, `alloc-stacks.txt`: `frame -1`.
+- **TODO(UNVERIFIED)**: OS window capture via `Tools/CaptureUnityWindow.sh` (`macOS` Screen Recording permission unavailable in headless shell); `HighPrecision96Bit`, `BestFitYCoCg64Bit`, and `SceneColorAlpha` PlayMode scene captures (shader/layout unit coverage only); D3D12 and Vulkan backends.
+
 ### Lighting & shadow refactor (P0–P4) — 2026-11-25 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
 Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping `/Volumes/DataDisk/Projects/Unity/InfinityExample` `ProjectSettings/*`, `InfinityExample.slnx`, and source `Assets/Scene/` untouched.

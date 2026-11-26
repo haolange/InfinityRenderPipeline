@@ -59,11 +59,47 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator GBufferContract_BestFitNormal_AngularError()
         {
+            return RunNormalAccuracy(EGBufferLayout.BestFitYCoCg64Bit, k_NormalAngleTolDeg);
+        }
+
+        [UnityTest]
+        public IEnumerator GBufferContract_Compact64Bit_RgbAndOct8x2Roundtrip()
+        {
             RequireGpu();
             Shader raster = LoadRasterShader();
             ComputeShader compute = LoadComputeShader();
-            Texture2D lut = LoadBestFitLut();
-            if (lut == null)
+            int[] fixtures = { 0, 1, 2, 4, 5, 6 };
+            foreach (int fixture in fixtures)
+            {
+                using (var run = new GBufferContractGpuRun(raster, compute, null, fixture, new Vector3(0.2f, 0.3f, 0.9f).normalized, EGBufferLayout.Compact64Bit))
+                {
+                    yield return run.Execute();
+                    run.AssertAlbedo(fixture, "Compact64Bit fixture " + fixture, requireBothParities: false);
+                    if (fixture <= 2)
+                    {
+                        Assert.Less(run.MaxNormalAngleDeg(new Vector3(0.2f, 0.3f, 0.9f).normalized), 1.5f);
+                    }
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator GBufferContract_HighPrecision96Bit_Oct16x2AngularError()
+        {
+            if (!SystemInfo.IsFormatSupported(GraphicsFormat.R16G16B16A16_UNorm, GraphicsFormatUsage.Render | GraphicsFormatUsage.Sample))
+            {
+                Assert.Ignore("R16G16B16A16_UNorm render target unsupported on this device.");
+            }
+            return RunNormalAccuracy(EGBufferLayout.HighPrecision96Bit, 0.05f);
+        }
+
+        IEnumerator RunNormalAccuracy(EGBufferLayout layout, float maxAllowedDeg)
+        {
+            RequireGpu();
+            Shader raster = LoadRasterShader();
+            ComputeShader compute = LoadComputeShader();
+            Texture2D lut = layout == EGBufferLayout.BestFitYCoCg64Bit ? LoadBestFitLut() : null;
+            if (layout == EGBufferLayout.BestFitYCoCg64Bit && lut == null)
             {
                 Assert.Ignore("BestFit LUT missing.");
             }
@@ -81,14 +117,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             float maxAngle = 0.0f;
             foreach (Vector3 expected in normals)
             {
-                using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId: 0, expected))
+                using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId: 0, expected, layout))
                 {
                     yield return run.Execute();
                     maxAngle = Mathf.Max(maxAngle, run.MaxNormalAngleDeg(expected));
                 }
             }
 
-            Assert.Less(maxAngle, k_NormalAngleTolDeg, $"BestFit decode angular error {maxAngle:F3}° exceeds {k_NormalAngleTolDeg}°.");
+            Assert.Less(maxAngle, maxAllowedDeg, $"{layout} decode angular error {maxAngle:F4}° exceeds {maxAllowedDeg}°.");
         }
 
         [MenuItem("Window/Infinity/Run GBuffer Contract Tests", false, 65)]
@@ -106,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             ComputeShader compute = LoadComputeShader();
             Texture2D lut = LoadBestFitLut();
 
-            using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId, Vector3.forward))
+            using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId, Vector3.forward, EGBufferLayout.BestFitYCoCg64Bit))
             {
                 yield return run.Execute();
                 run.AssertAlbedo(fixtureId, label, requireBothParities);
@@ -188,10 +224,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly ComputeShader m_Compute;
             readonly int m_Kernel;
             readonly int m_FixtureId;
+            readonly bool m_BestFitEnabled;
+            readonly bool m_PreviousBestFitKeyword;
             readonly Texture m_PreviousLut;
             readonly RenderTexture m_GBufferA;
             readonly RenderTexture m_GBufferB;
-            readonly RenderTexture m_GBufferC;
+            readonly RenderTexture m_SurfaceMetadata;
             readonly RenderTexture m_Depth;
             readonly RenderTexture m_DecodedAlbedo;
             readonly RenderTexture m_DecodedNormal;
@@ -205,9 +243,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             static readonly List<GBufferContractGpuRun> s_Retained = new List<GBufferContractGpuRun>();
             internal static int RetainedCount => s_Retained.Count;
 
-            public GBufferContractGpuRun(Shader raster, ComputeShader compute, Texture2D lut, int fixtureId, Vector3 normal)
+            public GBufferContractGpuRun(Shader raster, ComputeShader compute, Texture2D lut, int fixtureId, Vector3 normal, EGBufferLayout layout = EGBufferLayout.BestFitYCoCg64Bit)
             {
                 m_PreviousLut = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
+                m_BestFitEnabled = layout == EGBufferLayout.BestFitYCoCg64Bit;
+                m_PreviousBestFitKeyword = Shader.IsKeywordEnabled(GBufferPassUtilityData.BestFitYCoCgKeyword);
                 try
                 {
                     m_Compute = compute;
@@ -221,14 +261,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Material.SetVector("_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
                     m_Material.SetVector("_FixtureNormal", new Vector4(normal.x, normal.y, normal.z, 0.0f));
 
+                    Shader.SetKeyword(GBufferPassUtilityData.BestFitYCoCgKeyword, m_BestFitEnabled);
                     if (lut != null)
                     {
                         Shader.SetGlobalTexture("g_BestFitNormal_LUT", lut);
                     }
 
-                    m_GBufferA = CreateGBuffer("GBufferContractA");
-                    m_GBufferB = CreateGBuffer("GBufferContractB");
-                    m_GBufferC = CreateGBuffer("GBufferContractC");
+                    GraphicsFormat formatA = layout == EGBufferLayout.BestFitYCoCg64Bit ? GraphicsFormat.R8G8B8A8_UNorm : GraphicsFormat.R8G8B8A8_SRGB;
+                    GraphicsFormat formatB = layout == EGBufferLayout.HighPrecision96Bit ? GraphicsFormat.R16G16B16A16_UNorm : GraphicsFormat.R8G8B8A8_UNorm;
+                    m_GBufferA = CreateGBuffer("GBufferContractA", formatA);
+                    m_GBufferB = CreateGBuffer("GBufferContractB", formatB);
+                    m_SurfaceMetadata = CreateGBuffer("GBufferContractMetadata", GraphicsFormat.R8G8_UNorm);
                     m_Depth = CreateOwned(new RenderTexture(k_Width, k_Height, 24, RenderTextureFormat.Depth)
                     {
                         name = "GBufferContractDepth",
@@ -249,7 +292,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 using (var cmd = new CommandBuffer())
                 {
-                    cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_GBufferC }, m_Depth);
+                    cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_SurfaceMetadata }, m_Depth);
                     cmd.ClearRenderTarget(true, true, Color.clear);
                     cmd.DrawProcedural(Matrix4x4.identity, m_Material, 0, MeshTopology.Triangles, 3, 1);
                     if (m_FixtureId == 6)
@@ -258,9 +301,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         cmd.SetRenderTarget(m_GBufferB); cmd.ClearRenderTarget(false, true, Color.clear);
                     }
 
+                    cmd.SetKeyword(GBufferPassUtilityData.BestFitYCoCgKeyword, m_BestFitEnabled);
                     cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureA", m_GBufferA);
                     cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureB", m_GBufferB);
-                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureC", m_GBufferC);
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_SurfaceMetadata", m_SurfaceMetadata);
                     cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedAlbedo", m_DecodedAlbedo);
                     cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedNormal", m_DecodedNormal);
                     cmd.SetComputeVectorParam(m_Compute, "CBV_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
@@ -374,6 +418,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (m_DisposeRequested) return;
                 m_DisposeRequested = true;
                 if (m_PendingReadbacks != 0) s_Retained.Add(this);
+                Shader.SetKeyword(GBufferPassUtilityData.BestFitYCoCgKeyword, m_PreviousBestFitKeyword);
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousLut);
                 TryRelease();
             }
@@ -390,15 +435,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 Release(m_GBufferA);
                 Release(m_GBufferB);
-                Release(m_GBufferC);
+                Release(m_SurfaceMetadata);
                 Release(m_Depth);
                 Release(m_DecodedAlbedo);
                 Release(m_DecodedNormal);
             }
 
-            static RenderTexture CreateGBuffer(string name)
+            static RenderTexture CreateGBuffer(string name, GraphicsFormat format)
             {
-                var rt = new RenderTexture(k_Width, k_Height, 0, GraphicsFormat.R8G8B8A8_UNorm)
+                var rt = new RenderTexture(k_Width, k_Height, 0, format)
                 {
                     name = name,
                     hideFlags = HideFlags.HideAndDontSave,

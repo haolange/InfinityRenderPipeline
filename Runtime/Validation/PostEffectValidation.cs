@@ -261,7 +261,7 @@ namespace InfinityTech.Rendering.Pipeline
                 outputDirectory = directory, fixture = "PostEffect-" + s_Phases[m_Phase], scene = request.scene, camera = request.camera,
                 width = m_Camera.pixelWidth, height = m_Camera.pixelHeight, warmupFrames = 120, frameCount = 3,
                 timeoutSeconds = 180, includeConfidence = true, roi = m_Evidence.roi,
-                buffers = diagnose ? new[] { "Lighting", "GBufferA", "GBufferB", "GBufferC", "Occlusion", "SSR", "SSGI", "SceneColor", "AntiAliasing", "PostProcess", "DisplayColor" } :
+                buffers = diagnose ? new[] { "Lighting", "GBufferA", "GBufferB", "SurfaceMetadata", "Occlusion", "SSR", "SSGI", "SceneColor", "AntiAliasing", "PostProcess", "DisplayColor" } :
                     new[] { "Lighting", "PostProcess", "DisplayColor" }
             });
             m_Capture = RenderCaptureService.current;

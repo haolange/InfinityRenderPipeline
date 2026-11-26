@@ -35,18 +35,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public Vector4 tileParameters;
         public Vector4 zBinParameters;
-        public Vector4 probeTileParameters;
         public int directionalCount;
         public int localCount;
         public int sunRecordIndex;
-        public int probeCount;
+        public int padding0;
     }
 
-    // Resources of the shared light loop (Shaders/Library/Lighting/LightLoop.hlsl), the light cookies
-    // (Lighting/LightCookie.hlsl) and the reflection probes (Lighting/ReflectionProbes.hlsl). Query once at record time,
-    // declare the reads with Read, then bind. Each atlas is declared by its shader only under its keyword
-    // (INFINITY_LIGHT_COOKIES, INFINITY_REFLECTION_PROBES), set from hasCookieAtlas / hasProbeAtlas, and is bound only
-    // when present; without it no record references a cookie and the probe count is 0.
+    // Resources of the shared light loop (Shaders/Library/Lighting/LightLoop.hlsl) and light cookies
+    // (Lighting/LightCookie.hlsl). Query once at record time, declare reads with Read, then bind.
     internal struct LightLoopInputs
     {
         public RGBufferHandle zBinsHandle;
@@ -54,11 +50,6 @@ namespace InfinityTech.Rendering.Pipeline
         public RGBufferHandle cookiesHandle;
         public RGTextureHandle cookieAtlasHandle;
         public bool hasCookieAtlas;
-        public RGBufferHandle probesHandle;
-        public RGBufferHandle probeZBinsHandle;
-        public RGBufferHandle probeTileMasksHandle;
-        public RGTextureHandle probeAtlasHandle;
-        public bool hasProbeAtlas;
 
         public void Read<THandle>(THandle passHandle) where THandle : struct, IPassHandle
         {
@@ -69,26 +60,11 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 passHandle.ReadTexture(cookieAtlasHandle);
             }
-            passHandle.ReadBuffer(probesHandle);
-            passHandle.ReadBuffer(probeZBinsHandle);
-            passHandle.ReadBuffer(probeTileMasksHandle);
-            if (hasProbeAtlas)
-            {
-                passHandle.ReadTexture(probeAtlasHandle);
-            }
         }
 
         public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
-            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
             commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ReflectionProbes, probesHandle);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeZBins, probeZBinsHandle);
-            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.ProbeTileMasks, probeTileMasksHandle);
-            if (hasProbeAtlas)
-            {
-                commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.ReflectionProbeAtlas, probeAtlasHandle);
-            }
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookiesHandle);
             if (hasCookieAtlas)
             {
@@ -100,15 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
-            commands.SetKeyword(LightShaderIDs.ReflectionProbesKeyword, hasProbeAtlas);
             commands.SetKeyword(LightShaderIDs.LightCookiesKeyword, hasCookieAtlas);
-            commands.SetGlobalBuffer(LightShaderIDs.ReflectionProbes, probesHandle);
-            commands.SetGlobalBuffer(LightShaderIDs.ProbeZBins, probeZBinsHandle);
-            commands.SetGlobalBuffer(LightShaderIDs.ProbeTileMasks, probeTileMasksHandle);
-            if (hasProbeAtlas)
-            {
-                commands.SetGlobalTexture(LightShaderIDs.ReflectionProbeAtlas, probeAtlasHandle);
-            }
             commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookiesHandle);
             if (hasCookieAtlas)
             {
@@ -140,21 +108,17 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferHandle tileMasksHandle;
         }
 
-        // The camera's light-loop constants, from the light context built after culling. Probes count only when the
-        // reflection probe feature records a probe list this frame.
+        // The camera's light-loop constants, from the light context built after culling.
         internal static LightLoopUniform ResolveLightLoopUniform(in ViewContext context)
         {
             LightContext lightContext = context.lights;
-            bool hasProbeList = context.features.ShouldRecord(EFrameFeature.ReflectionProbes) && lightContext.ReflectionProbeCount > 0;
             return new LightLoopUniform
             {
                 tileParameters = lightContext.TileParams,
                 zBinParameters = lightContext.ZBinParams,
-                probeTileParameters = lightContext.ProbeTileParams,
                 directionalCount = lightContext.DirectionalLightCount,
                 localCount = lightContext.LocalLightCount,
-                sunRecordIndex = lightContext.SunRecordIndex,
-                probeCount = hasProbeList ? lightContext.ReflectionProbeCount : 0
+                sunRecordIndex = lightContext.SunRecordIndex
             };
         }
 
@@ -164,19 +128,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             LightContext lightContext = context.lights;
             bool hasCookieAtlas = context.features.ShouldRecord(EFrameFeature.LightCookies);
-            bool hasProbeAtlas = context.features.ShouldRecord(EFrameFeature.ReflectionProbes);
             RGTextureHandle cookieAtlasHandle = hasCookieAtlas ? graph.scoper.QueryTexture(InfinityShaderIDs.LightCookieAtlas) : default;
-            RGTextureHandle probeAtlasHandle = hasProbeAtlas ? graph.scoper.QueryTexture(InfinityShaderIDs.ReflectionProbeAtlas) : default;
-            bool hasProbeList = hasProbeAtlas && lightContext.ReflectionProbeCount > 0;
             return new LightLoopInputs
             {
-                probesHandle = graph.scoper.QueryBuffer(LightShaderIDs.ReflectionProbeBuffer),
-                probeZBinsHandle = graph.scoper.QueryBuffer(LightShaderIDs.ProbeZBinBuffer),
-                probeTileMasksHandle = hasProbeList
-                    ? graph.scoper.QueryBuffer(InfinityShaderIDs.ProbeTileMaskBuffer)
-                    : graph.scoper.QueryBuffer(LightShaderIDs.EmptyLightTileMaskBuffer),
-                probeAtlasHandle = probeAtlasHandle,
-                hasProbeAtlas = hasProbeAtlas,
                 cookiesHandle = graph.scoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
                 cookieAtlasHandle = cookieAtlasHandle,
                 hasCookieAtlas = hasCookieAtlas,

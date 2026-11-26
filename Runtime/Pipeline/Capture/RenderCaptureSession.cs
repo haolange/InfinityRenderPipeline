@@ -313,17 +313,24 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (descriptor.width < 1 || descriptor.height < 1 || descriptor.slices != 1 || descriptor.dimension != TextureDimension.Tex2D || descriptor.msaaSamples != EMSAASamples.None || descriptor.useMipMap)
                 throw new InvalidOperationException("Capture source requires an explicit single-mip, non-MSAA 2D descriptor.");
-            RTHandle handle = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices,
-                (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, FilterMode.Point, TextureWrapMode.Clamp,
-                descriptor.dimension, false, false, false, descriptor.isShadowMap, 1, 0, MSAASamples.None,
-                false, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, "CaptureStaging_" + semantic);
+            RTHandle handle = RTHandles.Alloc(descriptor.width, descriptor.height, new RTHandleAllocInfo("CaptureStaging_" + semantic)
+            {
+                slices = descriptor.slices,
+                format = descriptor.depthStencilFormat != GraphicsFormat.None ? descriptor.depthStencilFormat : descriptor.colorFormat,
+                filterMode = FilterMode.Point,
+                wrapModeU = TextureWrapMode.Clamp,
+                wrapModeV = TextureWrapMode.Clamp,
+                wrapModeW = TextureWrapMode.Clamp,
+                dimension = descriptor.dimension,
+                isShadowMap = descriptor.isShadowMap
+            });
             RenderTexture texture = handle.rt;
             if (texture == null || !texture.IsCreated())
             {
                 RTHandles.Release(handle);
                 throw new InvalidOperationException("Capture staging allocation failed.");
             }
-            GraphicsFormat readbackFormat = descriptor.depthBufferBits == EDepthBits.None ? texture.graphicsFormat : texture.depthStencilFormat;
+            GraphicsFormat readbackFormat = descriptor.depthStencilFormat == GraphicsFormat.None ? texture.graphicsFormat : texture.depthStencilFormat;
             var evidence = new BufferEvidence { semantic = semantic, producer = producer, format = readbackFormat.ToString(),
                 colorSpace = semantic == "DisplayColor" || semantic == "PostProcess" ? "DisplayLinear-Rec709" : "SemanticData",
                 transferEncoding = semantic == "DisplayColor" || semantic == "PostProcess" ? "Linear; final target transfer belongs to Present" : "None",

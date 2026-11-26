@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -23,6 +24,8 @@ namespace InfinityTech.Rendering.Pipeline
         RolledBack,
         // Display size, internal size or super resolution changed.
         Dimensions,
+        // The camera switched temporal reconstruction backend or mode.
+        BackendChanged,
         // The camera jumped or its projection changed.
         CameraCut,
     }
@@ -42,9 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool preparedThisRender;
         public CameraUniform cameraUniform;
         internal readonly UniformBuffer<ViewUniform> viewUniform = new UniformBuffer<ViewUniform>();
-        internal readonly UniformBuffer<ShadowUniform> shadowUniform = new UniformBuffer<ShadowUniform>();
-        internal readonly UniformBuffer<LightLoopUniform> lightLoopUniform = new UniformBuffer<LightLoopUniform>();
-        internal readonly MeshMotionHistory meshMotionHistory = new MeshMotionHistory();
+        internal readonly ResourcePool resourcePool;
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
         public FrameFeatureSet features;
@@ -54,8 +55,6 @@ namespace InfinityTech.Rendering.Pipeline
         public CameraDimensionDescriptor preparedDimensions;
         internal readonly TextureCapacityState internalCapacity = new TextureCapacityState();
         internal readonly TextureCapacityState displayCapacity = new TextureCapacityState();
-        public AtmosphereViewCache atmosphereViewCache;
-        public CombineLutCache combineLutCache;
         public bool executeSucceeded;
         public bool requiresHistoryReset;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -63,10 +62,47 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
-        internal bool acceptedHiZ;
-        internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
-        internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;
-        internal TemporalColorView temporalColorView;
+
+        ICameraStateExtension[] m_Extensions = new ICameraStateExtension[8];
+        int m_ExtensionHighWater;
+
+        internal T GetOrCreateExtension<T>(CameraExtensionKey<T> key, Func<ResourcePool, T> factory) where T : class, ICameraStateExtension
+        {
+            int slot = key.slotIndex;
+            if (slot >= m_Extensions.Length)
+            {
+                Array.Resize(ref m_Extensions, math.max(slot + 1, m_Extensions.Length * 2));
+            }
+            if (m_Extensions[slot] is T existing)
+            {
+                return existing;
+            }
+            T created = factory(resourcePool);
+            m_Extensions[slot] = created;
+            if (slot >= m_ExtensionHighWater)
+            {
+                m_ExtensionHighWater = slot + 1;
+            }
+            return created;
+        }
+
+        internal bool TryGetExtension<T>(CameraExtensionKey<T> key, out T extension) where T : class, ICameraStateExtension
+        {
+            int slot = key.slotIndex;
+            if ((uint)slot < (uint)m_Extensions.Length && m_Extensions[slot] is T found)
+            {
+                extension = found;
+                return true;
+            }
+            extension = null;
+            return false;
+        }
+
+        internal ScreenSpaceCameraState GetScreenSpaceState() => GetOrCreateExtension(ScreenSpaceCameraState.Key, ScreenSpaceCameraState.Factory);
+        internal LightingCameraState GetLightingState() => GetOrCreateExtension(LightingCameraState.Key, LightingCameraState.Factory);
+        internal AtmosphereCameraState GetAtmosphereState() => GetOrCreateExtension(AtmosphereCameraState.Key, AtmosphereCameraState.Factory);
+        internal MeshMotionCameraState GetMeshMotionState() => GetOrCreateExtension(MeshMotionCameraState.Key, MeshMotionCameraState.Factory);
+        internal TemporalCameraState GetTemporalState() => GetOrCreateExtension(TemporalCameraState.Key, TemporalCameraState.Factory);
 
         internal const int GameUnseenFramesToRecycle = 8;
         internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)
@@ -82,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // The only writer of the history-reset decision. previousSeenFrame is lastSeenFrame before this render.
         internal EHistoryReset ResolveHistoryReset(Camera camera, CameraRenderPolicy policy, bool newlyCreated, int previousSeenFrame, int frameCount,
-            in CameraDimensionDescriptor dimensions)
+            in CameraDimensionDescriptor dimensions, bool temporalBackendChanged = false)
         {
             if (!policy.temporal)
             {
@@ -111,40 +147,44 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return EHistoryReset.Dimensions;
             }
+            if (temporalBackendChanged)
+            {
+                return EHistoryReset.BackendChanged;
+            }
             return cameraUniform.IsCut(camera) ? EHistoryReset.CameraCut : EHistoryReset.None;
         }
-
-        // Camera-owned frame transactions, driven in one order.
-        readonly IFrameTransaction[] m_Transactions;
 
         public CameraFrameState(int cameraId, ResourcePool pool)
         {
             this.cameraId = cameraId;
+            resourcePool = pool;
             cameraUniform = new CameraUniform();
             volumeStack = VolumeManager.instance.CreateStack();
             historyCache = new HistoryCache(pool);
             features = new FrameFeatureSet();
-            atmosphereViewCache = new AtmosphereViewCache(pool);
-            combineLutCache = new CombineLutCache(pool);
-            m_Transactions = new IFrameTransaction[] { historyCache, atmosphereViewCache, combineLutCache };
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
+            // Register zero-GPU-cost core acceptance extensions upfront so Frame 0 acceptance publishes even before first read.
+            _ = GetScreenSpaceState();
+            _ = GetTemporalState();
         }
 
         internal void BeginFrame()
         {
-            for (int i = 0; i < m_Transactions.Length; ++i)
+            historyCache?.BeginFrame();
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
             {
-                m_Transactions[i].BeginFrame();
+                m_Extensions[i]?.BeginFrame();
             }
         }
 
         // This camera threw while recording or executing.
         internal void CameraFailed(bool queueUncertain)
         {
-            for (int i = 0; i < m_Transactions.Length; ++i)
+            historyCache?.CameraFailed(queueUncertain);
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
             {
-                m_Transactions[i].CameraFailed(queueUncertain);
+                m_Extensions[i]?.CameraFailed(queueUncertain);
             }
             EndFailedFrame();
         }
@@ -152,9 +192,10 @@ namespace InfinityTech.Rendering.Pipeline
         // The frame's submission failed after this camera was prepared.
         internal void RollbackFrame()
         {
-            for (int i = 0; i < m_Transactions.Length; ++i)
+            historyCache?.RollbackPending();
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
             {
-                m_Transactions[i].RollbackPending();
+                m_Extensions[i]?.RollbackFrame();
             }
             EndFailedFrame();
         }
@@ -162,20 +203,18 @@ namespace InfinityTech.Rendering.Pipeline
         void EndFailedFrame()
         {
             preparedThisRender = false;
-            meshMotionHistory.Rollback();
             executeSucceeded = false;
             requiresHistoryReset = true;
         }
 
         internal void FlushRetired(ResourceReuseFence fence)
         {
-            for (int i = 0; i < m_Transactions.Length; ++i)
+            historyCache?.FlushRetired(fence);
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
             {
-                m_Transactions[i].FlushRetired(fence);
+                m_Extensions[i]?.FlushRetired(fence);
             }
         }
-
-        internal int acceptedSSGIFrameIndex;
 
         internal void CommitFrame()
         {
@@ -186,22 +225,13 @@ namespace InfinityTech.Rendering.Pipeline
             cameraUniform.Commit();
             internalCapacity.Commit();
             displayCapacity.Commit();
-            meshMotionHistory.Commit();
-            if (features != null && features.IsProduced(EFrameFeature.SSGI))
+            historyCache?.CommitFrame();
+            int frameCount = Time.frameCount;
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
             {
-                acceptedSSGIFrameIndex = Time.frameCount;
+                m_Extensions[i]?.CommitFrame(features, frameCount);
             }
-            acceptedHiZ = features != null && features.IsProduced(EFrameFeature.HiZ);
-            acceptedSSR = features != null && features.IsProduced(EFrameFeature.SSR);
-            acceptedSSGI = features != null && features.IsProduced(EFrameFeature.SSGI);
-            acceptedGTAO = features != null && features.IsProduced(EFrameFeature.GTAO);
-            acceptedTemporalColorIsSR = features != null && features.IsProduced(EFrameFeature.SuperResolution);
-            acceptedTemporalColor = acceptedTemporalColorIsSR || features != null && features.IsProduced(EFrameFeature.TAA);
             preparedThisRender = false;
-            for (int i = 0; i < m_Transactions.Length; ++i)
-            {
-                m_Transactions[i].CommitFrame();
-            }
             executeSucceeded = false;
             requiresHistoryReset = false;
         }
@@ -211,10 +241,17 @@ namespace InfinityTech.Rendering.Pipeline
         // fence covers the last frame's GPU use when a state is recycled right after its submission.
         internal void Dispose(ResourceReuseFence fence)
         {
-            meshMotionHistory.Clear();
             viewUniform.Dispose();
-            shadowUniform.Dispose();
-            lightLoopUniform.Dispose();
+            for (int i = 0; i < m_ExtensionHighWater; ++i)
+            {
+                if (m_Extensions[i] != null)
+                {
+                    m_Extensions[i].Dispose(fence);
+                    m_Extensions[i] = null;
+                }
+            }
+            m_ExtensionHighWater = 0;
+
             if (volumeStack != null)
             {
                 VolumeManager.instance.DestroyStack(volumeStack);
@@ -225,18 +262,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 historyCache.Dispose(fence);
                 historyCache = null;
-            }
-
-            if (atmosphereViewCache != null)
-            {
-                atmosphereViewCache.Dispose(fence);
-                atmosphereViewCache = null;
-            }
-
-            if (combineLutCache != null)
-            {
-                combineLutCache.Dispose(fence);
-                combineLutCache = null;
             }
         }
     }

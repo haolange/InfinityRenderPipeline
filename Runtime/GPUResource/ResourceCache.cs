@@ -6,15 +6,6 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
-    public enum EDepthBits
-    {
-        None = 0,
-        Depth8 = 8,
-        Depth16 = 16,
-        Depth24 = 24,
-        Depth32 = 32
-    }
-
     public enum EMSAASamples
     {
         None = 1,
@@ -70,11 +61,23 @@ namespace InfinityTech.Rendering.GPUResource
         public long EstimateBytes()
         {
             long bytes = 0;
-            var format = colorFormat != GraphicsFormat.None ? colorFormat : GraphicsFormat.D32_SFloat;
             int width = physicalWidth, height = physicalHeight;
             do
             {
-                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, slices) * Math.Max(1, (int)msaaSamples);
+                long texelBytes = 0;
+                if (colorFormat != GraphicsFormat.None)
+                {
+                    texelBytes += GraphicsFormatUtility.ComputeMipmapSize(width, height, colorFormat);
+                }
+                if (depthStencilFormat != GraphicsFormat.None)
+                {
+                    texelBytes += GraphicsFormatUtility.ComputeMipmapSize(width, height, depthStencilFormat);
+                }
+                if (colorFormat == GraphicsFormat.None && depthStencilFormat == GraphicsFormat.None)
+                {
+                    texelBytes += GraphicsFormatUtility.ComputeMipmapSize(width, height, GraphicsFormat.D32_SFloat);
+                }
+                bytes += texelBytes * Math.Max(1, slices) * Math.Max(1, (int)msaaSamples);
                 if (!useMipMap || (width == 1 && height == 1))
                 {
                     break;
@@ -106,7 +109,7 @@ namespace InfinityTech.Rendering.GPUResource
             return physical;
         }
         public int slices;
-        public EDepthBits depthBufferBits;
+        public GraphicsFormat depthStencilFormat;
         public GraphicsFormat colorFormat;
         public FilterMode filterMode;
         public TextureWrapMode wrapMode;
@@ -134,6 +137,15 @@ namespace InfinityTech.Rendering.GPUResource
             };
         }
 
+        public static TextureDescriptor CreateDepthStencil(string name, int width, int height, GraphicsFormat depthStencilFormat, ETextureSizingDomain domain, int divisor = 1)
+        {
+            return new TextureDescriptor(width, height, domain, divisor)
+            {
+                name = name, dimension = TextureDimension.Tex2D, colorFormat = GraphicsFormat.None,
+                depthStencilFormat = depthStencilFormat, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
+            };
+        }
+
         public TextureDescriptor(int width, int height, ETextureSizingDomain domain, int divisor = 1) : this(width, height)
         { sizingDomain = domain; viewDivisor = divisor; }
 
@@ -149,7 +161,7 @@ namespace InfinityTech.Rendering.GPUResource
             enableRandomWrite = false;
 
             msaaSamples = EMSAASamples.None;
-            depthBufferBits = EDepthBits.None;
+            depthStencilFormat = GraphicsFormat.None;
             wrapMode = TextureWrapMode.Repeat;
         }
 
@@ -165,7 +177,7 @@ namespace InfinityTech.Rendering.GPUResource
             enableRandomWrite = false;
 
             msaaSamples = EMSAASamples.None;
-            depthBufferBits = EDepthBits.None;
+            depthStencilFormat = GraphicsFormat.None;
             wrapMode = TextureWrapMode.Repeat;
         }
 
@@ -177,7 +189,7 @@ namespace InfinityTech.Rendering.GPUResource
                 && height == target.height
                 && slices == target.slices
                 && mipMapBias.Equals(target.mipMapBias)
-                && depthBufferBits == target.depthBufferBits
+                && depthStencilFormat == target.depthStencilFormat
                 && colorFormat == target.colorFormat
                 && filterMode == target.filterMode
                 && wrapMode == target.wrapMode
@@ -208,7 +220,7 @@ namespace InfinityTech.Rendering.GPUResource
             hashCode = hashCode * 23 + height;
             hashCode = hashCode * 23 + slices;
             hashCode = hashCode * 23 + mipMapBias.GetHashCode();
-            hashCode = hashCode * 23 + (int)depthBufferBits;
+            hashCode = hashCode * 23 + (int)depthStencilFormat;
             hashCode = hashCode * 23 + (int)colorFormat;
             hashCode = hashCode * 23 + (int)filterMode;
             hashCode = hashCode * 23 + (int)wrapMode;

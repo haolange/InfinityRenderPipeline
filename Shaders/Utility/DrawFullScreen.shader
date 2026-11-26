@@ -107,7 +107,8 @@
 			ZTest Always ZWrite Off Blend Off Cull Off
 			Stencil 
 			{
-				Ref 5
+				Ref 1
+				ReadMask 1
 				comp NotEqual
 				pass keep
 			}
@@ -174,15 +175,16 @@
                     float3 previousAxis = normalize(Matrix_LastViewFlipYProj[2].xyz);
                     float3 directionDelta = currentAxis - previousAxis;
                     output.velocity = 0;
-                    output.metadata = float4(depth, depth,
-                        dot(directionDelta, directionDelta) <= 1e-10 ? 1 : 0, 0);
+                    output.metadata = float2(
+                        dot(directionDelta, directionDelta) <= 1e-10 ? depth : -1.0,
+                        depth);
                     return output;
                 }
                 output.velocity = SurfaceVelocity(current, previous);
                 output.metadata = SurfaceMotionMetadata(current, previous, depth);
                 if (sky)
                 {
-                    output.metadata = float4(depth, depth, previous.w > 0 ? 1 : 0, 0);
+                    output.metadata = float2(previous.w > 0 ? depth : -1.0, depth);
                 }
                 return output;
             }

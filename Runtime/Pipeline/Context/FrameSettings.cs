@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         VolumetricClouds,
         ReflectionProbes,
         LightCookies,
+        AnalyticShadow,
     }
 
     public enum EFrameSettingSource

@@ -19,8 +19,22 @@ namespace InfinityTech.Rendering.Editor.Build
                 return;
             }
             ValidateResources();
+            ValidatePipelineConfigurations();
             InfinityShaderStripper.ResetCounts();
             InfinityComputeShaderStripper.ResetCounts();
+        }
+
+        static void ValidatePipelineConfigurations()
+        {
+            var assets = InfinityShaderStripper.CollectInfinityAssets();
+            foreach (InfinityRenderPipelineAsset asset in assets)
+            {
+                InfinityRenderPipelineAsset.Settings settings = asset.ResolveSettings();
+                if (settings.config.hasBlockingConflict)
+                {
+                    throw new BuildFailedException($"InfinityRP: '{asset.name}' has an unresolved configuration conflict (SceneColor={settings.sceneColorFormat}, Subsurface={settings.subsurfaceLightingMode}, Depth={settings.depthStencilFormat}). Fix the asset inspector warning before building.");
+                }
+            }
         }
 
         public static void ValidateResources()
@@ -70,8 +84,9 @@ namespace InfinityTech.Rendering.Editor.Build
         static readonly HashSet<ShaderTagId> s_UsedLightModes = new HashSet<ShaderTagId>
         {
             ShaderTagId.none, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId("ShadowCaster"), new ShaderTagId("Meta"),
-            InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterGBufferPass,
-            InfinityPassIDs.RasterShadowPass, InfinityPassIDs.RasterMotionPass, InfinityPassIDs.RasterForwardPass,
+            InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterDirectDecalPass,
+            InfinityPassIDs.RasterGBufferPass, InfinityPassIDs.RasterShadowPass, InfinityPassIDs.RasterMotionPass,
+            InfinityPassIDs.RasterForwardPass, InfinityPassIDs.RasterReflectionPass,
             InfinityPassIDs.RasterTranslucentDepthPass, InfinityPassIDs.RasterTranslucentT0Pass,
             InfinityPassIDs.RasterTranslucentT1Pass, InfinityPassIDs.RasterTranslucentT2Pass,
         };
@@ -124,7 +139,24 @@ namespace InfinityTech.Rendering.Editor.Build
             }
 
             StripUnusedProbeVolumeVariants(shader, data);
+            StripUnusedBestFitVariants(shader, data);
             s_Kept += data.Count;
+        }
+
+        static void StripUnusedBestFitVariants(Shader shader, IList<ShaderCompilerData> data)
+        {
+            if (!shader.keywordSpace.FindKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG").isValid || UsesBestFitYCoCg())
+            {
+                return;
+            }
+            var bestFitKeyword = new ShaderKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG");
+            for (int i = data.Count - 1; i >= 0; --i)
+            {
+                if (data[i].shaderKeywordSet.IsEnabled(bestFitKeyword))
+                {
+                    data.RemoveAt(i);
+                }
+            }
         }
 
         // PROBE_VOLUMES_L1 / L2 variants exist for Adaptive Probe Volumes; a build keeps a band only when an Infinity
@@ -153,10 +185,8 @@ namespace InfinityTech.Rendering.Editor.Build
             }
         }
 
-        internal static void UsedProbeVolumeBands(out bool l1, out bool l2)
+        internal static List<InfinityRenderPipelineAsset> CollectInfinityAssets()
         {
-            l1 = false;
-            l2 = false;
             var assets = new List<InfinityRenderPipelineAsset>();
             if (GraphicsSettings.defaultRenderPipeline is InfinityRenderPipelineAsset defaultAsset)
             {
@@ -169,6 +199,26 @@ namespace InfinityTech.Rendering.Editor.Build
                     assets.Add(qualityAsset);
                 }
             }
+            return assets;
+        }
+
+        internal static bool UsesBestFitYCoCg()
+        {
+            foreach (InfinityRenderPipelineAsset asset in CollectInfinityAssets())
+            {
+                if (asset.ResolveSettings().config.useBestFitYCoCg)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal static void UsedProbeVolumeBands(out bool l1, out bool l2)
+        {
+            l1 = false;
+            l2 = false;
+            var assets = CollectInfinityAssets();
             foreach (InfinityRenderPipelineAsset asset in assets)
             {
                 if (!asset.supportProbeVolume)
@@ -233,6 +283,17 @@ namespace InfinityTech.Rendering.Editor.Build
             if (shader == null)
             {
                 throw new ArgumentNullException(nameof(shader));
+            }
+            if (shader.keywordSpace.FindKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG").isValid && !InfinityShaderStripper.UsesBestFitYCoCg())
+            {
+                var bestFitKeyword = new ShaderKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG");
+                for (int i = data.Count - 1; i >= 0; --i)
+                {
+                    if (data[i].shaderKeywordSet.IsEnabled(bestFitKeyword))
+                    {
+                        data.RemoveAt(i);
+                    }
+                }
             }
             // Compute shaders have no RenderPipeline/LightMode contract. Preserve kernels
             // selected by Unity's dependency collection, including CoreRP UnifiedRayTracing.

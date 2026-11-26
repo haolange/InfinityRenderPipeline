@@ -198,8 +198,26 @@ namespace InfinityTech.Rendering.GPUResource
 
             if (!textures.Pull(physical.GetHashCode(), physical, commandUse, asyncCompute, m_RecordingEpoch, out texture, out reuseFence))
             {
-                texture = RTHandles.Alloc(descriptor.physicalWidth, descriptor.physicalHeight, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
-                                          descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, descriptor.memoryless, VRTextureUsage.None, descriptor.name);
+                var allocInfo = new RTHandleAllocInfo(descriptor.name)
+                {
+                    slices = descriptor.slices,
+                    format = descriptor.depthStencilFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None ? descriptor.depthStencilFormat : descriptor.colorFormat,
+                    filterMode = descriptor.filterMode,
+                    wrapModeU = descriptor.wrapMode,
+                    wrapModeV = descriptor.wrapMode,
+                    wrapModeW = descriptor.wrapMode,
+                    dimension = descriptor.dimension,
+                    enableRandomWrite = descriptor.enableRandomWrite,
+                    useMipMap = descriptor.useMipMap,
+                    autoGenerateMips = descriptor.autoGenerateMips,
+                    isShadowMap = descriptor.isShadowMap,
+                    anisoLevel = descriptor.anisoLevel,
+                    mipMapBias = descriptor.mipMapBias,
+                    msaaSamples = (MSAASamples)descriptor.msaaSamples,
+                    bindTextureMS = descriptor.bindTextureMS,
+                    memoryless = descriptor.memoryless,
+                };
+                texture = RTHandles.Alloc(descriptor.physicalWidth, descriptor.physicalHeight, allocInfo);
                 textures.RecordAllocation(physical);
                 var usage = new ResourceUsage { textureIdentity = texture.rt };
                 m_TextureUses.Add(texture, usage);

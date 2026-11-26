@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.RenderGraph
     internal struct RGGroupSubpass
     {
         public int passIndex;
-        public bool readOnlyDepth;
+        public EDepthAccess depthAccess;
         public byte colorCount;
         public byte c0, c1, c2, c3, c4, c5, c6, c7;
 
@@ -1057,7 +1057,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void PushSubpass(RGNativePassGroup group, int passIndex)
         {
             IRGPass pass = m_PassCompileInfos[passIndex].pass;
-            var subpass = new RGGroupSubpass { passIndex = passIndex, readOnlyDepth = (pass.depthBufferAccess & EDepthAccess.ReadOnly) != 0 && (pass.depthBufferAccess & EDepthAccess.Write) == 0 };
+            var subpass = new RGGroupSubpass { passIndex = passIndex, depthAccess = pass.depthBufferAccess };
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
             {
                 int attachment = FindAttachment(group, pass.colorBuffersHandle[i]);

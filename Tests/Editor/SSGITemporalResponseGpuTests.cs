@@ -271,9 +271,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     }
                     bool Center(int x, int y) => x == Width / 2 && y == Height / 2;
                     void Bind(string name, Texture texture) => m_Commands.SetComputeTextureParam(shader, kernel, name, texture);
+                    Vector2 EncodeOct(Vector3 n)
+                    {
+                        float sum = Mathf.Abs(n.x) + Mathf.Abs(n.y) + Mathf.Abs(n.z);
+                        float ox = n.x / sum;
+                        float oy = n.y / sum;
+                        if (n.z <= 0f)
+                        {
+                            float tx = (1f - Mathf.Abs(oy)) * (ox >= 0f ? 1f : -1f);
+                            float ty = (1f - Mathf.Abs(ox)) * (oy >= 0f ? 1f : -1f);
+                            ox = tx;
+                            oy = ty;
+                        }
+                        return new Vector2(ox * 0.5f + 0.5f, oy * 0.5f + 0.5f);
+                    }
+                    Vector2 centerOct = EncodeOct(normal);
+                    Vector2 flippedOct = EncodeOct(Vector3.back);
                     Bind("SRV_DepthTexture", Texture((x, y) => new Color(signal == Signal.InvalidCenter && Center(x, y) ? (SystemInfo.usesReversedZBuffer ? 0 : 1) : edgeDepth && !Center(x, y) ? other.z / other.w : Depth(x, y), 0, 0, 0)));
-                    Bind("SRV_GBufferB", Texture((x, y) => new Color(normal.x * .5f + .5f, normal.y * .5f + .5f, edgeNormal && !Center(x, y) ? 0 : normal.z * .5f + .5f, .5f)));
-                    Bind("SRV_GBufferC", Texture((x, y) => new Color(64f / 255, 0, 0, 0)));
+                    Bind("SRV_GBufferB", Texture((x, y) => { Vector2 o = edgeNormal && !Center(x, y) ? flippedOct : centerOct; return new Color(o.x, o.y, 0f, .5f); }));
+                    Bind("SRV_SurfaceMetadata", Texture((x, y) => new Color(1f / 255f, 0, 0, 0)));
                     Bind("SRV_MotionTexture", Texture((x, y) => Color.clear));
                     Texture2D Current(int phase) => Texture((x, y) =>
                     {

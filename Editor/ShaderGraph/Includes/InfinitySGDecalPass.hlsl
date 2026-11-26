@@ -41,8 +41,8 @@ void frag(PackedVaryings packedInput, out float4 DBufferA : SV_Target0, out floa
     // Tangent frame of the projector: x = right, y = forward (object z), z = up.
     float3 bitangentWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 0, 1)));
     float3 decalNormalWS = normalize(mul(surface.normalTS, float3x3(tangentWS, bitangentWS, normalWS)));
-    DBufferA = float4(surface.baseColor, surface.alpha);
+    DBufferA = float4(surface.baseColor * surface.occlusion, surface.alpha);
     DBufferB = float4(decalNormalWS * 0.5 + 0.5, surface.alpha);
-    DBufferC = float4(surface.roughness, surface.metallic, surface.occlusion, surface.alpha);
+    DBufferC = float4(surface.roughness, surface.metallic, surface.specularLevel, surface.alpha);
 }
 #endif

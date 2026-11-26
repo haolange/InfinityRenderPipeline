@@ -5,6 +5,7 @@ using InfinityTech.Component;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.Reflection;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Rendering.SceneModules
@@ -26,6 +27,7 @@ namespace InfinityTech.Rendering.SceneModules
         public readonly LightModule lights;
         public readonly ProbeModule probes;
         public readonly DecalModule decals;
+        public readonly AnalyticShadowModule analyticShadows;
         public readonly TerrainModule terrains;
 
         readonly List<MeshEntityId> m_PendingRemovals = new List<MeshEntityId>(64);
@@ -38,6 +40,7 @@ namespace InfinityTech.Rendering.SceneModules
             lights = new LightModule(resourcePool, shadowCasterPass);
             probes = new ProbeModule(resourcePool);
             decals = new DecalModule();
+            analyticShadows = new AnalyticShadowModule();
             terrains = new TerrainModule();
             // A new world knows none of the registered mesh components: every one syncs again from scratch. The tables
             // rebuild from their registries at the first Update because they start at no committed version.
@@ -57,6 +60,7 @@ namespace InfinityTech.Rendering.SceneModules
                 lights.Prepare();
                 probes.Prepare();
                 decals.Prepare();
+                analyticShadows.Prepare();
                 terrains.Prepare();
                 CommitMeshEdits();
             }
@@ -65,12 +69,14 @@ namespace InfinityTech.Rendering.SceneModules
                 lights.Rollback();
                 probes.Rollback();
                 decals.Rollback();
+                analyticShadows.Rollback();
                 terrains.Rollback();
                 throw;
             }
             lights.Commit();
             probes.Commit();
             decals.Commit();
+            analyticShadows.Commit();
             terrains.Commit();
         }
 
@@ -189,6 +195,8 @@ namespace InfinityTech.Rendering.SceneModules
                 try { action(); }
                 catch (Exception error) { failures.Add(error); }
             }
+            Release(analyticShadows.Dispose);
+            Release(decals.Dispose);
             Release(probes.Dispose);
             Release(lights.Dispose);
             Release(meshes.Dispose);

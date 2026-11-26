@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Readbacks = new List<AsyncGPUReadbackRequest>(1);
                     var states = pipeline.renderContext.cameras.states;
                     var state = states.Values.Single(s => s.camera == m_Camera);
-                    Assert.IsTrue(state.acceptedHiZ);
+                    Assert.IsTrue(state.GetScreenSpaceState().acceptedHiZ);
                     Assert.IsTrue(state.historyCache.TryGetCommittedTexture(HiZPassUtilityData.HistoryFurthest, out var depth));
                     m_DepthWidth = depth.rt.width; m_DepthHeight = depth.rt.height;
                     m_Readbacks.Add(AsyncGPUReadback.Request(depth.rt, 0));

@@ -3,6 +3,10 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.Reflection;
+using InfinityTech.Rendering.Decal;
+using InfinityTech.Rendering.AnalyticShadow;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -17,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly CameraDimensionDescriptor dimensions;
         internal readonly EHistoryReset historyReset;
         internal readonly ETemporalResolve temporalResolve;
+        internal readonly TemporalFrameRequirements temporalRequirements;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly EDebugView debugView;
@@ -35,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
             EDebugView debugView,
 #endif
             in OutputTransformDecision outputDecision, in VolumeSnapshot volumes, in AtmosphereParameter atmosphere,
-            in FeatureSupportContext featureSupport)
+            in FeatureSupportContext featureSupport, in TemporalFrameRequirements temporalRequirements = default)
         {
             this.camera = camera;
             this.state = state;
@@ -53,6 +58,9 @@ namespace InfinityTech.Rendering.Pipeline
             this.volumes = volumes;
             this.atmosphere = atmosphere;
             this.featureSupport = featureSupport;
+            this.temporalRequirements = temporalRequirements.displaySize.x > 0
+                ? temporalRequirements
+                : TemporalFrameRequirements.Disabled(dimensions.displaySize);
         }
     }
 
@@ -65,16 +73,25 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly MeshCullingContext mainCulling;
         // The light module's view layer, built for this camera: records, bins, shadow allocation, atlas entries.
         internal readonly LightContext lights;
+        // The reflection module's view layer, built for this camera: priority-ordered probe records and 3D cluster index.
+        internal readonly ReflectionContext reflections;
+        // The decal module's view layer: raster decal counts and clustered decal records.
+        internal readonly DecalContext decals;
+        // The analytic shadow module's view layer: dual spatial cluster indices for indirect & direct visibility.
+        internal readonly AnalyticShadowContext analyticShadows;
         internal readonly MeshWorld meshes;
         // Published decal count of this frame's scene transaction.
         internal readonly int decalCount;
 
-        internal SceneCullingResults(in CullingResults cullingResults, in MeshCullingContext mainCulling, LightContext lights, MeshWorld meshes,
-            int decalCount)
+        internal SceneCullingResults(in CullingResults cullingResults, in MeshCullingContext mainCulling, LightContext lights,
+            ReflectionContext reflections, DecalContext decals, AnalyticShadowContext analyticShadows, MeshWorld meshes, int decalCount)
         {
             this.cullingResults = cullingResults;
             this.mainCulling = mainCulling;
             this.lights = lights;
+            this.reflections = reflections;
+            this.decals = decals;
+            this.analyticShadows = analyticShadows;
             this.meshes = meshes;
             this.decalCount = decalCount;
         }
@@ -93,6 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly CameraDimensionDescriptor dimensions;
         internal readonly EHistoryReset historyReset;
         internal readonly ETemporalResolve temporalResolve;
+        internal readonly TemporalFrameRequirements temporalRequirements;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly EDebugView debugView;
@@ -107,6 +125,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly CullingResults cullingResults;
         internal readonly MeshCullingContext mainCulling;
         internal readonly LightContext lights;
+        internal readonly ReflectionContext reflections;
+        internal readonly DecalContext decals;
+        internal readonly AnalyticShadowContext analyticShadows;
         internal readonly MeshWorld meshes;
         internal readonly int decalCount;
         internal readonly ScriptableRenderContext scriptableRenderContext;
@@ -124,6 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
             dimensions = setup.dimensions;
             historyReset = setup.historyReset;
             temporalResolve = setup.temporalResolve;
+            temporalRequirements = setup.temporalRequirements;
             postProcessingEnabled = setup.postProcessingEnabled;
             sceneLightingEnabled = setup.sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -143,6 +165,9 @@ namespace InfinityTech.Rendering.Pipeline
             cullingResults = scene.cullingResults;
             mainCulling = scene.mainCulling;
             lights = scene.lights;
+            reflections = scene.reflections;
+            decals = scene.decals;
+            analyticShadows = scene.analyticShadows;
             meshes = scene.meshes;
             decalCount = scene.decalCount;
             scriptableRenderContext = frameContext.scriptableRenderContext;

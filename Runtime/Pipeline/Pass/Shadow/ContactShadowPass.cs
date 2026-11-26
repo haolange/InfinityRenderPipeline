@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
                 name = ContactShadowPassUtilityData.SunTextureName,
                 dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R8_UNorm,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = true
             };
             RGTextureHandle sunTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);

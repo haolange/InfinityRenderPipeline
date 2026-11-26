@@ -32,7 +32,7 @@ float3 SampleTemporalHitColor(float2 hitUV, float hitDepth, float2 motion, float
 {
     float3 color = 0;
     confidence = 0;
-    if (TemporalColorValid != 0 && metadata.z > 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
+    if (TemporalColorValid != 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
     {
         float2 depthUV;
         float expectedDepth;

@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int NumRaysID = Shader.PropertyToID("RTAO_NumRays");
         internal static readonly int RadiusID = Shader.PropertyToID("RTAO_Radius");
         internal static readonly int ResolutionID = Shader.PropertyToID("RTAO_Resolution");
+        internal static readonly int UseBestFitNormalID = Shader.PropertyToID("RTAO_UseBestFitNormal");
         // The UnifiedRayTracing shader takes its inputs through the backend's own binding calls, not the global ViewUniform buffer.
         internal static readonly int InvViewFlipYJitterProjID = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
     }
@@ -22,10 +23,12 @@ namespace InfinityTech.Rendering.Pipeline
     internal sealed class RTAOPass
     {
         readonly RGBuilder m_RGBuilder;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
-        internal RTAOPass(RGBuilder graph)
+        internal RTAOPass(RGBuilder graph, in InfinityRenderPipelineAsset.Settings settings)
         {
             m_RGBuilder = graph;
+            m_Settings = settings;
         }
 
         struct RTAOPassData
@@ -33,6 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 resolution;
             public int numRays;
             public float radius;
+            public int useBestFitNormal;
             public bool buildAccel;
             public Matrix4x4 invView;
             public IRayTracingShader shader;
@@ -41,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             public GraphicsBuffer traceScratch;
             public RGTextureHandle depthTextureHandle;
             public RGTextureHandle normalTextureHandle;
-            public RGTextureHandle gBufferCHandle;
+            public RGTextureHandle surfaceMetadataHandle;
             public RGTextureHandle occlusionTextureHandle;
         }
 
@@ -89,6 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 RTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;
                 passData.radius = resolved.radius;
+                passData.useBestFitNormal = m_Settings.config.useBestFitYCoCg ? 1 : 0;
                 passData.buildAccel = env.NeedsBuild;
                 if (passData.buildAccel)
                 {
@@ -101,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.traceScratch = env.PrepareTraceScratch((uint)context.dimensions.internalSize.x, (uint)context.dimensions.internalSize.y);
                 passData.depthTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
                 passData.normalTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB));
-                passData.gBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                passData.surfaceMetadataHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer));
                 passData.occlusionTextureHandle = passHandle.WriteTexture(occlusionHandle);
                 passHandle.EnablePassCulling(false);
                 passHandle.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder) =>
@@ -114,11 +119,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetUnifiedAccelerationStructure(passData.shader, "g_SceneAccelStruct", passData.accel);
                     cmdEncoder.SetUnifiedInt(passData.shader, RTAOPassUtilityData.NumRaysID, passData.numRays);
                     cmdEncoder.SetUnifiedFloat(passData.shader, RTAOPassUtilityData.RadiusID, passData.radius);
+                    cmdEncoder.SetUnifiedInt(passData.shader, RTAOPassUtilityData.UseBestFitNormalID, passData.useBestFitNormal);
                     cmdEncoder.SetUnifiedVector(passData.shader, RTAOPassUtilityData.ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetUnifiedMatrix(passData.shader, RTAOPassUtilityData.InvViewFlipYJitterProjID, passData.invView);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_NormalTexture, passData.normalTextureHandle);
-                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_GBufferTextureC, passData.gBufferCHandle);
+                    cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.SRV_SurfaceMetadata, passData.surfaceMetadataHandle);
                     cmdEncoder.SetUnifiedTexture(passData.shader, PassShaderIDs.UAV_OcclusionTexture, passData.occlusionTextureHandle);
                     cmdEncoder.DispatchUnified(passData.shader, passData.traceScratch, (uint)passData.resolution.x, (uint)passData.resolution.y, 1u);
                 });

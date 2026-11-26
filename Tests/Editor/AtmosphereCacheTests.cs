@@ -320,7 +320,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 name = name,
                 dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = true,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
@@ -334,7 +334,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 name = "Aerial",
                 dimension = TextureDimension.Tex3D,
                 colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = true,
                 filterMode = FilterMode.Trilinear,
                 wrapMode = TextureWrapMode.Clamp
@@ -348,7 +348,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 name = name,
                 dimension = TextureDimension.Tex2DArray,
                 colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = true,
                 useMipMap = useMips,
                 autoGenerateMips = false,

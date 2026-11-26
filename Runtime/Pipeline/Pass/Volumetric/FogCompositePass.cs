@@ -30,11 +30,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
+        readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
-        internal FogCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources)
+        internal FogCompositePass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
+            m_Settings = settings;
         }
 
         struct FogCompositePassData
@@ -75,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor foggedDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
-            foggedDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
+            foggedDsc.colorFormat = m_Settings.config.sceneColorFormat;
             foggedDsc.enableRandomWrite = true;
             foggedDsc.filterMode = FilterMode.Bilinear;
             foggedDsc.wrapMode = TextureWrapMode.Clamp;

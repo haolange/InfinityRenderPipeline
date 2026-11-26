@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline
                 switch (buffer)
                 {
                     case "TemporalColorSource": case "TemporalColorDepth":
-                        if (!context.state.temporalColorView.valid)
+                        if (!context.state.GetTemporalState().temporalColorView.valid)
                             throw new InvalidOperationException("Temporal color source capture requires an accepted history.");
                         id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
                         break;
@@ -188,8 +188,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "BakedDiffuse":
                         id = InfinityShaderIDs.BakedDiffuseBuffer;
                         break;
-                    case "BakedOcclusion":
-                        id = InfinityShaderIDs.BakedOcclusionBuffer;
+                    case "BakedShadowmask":
+                        id = InfinityShaderIDs.BakedShadowmaskBuffer;
                         break;
                     case "IndirectDiffuse":
                         id = InfinityShaderIDs.IndirectDiffuseBuffer;
@@ -311,8 +311,11 @@ namespace InfinityTech.Rendering.Pipeline
                     case "GBufferB":
                         id = InfinityShaderIDs.GBufferB;
                         break;
-                    case "GBufferC":
-                        id = InfinityShaderIDs.GBufferC;
+                    case "SurfaceMetadata":
+                        id = InfinityShaderIDs.SurfaceMetadataBuffer;
+                        break;
+                    case "CustomData":
+                        id = InfinityShaderIDs.CustomDataBuffer;
                         break;
                     case "Occlusion":
                         id = InfinityShaderIDs.OcclusionBuffer;
@@ -348,7 +351,7 @@ namespace InfinityTech.Rendering.Pipeline
         RGTextureHandle ConvertCaptureDepth(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
         {
             ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.depth);
-            descriptor.depthBufferBits = EDepthBits.None;
+            descriptor.depthStencilFormat = GraphicsFormat.None;
             descriptor.colorFormat = GraphicsFormat.R32_SFloat;
             descriptor.isShadowMap = false;
             descriptor.enableRandomWrite = true;
@@ -420,7 +423,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.useMipMap = false;
             descriptor.autoGenerateMips = false;
             string producer = m_RGBuilder.GetTextureProducer(sourceHandle, out string sourceQueue);
-            if (descriptor.depthBufferBits != EDepthBits.None)
+            if (descriptor.depthStencilFormat != GraphicsFormat.None)
             {
                 sourceHandle = ConvertCaptureDepth(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);

@@ -160,11 +160,32 @@ namespace InfinityTech.Rendering.RenderGraph
                 graphContext.cmdBuffer.ClearRenderTarget(true, false, Color.clear, GraphicsConventions.ClearDepthFar);
         }
 
-        static RenderTargetFlags TargetDepthFlags(EDepthAccess access)
+        internal static RenderTargetFlags TargetDepthFlags(EDepthAccess access)
         {
-            bool readOnly = (access & EDepthAccess.ReadOnly) != 0;
-            bool write = (access & EDepthAccess.Write) != 0;
-            return readOnly && !write ? RenderTargetFlags.ReadOnlyDepthStencil : RenderTargetFlags.None;
+            RenderTargetFlags flags = RenderTargetFlags.None;
+            if ((access & EDepthAccess.ReadOnlyDepth) != 0 && (access & EDepthAccess.WriteDepth) == 0)
+            {
+                flags |= RenderTargetFlags.ReadOnlyDepth;
+            }
+            if ((access & EDepthAccess.ReadOnlyStencil) != 0 && (access & EDepthAccess.WriteStencil) == 0)
+            {
+                flags |= RenderTargetFlags.ReadOnlyStencil;
+            }
+            return flags;
+        }
+
+        internal static SubPassFlags SubPassDepthFlags(EDepthAccess access)
+        {
+            SubPassFlags flags = SubPassFlags.None;
+            if ((access & EDepthAccess.ReadOnlyDepth) != 0 && (access & EDepthAccess.WriteDepth) == 0)
+            {
+                flags |= SubPassFlags.ReadOnlyDepth;
+            }
+            if ((access & EDepthAccess.ReadOnlyStencil) != 0 && (access & EDepthAccess.WriteStencil) == 0)
+            {
+                flags |= SubPassFlags.ReadOnlyStencil;
+            }
+            return flags;
         }
 
         void BeginNativeGroup(ref RGContext graphContext, RGNativePassGroup group)
@@ -203,10 +224,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         descriptor.colorOutputs[c] = subpass.Color(c);
                     }
-                    if (subpass.readOnlyDepth)
-                    {
-                        descriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
-                    }
+                    descriptor.flags = SubPassDepthFlags(subpass.depthAccess);
                     subpasses[s] = descriptor;
                 }
                 graphContext.cmdBuffer.BeginRenderPass(sizeSource.width, sizeSource.height, group.samples, attachments, group.depthAttachment, subpasses);

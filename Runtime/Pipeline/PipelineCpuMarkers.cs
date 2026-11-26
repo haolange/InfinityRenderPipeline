@@ -22,6 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static readonly ProfilerMarker s_RecordUploadCameraUniforms = Define("Record.UploadCameraUniforms");
         internal static readonly ProfilerMarker s_RecordUploadLightData = Define("Record.UploadLightData");
+        internal static readonly ProfilerMarker s_RecordUploadAnalyticShadow = Define("Record.UploadAnalyticShadow");
         internal static readonly ProfilerMarker s_RecordComputeLightCookies = Define("Record.ComputeLightCookies");
         internal static readonly ProfilerMarker s_RecordComputeReflectionProbes = Define("Record.ComputeReflectionProbes");
         internal static readonly ProfilerMarker s_RecordComputeCombineLuts = Define("Record.ComputeCombineLuts");
@@ -34,7 +35,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilerMarker s_RecordCullEarlyMeshViews = Define("Record.CullEarlyMeshViews");
         internal static readonly ProfilerMarker s_RecordRasterDepthRecovery = Define("Record.RasterDepthRecovery");
         internal static readonly ProfilerMarker s_RecordRasterDBuffer = Define("Record.RasterDBuffer");
+        internal static readonly ProfilerMarker s_RecordRasterDirectDecals = Define("Record.RasterDirectDecals");
         internal static readonly ProfilerMarker s_RecordRasterGBuffer = Define("Record.RasterGBuffer");
+        internal static readonly ProfilerMarker s_RecordRasterReflections = Define("Record.RasterReflections");
         internal static readonly ProfilerMarker s_RecordRasterMotion = Define("Record.RasterMotion");
         internal static readonly ProfilerMarker s_RecordComputeHiZ = Define("Record.ComputeHiZ");
         internal static readonly ProfilerMarker s_RecordComputeHalfResDownsample = Define("Record.ComputeHalfResDownsample");

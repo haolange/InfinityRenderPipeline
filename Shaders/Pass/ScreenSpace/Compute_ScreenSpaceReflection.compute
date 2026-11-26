@@ -22,6 +22,7 @@
 #pragma kernel SSRTemporal
 #pragma kernel SSRBilateral
 #pragma kernel SSRDebug
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/ScreenSpaceDepth.hlsl"
@@ -75,7 +76,7 @@ Texture2D<float> SRV_HiZClosestTexture;
 Texture2D<float> SRV_HiZFurthestTexture;
 Texture2D SRV_GBufferA;
 Texture2D SRV_GBufferB;
-Texture2D SRV_GBufferC;
+Texture2D SRV_SurfaceMetadata;
 Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
@@ -132,11 +133,11 @@ bool IsReflectiveSurface(uint2 pixel, out float rawDepth, out float roughness)
     bool valid = false;
     if (!ScreenSpaceIsFarDepth(rawDepth))
     {
-        uint shadingModel, flags;
-        UnpackGBufferCChannelR(SRV_GBufferC[pixel].r, shadingModel, flags);
-        if ((flags & GBUFFER_FLAG_VALID_SURFACE) != 0 && (flags & GBUFFER_FLAG_FORWARD) == 0)
+        uint route, flags;
+        UnpackSurfaceMetadataR(SRV_SurfaceMetadata[pixel].r, route, flags);
+        if (route == SURFACE_ROUTE_DEFERRED)
         {
-            roughness = SRV_GBufferA[pixel].b;
+            roughness = DecodeGBufferRoughness(SRV_GBufferA[pixel]);
             valid = roughness <= SSR_MaxRoughness;
         }
     }
@@ -152,7 +153,7 @@ bool LoadSurface(uint2 pixel, out SSRSurface surface)
     surface.roughness = roughness;
     if (valid)
     {
-        surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+        surface.normalWS = DecodeGBufferNormal(SRV_GBufferB[pixel]);
         float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
         float3 ndc = GetNDCPos(uv, rawDepth);
         surface.positionVS = GetViewSpacePos(ndc, Matrix_InvFlipYJitterProj);
@@ -267,7 +268,7 @@ int ShadeReflectionHit(SSRSurface surface, float3 L, float pdf, ScreenSpaceHit h
     float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewFlipYJitterProj);
     hitDistance = max(length(hitWS - surface.positionWS), 1e-3);
     uint2 hitPixel = min((uint2)(hit.uv * SSR_Resolution.xy), (uint2)SSR_Resolution.xy - 1);
-    float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
+    float3 hitNormal = DecodeGBufferNormal(SRV_GBufferB[hitPixel]);
     float facing = saturate(-dot(hitNormal, L) * 4);
     float edge = GetScreenFadeBord(hit.uv, SSR_EdgeFade);
     radiance = 0;
@@ -541,8 +542,8 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, surfaceUV, expectedDepth);
 
     float historyAge = 0;
-    float4 motionSurface = SRV_HitMotionMetadata[pixel];
-    bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
+    float2 motionSurface = SRV_HitMotionMetadata[pixel].xy;
+    bool validMotionSurface = isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
     // Use the previous object surface depth, rather than projecting its current pose.
     expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
     float historyValid = (validMotionSurface ? SSR_HistoryValid : 0) * SurfaceHistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth);
@@ -623,7 +624,7 @@ void SSRBilateral(uint3 id : SV_DispatchThreadID)
     float radius = lerp(1.0, 6.0, response);
     uint sampleCount = (uint)lerp(4.0, 16.0, response);
     float centerEye = ScreenSpaceLinearEyeDepth(centerDepth);
-    float3 centerNormal = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+    float3 centerNormal = DecodeGBufferNormal(SRV_GBufferB[pixel]);
     int2 maxPixel = int2(SSR_Resolution.xy) - 1;
     float rotation = (SSR_FrameIndex & 63u) * 0.1;
     float3 sum = 0;
@@ -642,7 +643,7 @@ void SSRBilateral(uint3 id : SV_DispatchThreadID)
         {
             continue;
         }
-        float3 sampleNormal = normalize(SRV_GBufferB[samplePixel].xyz * 2 - 1);
+        float3 sampleNormal = DecodeGBufferNormal(SRV_GBufferB[samplePixel]);
         float weight = AtrousDepthWeight(centerEye, ScreenSpaceLinearEyeDepth(sampleDepth), 0.05)
             * saturate(dot(centerNormal, sampleNormal));
         sum += SRV_Temporal[samplePixel].rgb * weight;

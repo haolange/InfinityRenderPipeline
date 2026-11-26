@@ -59,6 +59,16 @@ namespace InfinityTech.Rendering.Pipeline
                     stride = 1;
                     encoding = 8;
                     break;
+                case GraphicsFormat.R8G8_UNorm:
+                    channels = 2;
+                    stride = 2;
+                    encoding = 8;
+                    break;
+                case GraphicsFormat.R16G16B16A16_UNorm:
+                    channels = 4;
+                    stride = 8;
+                    encoding = 160;
+                    break;
                 case GraphicsFormat.R8G8B8A8_UNorm:
                 case GraphicsFormat.R8G8B8A8_SRGB:
                 case GraphicsFormat.B8G8R8A8_UNorm:
@@ -86,6 +96,10 @@ namespace InfinityTech.Rendering.Pipeline
                     else if (encoding == 16)
                     {
                         value = DecodeFloat(BitConverter.ToUInt16(bytes, pixel + channel * 2), 10, true);
+                    }
+                    else if (encoding == 160)
+                    {
+                        value = BitConverter.ToUInt16(bytes, pixel + channel * 2) / 65535.0;
                     }
                     else if (encoding == 11)
                     {

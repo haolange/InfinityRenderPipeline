@@ -132,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
                 name = name,
                 dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = true,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp

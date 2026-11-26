@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.GPUResource.Tests
                 name = name,
                 dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
-                depthBufferBits = EDepthBits.None,
+                depthStencilFormat = GraphicsFormat.None,
                 enableRandomWrite = false
             };
         }

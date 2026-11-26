@@ -8,6 +8,7 @@
 #pragma kernel OcclusionSpatialY
 #pragma kernel OcclusionTemporal
 #pragma kernel OcclusionUpsample
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 #pragma enable_debug_symbols
 
 RWTexture2D<float> UAV_OcclusionTexture;
@@ -114,8 +115,8 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
                 }
             }
         }
-        float4 metadata = InfinitySampleLevel(SRV_MotionMetadataTexture,Global_point_clamp_sampler,sourceUV,0);
-        if (GTAOHistoryValid != 0 && metadata.z > 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
+        float2 metadata = InfinitySampleLevel(SRV_MotionMetadataTexture,Global_point_clamp_sampler,sourceUV,0).xy;
+        if (GTAOHistoryValid != 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
         {
             float2 motion = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0).xy;
             float2 historyUV;
@@ -152,6 +153,23 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     UAV_OcclusionHistoryDepth[id.xy] = currentDepth;
 }
 
+float3 DecodeUpsampleGBufferNormal(float4 gBufferB)
+{
+#if defined(INFINITY_GBUFFER_BESTFIT_YCOCG)
+    float3 n = gBufferB.xyz * 2.0 - 1.0;
+    float lenSq = dot(n, n);
+    return lenSq > 1e-8 ? n * rsqrt(lenSq) : float3(0, 0, 1);
+#else
+    float2 oct = gBufferB.rg * 2.0 - 1.0;
+    float3 n = float3(oct, 1.0 - dot(1.0, abs(oct)));
+    if (n.z < 0.0)
+    {
+        n.xy = (1.0 - abs(n.yx)) * (n.xy >= 0.0 ? float2(1.0, 1.0) : float2(-1.0, -1.0));
+    }
+    return normalize(n);
+#endif
+}
+
 RWTexture2D<float> UAV_UpsampleTexture;
 [numthreads(16, 16, 1)]
 void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
@@ -162,8 +180,8 @@ void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
     }
     float2 uv = (id.xy + 0.5) * UpsampleSize.zw;
     float rawDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
-    float3 normal = SRV_NormalTexture.Load(int3(id.xy, 0)).xyz * 2 - 1;
-    float normalLength = dot(normal,normal);
+    float3 normal = DecodeUpsampleGBufferNormal(SRV_NormalTexture.Load(int3(id.xy, 0)));
+    float normalLength = dot(normal, normal);
     if (ScreenSpaceIsFarDepth(rawDepth) || !isfinite(rawDepth) || !all(isfinite(normal)) || normalLength <= 1e-8)
     {
         UAV_UpsampleTexture[id.xy] = 1;

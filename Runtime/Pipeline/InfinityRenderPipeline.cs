@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
         readonly LightCookiePass m_LightCookiePass;
         readonly LightTileMaskPass m_LightTileMaskPass;
         readonly ReflectionProbePass m_ReflectionProbePass;
+        readonly AnalyticShadowPass m_AnalyticShadowPass;
         readonly CombineLutPass m_CombineLutPass;
         readonly AtmosphericLUTPass m_AtmosphericLUTPass;
         readonly TemporalColorSourcePass m_TemporalColorSourcePass;
@@ -57,6 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
         readonly ColorPyramidPass m_ColorPyramidPass;
         readonly SuperResolutionPass m_SuperResolutionPass;
         readonly AntiAliasingPass m_AntiAliasingPass;
+        readonly TemporalReconstructionPass m_TemporalReconstructionPass;
         readonly FinalOutputPass m_FinalOutputPass;
         readonly PostProcessingPass m_PostProcessingPass;
         readonly UIOverlayPass m_UIOverlayPass;
@@ -71,7 +73,8 @@ namespace InfinityTech.Rendering.Pipeline
                 m_LightUploadPass = new LightUploadPass(graph);
                 m_LightCookiePass = new LightCookiePass(graph, resources, renderContext.sceneWorld.lights.cookieAtlas);
                 m_LightTileMaskPass = new LightTileMaskPass(graph, resources);
-                m_ReflectionProbePass = new ReflectionProbePass(graph, resources, renderContext.sceneWorld.probes.atlas, m_LightTileMaskPass);
+                m_ReflectionProbePass = new ReflectionProbePass(graph, resources, renderContext.sceneWorld.probes.atlas);
+                m_AnalyticShadowPass = new AnalyticShadowPass(graph);
                 m_CombineLutPass = new CombineLutPass(graph, resources);
                 m_AtmosphericLUTPass = new AtmosphericLUTPass(graph, resources, renderContext.atmosphereCache);
                 m_TemporalColorSourcePass = new TemporalColorSourcePass(graph, resources);
@@ -84,9 +87,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_HalfResDownsamplePass = new HalfResDownsamplePass(graph, resources);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 m_RenderCapturePass = new RenderCapturePass(graph, resources);
-                m_DebugViewPass = new DebugViewPass(graph, resources);
+                m_DebugViewPass = new DebugViewPass(graph, resources, settings);
 #endif
-                m_RTAOPass = new RTAOPass(graph);
+                m_RTAOPass = new RTAOPass(graph, settings);
                 m_GTAOPass = new GTAOPass(graph, resources
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     , m_RenderCapturePass
@@ -103,9 +106,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_CascadeShadowPass = new CascadeShadowPass(graph, settings, InfinityMeshPasses.Shadow);
                 m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache, InfinityMeshPasses.Shadow);
                 m_ShadowMomentPass = new ShadowMomentPass(graph, resources, settings);
-                m_DeferredShadingPass = new DeferredShadingPass(graph, resources);
+                m_DeferredShadingPass = new DeferredShadingPass(graph, resources, settings);
                 m_ForwardPass = new ForwardPass(graph, settings, InfinityMeshPasses.Forward);
-                m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources);
+                m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources, settings);
                 m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
                 m_SubsurfacePass = new SubsurfacePass(graph, resources, settings, renderContext.resourcePool);
                 m_AtmosphericSkyFogPass = new AtmosphericSkyFogPass(graph, resources);
@@ -113,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
                     InfinityMeshPasses.TranslucentT0, InfinityMeshPasses.TranslucentT1, InfinityMeshPasses.TranslucentT2);
                 m_VolumetricCloudPass = new VolumetricCloudPass(graph, resources);
                 m_VolumetricFogPass = new VolumetricFogPass(graph, resources);
-                m_FogCompositePass = new FogCompositePass(graph, resources);
+                m_FogCompositePass = new FogCompositePass(graph, resources, settings);
                 m_ColorPyramidPass = new ColorPyramidPass(graph, resources);
                 m_SuperResolutionPass = new SuperResolutionPass(graph, resources);
                 m_AntiAliasingPass = new AntiAliasingPass(graph, resources
@@ -121,6 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                     , m_RenderCapturePass
 #endif
                     );
+                m_TemporalReconstructionPass = new TemporalReconstructionPass(m_AntiAliasingPass, m_SuperResolutionPass);
                 m_FinalOutputPass = new FinalOutputPass(graph, resources);
                 m_PostProcessingPass = new PostProcessingPass(graph, resources, m_FinalOutputPass);
                 m_UIOverlayPass = new UIOverlayPass(graph);
@@ -153,8 +157,13 @@ namespace InfinityTech.Rendering.Pipeline
             // camera reads them from these two uniforms, uploaded ahead of the graph.
             using (PipelineCpuMarkers.s_RecordUploadCameraUniforms.Auto())
             {
-                context.state.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
-                context.state.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
+                cmdBuffer.SetKeyword(GBufferPassUtilityData.BestFitYCoCgKeyword, settings.config.useBestFitYCoCg);
+                LightingCameraState lightingState = context.state.GetLightingState();
+                lightingState.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
+                lightingState.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
+                lightingState.reflectionUniform.Upload(cmdBuffer, context.reflections.ResolveUniform(context.features.ShouldRecord(EFrameFeature.ReflectionProbes)));
+                lightingState.decalUniform.Upload(cmdBuffer, context.decals.ResolveUniform(context.features.ShouldRecord(EFrameFeature.DBuffer)));
+                lightingState.analyticShadowUniform.Upload(cmdBuffer, context.analyticShadows.ResolveUniform(settings.enableAnalyticShadow && context.frameSettings.IsEnabled(EFrameSetting.AnalyticShadow)));
             }
 
             // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
@@ -163,13 +172,22 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_LightUploadPass.UploadLightData(context.lights);
             }
+            using (PipelineCpuMarkers.s_RecordUploadAnalyticShadow.Auto())
+            {
+                m_AnalyticShadowPass.UploadAnalyticShadowData(context.analyticShadows);
+            }
             using (PipelineCpuMarkers.s_RecordComputeLightCookies.Auto())
             {
                 m_LightCookiePass.ComputeLightCookies(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeReflectionProbes.Auto())
             {
+                m_ReflectionProbePass.UploadReflectionData(context.reflections);
                 m_ReflectionProbePass.ComputeReflectionProbes(context);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterDBuffer.Auto())
+            {
+                m_DBufferPass.UploadDecalData(context.decals);
             }
             using (PipelineCpuMarkers.s_RecordComputeCombineLuts.Auto())
             {
@@ -190,7 +208,7 @@ namespace InfinityTech.Rendering.Pipeline
             MeshMotionBinding meshMotion;
             using (PipelineCpuMarkers.s_RecordPrepareMeshMotion.Auto())
             {
-                meshMotion = context.state.meshMotionHistory.Prepare(context.meshes.transformVersions.current);
+                meshMotion = context.state.GetMeshMotionState().history.Prepare(context.meshes.transformVersions.current);
             }
             MeshMainViews meshViews;
             using (PipelineCpuMarkers.s_RecordCullMainMeshViews.Auto())
@@ -225,6 +243,10 @@ namespace InfinityTech.Rendering.Pipeline
             using (PipelineCpuMarkers.s_RecordRasterGBuffer.Auto())
             {
                 m_GBufferPass.RasterGBuffer(context, meshViews.mainViewHandle);
+            }
+            using (PipelineCpuMarkers.s_RecordRasterDirectDecals.Auto())
+            {
+                m_DBufferPass.RasterDirectDecals(context);
             }
             using (PipelineCpuMarkers.s_RecordRasterMotion.Auto())
             {
@@ -278,6 +300,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
+            using (PipelineCpuMarkers.s_RecordRasterReflections.Auto())
+            {
+                m_ReflectionProbePass.RasterReflections(context);
+            }
             using (PipelineCpuMarkers.s_RecordComputeDeferredShading.Auto())
             {
                 m_DeferredShadingPass.ComputeDeferredShading(context);
@@ -375,22 +401,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_TranslucentPass.RasterTranslucentT2(context, meshViews.mainViewHandle);
             }
 
-            // PHASE 8: temporal resolve + post (TAA after fog/translucents)
+            // PHASE 8: unified Temporal Reconstruction (TRC) + post.
             // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
-            if (context.temporalResolve == ETemporalResolve.SuperResolution)
-            {
-                using (PipelineCpuMarkers.s_RecordComputeSuperResolution.Auto())
-                {
-                    m_SuperResolutionPass.ComputeSuperResolution(context);
-                }
-            }
-            else if (context.temporalResolve == ETemporalResolve.TAA)
-            {
-                using (PipelineCpuMarkers.s_RecordComputeAntiAliasing.Auto())
-                {
-                    m_AntiAliasingPass.ComputeAntiAliasing(context);
-                }
-            }
+            m_TemporalReconstructionPass.ComputeTemporalReconstruction(context);
             using (PipelineCpuMarkers.s_RecordRecordCameraOutput.Auto())
             {
                 m_UtilityPass.RecordCameraOutput(context);

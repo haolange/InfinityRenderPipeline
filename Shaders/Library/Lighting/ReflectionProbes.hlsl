@@ -1,88 +1,59 @@
 #ifndef INFINITY_REFLECTION_PROBE
 #define INFINITY_REFLECTION_PROBE
-// Reflection probes as a second index space of the clustered list (LightLoop.hlsl): probes are listed by priority
-// (higher importance, then smaller volume; C# ReflectionProbePriority), get their own logarithmic z-bins and 16x16
-// tile bitmasks, and are accumulated front to back until their weights reach 1; the remainder is the sky. Deferred
-// and Forward share this evaluation.
-// Probe faces live in the probe atlas (6 slices per probe, CubemapFaceDirection layout, GGX-prefiltered mips). The atlas
-// is declared and sampled only under INFINITY_REFLECTION_PROBES (set when the camera produced the atlas); without it
-// the probe count is 0 and the blend returns the sky unchanged.
+// Spatially indexed reflection probes built on SpatialClusterList + SpatialGeometry: probes are stored in priority order
+// (higher importance, then smaller volume; C# ReflectionProbePriority) inside each 3D frustum cluster and blended front
+// to back until weight reaches 1, leaving the remainder for the sky.
 #include "../Common.hlsl"
 #include "../Lighting.hlsl"
 #include "../AtmosphereCommon.hlsl"
-#include "LightLoop.hlsl"
+#include "../Spatial/SpatialGeometry.hlsl"
+#include "../Spatial/SpatialClusterList.hlsl"
 
-// C# ReflectionProbeRecord (Runtime/RendererCore/LightPipeline/LightContext.cs, GPU-RECORD marker).
+// C# ReflectionProbeRecord (Runtime/Reflection/ReflectionContext.cs, GPU-RECORD marker).
 struct ReflectionProbeRecord
 {
-    // World to influence-box space (rows of a 3x4 affine; the box is centered at the origin, unscaled). Probes are
-    // axis aligned (SupportedRenderingFeatures.reflectionProbeModes = None), so the rotation is identity today.
+    // World to influence-box space (rows of a 3x4 affine; centered at origin).
     float4 worldToBox0;
     float4 worldToBox1;
     float4 worldToBox2;
     // xyz = influence half extents (box, including the blend band) or radius in x (sphere); w = blend distance.
     float4 extents;
-    // xyz = capture position in box space (box projection origin); w = 1 box projection, 0 infinite.
+    // xyz = capture position in box space (projection origin); w = 1 parallax projection, 0 infinite.
     float4 capture;
-    // xyz = projection box half extents (the probe box without its blend band); w unused.
+    // xyz = projection box half extents or sphere radius in x; w unused.
     float4 projection;
     // x = intensity (HDR decode included); y = first atlas slice; z = atlas mip count - 1; w = 1 sphere influence.
     float4 parameters;
 };
 
+// C# ReflectionUniform (Runtime/Reflection/ReflectionContext.cs, GPU-RECORD marker).
+cbuffer ReflectionUniform
+{
+    float4 g_ReflectionClusterParams;
+    float4 g_ReflectionZSliceParams;
+    int g_ReflectionProbeCount;
+    int g_ReflectionPadding0;
+    int g_ReflectionPadding1;
+    int g_ReflectionPadding2;
+};
+
 StructuredBuffer<ReflectionProbeRecord> SRV_ReflectionProbes;
-StructuredBuffer<uint> SRV_ProbeZBins;
-StructuredBuffer<uint> SRV_ProbeTileMasks;
+StructuredBuffer<uint2> SRV_ProbeClusterHeaders;
+StructuredBuffer<uint> SRV_ProbeClusterIndices;
 #if defined(INFINITY_REFLECTION_PROBES)
 Texture2DArray<float4> SRV_ReflectionProbeAtlas;
 #endif
 
-uint LoadProbeLoopWord(LightLoopState loop)
+void BeginProbeLoop(uint2 pixelCoord, float viewDepth, out SpatialClusterLoopState loop)
 {
-    uint mask = SRV_ProbeTileMasks[loop.maskBase + loop.word];
-    uint lowBit = loop.word == (loop.minIndex >> 5) ? (loop.minIndex & 31u) : 0u;
-    uint highBit = loop.word == (loop.maxIndex >> 5) ? (loop.maxIndex & 31u) : 31u;
-    return mask & (0xFFFFFFFFu << lowBit) & (0xFFFFFFFFu >> (31u - highBit));
-}
-
-LightLoopState BeginProbeLoop(uint2 pixelCoord, float viewDepth)
-{
-    LightLoopState loop = (LightLoopState)0;
-    loop.word = 1;
-    loop.lastWord = 0;
-    if (g_ReflectionProbeCount > 0)
-    {
-        uint packed = SRV_ProbeZBins[LightZBin(viewDepth)];
-        loop.minIndex = packed & 0xFFFFu;
-        loop.maxIndex = packed >> 16;
-        if (loop.minIndex <= loop.maxIndex)
-        {
-            uint2 tile = min(pixelCoord / LIGHT_TILE_SIZE, (uint2)(ceil(g_ProbeTileParams.xy / LIGHT_TILE_SIZE)) - 1u);
-            uint wordCount = (uint)g_ProbeTileParams.w;
-            loop.maskBase = (tile.y * (uint)g_ProbeTileParams.z + tile.x) * wordCount;
-            loop.word = loop.minIndex >> 5;
-            loop.lastWord = loop.maxIndex >> 5;
-            loop.mask = LoadProbeLoopWord(loop);
-        }
-    }
-    return loop;
+    SpatialBeginClusterLoop(pixelCoord, viewDepth, g_ReflectionProbeCount,
+        g_ReflectionClusterParams, g_ReflectionZSliceParams, SRV_ProbeClusterHeaders, loop);
 }
 
 // Probes come out in list order (lowest index first), which is the blending priority.
-bool NextProbe(inout LightLoopState loop, out uint probeIndex)
+bool NextProbe(inout SpatialClusterLoopState loop, out uint probeIndex)
 {
-    probeIndex = 0;
-    [loop]
-    while (loop.mask == 0)
-    {
-        if (loop.word >= loop.lastWord) return false;
-        loop.word++;
-        loop.mask = LoadProbeLoopWord(loop);
-    }
-    uint bit = firstbitlow(loop.mask);
-    loop.mask &= loop.mask - 1u;
-    probeIndex = loop.word * 32u + bit;
-    return true;
+    return SpatialNextClusterItem(loop, SRV_ProbeClusterIndices, probeIndex);
 }
 
 float3 ProbeBoxPosition(ReflectionProbeRecord probe, float3 positionWS)
@@ -99,32 +70,26 @@ float3 ProbeBoxDirection(ReflectionProbeRecord probe, float3 directionWS)
 // 1 inside the influence volume, fading to 0 over the blend distance at its border.
 float ProbeInfluenceWeight(ReflectionProbeRecord probe, float3 boxPosition)
 {
-    float blend = max(probe.extents.w, 1e-4);
-    float weight = 0;
     if (probe.parameters.w != 0)
     {
-        weight = saturate((probe.extents.x - length(boxPosition)) / blend);
+        return SpatialSphereInfluenceWeight(boxPosition, probe.extents.x, probe.extents.w);
     }
-    else
-    {
-        float3 distanceToFace = probe.extents.xyz - abs(boxPosition);
-        weight = saturate(min(distanceToFace.x, min(distanceToFace.y, distanceToFace.z)) / blend);
-    }
-    return weight;
+    return SpatialBoxInfluenceWeight(boxPosition, probe.extents.xyz, probe.extents.w);
 }
 
-// Box projection (parallax correction): the reflected ray from the shaded point hits the projection box; the probe
-// is sampled along the direction from its capture position to that hit.
+// Parallax correction for independent box or sphere projection proxies (capture.w: 0 = none, 1 = box, 2 = sphere).
 float3 ProbeSampleDirection(ReflectionProbeRecord probe, float3 boxPosition, float3 boxDirection)
 {
     float3 direction = boxDirection;
-    if (probe.capture.w != 0)
+    if (probe.capture.w > 1.5)
     {
-        float3 extents = probe.parameters.w != 0 ? probe.projection.xxx : probe.projection.xyz;
-        float3 rcpDirection = rcp(boxDirection + (boxDirection >= 0 ? 1e-6 : -1e-6));
-        float3 tMax = max((extents - boxPosition) * rcpDirection, (-extents - boxPosition) * rcpDirection);
-        float t = min(tMax.x, min(tMax.y, tMax.z));
-        direction = boxPosition + boxDirection * max(t, 0) - probe.capture.xyz;
+        float t = SpatialRayIntersectSphere(boxPosition, boxDirection, probe.projection.x);
+        direction = boxPosition + boxDirection * t - probe.capture.xyz;
+    }
+    else if (probe.capture.w > 0.5)
+    {
+        float t = SpatialRayIntersectBox(boxPosition, boxDirection, probe.projection.xyz);
+        direction = boxPosition + boxDirection * t - probe.capture.xyz;
     }
     return direction;
 }
@@ -143,7 +108,8 @@ float3 EvaluateReflectionProbes(float3 positionWS, float3 reflectionWS, float ro
 {
     float3 radiance = 0;
     weight = 0;
-    LightLoopState loop = BeginProbeLoop(pixelCoord, viewDepth);
+    SpatialClusterLoopState loop;
+    BeginProbeLoop(pixelCoord, viewDepth, loop);
     uint probeIndex;
     [loop]
     while (weight < 0.999 && NextProbe(loop, probeIndex))
@@ -171,5 +137,14 @@ float3 BlendReflectionProbesWithSky(float3 positionWS, float3 reflectionWS, floa
 #else
     return sky;
 #endif
+}
+
+// Unified composition contract across Raster reflection (premultiplied radiance, coverage in alpha), Clustered probes,
+// and Sky fallback.
+float3 ComposeSpecularEnvironment(float4 rasterReflection, float3 positionWS, float3 reflectionWS, float roughness, uint2 pixelCoord, float viewDepth, float3 sky)
+{
+    float rasterWeight = saturate(rasterReflection.a);
+    float3 probesAndSky = BlendReflectionProbesWithSky(positionWS, reflectionWS, roughness, pixelCoord, viewDepth, sky);
+    return rasterReflection.rgb + probesAndSky * (1.0 - rasterWeight);
 }
 #endif

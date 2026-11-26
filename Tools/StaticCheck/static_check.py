@@ -1224,15 +1224,20 @@ def check_diagnostics(repo, out):
 UPPER = ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph', 'GPUResource')
 LAYERS = {
     'Runtime/Core/': UPPER,
-    'Runtime/GPUResource/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
-    'Runtime/RenderGraph/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere'),
-    'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+    'Runtime/GPUResource/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'Reflection', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+    'Runtime/RenderGraph/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'Reflection', 'TerrainPipeline', 'Volume', 'Atmosphere'),
+    'Runtime/Material/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'Reflection', 'Decal', 'TerrainPipeline', 'Volume', 'Atmosphere', 'RenderGraph'),
+    'Runtime/Spatial/': ('Pipeline', 'MeshPipeline', 'LightPipeline', 'Reflection', 'Decal', 'TerrainPipeline', 'Volume', 'Atmosphere', 'SceneModules'),
 }
 # The mesh mechanism (world, pass caches, backends, views, draw lists) sits below the pipeline and the lighting layers.
 for _mesh in ('World', 'Pass', 'Backend', 'View', 'DrawList', 'Graph'):
-    LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'TerrainPipeline', 'Volume', 'Atmosphere')
-# Lighting and the scene world sit below the pipeline: they derive scene facts and never name pipeline types.
+    LAYERS['Runtime/Mesh/' + _mesh + '/'] = ('Pipeline', 'LightPipeline', 'Reflection', 'Decal', 'TerrainPipeline', 'Volume', 'Atmosphere')
+# Lighting, reflection, decal and the scene world sit below the pipeline: they derive scene facts and never name pipeline types.
 LAYERS['Runtime/Lighting/'] = ('Pipeline', 'Volume', 'Atmosphere')
+LAYERS['Runtime/Reflection/'] = ('Pipeline', 'LightPipeline', 'Volume', 'Atmosphere')
+LAYERS['Runtime/Decal/'] = ('Pipeline', 'LightPipeline', 'Reflection', 'Volume', 'Atmosphere')
+LAYERS['Runtime/AnalyticShadow/'] = ('Pipeline', 'LightPipeline', 'Reflection', 'Decal', 'Volume', 'Atmosphere')
+LAYERS['Runtime/Temporal/'] = ('Pipeline', 'LightPipeline', 'Reflection', 'Decal', 'AnalyticShadow', 'Volume', 'Atmosphere')
 LAYERS['Runtime/Scene/World/'] = ('Pipeline', 'Volume', 'Atmosphere')
 
 
@@ -1246,7 +1251,7 @@ def check_static_ids(repo, out):
                 out.append(('ERROR', 'staticid', f'{os.path.relpath(p, repo)}: {m.group(1)} is a mutable static; make it static readonly'))
 
 
-HOT_PATH_DIRS = ('Runtime/Pipeline/Pass', 'Runtime/Mesh', 'Runtime/Lighting')
+HOT_PATH_DIRS = ('Runtime/Pipeline/Pass', 'Runtime/Mesh', 'Runtime/Lighting', 'Runtime/Reflection', 'Runtime/Decal', 'Runtime/AnalyticShadow', 'Runtime/Spatial', 'Runtime/Temporal')
 HOT_PATH_LOOKUPS = re.compile(r'\b(FindKernel|HasKernel|FindPass)\s*\(|\bnew\s+LocalKeyword\s*\(')
 DIAGNOSTICS_FILE = re.compile(r'^\ufeff?#if UNITY_EDITOR \|\| DEVELOPMENT_BUILD\s*$', re.M)
 

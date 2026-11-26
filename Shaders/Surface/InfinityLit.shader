@@ -247,10 +247,14 @@
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
+            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
+            #pragma multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE
+            #pragma multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS
 
 			#include "../Library/Common.hlsl"
 			#include "../Library/Lightmap.hlsl"
 			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/GBufferOutput.hlsl"
 			#include "../Library/DBuffer.hlsl"
 			#include "../Library/BSDF.hlsl"
 			#include "../Library/ImageBasedLighting.hlsl"
@@ -307,7 +311,7 @@
 				return Out;
 			}
 
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3, out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
+			GBufferFragmentOutput frag(Varyings In)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
@@ -327,25 +331,47 @@
 
 				#if defined(_DBUFFER)
 				float2 screenUV = In.vertexCS.xy * rcp(_ScreenParams.xy);
-				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance);
+				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance, surfaceSpecular);
 				#endif
 
-				GBufferData GBufferData;
-				GBufferData.Normal = pnormalWS;
-				GBufferData.Albedo = surfaceAlbedo;
-				GBufferData.Specular = surfaceSpecular;
-				GBufferData.Roughness = surfaceRoughness;
-				GBufferData.Reflactance = surfaceReflctance;
-				GBufferData.ShadingModel = _Subsurface > 0.5 ? GBUFFER_SHADING_MODEL_SUBSURFACE : GBUFFER_SHADING_MODEL_DEFAULT_LIT;
-				GBufferData.Flags = (_Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0) | (_SurfaceRoute == 1 ? GBUFFER_FLAG_FORWARD : 0);
-				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
-				GBufferData.Thickness = _SSSThickness;
-                GBufferData.RenderingLayer = asuint(unity_RenderingLayer.x);
-				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
-				LightingBuffer = float4(_EmissionColor.rgb, 0);
-                float4 shadowMask;
-                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, asuint(unity_RenderingLayer.x), BakedDiffuse, shadowMask);
-                BakedOcclusion = 1 - shadowMask;
+                float4 bakedDiffuse = 0;
+                float4 shadowMask = 1;
+                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, asuint(unity_RenderingLayer.x), bakedDiffuse, shadowMask);
+
+				SurfaceData surface;
+				surface.Normal = pnormalWS;
+				surface.Albedo = surfaceAlbedo;
+				surface.Specular = surfaceSpecular;
+				surface.Roughness = surfaceRoughness;
+				surface.Metallic = surfaceReflctance;
+				surface.Route = _SurfaceRoute > 0.5 ? SURFACE_ROUTE_FORWARD : SURFACE_ROUTE_DEFERRED;
+				surface.Flags = _Subsurface > 0.5 ? SURFACE_FLAG_SUBSURFACE : 0u;
+                if (bakedDiffuse.a > 0)
+                {
+                    surface.Flags |= SURFACE_FLAG_HAS_BAKED_GI;
+                }
+                surface.RenderingLayer = asuint(unity_RenderingLayer.x);
+
+                GBufferFragmentOutput output = (GBufferFragmentOutput)0;
+                float2 surfaceMetadata = 0;
+				EncodeSurfaceGBuffer(surface, In.vertexCS.xy, output.gBufferA, output.gBufferB, surfaceMetadata);
+                output.surfaceMetadata = float4(surfaceMetadata, 0, 0);
+
+#if defined(INFINITY_GBUFFER_BAKED_DIFFUSE)
+				output.lightingBuffer = float4(_EmissionColor.rgb, 0);
+                output.bakedDiffuse = bakedDiffuse;
+#else
+                float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflctance);
+                float3 envDiffuse = diffuseColor * (bakedDiffuse.a > 0 ? bakedDiffuse.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
+                output.lightingBuffer = float4(_EmissionColor.rgb + envDiffuse, 0);
+#endif
+#if defined(SHADOWS_SHADOWMASK)
+                output.bakedShadowmask = 1 - shadowMask;
+#endif
+#if defined(INFINITY_GBUFFER_CUSTOM_DATA_SSS)
+                output.customData = _Subsurface > 0.5 ? float4(PackCustomDataSSS((uint)(_SSSProfileIndex + 0.5), _SSSThickness), 0, 0) : float4(0, 0, 0, 0);
+#endif
+                return output;
 			}
 			ENDHLSL
 		}
@@ -358,13 +384,17 @@
 			ZTest Equal ZWrite Off Cull Back
 
 			HLSLPROGRAM
+            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE
+            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR
             #pragma multi_compile _ INFINITY_SSS_OUTPUT
+            #pragma multi_compile _ INFINITY_SSS_ALPHA
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
             #pragma multi_compile _ INFINITY_FORWARD_AO
             #pragma multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW
+            #pragma multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW
             #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
             #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
             #pragma multi_compile _ INFINITY_LIGHT_COOKIES
@@ -387,6 +417,7 @@
 			#include "../Library/Lighting.hlsl"
 			#include "../Library/ShadingModel.hlsl"
 			#include "../Library/GBufferPack.hlsl"
+			#include "../Library/ForwardOutput.hlsl"
 			#include "../Library/ImageBasedLighting.hlsl"
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
@@ -444,11 +475,7 @@
 				return Out;
 			}
 
-			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2
-#if defined(INFINITY_SSS_OUTPUT)
-                , out float4 scatterDiffuse : SV_Target3
-#endif
-                )
+			ForwardFragmentOutput frag(Varyings In)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
@@ -480,14 +507,31 @@
                 diffuse *= ao;
                 specular *= ao;
 #endif
-                indirectDiffuse = float4(diffuse, 1);
-                indirectSpecular = float4(specular, 1);
-                float3 directDiffuse;
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)In.vertexCS.xy, directDiffuse)
-                    + diffuse + specular + _EmissionColor.rgb, 1);
-#if defined(INFINITY_SSS_OUTPUT)
-                scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#if defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
+                float analyticIndirectAO = EvaluateAnalyticIndirectOcclusion((uint2)In.vertexCS.xy, viewDepth, positionWS, pnormalWS, asuint(unity_RenderingLayer.x));
+                diffuse *= analyticIndirectAO;
+                specular *= analyticIndirectAO;
 #endif
+                ForwardFragmentOutput output = (ForwardFragmentOutput)0;
+#if defined(INFINITY_FORWARD_INDIRECT_DIFFUSE)
+                output.indirectDiffuse = float4(diffuse, 1);
+#endif
+#if defined(INFINITY_FORWARD_INDIRECT_SPECULAR)
+                output.indirectSpecular = float4(specular, 1);
+#endif
+                float3 directDiffuse;
+                float3 totalLighting = EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)In.vertexCS.xy, directDiffuse)
+                    + diffuse + specular + _EmissionColor.rgb;
+#if defined(INFINITY_SSS_ALPHA)
+                float diffuseLuma = _Subsurface > 0.5 ? Luminance(max(0, directDiffuse + diffuse)) : 0.0;
+                output.lightingBuffer = float4(totalLighting, diffuseLuma);
+#else
+                output.lightingBuffer = float4(totalLighting, 1);
+#endif
+#if defined(INFINITY_SSS_OUTPUT)
+                output.scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#endif
+                return output;
 			}
 			ENDHLSL
 		}
@@ -500,7 +544,8 @@
 			ZTest Equal ZWrite Off Cull Back
             Stencil
 			{
-                Ref 5
+                Ref 1
+                WriteMask 1
                 comp always
                 pass replace
             }
@@ -668,7 +713,7 @@
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float4 motionMetadata : INFINITY_METADATA_TARGET;
+                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -759,7 +804,7 @@
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float4 motionMetadata : INFINITY_METADATA_TARGET;
+                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -850,7 +895,7 @@
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float4 motionMetadata : INFINITY_METADATA_TARGET;
+                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)

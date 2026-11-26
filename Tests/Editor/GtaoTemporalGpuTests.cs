@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Input("SRV_HistoryTexture",width,height,previous);
                 Input("SRV_HistoryDepthTexture",width,height,new Color(mode==3?.9f:.4f,0,0,0));
                 Input("SRV_MotionTexture",width*2,height*2,new Color(mode==5?2:0,0,0,0));
-                Input("SRV_MotionMetadataTexture",width*2,height*2,new Color(.4f,raw,mode==4?0:1,0));
+                Input("SRV_MotionMetadataTexture",width*2,height*2,new Color(mode==4?-1f:.4f,raw,0,0));
                 var accumulation=Output("UAV_AccumulationTexture",GraphicsFormat.R32_SFloat);
                 var history=Output("UAV_OcclusionHistoryTexture",GraphicsFormat.R16G16B16A16_SFloat);
                 var depth=Output("UAV_OcclusionHistoryDepth",GraphicsFormat.R32_SFloat);

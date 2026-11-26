@@ -36,12 +36,12 @@ namespace InfinityTech.Rendering.Pipeline
         {
             context.features.ThrowIfCannotProduce(EFrameFeature.Depth);
             RGMeshDrawListHandle depthMeshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, m_DepthMeshPass);
-            TextureDescriptor depthTextureDsc = new TextureDescriptor(context.dimensions.internalSize.x, context.dimensions.internalSize.y, ETextureSizingDomain.Internal);
-            {
-                depthTextureDsc.name = DepthPassUtilityData.TextureName;
-                depthTextureDsc.dimension = TextureDimension.Tex2D;
-                depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
-            }
+            TextureDescriptor depthTextureDsc = TextureDescriptor.CreateDepthStencil(
+                DepthPassUtilityData.TextureName,
+                context.dimensions.internalSize.x,
+                context.dimensions.internalSize.y,
+                m_Settings.config.depthStencilFormat,
+                ETextureSizingDomain.Internal);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
             RGRendererListHandle depthRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDepthPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.QuantizedFrontToBack, PerObjectData.None, m_Settings.enableInstanceBatch));

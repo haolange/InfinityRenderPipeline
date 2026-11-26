@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 translucentDepthDsc.name = TranslucentPassUtilityData.DepthTextureName;
                 translucentDepthDsc.dimension = TextureDimension.Tex2D;
-                translucentDepthDsc.depthBufferBits = EDepthBits.Depth32;
+                translucentDepthDsc.depthStencilFormat = GraphicsFormat.D32_SFloat;
             }
             RGTextureHandle translucentDepthTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TranslucentDepthBuffer, translucentDepthDsc);
 
@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGMeshDrawListHandle meshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, meshPass);
             RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool writeReactive = context.features.ShouldRecord(EFrameFeature.TAA);
+            bool writeReactive = context.temporalRequirements.requiresReactiveMask || context.features.ShouldRecord(EFrameFeature.TAA);
             bool initializeReactive = false;
             RGTextureHandle reactiveMaskHandle = default;
             if (writeReactive && !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMaskHandle))
@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
                 var descriptor = new TextureDescriptor(size.x, size.y, ETextureSizingDomain.Internal)
                 {
                     name = "ReactiveMask", colorFormat = GraphicsFormat.R8_UNorm,
-                    depthBufferBits = EDepthBits.None, dimension = TextureDimension.Tex2D,
+                    depthStencilFormat = GraphicsFormat.None, dimension = TextureDimension.Tex2D,
                     clearColor = Color.clear, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
                 };
                 reactiveMaskHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, descriptor);

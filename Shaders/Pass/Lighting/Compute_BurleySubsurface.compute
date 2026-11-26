@@ -1,6 +1,8 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 #pragma kernel BurleySubsurfaceCS
 #pragma kernel ComposeSubsurfaceCS
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
+#pragma multi_compile_local _ INFINITY_SSS_ALPHA
 
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"
@@ -29,7 +31,8 @@ StructuredBuffer<DiffusionProfileRecord> SRV_DiffusionProfiles;
 Texture2D<float4> SRV_LightingTexture;
 Texture2D<float> SRV_DepthTexture;
 Texture2D SRV_GBufferTextureB;
-Texture2D SRV_GBufferTextureC;
+Texture2D SRV_SurfaceMetadata;
+Texture2D SRV_CustomData;
 RWTexture2D<float4> UAV_SubsurfaceTexture;
 Texture2D<float4> SRV_FilteredSubsurface;
 RWTexture2D<float4> UAV_SceneColor;
@@ -57,23 +60,28 @@ float SampleBurleyRadius(float u, float scatterDist)
     return -log(max(1.0 - u, 1e-6)) * 3.0 / s;
 }
 
-bool LoadSubsurface(uint2 pixel, out GBufferData surface, out float depth)
+struct SubsurfaceSample
+{
+    float3 Normal;
+    uint ProfileIndex;
+    float Thickness;
+};
+
+bool LoadSubsurface(uint2 pixel, out SubsurfaceSample surface, out float depth)
 {
     depth = SRV_DepthTexture[pixel];
-    surface = (GBufferData)0;
+    surface = (SubsurfaceSample)0;
     bool valid = false;
     if (!ScreenSpaceIsFarDepth(depth))
     {
-        float4 packed = SRV_GBufferTextureC[pixel];
-        uint shadingModel = 0, flags = 0;
-        UnpackGBufferCChannelR(packed.r,shadingModel,flags);
-        surface.ShadingModel = shadingModel;
-        surface.Flags = flags;
-        surface.Normal = normalize(SRV_GBufferTextureB[pixel].xyz*2-1);
-        surface.SSSProfileIndex = (uint)(packed.g*255+0.5);
-        surface.Thickness = packed.b;
-        valid = (surface.Flags & GBUFFER_FLAG_VALID_SURFACE) != 0
-            && (surface.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE || (surface.Flags & GBUFFER_FLAG_SUBSURFACE) != 0)
+        uint route = 0, flags = 0;
+        UnpackSurfaceMetadataR(SRV_SurfaceMetadata[pixel].r, route, flags);
+        SubsurfaceCustomData custom = UnpackCustomDataSSS(SRV_CustomData[pixel].rg);
+        surface.Normal = DecodeGBufferNormal(SRV_GBufferTextureB[pixel]);
+        surface.ProfileIndex = custom.ProfileIndex;
+        surface.Thickness = custom.Thickness;
+        valid = route != SURFACE_ROUTE_NONE
+            && (flags & SURFACE_FLAG_SUBSURFACE) != 0
             && surface.Thickness > 0;
     }
     return valid;
@@ -97,7 +105,7 @@ uint2 SubsurfaceRepresentative(uint2 halfPixel)
         {
             continue;
         }
-        GBufferData surface;
+        SubsurfaceSample surface;
         float depth;
         if (LoadSubsurface(pixel,surface,depth))
         {
@@ -113,7 +121,7 @@ uint2 SubsurfaceRepresentative(uint2 halfPixel)
 }
 
 // Integrate the half texel's covered quad while keeping incompatible materials apart.
-float3 GatherDiffuse(uint2 halfPixel, GBufferData center, float centerDepth)
+float3 GatherDiffuse(uint2 halfPixel, SubsurfaceSample center, float centerDepth)
 {
     float3 sum = 0;
     float count = 0;
@@ -125,9 +133,9 @@ float3 GatherDiffuse(uint2 halfPixel, GBufferData center, float centerDepth)
         {
             continue;
         }
-        GBufferData surface;
+        SubsurfaceSample surface;
         float depth;
-        if (!LoadSubsurface(pixel,surface,depth) || surface.SSSProfileIndex != center.SSSProfileIndex || surface.ShadingModel != center.ShadingModel)
+        if (!LoadSubsurface(pixel,surface,depth) || surface.ProfileIndex != center.ProfileIndex)
         {
             continue;
         }
@@ -135,15 +143,20 @@ float3 GatherDiffuse(uint2 halfPixel, GBufferData center, float centerDepth)
         {
             continue;
         }
+#if defined(INFINITY_SSS_ALPHA)
+        float4 sc = SRV_LightingTexture[pixel];
+        sum += sc.rgb * saturate(sc.a / max(Luminance(sc.rgb), 1e-5));
+#else
         sum += SRV_LightingTexture[pixel].rgb;
+#endif
         count += 1;
     }
     return count > 0 ? sum/count : 0;
 }
 
-void DiffusionParameters(GBufferData surface, out float distance, out float3 albedo, out float radius)
+void DiffusionParameters(SubsurfaceSample surface, out float distance, out float3 albedo, out float radius)
 {
-    DiffusionProfileRecord profile = SRV_DiffusionProfiles[min(surface.SSSProfileIndex,(uint)SSS_ProfileCount-1)];
+    DiffusionProfileRecord profile = SRV_DiffusionProfiles[min(surface.ProfileIndex,(uint)SSS_ProfileCount-1)];
     albedo = profile.scatterAlbedoDistance.rgb;
     distance = profile.scatterAlbedoDistance.w;
     radius = profile.parameters.x;
@@ -158,7 +171,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         return;
     }
     uint2 pixel = SubsurfaceRepresentative(id.xy);
-    GBufferData surface;
+    SubsurfaceSample surface;
     float depth;
     if (!LoadSubsurface(pixel,surface,depth))
     {
@@ -194,9 +207,9 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
             continue;
         }
         uint2 tap = min((uint2)(tapUV*SSS_Resolution.xy),(uint2)SSS_Resolution.xy-1);
-        GBufferData neighbor;
+        SubsurfaceSample neighbor;
         float neighborDepth;
-        if (!LoadSubsurface(tap,neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel)
+        if (!LoadSubsurface(tap,neighbor,neighborDepth) || neighbor.ProfileIndex != surface.ProfileIndex)
         {
             continue;
         }
@@ -221,7 +234,7 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
-    GBufferData surface;
+    SubsurfaceSample surface;
     float depth;
     if (!LoadSubsurface(id.xy,surface,depth))
     {
@@ -245,9 +258,9 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
     [unroll] for (int x=0;x<=1;++x)
     {
         uint2 tap = (uint2)clamp(origin+int2(x,y),0,int2(halfSize)-1);
-        GBufferData neighbor;
+        SubsurfaceSample neighbor;
         float neighborDepth;
-        if (!LoadSubsurface(SubsurfaceRepresentative(tap),neighbor,neighborDepth) || neighbor.SSSProfileIndex != surface.SSSProfileIndex || neighbor.ShadingModel != surface.ShadingModel)
+        if (!LoadSubsurface(SubsurfaceRepresentative(tap),neighbor,neighborDepth) || neighbor.ProfileIndex != surface.ProfileIndex)
         {
             continue;
         }
@@ -258,10 +271,6 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
             continue;
         }
         float4 filtered = SRV_FilteredSubsurface[tap];
-        if (filtered.a <= 0)
-        {
-            continue;
-        }
         float2 delta = saturate(abs(float2(tap)-grid));
         float weight = max(1e-3,(1-delta.x)*(1-delta.y))*pow(saturate(normalAgreement),32)*exp2(-relativeDepth*200);
         sum += filtered.rgb*weight;
@@ -269,9 +278,13 @@ void ComposeSubsurfaceCS(uint3 id : SV_DispatchThreadID)
     }
     if (total > 0)
     {
-        float3 original = SRV_LightingTexture[id.xy].rgb;
         float4 color = UAV_SceneColor[id.xy];
+#if defined(INFINITY_SSS_ALPHA)
+        float3 original = color.rgb * saturate(color.a / max(Luminance(color.rgb), 1e-5));
+#else
+        float3 original = SRV_LightingTexture[id.xy].rgb;
+#endif
         color.rgb += (sum/total-original)*saturate(surface.Thickness);
-        UAV_SceneColor[id.xy] = float4(max(color.rgb,0),color.a);
+        UAV_SceneColor[id.xy] = float4(max(color.rgb,0), 1.0);
     }
 }

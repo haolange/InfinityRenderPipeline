@@ -1,11 +1,13 @@
 #ifndef INFINITY_SURFACE_LIGHTING
 #define INFINITY_SURFACE_LIGHTING
 #include "BSDF.hlsl"
-#include "ShadingModel.hlsl"
 #include "ShadowSampling.hlsl"
 #include "Lighting/LightShapes.hlsl"
 #include "Lighting/LightCookie.hlsl"
 #include "Lighting/ReflectionProbes.hlsl"
+#if defined(DEFERRED_ANALYTIC_SHADOW) || defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
+#include "AnalyticShadow.hlsl"
+#endif
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 // Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them
@@ -25,7 +27,7 @@ float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
         * F_Schlick(microfaceCtx.SpecularColor, 1, ctx.LoH);
 }
 
-float3 EvaluateDirectional(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask, out float3 diffuseRadiance)
+float3 EvaluateDirectional(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask, uint2 positionSS, uint layer, out float3 diffuseRadiance)
 {
     diffuseRadiance = 0;
     float3 L = DirectionalLightL(light);
@@ -39,6 +41,9 @@ float3 EvaluateDirectional(LightRecord light, float3 worldPos, float3 normal, fl
         float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, worldPos, viewDepth, normal) : 1.0;
         shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
         if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
+#if defined(DEFERRED_ANALYTIC_SHADOW) || defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
+        shadow *= EvaluateAnalyticDirectShadow(positionSS, viewDepth, worldPos, L, 1e4, light.shape.w, layer);
+#endif
         float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
         float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
         float3 attenuation = LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
@@ -48,7 +53,7 @@ float3 EvaluateDirectional(LightRecord light, float3 worldPos, float3 normal, fl
     return radiance;
 }
 
-float3 EvaluateLocal(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask, out float3 diffuseRadiance)
+float3 EvaluateLocal(LightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask, uint2 positionSS, uint layer, out float3 diffuseRadiance)
 {
     diffuseRadiance = 0;
     float window = LocalLightWindow(light, worldPos);
@@ -69,6 +74,11 @@ float3 EvaluateLocal(LightRecord light, float3 worldPos, float3 normal, float3 v
         }
         float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
         shadow *= ContactShadowFromMask(light, contactMask);
+#if defined(DEFERRED_ANALYTIC_SHADOW) || defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
+        float3 toLocalLight = light.positionRange.xyz - worldPos;
+        float localDist = max(length(toLocalLight), 1e-4);
+        shadow *= EvaluateAnalyticDirectShadow(positionSS, viewDepth, worldPos, toLocalLight / localDist, localDist, saturate(light.shape.x / localDist), layer);
+#endif
         float3 attenuation = LightRadiance(light) * window * shadow;
         diffuseRadiance = diffuse * attenuation;
         radiance = (diffuse + specular) * attenuation;
@@ -93,7 +103,7 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
         if ((light.lightLayer & layer) != 0)
         {
             float3 diffuse;
-            direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask, diffuse);
+            direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask, positionSS, layer, diffuse);
             diffuseRadiance += diffuse;
         }
     }
@@ -107,7 +117,7 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
         if ((light.lightLayer & layer) != 0)
         {
             float3 diffuse;
-            direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask, diffuse);
+            direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask, positionSS, layer, diffuse);
             diffuseRadiance += diffuse;
         }
     }

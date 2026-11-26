@@ -47,6 +47,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Material originalResourceBlit = testResources.materials.blitMaterial;
             Texture2D originalResourceBestFit = testResources.textures.bestFitNormalTexture;
             type.GetField("resources", flags).SetValue(pipeline, testResources);
+            var settingsField = type.GetField("m_Settings", flags);
+            var settingsAsset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
+            using (var serialized = new UnityEditor.SerializedObject(settingsAsset))
+            {
+                serialized.FindProperty("m_GBufferLayout").intValue = (int)EGBufferLayout.BestFitYCoCg64Bit;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+            settingsField.SetValue(pipeline, settingsAsset.ResolveSettings());
             var originalBlit = GraphicsUtility.s_BlitMaterial;
             var originalBestFit = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
             int originalAA = QualitySettings.antiAliasing;
@@ -99,6 +107,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                UnityEngine.Object.DestroyImmediate(settingsAsset);
                 type.GetMethod("RestoreGraphicsState", flags).Invoke(pipeline, null);
                 SupportedRenderingFeatures.active = supported;
                 Shader.globalRenderPipeline = shader;

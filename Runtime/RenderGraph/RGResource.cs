@@ -11,8 +11,12 @@ namespace InfinityTech.Rendering.RenderGraph
     [Flags]
     public enum EDepthAccess : byte
     {
-        ReadOnly = 0x01,
-        Write = 0x02
+        ReadOnlyDepth = 0x01,
+        WriteDepth = 0x02,
+        ReadOnlyStencil = 0x04,
+        WriteStencil = 0x08,
+        ReadOnly = ReadOnlyDepth | ReadOnlyStencil,
+        Write = WriteDepth | WriteStencil
     }
 
     [Flags]
@@ -268,7 +272,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 if (descriptor.width > 0)
                 {
-                    string format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat.ToString() : "Depth" + (int)descriptor.depthBufferBits;
+                    string format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat.ToString() : descriptor.depthStencilFormat.ToString();
                     description = descriptor.width + "x" + descriptor.height + " capacity " + descriptor.physicalWidth + "x" + descriptor.physicalHeight + (descriptor.slices > 1 ? "x" + descriptor.slices : "") + " " + format;
                 }
                 else if (importedTexture != null)
@@ -410,7 +414,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 var texture = rt.rt;
                 rdgTexture.descriptor = new TextureDescriptor(texture.width, texture.height, texture.volumeDepth)
                 {
-                    name = rt.name, colorFormat = texture.graphicsFormat, depthBufferBits = (EDepthBits)texture.depth,
+                    name = rt.name, colorFormat = texture.graphicsFormat, depthStencilFormat = texture.depthStencilFormat,
                     dimension = texture.dimension, filterMode = texture.filterMode, wrapMode = texture.wrapMode,
                     useMipMap = texture.useMipMap, autoGenerateMips = texture.autoGenerateMips,
                     enableRandomWrite = texture.enableRandomWrite, msaaSamples = (EMSAASamples)texture.antiAliasing

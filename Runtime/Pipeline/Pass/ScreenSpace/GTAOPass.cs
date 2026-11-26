@@ -179,7 +179,7 @@ namespace InfinityTech.Rendering.Pipeline
                     temporalDirection = GTAOPassUtilityData.TemporalDirections[temporalIndex],
                     temporalScale = ssao.temporalScale,
                     temporalWeight = ssao.temporalWeight,
-                    historyValid = context.state.acceptedGTAO && occlusionRead.valid && occlusionDepthRead.valid ? 1 : 0,
+                    historyValid = context.state.GetScreenSpaceState().acceptedGTAO && occlusionRead.valid && occlusionDepthRead.valid ? 1 : 0,
                     resolution = new Vector4(halfWidth, halfHeight, 1.0f / halfWidth, 1.0f / halfHeight),
                     upsampleSize = new Vector4(fullWidth, fullHeight, 1.0f / fullWidth, 1.0f / fullHeight)
                 });

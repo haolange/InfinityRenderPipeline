@@ -131,8 +131,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             using(var f=new Fixture(17,13))
             {
-                f.Fill(f.metadata,new Color(.4f,.8f,0,0));f.Run();foreach(var p in f.Read(f.diagnostics)) Assert.AreEqual(0,p.g);
-                f.Fill(f.metadata,new Color(.4f,.8f,1,0));f.Fill(f.motion,new Color(2,0,0,0));f.Run();foreach(var p in f.Read(f.diagnostics)) Assert.AreEqual(0,p.g);
+                f.Fill(f.metadata,new Color(-1f,.8f,0,0));f.Run();foreach(var p in f.Read(f.diagnostics)) Assert.AreEqual(0,p.g);
+                f.Fill(f.metadata,new Color(.4f,.8f,0,0));f.Fill(f.motion,new Color(2,0,0,0));f.Run();foreach(var p in f.Read(f.diagnostics)) Assert.AreEqual(0,p.g);
                 f.Fill(f.motion,Color.clear);f.Fill(f.reactive,Color.white);f.Run();foreach(var p in f.Read(f.diagnostics)) Assert.AreEqual(0,p.g);
             }
         }

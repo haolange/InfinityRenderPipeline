@@ -8,6 +8,7 @@
 #pragma kernel SSGISpatial
 #pragma kernel SSGIUpsample
 #pragma kernel SSGITraceDebug SSGI_DIAGNOSTICS
+#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 #pragma multi_compile_local _ SSGI_AMBIENT_OCCLUSION
 
 #include "../../Library/Common.hlsl"
@@ -51,7 +52,7 @@ Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_HiZClosestTexture;
 Texture2D<float> SRV_HiZFurthestTexture;
 Texture2D SRV_GBufferB;
-Texture2D SRV_GBufferC;
+Texture2D SRV_SurfaceMetadata;
 Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
@@ -125,7 +126,7 @@ void TracePixel(uint2 tracePixel)
             float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewFlipYJitterProj);
             float distance = length(hitWS - surface.positionWS);
             uint2 hitPixel = min((uint2)(hit.uv * SSGI_Resolution.xy), (uint2)SSGI_Resolution.xy - 1);
-            float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
+            float3 hitNormal = DecodeGBufferNormal(SRV_GBufferB[hitPixel]);
             float confidence;
             float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, SRV_HitMotionMetadata[hitPixel], 0,
                 Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, confidence);
@@ -226,8 +227,8 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
     }
     float historyAge = 0;
     float4 history = current;
-    float4 motionSurface = SRV_HitMotionMetadata[surfacePixel];
-    bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
+    float2 motionSurface = SRV_HitMotionMetadata[surfacePixel].xy;
+    bool validMotionSurface = isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
     // Use the previous object surface depth, rather than projecting its current pose.
     expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
     float historyValid = (validMotionSurface ? SSGI_HistoryValid : 0) * SurfaceHistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth);

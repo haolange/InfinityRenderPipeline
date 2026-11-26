@@ -8,11 +8,11 @@ Texture2D _DBufferTextureA;
 Texture2D _DBufferTextureB;
 Texture2D _DBufferTextureC;
 
-void ApplyDBuffer(float2 screenUV, inout float3 albedo, inout float3 normalWS, inout float roughness, inout float reflectance)
+void ApplyDBuffer(float2 screenUV, inout float3 albedo, inout float3 normalWS, inout float roughness, inout float reflectance, inout float specular)
 {
-    float4 dBufferA = InfinitySampleLevel(_DBufferTextureA,Global_point_clamp_sampler,screenUV,0);
-    float4 dBufferB = InfinitySampleLevel(_DBufferTextureB,Global_point_clamp_sampler,screenUV,0);
-    float4 dBufferC = InfinitySampleLevel(_DBufferTextureC,Global_point_clamp_sampler,screenUV,0);
+    float4 dBufferA = InfinitySampleLevel(_DBufferTextureA, Global_point_clamp_sampler, screenUV, 0);
+    float4 dBufferB = InfinitySampleLevel(_DBufferTextureB, Global_point_clamp_sampler, screenUV, 0);
+    float4 dBufferC = InfinitySampleLevel(_DBufferTextureC, Global_point_clamp_sampler, screenUV, 0);
 
     // The MRT blend has already premultiplied each attribute by accumulated coverage.
     albedo = albedo * (1.0 - dBufferA.a) + dBufferA.rgb;
@@ -23,6 +23,7 @@ void ApplyDBuffer(float2 screenUV, inout float3 albedo, inout float3 normalWS, i
     }
     roughness = roughness * (1.0 - dBufferC.a) + dBufferC.r;
     reflectance = reflectance * (1.0 - dBufferC.a) + dBufferC.g;
+    specular = specular * (1.0 - dBufferC.a) + dBufferC.b;
 }
 
 #endif

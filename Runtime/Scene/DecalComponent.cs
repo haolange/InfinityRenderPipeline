@@ -1,8 +1,16 @@
 using UnityEngine;
 using InfinityTech.Core;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Component
 {
+    public enum EDecalExecutionMode : byte
+    {
+        DBuffer = 0,
+        DirectGBuffer = 1,
+        Clustered = 2,
+    }
+
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
@@ -11,6 +19,10 @@ namespace InfinityTech.Component
     public class DecalComponent : MonoBehaviour
     {
         public int drawOrder;
+        public EDecalExecutionMode executionMode = EDecalExecutionMode.DBuffer;
+        public ERenderingLayer renderingLayerMask = ERenderingLayer.Everything;
+
+        [Header("Projector")]
         [Tooltip("Scale of the projected UVs (object xz + 0.5).")]
         public Vector2 uvScale = Vector2.one;
         [Tooltip("Offset of the projected UVs.")]
@@ -19,6 +31,15 @@ namespace InfinityTech.Component
         public float startAngleFade = 180;
         [Range(0, 180), Tooltip("Surfaces turned this far from the projector are not decaled.")]
         public float endAngleFade = 180;
+
+        [Header("Clustered Decal Surface")]
+        public Color clusteredColor = Color.white;
+        [Range(0, 1)] public float clusteredRoughness = 0.5f;
+        [Range(0, 1)] public float clusteredMetallic = 0.0f;
+        [Range(0, 1)] public float clusteredSpecular = 0.5f;
+        public bool clusteredAffectAlbedo = true;
+        public bool clusteredAffectNormal = false;
+        public bool clusteredAffectMaterial = true;
 
         // The live set of decals by entity id: the authority the scene world's decal table derives from.
         internal static readonly ComponentRegistry<DecalComponent> s_Registry = new ComponentRegistry<DecalComponent>();
@@ -92,12 +113,7 @@ namespace InfinityTech.Component
         void EnsureUnitCube()
         {
             MeshFilter meshFilter = GetComponent<MeshFilter>();
-            if (meshFilter == null)
-            {
-                return;
-            }
-
-            if (meshFilter.sharedMesh != null)
+            if (meshFilter == null || meshFilter.sharedMesh != null)
             {
                 return;
             }

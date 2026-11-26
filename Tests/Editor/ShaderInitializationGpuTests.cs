@@ -127,8 +127,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 depth.SetPixels(new[] { new Color(far, 0, 0, 0), new Color(.4f, 0, 0, 0), new Color(.6f, 0, 0, 0) });
-                flags.SetPixels(new[] { Color.clear, new Color((6 << 4) / 255f, 0, 0, 0), new Color((4 << 4) / 255f, 0, 0, 0) });
-                normals.SetPixels(new[] { new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0), new Color(.5f, .5f, 1, 0) });
+                flags.SetPixels(new[] { Color.clear, new Color(2f / 255f, 0, 0, 0), new Color(1f / 255f, 0, 0, 0) });
+                normals.SetPixels(new[] { new Color(.5f, .5f, 0, 0), new Color(.5f, .5f, 0, 0), new Color(.5f, .5f, 0, 0) });
                 depth.Apply(); flags.Apply(); normals.Apply();
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector4[] results = Run("SurfaceContract", new Vector4[3], (shader, kernel) =>
                 {
                     shader.SetTexture(kernel, "SRV_DepthTexture", depth);
-                    shader.SetTexture(kernel, "SRV_GBufferC", flags);
+                    shader.SetTexture(kernel, "SRV_SurfaceMetadata", flags);
                     shader.SetTexture(kernel, "SRV_GBufferB", normals);
                     shader.SetVector("SSGI_Resolution", new Vector4(3, 1, 1f / 3, 1));
                 });

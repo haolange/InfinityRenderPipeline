@@ -67,6 +67,9 @@ Shader "InfinityPipeline/TerrainLit"
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
+            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
+            #pragma multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE
+            #pragma multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS
             //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
@@ -93,6 +96,10 @@ Shader "InfinityPipeline/TerrainLit"
             #pragma target 4.5
             #pragma vertex SplatmapVert
             #pragma fragment ForwardFragment
+            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE
+            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR
+            #pragma multi_compile _ INFINITY_SSS_OUTPUT
+            #pragma multi_compile _ INFINITY_SSS_ALPHA
             
             #pragma multi_compile_instancing
             //#pragma enable_d3d11_debug_symbols

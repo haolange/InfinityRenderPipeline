@@ -3,7 +3,7 @@
 
 #include "ViewUniform.hlsl"
 
-// SRV_DepthTexture, SRV_GBufferB/C and SSGI_Resolution are bound by the caller; the inverse matrices come from ViewUniform.
+// SRV_DepthTexture, SRV_GBufferB, SRV_SurfaceMetadata and SSGI_Resolution are bound by the caller; the inverse matrices come from ViewUniform.
 struct SSGISurface
 {
     float rawDepth;
@@ -19,9 +19,9 @@ bool IsIndirectSurface(uint2 pixel, out float rawDepth)
     bool valid = false;
     if (!ScreenSpaceIsFarDepth(rawDepth))
     {
-        uint shadingModel, flags;
-        UnpackGBufferCChannelR(SRV_GBufferC[pixel].r, shadingModel, flags);
-        valid = (flags & GBUFFER_FLAG_VALID_SURFACE) != 0 && (flags & GBUFFER_FLAG_FORWARD) == 0;
+        uint route, flags;
+        UnpackSurfaceMetadataR(SRV_SurfaceMetadata[pixel].r, route, flags);
+        valid = route == SURFACE_ROUTE_DEFERRED;
     }
     return valid;
 }
@@ -34,7 +34,7 @@ bool LoadSurface(uint2 pixel, out SSGISurface surface)
     surface.rawDepth = rawDepth;
     if (valid)
     {
-        surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+        surface.normalWS = DecodeGBufferNormal(SRV_GBufferB[pixel]);
         float2 uv = (pixel + 0.5) * SSGI_Resolution.zw;
         float3 ndc = GetNDCPos(uv, rawDepth);
         surface.positionVS = GetViewSpacePos(ndc, Matrix_InvFlipYJitterProj);

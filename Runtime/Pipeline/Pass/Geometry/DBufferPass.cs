@@ -3,9 +3,56 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.Decal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal struct ClusteredDecalInputs
+    {
+        public bool active;
+        public RGBufferHandle recordsHandle;
+        public RGBufferHandle clusterHeadersHandle;
+        public RGBufferHandle clusterIndicesHandle;
+
+        public static ClusteredDecalInputs Query(RGBuilder graph, in ViewContext context)
+        {
+            bool active = context.decals.ClusteredDecalCount > 0;
+            if (!active)
+            {
+                return default;
+            }
+            return new ClusteredDecalInputs
+            {
+                active = true,
+                recordsHandle = graph.scoper.QueryBuffer(DecalShaderIDs.DecalRecordBuffer),
+                clusterHeadersHandle = graph.scoper.QueryBuffer(DecalShaderIDs.DecalClusterHeaderBuffer),
+                clusterIndicesHandle = graph.scoper.QueryBuffer(DecalShaderIDs.DecalClusterIndexBuffer)
+            };
+        }
+
+        public void Read<THandle>(THandle passHandle) where THandle : struct, IPassHandle
+        {
+            if (!active)
+            {
+                return;
+            }
+            passHandle.ReadBuffer(recordsHandle);
+            passHandle.ReadBuffer(clusterHeadersHandle);
+            passHandle.ReadBuffer(clusterIndicesHandle);
+        }
+
+        public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
+        {
+            if (!active)
+            {
+                return;
+            }
+            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalRecords, recordsHandle);
+            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalClusterHeaders, clusterHeadersHandle);
+            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalClusterIndices, clusterIndicesHandle);
+        }
+    }
+
     internal static class DBufferPassUtilityData
     {
         internal static readonly string DBufferAName = "DBufferTextureA";
@@ -15,6 +62,8 @@ namespace InfinityTech.Rendering.Pipeline
 
     internal sealed class DBufferPass
     {
+        static readonly ProfilingSampler s_UploadDecals = new ProfilingSampler("UploadDecalData");
+
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
@@ -24,15 +73,40 @@ namespace InfinityTech.Rendering.Pipeline
             m_Settings = settings;
         }
 
+        struct DecalUploadPassData
+        {
+            public DecalContext context;
+        }
+
         struct DBufferPassData
         {
             public RGRendererListHandle rendererListHandle;
             public RGTextureHandle depthTextureHandle;
         }
 
+        struct DirectDecalPassData
+        {
+            public RGRendererListHandle rendererListHandle;
+            public RGTextureHandle depthTextureHandle;
+        }
+
+        internal void UploadDecalData(DecalContext context)
+        {
+            if (context.ClusteredDecalCount == 0)
+            {
+                return;
+            }
+            RGTransferPassHandle<DecalUploadPassData> passHandle = m_RGBuilder.AddTransferPass<DecalUploadPassData>(s_UploadDecals);
+            passHandle.GetPassData().context = context;
+            m_RGBuilder.scoper.RegisterBuffer(DecalShaderIDs.DecalRecordBuffer, passHandle.WriteBuffer(m_RGBuilder.ImportBuffer(context.RecordBuffer, "DecalRecordBuffer")));
+            m_RGBuilder.scoper.RegisterBuffer(DecalShaderIDs.DecalClusterHeaderBuffer, passHandle.WriteBuffer(m_RGBuilder.ImportBuffer(context.ClusterHeaderBuffer, "DecalClusterHeaderBuffer")));
+            m_RGBuilder.scoper.RegisterBuffer(DecalShaderIDs.DecalClusterIndexBuffer, passHandle.WriteBuffer(m_RGBuilder.ImportBuffer(context.ClusterIndexBuffer, "DecalClusterIndexBuffer")));
+            passHandle.SetExecuteFunc((in DecalUploadPassData data, in RGTransferEncoder commands) => data.context.Upload(commands));
+        }
+
         internal void RasterDBuffer(in ViewContext context)
         {
-            if (context.decalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            if (context.decals.DBufferDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }
@@ -94,6 +168,39 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             context.features.MarkProduced(EFrameFeature.DBuffer);
+        }
+
+        // Direct GBuffer Decal path: blends straight into GBufferA RGB when only Albedo modification is required and
+        // GBuffer A uses linear/sRGB RGB rather than YCoCg checkerboard compression.
+        internal void RasterDirectDecals(in ViewContext context)
+        {
+            if (context.decals.DirectDecalCount == 0 || m_Settings.config.useBestFitYCoCg || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            {
+                return;
+            }
+
+            RGTextureHandle gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+
+            RGRendererListHandle directRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDirectDecalPass,
+                new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, m_Settings.enableInstanceBatch));
+
+            {
+                RGRasterPassHandle<DirectDecalPassData> passHandle = m_RGBuilder.AddRasterPass<DirectDecalPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDirectDecals));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(gBufferAHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+
+                ref DirectDecalPassData passData = ref passHandle.GetPassData();
+                passData.rendererListHandle = passHandle.UseRendererList(directRendererListHandle);
+                passData.depthTextureHandle = depthTextureHandle;
+
+                passHandle.SetExecuteFunc((in DirectDecalPassData passData, in RGRasterEncoder cmdEncoder) =>
+                {
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
+                });
+            }
         }
     }
 }

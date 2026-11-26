@@ -19,6 +19,7 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
             #pragma target 4.5
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "../../../Shaders/Library/GBufferPack.hlsl"
@@ -59,25 +60,25 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
                 return output;
             }
 
-            void Frag(Varyings input, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
+            void Frag(Varyings input, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 SurfaceMetadata : SV_Target2)
             {
                 uint2 resolution = (uint2)_Resolution.xy;
                 uint2 pixel = GBufferPixelCoord(input.positionCS.xy);
 
                 if (_FixtureId == 4 && pixel.x > pixel.y) discard;
                 if (_FixtureId == 5 && pixel.x != resolution.x / 2) discard;
-                GBufferData data;
+                SurfaceData data;
                 data.Albedo = FixtureAlbedo(_FixtureId, pixel, resolution);
                 data.Normal = normalize(_FixtureNormal.xyz);
                 data.Specular = 0.5;
                 data.Roughness = 0.5;
-                data.Reflactance = 0.0;
-                data.ShadingModel = GBUFFER_SHADING_MODEL_DEFAULT_LIT;
-                data.Flags = 0;
-                data.SSSProfileIndex = 0;
-                data.Thickness = 0.0;
+                data.Metallic = 0.25;
+                data.Route = SURFACE_ROUTE_DEFERRED;
+                data.Flags = SURFACE_FLAG_HAS_BAKED_GI;
                 data.RenderingLayer = (pixel.x & 3) == 0 ? 1 : ((pixel.x & 3) == 1 ? 2 : ((pixel.x & 3) == 2 ? 128 : 255));
-                EncodeGBuffer(data, input.positionCS.xy, GBufferA, GBufferB, GBufferC);
+                float2 metadata = 0;
+                EncodeSurfaceGBuffer(data, input.positionCS.xy, GBufferA, GBufferB, metadata);
+                SurfaceMetadata = float4(metadata, 0, 0);
             }
             ENDHLSL
         }

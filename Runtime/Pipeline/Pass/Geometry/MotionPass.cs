@@ -55,12 +55,12 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
-                motionTextureDsc.colorFormat = GraphicsFormat.R16G16_SFloat;
+                motionTextureDsc.colorFormat = m_Settings.config.motionVectorFormat;
             }
             RGTextureHandle motionTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
             motionTextureDsc.name = "MotionMetadata";
-            motionTextureDsc.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
-            motionTextureDsc.clearColor = Color.clear;
+            motionTextureDsc.colorFormat = GraphicsFormat.R32G32_SFloat;
+            motionTextureDsc.clearColor = new Color(-1.0f, 0.0f, 0.0f, 0.0f);
             RGTextureHandle motionMetadataHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             RGRendererListHandle motionRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
@@ -73,8 +73,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(motionTextureHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passHandle.SetColorAttachment(motionMetadataHandle, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
-                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                // Shader ZWrite Off keeps depth values while writing stencil bit 0 (ObjectMotion).
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnlyDepth | EDepthAccess.WriteStencil);
 
                 ref ObjectMotionPassData passData = ref passHandle.GetPassData();
                 {

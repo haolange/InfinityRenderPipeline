@@ -35,6 +35,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 case "B8G8R8A8_SRGB":
                     return 4;
                 case "R16G16B16A16_SFloat":
+                case "R32G32_SFloat":
                     return 8;
                 case "R32G32B32A32_SFloat":
                     return 16;
@@ -55,6 +56,10 @@ namespace InfinityTech.Rendering.Editor.Validation
                 case 8:
                 {
                     int o = pixel * 8;
+                    if (format == "R32G32_SFloat")
+                    {
+                        return new Vector4(BitConverter.ToSingle(data, o), BitConverter.ToSingle(data, o + 4), 0.0f, 1.0f);
+                    }
                     return new Vector4(Mathf.HalfToFloat(BitConverter.ToUInt16(data, o)), Mathf.HalfToFloat(BitConverter.ToUInt16(data, o + 2)),
                         Mathf.HalfToFloat(BitConverter.ToUInt16(data, o + 4)), Mathf.HalfToFloat(BitConverter.ToUInt16(data, o + 6)));
                 }
