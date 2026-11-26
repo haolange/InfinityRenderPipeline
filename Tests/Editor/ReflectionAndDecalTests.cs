@@ -113,11 +113,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                Material materialA = goA.GetComponent<MeshRenderer>().sharedMaterial;
+                Material materialB = goB.GetComponent<MeshRenderer>().sharedMaterial;
                 UnityEngine.Object.DestroyImmediate(camGo);
                 UnityEngine.Object.DestroyImmediate(goA);
                 UnityEngine.Object.DestroyImmediate(goB);
-                UnityEngine.Object.DestroyImmediate(goA.GetComponent<MeshRenderer>().sharedMaterial);
-                UnityEngine.Object.DestroyImmediate(goB.GetComponent<MeshRenderer>().sharedMaterial);
+                UnityEngine.Object.DestroyImmediate(materialA);
+                UnityEngine.Object.DestroyImmediate(materialB);
                 UnityEngine.Object.DestroyImmediate(goC1);
                 UnityEngine.Object.DestroyImmediate(goC2);
             }
