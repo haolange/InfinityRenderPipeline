@@ -6,8 +6,7 @@ namespace InfinityTech.Component
 {
     public enum EDecalExecutionMode : byte
     {
-        DBuffer = 0,
-        DirectGBuffer = 1,
+        Drawn = 0,
         Clustered = 2,
     }
 
@@ -19,7 +18,7 @@ namespace InfinityTech.Component
     public class DecalComponent : MonoBehaviour
     {
         public int drawOrder;
-        public EDecalExecutionMode executionMode = EDecalExecutionMode.DBuffer;
+        public EDecalExecutionMode executionMode = EDecalExecutionMode.Drawn;
         public ERenderingLayer renderingLayerMask = ERenderingLayer.Everything;
 
         [Header("Projector")]
@@ -55,6 +54,7 @@ namespace InfinityTech.Component
         {
             EnsureUnitCube();
             ApplyDrawOrder();
+            ApplyClusteredRenderer();
             if (!m_Registered)
             {
                 m_Registered = true;
@@ -76,6 +76,14 @@ namespace InfinityTech.Component
         {
             EnsureUnitCube();
             ApplyDrawOrder();
+            ApplyClusteredRenderer();
+        }
+
+        // A clustered decal is uploaded, not drawn. The material's pass enable is shared by every user of that material.
+        void ApplyClusteredRenderer()
+        {
+            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+            meshRenderer.enabled = executionMode != EDecalExecutionMode.Clustered;
         }
 
         void ApplyDrawOrder()

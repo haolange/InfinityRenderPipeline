@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Editor.Build
         static readonly HashSet<ShaderTagId> s_UsedLightModes = new HashSet<ShaderTagId>
         {
             ShaderTagId.none, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId("ShadowCaster"), new ShaderTagId("Meta"),
-            InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterDirectDecalPass,
+            InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterDirectDecalPass, InfinityPassIDs.RasterDirectDecalNormalPass,
             InfinityPassIDs.RasterGBufferPass, InfinityPassIDs.RasterShadowPass, InfinityPassIDs.RasterMotionPass,
             InfinityPassIDs.RasterForwardPass, InfinityPassIDs.RasterReflectionPass,
             InfinityPassIDs.RasterTranslucentDepthPass, InfinityPassIDs.RasterTranslucentT0Pass,

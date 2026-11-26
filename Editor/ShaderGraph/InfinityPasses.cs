@@ -20,6 +20,8 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         public const string kRasterTranslucentT2Pass = "RasterTranslucentT2Pass";
         public const string kMeta = "Meta";
         public const string kRasterDBufferPass = "RasterDBufferPass";
+        public const string kRasterDirectDecalPass = "RasterDirectDecalPass";
+        public const string kRasterDirectDecalNormalPass = "RasterDirectDecalNormalPass";
 
         const string kCore = InfinityTarget.kIncludePath + "InfinitySGCore.hlsl";
         const string kGraphFunctions = InfinityTarget.kIncludePath + "InfinitySGGraphFunctions.hlsl";
@@ -34,6 +36,8 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         const string kTranslucentPass = InfinityTarget.kIncludePath + "InfinitySGTranslucentPass.hlsl";
         const string kMetaPass = InfinityTarget.kIncludePath + "InfinitySGMetaPass.hlsl";
         const string kDecalPass = InfinityTarget.kIncludePath + "InfinitySGDecalPass.hlsl";
+        const string kDirectDecalPass = InfinityTarget.kIncludePath + "InfinitySGDirectDecalPass.hlsl";
+        const string kDirectDecalNormalPass = InfinityTarget.kIncludePath + "InfinitySGDirectDecalNormalPass.hlsl";
 
         // --------------------------------------------------------------------------------------------------------
         // Structs
@@ -403,5 +407,30 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor RasterDBufferPass(InfinityTarget target) =>
             Pass(kRasterDBufferPass, "SHADERPASS_DBUFFER", DecalBlocks, PositionFields, DecalStates, NotInstanced, new DefineCollection(), Includes(null, kDecalPass), false);
+
+        static readonly RenderStateCollection DirectDecalStates = new RenderStateCollection
+        {
+            { RenderState.ZTest(ZTest.Always) },
+            { RenderState.ZWrite(ZWrite.Off) },
+            { RenderState.Cull(Cull.Front) },
+            { RenderState.Blend("Blend 0 SrcAlpha OneMinusSrcAlpha") },
+            { RenderState.Blend("Blend 1 SrcAlpha OneMinusSrcAlpha") },
+            { RenderState.ColorMask("ColorMask RGB 0") },
+            { RenderState.ColorMask("ColorMask B 1") },
+        };
+
+        static readonly RenderStateCollection DirectDecalNormalStates = new RenderStateCollection
+        {
+            { RenderState.ZTest(ZTest.Always) },
+            { RenderState.ZWrite(ZWrite.Off) },
+            { RenderState.Cull(Cull.Front) },
+            { RenderState.Blend("Blend Off") },
+        };
+
+        public static PassDescriptor RasterDirectDecalPass(InfinityTarget target) =>
+            Pass(kRasterDirectDecalPass, "SHADERPASS_DIRECT_DECAL", DecalBlocks, PositionFields, DirectDecalStates, NotInstanced, new DefineCollection(), Includes(null, kDirectDecalPass), false);
+
+        public static PassDescriptor RasterDirectDecalNormalPass(InfinityTarget target) =>
+            Pass(kRasterDirectDecalNormalPass, "SHADERPASS_DIRECT_DECAL_NORMAL", DecalBlocks, PositionFields, DirectDecalNormalStates, NotInstanced, new DefineCollection(), Includes(null, kDirectDecalNormalPass), false);
     }
 }

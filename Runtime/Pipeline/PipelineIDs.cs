@@ -13,6 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
         RasterDepthRecovery,
         RasterDBuffer,
         RasterDirectDecals,
+        RasterDirectDecalNormals,
         RasterGBuffer,
         RasterObjectMotion,
         RasterCameraMotion,
@@ -171,6 +172,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
         public static readonly ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
         public static readonly ShaderTagId RasterDirectDecalPass = new ShaderTagId("RasterDirectDecalPass");
+        public static readonly ShaderTagId RasterDirectDecalNormalPass = new ShaderTagId("RasterDirectDecalNormalPass");
         public static readonly ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
         public static readonly ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
         public static readonly ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");

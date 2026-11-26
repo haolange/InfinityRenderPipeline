@@ -5,6 +5,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- A decal material's `_DecalTarget` chooses DBuffer or GBuffer. GBuffer blends albedo and metallic; a separate clip pass replaces the octahedral normal. Clustered decals are not that path.
 - Clustered decals are applied in the GBuffer and forward passes before indirect diffuse is stored. Deferred shading no longer retints them.
 - `InfinityLit` and `InfinityLit-Instanced` are one shader. Mesh draws use procedural instancing (`SetupInfinityInstance`); renderer draws keep the SRP Batcher.
 - Stencil bits 3–7 belong to user passes. Pipeline stencil ReadMask and WriteMask stay inside `0x07` (bit 0 object motion, bit 1 deferred, bit 2 subsurface).

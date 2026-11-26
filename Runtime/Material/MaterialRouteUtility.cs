@@ -146,10 +146,15 @@ namespace InfinityTech.Rendering.MaterialPipeline
             routingChanged?.Invoke(material);
         }
 
-        private static void SetPass(Material material, string name, bool enabled)
+        internal static void SetNamedPass(Material material, string name, bool enabled)
         {
             if (material.FindPass(name) >= 0 && material.GetShaderPassEnabled(name) != enabled)
                 material.SetShaderPassEnabled(name, enabled);
+        }
+
+        private static void SetPass(Material material, string name, bool enabled)
+        {
+            SetNamedPass(material, name, enabled);
         }
     }
 }

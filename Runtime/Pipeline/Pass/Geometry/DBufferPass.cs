@@ -180,6 +180,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RGTextureHandle gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureHandle gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             RGRendererListHandle directRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDirectDecalPass,
@@ -189,12 +190,36 @@ namespace InfinityTech.Rendering.Pipeline
                 RGRasterPassHandle<DirectDecalPassData> passHandle = m_RGBuilder.AddRasterPass<DirectDecalPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDirectDecals));
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(gBufferAHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(gBufferBHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref DirectDecalPassData passData = ref passHandle.GetPassData();
                 passData.rendererListHandle = passHandle.UseRendererList(directRendererListHandle);
                 passData.depthTextureHandle = depthTextureHandle;
 
+                passHandle.SetExecuteFunc((in DirectDecalPassData passData, in RGRasterEncoder cmdEncoder) =>
+                {
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);
+                    cmdEncoder.DrawRendererList(passData.rendererListHandle);
+                });
+            }
+
+            if (context.decals.DirectNormalDecalCount == 0)
+            {
+                return;
+            }
+
+            RGRendererListHandle normalRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterDirectDecalNormalPass,
+                new RenderQueueRange(2000, 2449), SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque, PerObjectData.None, m_Settings.enableInstanceBatch));
+            {
+                RGRasterPassHandle<DirectDecalPassData> passHandle = m_RGBuilder.AddRasterPass<DirectDecalPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDirectDecalNormals));
+                passHandle.EnablePassCulling(false);
+                passHandle.SetColorAttachment(gBufferAHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetColorAttachment(gBufferBHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                ref DirectDecalPassData passData = ref passHandle.GetPassData();
+                passData.rendererListHandle = passHandle.UseRendererList(normalRendererListHandle);
+                passData.depthTextureHandle = depthTextureHandle;
                 passHandle.SetExecuteFunc((in DirectDecalPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);

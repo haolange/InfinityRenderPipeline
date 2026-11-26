@@ -80,6 +80,7 @@ namespace InfinityTech.Rendering.Decal
         int m_RecordCapacity;
         int m_DBufferCount;
         int m_DirectCount;
+        int m_DirectNormalCount;
 
         internal DecalContext()
         {
@@ -89,6 +90,7 @@ namespace InfinityTech.Rendering.Decal
 
         internal int DBufferDecalCount => m_DBufferCount;
         internal int DirectDecalCount => m_DirectCount;
+        internal int DirectNormalDecalCount => m_DirectNormalCount;
         internal int ClusteredDecalCount => m_Records.Count;
         internal int TotalDecalCount => m_DBufferCount + m_DirectCount + m_Records.Count;
         internal GraphicsBuffer RecordBuffer => m_RecordBuffer;
@@ -111,6 +113,7 @@ namespace InfinityTech.Rendering.Decal
             m_Records.Clear();
             m_DBufferCount = 0;
             m_DirectCount = 0;
+            m_DirectNormalCount = 0;
 
             int2 safeScreen = math.max(screenSize, new int2(1, 1));
             float near = camera != null ? camera.nearClipPlane : 0.1f;
@@ -128,16 +131,22 @@ namespace InfinityTech.Rendering.Decal
                     continue;
                 }
 
-                EDecalExecutionMode mode = decal.executionMode;
-
-                if (mode == EDecalExecutionMode.DBuffer)
+                if (decal.executionMode != EDecalExecutionMode.Clustered)
                 {
-                    m_DBufferCount++;
-                    continue;
-                }
-                if (mode == EDecalExecutionMode.DirectGBuffer)
-                {
-                    m_DirectCount++;
+                    MeshRenderer renderer = decal.GetComponent<MeshRenderer>();
+                    EDecalTarget target = DecalTargetUtility.Read(renderer.sharedMaterial);
+                    if (target == EDecalTarget.DBuffer)
+                    {
+                        m_DBufferCount++;
+                    }
+                    else
+                    {
+                        m_DirectCount++;
+                        if (renderer.sharedMaterial.HasProperty("_DecalReplaceNormal") && renderer.sharedMaterial.GetFloat("_DecalReplaceNormal") != 0.0f)
+                        {
+                            m_DirectNormalCount++;
+                        }
+                    }
                     continue;
                 }
 

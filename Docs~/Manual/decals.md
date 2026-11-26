@@ -12,7 +12,12 @@ projector: it projects along its -Y axis onto every opaque surface inside the bo
   (180 / 180 disables the fade).
 
 - **Light Channels**: a clustered decal affects only the surfaces inside its box that share one of its four light
-  channels. DBuffer and direct GBuffer decals affect every opaque surface inside the box.
+  channels. DBuffer and GBuffer-target decals affect every opaque surface inside the box.
+- **Target** (`_DecalTarget` on the decal material): DBuffer draws into the DBuffer before the GBuffer, so baked
+  indirect light and forward materials follow the decal. GBuffer blends albedo and metallic onto the GBuffer after it
+  is written; roughness, specular and the octahedral normal are not blended. Set Replace Normal to clip-replace the
+  whole GBuffer sample, including the normal. Soft normal edges belong on the DBuffer target. GBuffer-target decals
+  leave baked indirect light in the old color.
 
 Lit, Shader Graph Lit and terrain apply clustered decals in the GBuffer, and forward Lit applies them again before
 shading, so deferred and forward surfaces receive them the same way. Indirect diffuse is computed from the decaled

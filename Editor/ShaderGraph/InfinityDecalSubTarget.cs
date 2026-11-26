@@ -30,6 +30,8 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                 passes = new PassCollection
                 {
                     InfinityPasses.RasterDBufferPass(target),
+                    InfinityPasses.RasterDirectDecalPass(target),
+                    InfinityPasses.RasterDirectDecalNormalPass(target),
                 }
             };
             context.AddSubShader(subShader);

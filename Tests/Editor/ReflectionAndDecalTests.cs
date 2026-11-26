@@ -57,11 +57,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             var goA = new GameObject("Decal_DBuffer");
             var decalA = goA.AddComponent<DecalComponent>();
-            decalA.executionMode = EDecalExecutionMode.DBuffer;
+            decalA.executionMode = EDecalExecutionMode.Drawn;
+            goA.GetComponent<MeshRenderer>().sharedMaterial = DecalMaterial(0);
 
             var goB = new GameObject("Decal_Direct");
             var decalB = goB.AddComponent<DecalComponent>();
-            decalB.executionMode = EDecalExecutionMode.DirectGBuffer;
+            decalB.executionMode = EDecalExecutionMode.Drawn;
+            goB.GetComponent<MeshRenderer>().sharedMaterial = DecalMaterial(1);
 
             var goC1 = new GameObject("Decal_Cluster_LowOrder");
             goC1.transform.position = new Vector3(0, 0, 10);
@@ -114,9 +116,39 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 UnityEngine.Object.DestroyImmediate(camGo);
                 UnityEngine.Object.DestroyImmediate(goA);
                 UnityEngine.Object.DestroyImmediate(goB);
+                UnityEngine.Object.DestroyImmediate(goA.GetComponent<MeshRenderer>().sharedMaterial);
+                UnityEngine.Object.DestroyImmediate(goB.GetComponent<MeshRenderer>().sharedMaterial);
                 UnityEngine.Object.DestroyImmediate(goC1);
                 UnityEngine.Object.DestroyImmediate(goC2);
             }
+        }
+
+        [Test]
+        public void DecalTarget_EnablesOnlyTheMatchingPass()
+        {
+            Material material = DecalMaterial(0);
+            try
+            {
+                Assert.IsTrue(material.GetShaderPassEnabled(DecalTargetUtility.DBufferPass));
+                Assert.IsFalse(material.GetShaderPassEnabled(DecalTargetUtility.GBufferPass));
+                material.SetFloat("_DecalTarget", 1);
+                material.SetFloat("_DecalReplaceNormal", 1);
+                DecalTargetUtility.ApplyPassState(material);
+                Assert.IsFalse(material.GetShaderPassEnabled(DecalTargetUtility.DBufferPass));
+                Assert.IsTrue(material.GetShaderPassEnabled(DecalTargetUtility.GBufferPass));
+                Assert.IsTrue(material.GetShaderPassEnabled(DecalTargetUtility.NormalPass));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(material); }
+        }
+
+        static Material DecalMaterial(int target)
+        {
+            Shader shader = Shader.Find("InfinityPipeline/InfinityDecal");
+            Assert.NotNull(shader);
+            var material = new Material(shader);
+            material.SetFloat("_DecalTarget", target);
+            DecalTargetUtility.ApplyPassState(material);
+            return material;
         }
 
         [Test]
