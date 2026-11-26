@@ -250,7 +250,7 @@ A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.dit
 
 Visibility is a fact of (view, entity), so it is evaluated once per view on each side that reads it, and the side follows from the readers: a view with a nonempty GPU list evaluates on the GPU, a view with a live CPU list on the CPU, a view with both (the main view under the default policy, whose T0, T1 and T2 record on the CPU) on both. The GPU result is not read back and the CPU result is not uploaded; both derive from the same entity columns and culling context. Pass membership is the list's filter, not part of visibility. Occlusion is an optimization of the GPU side only (P6). A view with a single GPU list (most shadow slices) pays one dispatch more than a fused list kernel; FeatureStatus records it as a measurement item.
 
-Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshInstanceEntity`, then `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` guarded by generations. A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`; a component whose material lacks it, or lacks a pass its route enables, is logged with its context and not drawn.
+A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`. `InfinityLit` is that shader: `#pragma instancing_options procedural:SetupInfinityInstance` loads `InstanceToEntity[unity_InstanceID + InstanceOffset]`, writes `unity_ObjectToWorld`, `unity_WorldToObject` and `unity_MatrixPreviousM`, and reads `EntityRenderingLayers` and `MeshInstanceFade` on that variant. A mesh material enables GPU instancing so the indirect draw selects it. A renderer-list draw leaves instancing off and keeps the SRP Batcher, lightmaps and probes. A component whose material lacks the tag, or lacks a pass its route enables, is logged with its context and not drawn.
 
 `ERenderingLayer : byte` is the shared mesh and light mask of four light channels, with `Everything = 0x0F`. The geometry draw writes a surface's channels to the sideband's high nibble (§8). A higher bit is rejected (`RenderingLayerUtility.Validate`), never truncated; `Window/Infinity/Lighting/Clamp Light Channels In Open Scenes` clamps the masks of the open scenes with Undo and without saving.
 
@@ -318,7 +318,7 @@ Not stored by design: previous depth in any history, a separate baked diffuse or
 
 InfinityLit exposes base color, normal, roughness, reflectance, specular level, emission color, refraction, iridescence and pixel depth offset. It does not expose metallic, mask, occlusion, detail, height or emission textures; its material occlusion is 1. InfinitySkin (`Shaders/Surface/InfinitySkin.shader`, `InfinitySkinGUI`) exposes base color, normal and occlusion textures, roughness, specular level, the dual-lobe Beckmann mix and second-lobe roughness scale, and the diffusion profile index 0..14 (stored +1 in the sideband); its forward pass defines `INFINITY_SKIN_SPECULAR` so the shared light loop uses `SkinSpecularDistribution`. Shader Graph Lit has Metallic and Occlusion blocks; the runtime lit constant buffer uses reflectance.
 
-Surface shaders are `InfinityPipeline/InfinityLit`, `InfinityLit-Instanced`, `InfinitySkin`, `InfinityUnlit`, `InfinityDecal` and `TerrainLit`. Terrain is deferred only.
+Surface shaders are `InfinityPipeline/InfinityLit`, `InfinitySkin`, `InfinityUnlit`, `InfinityDecal` and `TerrainLit`. `InfinityLit` serves both renderer lists and `MeshComponent`. Terrain is deferred only.
 
 ### Contracts
 

@@ -34,12 +34,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int queue, out _);
             Assert.AreEqual(previousQueue + 1, queue);
 
-            Shader instanced = Shader.Find("InfinityPipeline/InfinityLit-Instanced");
-            Assert.NotNull(instanced);
-            m_Material.shader = instanced;
+            Shader skin = Shader.Find("InfinityPipeline/InfinitySkin");
+            Assert.NotNull(skin);
+            m_Material.shader = skin;
+            m_Material.SetFloat("_SurfaceRoute", 1);
+            m_Material.SetFloat("_TranslucentStage", 0);
             InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
             MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out _, out Shader shader);
-            Assert.AreSame(instanced, shader, "A shader swap is part of the shared route state.");
+            Assert.AreSame(skin, shader, "A shader swap is part of the shared route state.");
         }
 
         Material m_Material;

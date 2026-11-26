@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void FindPassIndex_RejectsMissingMaterialOrLightMode()
         {
-            var material = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced"));
+            var material = new Material(Shader.Find("InfinityPipeline/InfinityLit"));
             try
             {
                 Assert.Throws<ArgumentNullException>(() => MeshPassShaderUtility.FindPassIndex(null, "RasterGBufferPass"));
@@ -54,14 +54,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void MeshInstancing_IsDeclaredByTheInstancedShaderOnly()
+        public void MeshInstancing_IsDeclaredByInfinityLit()
         {
-            Shader instanced = Shader.Find("InfinityPipeline/InfinityLit-Instanced");
             Shader lit = Shader.Find("InfinityPipeline/InfinityLit");
-            Assert.NotNull(instanced);
+            Shader fullscreen = Shader.Find("InfinityPipeline/Utility/DrawFullScreen");
             Assert.NotNull(lit);
-            Assert.IsTrue(MeshPassShaderUtility.SupportsMeshInstancing(instanced));
-            Assert.IsFalse(MeshPassShaderUtility.SupportsMeshInstancing(lit), "Renderer-list shaders do not read mesh entity data.");
+            Assert.NotNull(fullscreen);
+            Assert.IsTrue(MeshPassShaderUtility.SupportsMeshInstancing(lit));
+            Assert.IsFalse(MeshPassShaderUtility.SupportsMeshInstancing(fullscreen));
             Assert.IsFalse(MeshPassShaderUtility.SupportsMeshInstancing(null));
         }
     }

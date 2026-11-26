@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     internal static class MeshTestUtility
     {
         internal const string MeshDrawShaderPath = "Packages/com.infinity.render-pipeline/Shaders/Mesh/Compute_MeshDrawPipeline.compute";
-        internal const string InstancedShaderName = "InfinityPipeline/InfinityLit-Instanced";
+        internal const string InstancedShaderName = "InfinityPipeline/InfinityLit";
 
         /// <summary>
         /// A material state that no preset accepts: opaque presets end at queue 2999 and translucent presets require a
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         {
             Shader shader = Shader.Find(InstancedShaderName);
             Assert.IsNotNull(shader, InstancedShaderName);
-            var material = new Material(shader) { name = name, hideFlags = HideFlags.DontSave };
+            var material = new Material(shader) { name = name, hideFlags = HideFlags.DontSave, enableInstancing = true };
             material.SetFloat("_SurfaceRoute", route);
             material.SetFloat("_TranslucentStage", stage);
             MaterialRouteUtility.ApplyPassState(material);

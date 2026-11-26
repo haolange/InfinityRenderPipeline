@@ -111,7 +111,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [TestCase("InfinityPipeline/InfinityLit")]
-        [TestCase("InfinityPipeline/InfinityLit-Instanced")]
         [TestCase("InfinityPipeline/TerrainLit")]
         public void SurfaceShaders_HaveMetaAndShadowCasterPasses(string shaderName)
         {

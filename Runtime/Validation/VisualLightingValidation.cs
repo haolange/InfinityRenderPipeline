@@ -219,13 +219,14 @@ namespace InfinityTech.Rendering.Pipeline
                 Material[] materials = new Material[4];
                 for (int i = 0; i < 4; i++)
                 {
-                    Shader shader = Shader.Find(i < 2 ? "InfinityPipeline/InfinityLit" : "InfinityPipeline/InfinityLit-Instanced");
+                    Shader shader = Shader.Find("InfinityPipeline/InfinityLit");
                     if (shader == null)
                     {
                         throw new InvalidOperationException("Fixture shader was not included in this build.");
                     }
                     Material material = Own(new Material(shader) { name = "FixtureMaterial" + i, hideFlags = HideFlags.DontSave });
-                    material.enableInstancing = true;
+                    // Mesh draws (i >= 2) use procedural instancing. Renderer draws stay off it so they keep the SRP Batcher.
+                    material.enableInstancing = i >= 2;
                     material.SetFloat("_SurfaceRoute", i % 2);
                     material.SetFloat("_TranslucentStage", 0);
                     material.SetFloat("_Reflectance", 0);

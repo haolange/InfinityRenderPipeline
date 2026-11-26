@@ -23,6 +23,36 @@ CBUFFER_START(UnityPerCamera)
     float4x4 unity_MatrixVP;
 CBUFFER_END
 
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+// Procedural setup writes the matrices and the rendering layer. The remaining per-draw fields stay zero:
+// a mesh entity has no lightmap, light probe or motion-vector uniform.
+static float4x4 unity_ObjectToWorld;
+static float4x4 unity_WorldToObject;
+static float4 unity_LODFade;
+static float4 unity_WorldTransformParams;
+static float4 unity_RenderingLayer;
+static float4 unity_LightmapST;
+static float4 unity_DynamicLightmapST;
+static float4 unity_SHAr;
+static float4 unity_SHAg;
+static float4 unity_SHAb;
+static float4 unity_SHBr;
+static float4 unity_SHBg;
+static float4 unity_SHBb;
+static float4 unity_SHC;
+static float4 unity_ProbeVolumeParams;
+static float4x4 unity_ProbeVolumeWorldToObject;
+static float4 unity_ProbeVolumeSizeInv;
+static float4 unity_ProbeVolumeMin;
+static float4 unity_ProbesOcclusion;
+static float4x4 unity_MatrixPreviousM;
+static float4x4 unity_MatrixPreviousMI;
+static float4 unity_MotionVectorsParams;
+static float4 unity_LightData;
+static float4 unity_LightIndices[2];
+static float4 unity_SpecCube0_HDR;
+static float4 unity_SpecCube1_HDR;
+#else
 CBUFFER_START(UnityPerDraw)
     float4x4 unity_ObjectToWorld;
     float4x4 unity_WorldToObject;
@@ -59,6 +89,7 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_SpecCube0_HDR;
     float4 unity_SpecCube1_HDR;
 CBUFFER_END
+#endif
 
 #define UNITY_MATRIX_M     unity_ObjectToWorld
 #define UNITY_MATRIX_I_M   unity_WorldToObject

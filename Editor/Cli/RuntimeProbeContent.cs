@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Editor
     // RuntimeProbeCommands.cs (the measurement) does not.
     internal static class RuntimeProbeContent
     {
-        const string k_Shader = "InfinityPipeline/InfinityLit-Instanced";
+        const string k_Shader = "InfinityPipeline/InfinityLit";
         static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
         static readonly int ID_TranslucentStage = Shader.PropertyToID("_TranslucentStage");
 
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Editor
         // Opaque uses the Deferred route; translucent stages use the Forward route, as the visual fixtures do.
         static Material CreateMaterial(Shader shader, int translucentStage, List<Object> owned)
         {
-            var material = new Material(shader) { hideFlags = HideFlags.DontSave, name = translucentStage == 0 ? "InfinityRuntimeProbeOpaque" : "InfinityRuntimeProbeTranslucent" };
+            var material = new Material(shader) { hideFlags = HideFlags.DontSave, enableInstancing = true, name = translucentStage == 0 ? "InfinityRuntimeProbeOpaque" : "InfinityRuntimeProbeTranslucent" };
             material.SetFloat(ID_SurfaceRoute, translucentStage == 0 ? 0.0f : 1.0f);
             material.SetFloat(ID_TranslucentStage, translucentStage);
             MaterialRouteUtility.ApplyPassState(material);

@@ -40,7 +40,7 @@
 
 	SubShader
 	{
-		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
+		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque" "InfinityMeshInstancing" = "True"}
 
 		//ShadowPass
 		Pass
@@ -57,13 +57,15 @@
 			#pragma fragment frag
             #include "../Library/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 
@@ -96,10 +98,10 @@
 
 			float4 frag(Varyings In) : SV_Target
 			{
-				/*UNITY_SETUP_INSTANCE_ID(In);
-				if (In.uv.x < 0.5) {
-					discard;
-				}*/
+				UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				LODDitheringTransition(uint2(In.vertex.xy), MeshInstanceFade(unity_InstanceID));
+#endif
 				return 0;
 			}
 			ENDHLSL
@@ -120,12 +122,13 @@
 			#pragma fragment frag
             #include "../Library/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 
@@ -176,13 +179,15 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 
@@ -214,10 +219,10 @@
 
 			float4 frag(Varyings In) : SV_Target
 			{
-				/*UNITY_SETUP_INSTANCE_ID(In);
-				if (In.uv.x < 0.5) {
-					discard;
-				}*/
+				UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				LODDitheringTransition(uint2(In.vertex.xy), MeshInstanceFade(unity_InstanceID));
+#endif
 				return 0;
 			}
 			ENDHLSL
@@ -244,7 +249,8 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 			#pragma multi_compile _ _DBUFFER
 			#pragma multi_compile _ LIGHTMAP_ON
@@ -268,6 +274,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex;
@@ -304,7 +311,11 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
 				Out.uv0 = In.uv0;
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				Out.uv1 = 0;
+#else
 				Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
+#endif
 				Out.vertexWS = mul(UNITY_MATRIX_M, float4(In.vertexOS.xyz, 1.0));
 				Out.vertexCS = mul(UNITY_MATRIX_VP, Out.vertexWS);
 				Out.normalWS = normalize(mul(In.normalOS, (float3x3)unity_WorldToObject));
@@ -316,6 +327,9 @@
 			GBufferFragmentOutput frag(Varyings In)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				LODDitheringTransition(uint2(In.vertexCS.xy), MeshInstanceFade(unity_InstanceID));
+#endif
 
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
@@ -338,7 +352,14 @@
 
                 float4 bakedDiffuse = 0;
                 float4 shadowMask = 1;
-                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, asuint(unity_RenderingLayer.x), bakedDiffuse, shadowMask);
+                uint lightChannels = asuint(unity_RenderingLayer.x);
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+                float3 probeDiffuse = 0;
+                bool hasProbe = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, probeDiffuse, shadowMask);
+                bakedDiffuse = float4(probeDiffuse, hasProbe ? 1 : 0);
+#else
+                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, bakedDiffuse, shadowMask);
+#endif
 
 				SurfaceData surface;
 				surface.Normal = pnormalWS;
@@ -352,7 +373,7 @@
                 float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflctance);
                 // InfinityLit has no occlusion input: the material occlusion is 1.
                 WriteGeometryColor(_EmissionColor.rgb, diffuseColor, 1.0, bakedDiffuse, shadowMask, pnormalWS, _AtmosphereSkySH,
-                    asuint(unity_RenderingLayer.x), 0u, output);
+                    lightChannels, 0u, output);
                 return output;
 			}
 			ENDHLSL
@@ -383,7 +404,8 @@
             #pragma multi_compile _ INFINITY_REFLECTION_PROBES
             #include "../Library/SurfaceLighting.hlsl"
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 			#pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
@@ -407,6 +429,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex;
@@ -458,6 +481,9 @@
 			ForwardFragmentOutput frag(Varyings In)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+				LODDitheringTransition(uint2(In.vertexCS.xy), MeshInstanceFade(unity_InstanceID));
+#endif
 
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
@@ -476,8 +502,15 @@
 
                 uint2 positionSS = (uint2)In.vertexCS.xy;
                 uint lightChannels = asuint(unity_RenderingLayer.x);
-                float4 baked, mask;
+                float4 baked = 0;
+                float4 mask = 1;
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+                float3 probeDiffuse = 0;
+                bool hasProbe = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, probeDiffuse, mask);
+                baked = float4(probeDiffuse, hasProbe ? 1 : 0);
+#else
                 SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, baked, mask);
+#endif
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
                 float occlusion = ForwardIndirectOcclusion(positionSS, viewDepth, positionWS, pnormalWS, lightChannels);
                 float3 indirectDiffuse = ForwardIndirectDiffuse(positionSS, microfaceContext.AlbedoColor, IndirectIrradiance(baked, pnormalWS, _AtmosphereSkySH), occlusion);
@@ -515,13 +548,15 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 
@@ -556,6 +591,10 @@
 
             MotionOutput frag(Varyings In)
             {
+                UNITY_SETUP_INSTANCE_ID(In);
+#if defined(INFINITY_LOD_DITHER) && defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+                LODDitheringTransition(uint2(In.vertex.xy), MeshInstanceFade(unity_InstanceID));
+#endif
                 MotionOutput output;
                 output.velocity = SurfaceVelocity(In.clipPos, In.clipPosOld);
                 return output;
@@ -577,12 +616,13 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 
 			struct Attributes
@@ -631,7 +671,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
 			#pragma multi_compile _ _VOLUMETRIC_FOG
 			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
@@ -639,6 +679,7 @@
             #include "../Library/MotionVectors.hlsl"
 			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex;
@@ -719,13 +760,14 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
 			#pragma multi_compile _ _REFRACTION_PYRAMID
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex;
@@ -810,12 +852,13 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
+            #pragma instancing_options procedural:SetupInfinityInstance
 
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
 			#include "../Library/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "../Library/GPUScene.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex;

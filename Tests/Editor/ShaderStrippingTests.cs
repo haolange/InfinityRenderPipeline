@@ -10,7 +10,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class ShaderStrippingTests
     {
         [TestCase("InfinityPipeline/InfinityLit")]
-        [TestCase("InfinityPipeline/InfinityLit-Instanced")]
         [TestCase("InfinityPipeline/TerrainLit")]
         public void ProbeVolumeShaders_DeclareGlobalBands(string shaderName)
         {

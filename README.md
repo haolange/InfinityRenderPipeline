@@ -53,7 +53,7 @@ A component draws a `MeshAsset`: one mesh per LOD level with its screen size, ma
 
 The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when the device supports compute and instancing, and CPU procedural drawing otherwise; translucent color passes, which need strict back-to-front order, always draw on the CPU. Every kernel of the mesh compute shader is required on both backends. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the mesh world and the transform-version history.
 
-Mesh shaders declare the SubShader tag `InfinityMeshInstancing = True` and read `InstanceToEntity`, `InstanceOffset`, `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` through `GPUScene.hlsl`; opaque passes also read `MeshInstanceFade` and declare `multi_compile _ INFINITY_LOD_DITHER` for the LOD cross-fade. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
+`InfinityLit` declares the SubShader tag `InfinityMeshInstancing = True`. Its procedural variant reads `InstanceToEntity`, `InstanceOffset`, `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` through `SetupInfinityInstance` in `GPUScene.hlsl`; opaque passes also read `MeshInstanceFade` and declare `multi_compile _ INFINITY_LOD_DITHER` for the LOD cross-fade. EditMode tests live under `Tests/Editor`.
 
 ## Native renderer content
 

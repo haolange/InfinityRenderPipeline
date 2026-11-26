@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Editor
             SceneManager.MoveGameObjectToScene(m_Object, m_Scene);
             m_Object.transform.position = new Vector3(1024, 0, 0);
             if (scaled) m_Object.transform.localScale = new Vector3(.8f, 1.2f, .9f);
-            m_Material = new Material(Shader.Find("InfinityPipeline/InfinityLit")) { hideFlags = HideFlags.DontSave, enableInstancing = true };
+            m_Material = new Material(Shader.Find("InfinityPipeline/InfinityLit")) { hideFlags = HideFlags.DontSave, enableInstancing = false };
             m_Material.SetColor("_BaseColor", Color.white); m_Material.SetColor("_EmissionColor", Color.white);
             m_Object.GetComponent<MeshRenderer>().sharedMaterial = m_Material;
             if (translucentStage > 0)

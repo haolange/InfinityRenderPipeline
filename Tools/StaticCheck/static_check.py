@@ -52,7 +52,7 @@ Checks
 """
 import argparse, collections, hashlib, json, os, re, sys, runpy
 
-IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github'}
+IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github', '__pycache__'}
 UNITY_LIGHTMODES = {'ShadowCaster', 'Meta', 'SRPDefaultUnlit', 'Always', 'ForwardBase', 'DepthOnly', 'MotionVectors', 'RTAO'}
 
 def walk(repo):

@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void TransientMeshAndMaterial_RoundTripCompleteNativeIdentity()
         {
             var mesh = new Mesh { name = "NativeIdentityProbe", hideFlags = HideFlags.DontSave };
-            var material = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced")) { hideFlags = HideFlags.DontSave };
+            var material = new Material(Shader.Find("InfinityPipeline/InfinityLit")) { hideFlags = HideFlags.DontSave };
             try
             {
                 Assert.AreSame(mesh, UnityEntityId.ToObject<Mesh>(UnityEntityId.ToUInt64(mesh)));
