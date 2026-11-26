@@ -54,7 +54,7 @@ Shader "InfinityPipeline/TerrainLit"
 			Name "RasterGBufferPass"
 			Tags { "LightMode" = "RasterGBufferPass" }
             
-			ZTest LEqual ZWrite On Cull Back
+			ZTest Equal ZWrite Off Cull Back
 			// Terrain is deferred: bit 1 admits it to deferred shading.
 			Stencil
 			{
@@ -72,6 +72,7 @@ Shader "InfinityPipeline/TerrainLit"
             
             #pragma multi_compile_instancing
             #pragma multi_compile _ _DBUFFER
+            #pragma multi_compile _ _CLUSTERED_DECALS
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK

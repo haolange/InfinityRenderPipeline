@@ -7,6 +7,7 @@
 #include "../Library/GeometryColor.hlsl"
 #include "../Library/ImageBasedLighting.hlsl"
 #include "../Library/DBuffer.hlsl"
+#include "../Library/DecalCluster.hlsl"
 #include "../Library/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
@@ -513,6 +514,10 @@ GBufferFragmentOutput DeferredFragment(Varyings IN)
     float2 screenUV = IN.clipPos.xy * rcp(_ScreenParams.xy);
     ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
     #endif
+#if defined(_CLUSTERED_DECALS)
+    float clusterViewDepth = -mul(unity_MatrixV, float4(inputData.positionWS, 1)).z;
+    ApplyClusteredDecals((uint2)IN.clipPos.xy, clusterViewDepth, inputData.positionWS, asuint(unity_RenderingLayer.x), surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
+#endif
 
     GBufferFragmentOutput output = (GBufferFragmentOutput)0;
     SurfaceData surface;

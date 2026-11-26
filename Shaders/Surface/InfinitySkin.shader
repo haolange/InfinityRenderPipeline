@@ -191,7 +191,7 @@ Shader "InfinityPipeline/InfinitySkin"
 		{
 			Name "RasterGBufferPass"
 			Tags { "LightMode" = "RasterGBufferPass" }
-			ZTest LEqual ZWrite On Cull Back
+			ZTest Equal ZWrite Off Cull Back
 			Stencil
 			{
 				Ref 4

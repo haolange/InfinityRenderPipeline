@@ -5,6 +5,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Clustered decals are applied in the GBuffer and forward passes before indirect diffuse is stored. Deferred shading no longer retints them.
 - `InfinityLit` and `InfinityLit-Instanced` are one shader. Mesh draws use procedural instancing (`SetupInfinityInstance`); renderer draws keep the SRP Batcher.
 - Stencil bits 3–7 belong to user passes. Pipeline stencil ReadMask and WriteMask stay inside `0x07` (bit 0 object motion, bit 1 deferred, bit 2 subsurface).
 - One opaque color path for deferred and forward. The geometry draw writes GBuffer A (`R8G8B8A8_SRGB` albedo, roughness), GBuffer B (`R8G8B8A8_UNorm` octahedral normal, metallic, specular), Scene Color (`B10G11R11_UFloatPack32` emission + indirect diffuse from the lightmap, probes or the dynamic sky, times material occlusion) and, only when a reader records, an `R8G8B8A8_UNorm` sideband: diffuse share of Scene Color, baked visibility of two mixed directional lights, four light channels and the skin profile. The stencil only admits passes: bit 0 object motion, bit 1 deferred, bit 2 subsurface. The formats are fixed; an unsupported device or more than 15 diffusion profiles makes the pipeline constructor throw. Depth is `D24S8` or `D32FS8`.

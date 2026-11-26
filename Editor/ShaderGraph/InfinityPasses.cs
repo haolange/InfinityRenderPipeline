@@ -242,8 +242,8 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         // A deferred pixel writes stencil bit 1 (_StencilRefGBuffer 2), a forward pixel clears bits 1 and 2 (0).
         static RenderStateCollection GBufferStates(InfinityTarget target) => new RenderStateCollection
         {
-            { RenderState.ZTest(ZTest.LEqual) },
-            { RenderState.ZWrite(ZWrite.On) },
+            { RenderState.ZTest(ZTest.Equal) },
+            { RenderState.ZWrite(ZWrite.Off) },
             { RenderState.Cull(FaceCull(target)) },
             { RenderState.Stencil(new StencilDescriptor { Ref = "[_StencilRefGBuffer]", ReadMask = "6", WriteMask = "6", Comp = "Always", Pass = "Replace" }) },
         };
@@ -370,12 +370,12 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor RasterGBufferPass(InfinityTarget target) =>
             Pass(kRasterGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ INFINITY_SIDEBAND"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ _CLUSTERED_DECALS", "multi_compile _ INFINITY_SIDEBAND"),
                 Defines(target), Includes(kBakedLighting, kGBuffer), true);
 
         public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
             Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, ForwardStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_SIDEBAND", "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_SSGI", "multi_compile _ INFINITY_FORWARD_SSR", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ _CLUSTERED_DECALS", "multi_compile _ INFINITY_SIDEBAND", "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_SSGI", "multi_compile _ INFINITY_FORWARD_SSR", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
         public static PassDescriptor RasterMotionPass(InfinityTarget target) =>

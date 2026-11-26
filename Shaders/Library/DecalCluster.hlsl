@@ -27,6 +27,7 @@ struct DecalRecord
 };
 
 // C# DecalUniform (Runtime/Decal/DecalContext.cs, GPU-RECORD marker).
+#if defined(_CLUSTERED_DECALS)
 cbuffer DecalUniform
 {
     float4 g_DecalClusterParams;
@@ -108,5 +109,6 @@ void ApplyClusteredDecals(
         }
     }
 }
+#endif
 
 #endif

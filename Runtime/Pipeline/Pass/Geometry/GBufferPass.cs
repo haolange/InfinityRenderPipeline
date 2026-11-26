@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword DirectionalLightmapKeyword = GlobalKeyword.Create("DIRLIGHTMAP_COMBINED");
         internal static readonly GlobalKeyword ShadowmaskKeyword = GlobalKeyword.Create("SHADOWS_SHADOWMASK");
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");
+        internal static readonly GlobalKeyword ClusteredDecalKeyword = GlobalKeyword.Create("_CLUSTERED_DECALS");
         internal static readonly GlobalKeyword SidebandKeyword = GlobalKeyword.Create("INFINITY_SIDEBAND");
         internal static readonly int MixedLightChannelsID = Shader.PropertyToID("_MixedLightChannels");
 
@@ -48,6 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct GBufferPassData
         {
             public bool bindDBuffer;
+            public ClusteredDecalInputs clusteredDecals;
             public int hasProbes;
             public bool directionalLightmap, shadowmask, sideband;
             public Vector4 mixedLightChannels;
@@ -131,6 +133,9 @@ namespace InfinityTech.Rendering.Pipeline
                 ref GBufferPassData passData = ref passHandle.GetPassData();
                 {
                     passData.bindDBuffer = bindDBuffer;
+                    ClusteredDecalInputs clusteredDecals = ClusteredDecalInputs.Query(m_RGBuilder, context);
+                    clusteredDecals.Read(passHandle);
+                    passData.clusteredDecals = clusteredDecals;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = context.lights.HasMixedLights;
                     passData.sideband = sideband;
@@ -150,6 +155,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DBufferKeyword, passData.bindDBuffer);
+                    cmdEncoder.SetKeyword(GBufferPassUtilityData.ClusteredDecalKeyword, passData.clusteredDecals.active);
+                    passData.clusteredDecals.BindGlobal(cmdEncoder);
                     cmdEncoder.SetGlobalInt(PassShaderIDs.InfinityHasProbes, passData.hasProbes);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, passData.directionalLightmap);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, passData.shadowmask);

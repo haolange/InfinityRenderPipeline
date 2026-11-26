@@ -1,6 +1,8 @@
 #ifndef INFINITY_SG_FORWARD_PASS
 #define INFINITY_SG_FORWARD_PASS
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/ForwardOutput.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/DBuffer.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/DecalCluster.hlsl"
 // ForwardPass of InfinityLit (Forward surface route): the complete shading in one execution. Shared light loop, baked /
 // probe / sky indirect diffuse scaled by the material and screen occlusion and replaced by SSGI, reflection probes blended
 // with the sky and replaced by SSR, emission.
@@ -13,7 +15,18 @@ ForwardFragmentOutput frag(PackedVaryings packedInput)
     float3 positionWS = input.positionWS;
     float3 normalWS = InfinitySurfaceNormalWS(input, surface.normalTS);
     float3 viewDir = normalize(_WorldSpaceCameraPos - positionWS);
-    MicrofaceContext microface = InitMicrofaceContext(surface.specularLevel, surface.roughness, surface.metallic, surface.baseColor);
+    float3 albedo = surface.baseColor;
+    float roughness = surface.roughness;
+    float metallic = surface.metallic;
+    float specular = surface.specularLevel;
+#if defined(_DBUFFER)
+    ApplyDBuffer(input.positionCS.xy * rcp(_ScreenParams.xy), albedo, normalWS, roughness, metallic, specular);
+#endif
+#if defined(_CLUSTERED_DECALS)
+    float clusterViewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
+    ApplyClusteredDecals((uint2)input.positionCS.xy, clusterViewDepth, positionWS, asuint(unity_RenderingLayer.x), albedo, normalWS, roughness, metallic, specular);
+#endif
+    MicrofaceContext microface = InitMicrofaceContext(specular, roughness, metallic, albedo);
     uint2 positionSS = (uint2)input.positionCS.xy;
     uint lightChannels = asuint(unity_RenderingLayer.x);
 

@@ -233,7 +233,7 @@
 		{
 			Name "RasterGBufferPass"
 			Tags { "LightMode" = "RasterGBufferPass" }
-			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
+			ZTest Equal ZWrite Off Cull Back
 			Stencil
 			{
 				Ref [_StencilRefGBuffer]
@@ -253,6 +253,7 @@
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
 			#pragma multi_compile _ _DBUFFER
+			#pragma multi_compile _ _CLUSTERED_DECALS
 			#pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
@@ -264,6 +265,7 @@
 			#include "../Library/GBufferPack.hlsl"
 			#include "../Library/GeometryColor.hlsl"
 			#include "../Library/DBuffer.hlsl"
+			#include "../Library/DecalCluster.hlsl"
 			#include "../Library/BSDF.hlsl"
 			#include "../Library/ImageBasedLighting.hlsl"
 			#include "../Library/ShaderVariables.hlsl"
@@ -349,10 +351,14 @@
 				float2 screenUV = In.vertexCS.xy * rcp(_ScreenParams.xy);
 				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance, surfaceSpecular);
 				#endif
+                uint lightChannels = asuint(unity_RenderingLayer.x);
+#if defined(_CLUSTERED_DECALS)
+                float clusterViewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
+                ApplyClusteredDecals((uint2)In.vertexCS.xy, clusterViewDepth, positionWS, lightChannels, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance, surfaceSpecular);
+#endif
 
                 float4 bakedDiffuse = 0;
                 float4 shadowMask = 1;
-                uint lightChannels = asuint(unity_RenderingLayer.x);
 #if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                 float3 probeDiffuse = 0;
                 bool hasProbe = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, probeDiffuse, shadowMask);
@@ -407,6 +413,8 @@
             #pragma instancing_options procedural:SetupInfinityInstance
 			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma enable_debug_symbols
+			#pragma multi_compile _ _DBUFFER
+			#pragma multi_compile _ _CLUSTERED_DECALS
 			#pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
@@ -415,6 +423,8 @@
 			#include "../Library/Common.hlsl"
 			#include "../Library/BSDF.hlsl"
 			#include "../Library/Lightmap.hlsl"
+			#include "../Library/DBuffer.hlsl"
+			#include "../Library/DecalCluster.hlsl"
 			#include "../Library/Lighting.hlsl"
 			#include "../Library/ShadingModel.hlsl"
 			#include "../Library/GBufferPack.hlsl"
@@ -498,6 +508,13 @@
 				float surfaceSpecular = _SpecularLevel;
 				float surfaceReflctance = _Reflectance;
 				float surfaceRoughness = _Roughness;
+#if defined(_DBUFFER)
+				ApplyDBuffer(In.vertexCS.xy * rcp(_ScreenParams.xy), surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance, surfaceSpecular);
+#endif
+#if defined(_CLUSTERED_DECALS)
+				float clusterViewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
+				ApplyClusteredDecals((uint2)In.vertexCS.xy, clusterViewDepth, positionWS, asuint(unity_RenderingLayer.x), surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance, surfaceSpecular);
+#endif
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
 
                 uint2 positionSS = (uint2)In.vertexCS.xy;

@@ -58,6 +58,9 @@ namespace InfinityTech.Rendering.Pipeline
             public bool hasAnalyticShadow;
             public AnalyticShadowInputs analyticShadows;
             public float iblMaxMip;
+            public bool bindDBuffer;
+            public RGTextureHandle dBufferAHandle, dBufferBHandle, dBufferCHandle;
+            public ClusteredDecalInputs clusteredDecals;
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
             {
@@ -99,6 +102,15 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGXHandle);
                 commands.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, atmosphereSHHandle);
                 commands.SetGlobalFloat(InfinityShaderIDs.AtmosphereIBLMaxMip, iblMaxMip);
+                commands.SetKeyword(GBufferPassUtilityData.DBufferKeyword, bindDBuffer);
+                if (bindDBuffer)
+                {
+                    commands.SetGlobalTexture(InfinityShaderIDs.DBufferA, dBufferAHandle);
+                    commands.SetGlobalTexture(InfinityShaderIDs.DBufferB, dBufferBHandle);
+                    commands.SetGlobalTexture(InfinityShaderIDs.DBufferC, dBufferCHandle);
+                }
+                commands.SetKeyword(GBufferPassUtilityData.ClusteredDecalKeyword, clusteredDecals.active);
+                clusteredDecals.BindGlobal(commands);
             }
         }
 
@@ -174,6 +186,16 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.hasAnalyticShadow = analyticShadows.active && context.frameSettings.IsEnabled(EFrameSetting.AnalyticShadow);
                     analyticShadows.Read(passHandle);
                     passData.analyticShadows = analyticShadows;
+                    passData.bindDBuffer = context.features.IsProduced(EFrameFeature.DBuffer);
+                    if (passData.bindDBuffer)
+                    {
+                        passData.dBufferAHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferA));
+                        passData.dBufferBHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferB));
+                        passData.dBufferCHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DBufferC));
+                    }
+                    ClusteredDecalInputs clusteredDecals = ClusteredDecalInputs.Query(m_RGBuilder, context);
+                    clusteredDecals.Read(passHandle);
+                    passData.clusteredDecals = clusteredDecals;
                 }
 
                 //Execute Phase

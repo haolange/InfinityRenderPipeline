@@ -9,6 +9,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ShaderStrippingTests
     {
+        [Test]
+        public void LitAndTerrain_DeclareClusteredDecals()
+        {
+            foreach (string shaderName in new[] { "InfinityPipeline/InfinityLit", "InfinityPipeline/TerrainLit" })
+            {
+                Shader shader = Shader.Find(shaderName);
+                Assert.IsNotNull(shader, shaderName);
+                LocalKeyword keyword = shader.keywordSpace.FindKeyword("_CLUSTERED_DECALS");
+                Assert.IsTrue(keyword.isValid, shaderName);
+                Assert.IsTrue(keyword.isOverridable, shaderName);
+            }
+        }
+
         [TestCase("InfinityPipeline/InfinityLit")]
         [TestCase("InfinityPipeline/TerrainLit")]
         public void ProbeVolumeShaders_DeclareGlobalBands(string shaderName)

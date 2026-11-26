@@ -50,7 +50,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGConstantsHandle parametersHandle;
             public LightLoopInputs lightLoop;
             public ReflectionInputs reflections;
-            public ClusteredDecalInputs decals;
             public AnalyticShadowInputs analyticShadows;
             public ShadowInputs shadows;
             public RGBufferHandle lightRecordBufferHandle;
@@ -60,7 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
             public bool hasReflection;
             public bool hasContactShadow;
             public bool hasRasterReflection;
-            public bool hasClusteredDecals;
             public bool hasAnalyticShadow;
             public LocalKeyword sidebandKeyword;
             public LocalKeyword occlusionKeyword;
@@ -68,7 +66,6 @@ namespace InfinityTech.Rendering.Pipeline
             public LocalKeyword reflectionKeyword;
             public LocalKeyword contactShadowKeyword;
             public LocalKeyword rasterReflectionKeyword;
-            public LocalKeyword clusteredDecalsKeyword;
             public LocalKeyword analyticShadowKeyword;
             public RGTextureHandle lightingTextureHandle;
             public RGTextureHandle sidebandHandle;
@@ -162,10 +159,6 @@ namespace InfinityTech.Rendering.Pipeline
             ReflectionInputs reflections = ReflectionInputs.Query(m_RGBuilder, context);
             reflections.Read(passHandle);
             passData.reflections = reflections;
-            ClusteredDecalInputs decals = ClusteredDecalInputs.Query(m_RGBuilder, context);
-            decals.Read(passHandle);
-            passData.decals = decals;
-            passData.hasClusteredDecals = decals.active;
             AnalyticShadowInputs analyticShadows = AnalyticShadowInputs.Query(m_RGBuilder, context);
             analyticShadows.Read(passHandle);
             passData.analyticShadows = analyticShadows;
@@ -181,7 +174,6 @@ namespace InfinityTech.Rendering.Pipeline
             passData.reflectionKeyword = kernels.deferredShadingReflection;
             passData.contactShadowKeyword = kernels.deferredShadingContactShadow;
             passData.rasterReflectionKeyword = kernels.deferredShadingRasterReflection;
-            passData.clusteredDecalsKeyword = kernels.deferredShadingClusteredDecals;
             passData.analyticShadowKeyword = kernels.deferredShadingAnalyticShadow;
 
             passHandle.EnablePassCulling(false);
@@ -195,7 +187,6 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdEncoder.SetKeyword(shader, passData.reflectionKeyword, passData.hasReflection);
                 cmdEncoder.SetKeyword(shader, passData.contactShadowKeyword, passData.hasContactShadow);
                 cmdEncoder.SetKeyword(shader, passData.rasterReflectionKeyword, passData.hasRasterReflection);
-                cmdEncoder.SetKeyword(shader, passData.clusteredDecalsKeyword, passData.hasClusteredDecals);
                 cmdEncoder.SetKeyword(shader, passData.analyticShadowKeyword, passData.hasAnalyticShadow);
                 cmdEncoder.SetComputeConstantBufferParam(shader, DeferredShadingPassUtilityData.CBV_DeferredShadingParametersID, passData.parametersHandle);
 
@@ -233,7 +224,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passData.lightLoop.Bind(cmdEncoder, shader, kernelIndex);
                 passData.reflections.Bind(cmdEncoder, shader, kernelIndex);
-                passData.decals.Bind(cmdEncoder, shader, kernelIndex);
                 passData.analyticShadows.Bind(cmdEncoder, shader, kernelIndex);
                 passData.shadows.Bind(cmdEncoder, shader, kernelIndex);
                 cmdEncoder.SetComputeBufferParam(shader, kernelIndex, LightShaderIDs.LightRecordBuffer, passData.lightRecordBufferHandle);

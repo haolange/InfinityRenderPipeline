@@ -41,15 +41,15 @@ namespace InfinityTech.Rendering.Pipeline
             passHandle.ReadBuffer(clusterIndicesHandle);
         }
 
-        public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
+        public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
             if (!active)
             {
                 return;
             }
-            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalRecords, recordsHandle);
-            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalClusterHeaders, clusterHeadersHandle);
-            commands.SetComputeBufferParam(shader, kernel, DecalShaderIDs.DecalClusterIndices, clusterIndicesHandle);
+            commands.SetGlobalBuffer(DecalShaderIDs.DecalRecords, recordsHandle);
+            commands.SetGlobalBuffer(DecalShaderIDs.DecalClusterHeaders, clusterHeadersHandle);
+            commands.SetGlobalBuffer(DecalShaderIDs.DecalClusterIndices, clusterIndicesHandle);
         }
     }
 

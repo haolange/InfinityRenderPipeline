@@ -14,8 +14,8 @@ projector: it projects along its -Y axis onto every opaque surface inside the bo
 - **Light Channels**: a clustered decal affects only the surfaces inside its box that share one of its four light
   channels. DBuffer and direct GBuffer decals affect every opaque surface inside the box.
 
-Forward-route and translucent materials do not receive clustered decals. A clustered decal changes a deferred surface
-after its baked indirect light was written, so that light is retinted by the decal color; on a black or fully metallic
-surface the decal receives no baked indirect light. A direct GBuffer decal changes albedo after that light was written
-and does not retint it: its baked indirect light keeps the color of the surface beneath. Use a DBuffer decal where the
-indirect light must follow the decal color.
+Lit, Shader Graph Lit and terrain apply clustered decals in the GBuffer, and forward Lit applies them again before
+shading, so deferred and forward surfaces receive them the same way. Indirect diffuse is computed from the decaled
+albedo. InfinitySkin does not receive DBuffer or clustered decals. A direct GBuffer decal changes albedo after that
+light was written and does not retint it: its baked indirect light keeps the color of the surface beneath. Use a
+DBuffer decal where the indirect light must follow the decal color.

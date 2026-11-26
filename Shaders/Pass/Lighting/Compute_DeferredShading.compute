@@ -6,7 +6,6 @@
 #pragma multi_compile_local _ DEFERRED_SSR
 #pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
 #pragma multi_compile_local _ DEFERRED_RASTER_REFLECTION
-#pragma multi_compile_local _ DEFERRED_CLUSTERED_DECALS
 #pragma multi_compile_local _ DEFERRED_ANALYTIC_SHADOW
 #pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
 #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
@@ -59,22 +58,8 @@ Texture2D<float4> SRV_SSRTexture;
 #if defined(DEFERRED_RASTER_REFLECTION)
 Texture2D<float4> SRV_RasterReflection;
 #endif
-#if defined(DEFERRED_CLUSTERED_DECALS)
-#include "../../Library/DecalCluster.hlsl"
-#endif
 
 #include "../../Library/SurfaceLighting.hlsl"
-
-#if defined(DEFERRED_CLUSTERED_DECALS)
-// The geometry draw wrote indirect diffuse with the surface's own diffuse color; a decal changes that color afterwards.
-// The irradiance is recovered per channel from the old color and scaled by the new one. A channel the surface carried no
-// diffuse in (black or metallic) has no recoverable irradiance and stays without indirect diffuse.
-float3 DecalDiffuseRetint(float3 surfaceDiffuseColor, float3 decalDiffuseColor)
-{
-    float3 recoverable = step(1e-4, surfaceDiffuseColor);
-    return recoverable * decalDiffuseColor / max(surfaceDiffuseColor, 1e-4);
-}
-#endif
 
 [numthreads(8, 8, 1)]
 void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
@@ -118,11 +103,6 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float roughness = surface.Roughness;
     float metallic = surface.Metallic;
     float specular = surface.Specular;
-#if defined(DEFERRED_CLUSTERED_DECALS)
-    float3 surfaceDiffuseColor = albedo * (1 - metallic);
-    ApplyClusteredDecals(pixelCoord, viewDepth, worldPos, lightChannels, albedo, normal, roughness, metallic, specular);
-    indirectDiffuse *= DecalDiffuseRetint(surfaceDiffuseColor, albedo * (1 - metallic));
-#endif
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, metallic, albedo);
 
     // Indirect occlusion applies to the stored indirect diffuse and the environment, never to emission or direct light.

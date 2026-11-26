@@ -94,7 +94,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly LocalKeyword deferredShadingIndirectDiffuse;
         internal readonly LocalKeyword deferredShadingReflection;
         internal readonly LocalKeyword deferredShadingRasterReflection;
-        internal readonly LocalKeyword deferredShadingClusteredDecals;
         internal readonly LocalKeyword deferredShadingAnalyticShadow;
         internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword deferredShadingContactShadow;
@@ -210,7 +209,6 @@ namespace InfinityTech.Rendering.Pipeline
             deferredShadingIndirectDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_SSGI");
             deferredShadingReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_SSR");
             deferredShadingRasterReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_RASTER_REFLECTION");
-            deferredShadingClusteredDecals = Keyword(shaders.deferredShadingShader, "DEFERRED_CLUSTERED_DECALS");
             deferredShadingAnalyticShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_ANALYTIC_SHADOW");
             deferredShadingContactShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_CONTACT_SHADOW");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");

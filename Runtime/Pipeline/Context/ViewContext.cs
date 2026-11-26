@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.Pipeline
 #else
             sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve);
 #endif
-            sideband = ResolveSideband(setup.state.features, setup.frameSettings, setup.featureSupport.renderingLayers, scene.lights, scene.analyticShadows, scene.decals);
+            sideband = ResolveSideband(setup.state.features, setup.frameSettings, setup.featureSupport.renderingLayers, scene.lights, scene.analyticShadows);
             historyCache = setup.state.historyCache;
             cameraUniform = setup.state.cameraUniform;
             cullingResults = scene.cullingResults;
@@ -178,17 +178,16 @@ namespace InfinityTech.Rendering.Pipeline
             shadowmaskMode = frameContext.shadowmaskMode;
         }
 
-        // Readers of the sideband: indirect occlusion (GTAO, RTAO, analytic), SSGI, clustered decals (they retint the indirect
-        // share), subsurface scattering, mixed-light baked visibility and the light channels. Without any of them nothing
-        // reads it and it is not allocated.
+        // Readers of the sideband: indirect occlusion (GTAO, RTAO, analytic), SSGI, subsurface scattering, mixed-light baked
+        // visibility and the light channels. Clustered decals change the surface before indirect diffuse is stored, so they
+        // do not read the sideband. Without a reader it is not allocated.
         static bool ResolveSideband(FrameFeatureSet features, in ResolvedFrameSettings frameSettings, bool renderingLayers, LightContext lights,
-            AnalyticShadowContext analyticShadows, DecalContext decals)
+            AnalyticShadowContext analyticShadows)
         {
             bool analyticIndirect = analyticShadows != null && analyticShadows.OccluderCount > 0 && analyticShadows.IndirectEnabled
                 && frameSettings.IsEnabled(EFrameSetting.AnalyticShadow);
             return renderingLayers
                 || analyticIndirect
-                || decals.ClusteredDecalCount > 0
                 || lights.HasMixedLights
                 || features.ShouldRecord(EFrameFeature.GTAO)
                 || features.ShouldRecord(EFrameFeature.RTAO)

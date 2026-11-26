@@ -1,5 +1,6 @@
 #ifndef INFINITY_SG_GBUFFER_PASS
 #define INFINITY_SG_GBUFFER_PASS
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/DecalCluster.hlsl"
 // GBufferPass of InfinityLit: the RGBA8 GBuffer, emission and occluded indirect diffuse into Scene Color, and the sideband.
 GBufferFragmentOutput frag(PackedVaryings packedInput)
 {
@@ -16,6 +17,10 @@ GBufferFragmentOutput frag(PackedVaryings packedInput)
     float specular = surface.specularLevel;
 #if defined(_DBUFFER)
     ApplyDBuffer(input.positionCS.xy * rcp(_ScreenParams.xy), albedo, normalWS, roughness, metallic, specular);
+#endif
+#if defined(_CLUSTERED_DECALS)
+    float clusterViewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
+    ApplyClusteredDecals((uint2)input.positionCS.xy, clusterViewDepth, positionWS, asuint(unity_RenderingLayer.x), albedo, normalWS, roughness, metallic, specular);
 #endif
 
     float2 lightmapUV = input.texCoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
