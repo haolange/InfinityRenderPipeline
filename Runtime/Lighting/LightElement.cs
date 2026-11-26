@@ -59,7 +59,8 @@ namespace InfinityTech.Rendering.LightPipeline
         public int shadowSliceCount;
         public int shadowFilter;
         public int visibleLightIndex;
-        public int bakedOcclusionChannel;
+        // Mixed directional lights: 0 or 1, the sideband slot (G or B) holding the light's baked visibility; -1 otherwise.
+        public int bakedVisibilitySlot;
         // -1 until the cookie / IES atlas lands (0.5.0 S11).
         public int cookieIndex;
 
@@ -214,12 +215,8 @@ namespace InfinityTech.Rendering.LightPipeline
             record.lightLayer = (int)RenderingLayerUtility.Validate((uint)layer);
 
             var baking = light.bakingOutput;
-            record.bakedOcclusionChannel = -1;
-            if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Mixed && baking.mixedLightingMode == MixedLightingMode.Shadowmask)
-            {
-                flags |= LightRecordFlags.MixedShadowmask;
-                record.bakedOcclusionChannel = baking.occlusionMaskChannel;
-            }
+            // LightContext assigns the baked-visibility slot and the MixedShadowmask flag of a mixed directional light.
+            record.bakedVisibilitySlot = -1;
             if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Baked)
             {
                 flags |= LightRecordFlags.Baked;

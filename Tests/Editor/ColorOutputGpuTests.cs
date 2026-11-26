@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             using (var commands = new CommandBuffer())
             {
                 commands.SetRenderTarget(owner.target); commands.SetViewport(new Rect(0, 0, 4, 1));
-                commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, owner.material, 0, owner.pass);
+                commands.DrawProcedural(Matrix4x4.identity, owner.material, owner.pass, MeshTopology.Triangles, 3);
                 owner.RecordReadback(commands); owner.Submit(commands);
             }
             double deadline = EditorApplication.timeSinceStartup + 30;
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         commands.DisableShaderKeyword("INFINITY_POST_BLOOM");
                         commands.SetRenderTarget(target);
                         commands.SetViewport(new Rect(0, 0, width, height));
-                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, shader, 0, pass);
+                        commands.DrawProcedural(Matrix4x4.identity, shader, pass, MeshTopology.Triangles, 3);
                         Graphics.ExecuteCommandBuffer(commands);
                     }
                     float[] values = Read(target, "grain-" + signal + "-frame-" + frame,
@@ -316,7 +316,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         commands.ClearRenderTarget(false, true, new Color(-7, -7, -7, -7));
                         commands.SetViewport(new Rect(0, 0, width, height));
                         material.SetVector("_InfinityOutputTransfer", new Vector4(policy, 0, 100, 0));
-                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, pass);
+                        commands.DrawProcedural(Matrix4x4.identity, material, pass, MeshTopology.Triangles, 3);
                         owner.RecordReadback(commands);
                         owner.Submit(commands);
                     }

@@ -27,16 +27,22 @@ void MixedShadowContract(uint3 id : SV_DispatchThreadID)
     LightRecord light = (LightRecord)0;
     light.flags = LIGHT_FLAG_SHADOWMASK;
     light.misc.x = ShadowStrength;
-    light.bakedOcclusionChannel = id.x % 4;
+    light.bakedVisibilitySlot = id.x % 2;
     float distance = id.x < 4 ? 50 : id.x < 8 ? 95 : 100;
-    Results[id.x] = MixBakedAndRealtimeShadow(light, 0.6, float4(0.1, 0.2, 0.3, 0.4), distance);
+    Results[id.x] = MixBakedAndRealtimeShadow(light, 0.6, float2(0.1, 0.2), distance);
 }
 [numthreads(1, 1, 1)]
 void EnergyContract(uint3 id : SV_DispatchThreadID)
 {
-    float confidence = id.x * 0.5;
-    float3 direct = float3(1, 2, 3), existing = float3(0.2, 0.4, 0.6);
-    Results[id.x] = float4(ReplaceIndirectContribution(direct + existing, existing, existing * confidence, confidence), 1);
+    // Threads 0..2 replace indirect diffuse (diffuse color 1), threads 3..5 environment specular (environment BRDF 0.5), at
+    // confidence 0, 0.5 and 1 with a screen-space result equal to the term it replaces: the sum must not change.
+    float confidence = (id.x % 3) * 0.5;
+    float3 direct = float3(1, 2, 3);
+    float3 existing = float3(0.2, 0.4, 0.6);
+    float3 replaced = id.x < 3
+        ? ReplaceIndirectDiffuse(existing, 1, float4(existing * confidence, confidence))
+        : ReplaceEnvironmentSpecular(existing, 0.5, float4(existing / 0.5 * confidence, confidence));
+    Results[id.x] = float4(direct + replaced, 1);
 }
 
 [numthreads(1, 1, 1)]

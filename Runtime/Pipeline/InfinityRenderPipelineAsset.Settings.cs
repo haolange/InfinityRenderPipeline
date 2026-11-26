@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
             internal readonly float renderScale;
             internal readonly AtmosphericalProfile atmosphericalProfile;
             internal readonly DiffusionProfile[] diffusionProfiles;
+            internal readonly int diffusionProfileCount;
             internal readonly bool hasDiffusionProfiles;
             internal readonly EOutputMode outputMode;
             internal readonly EHDREncoding hdrEncoding;
@@ -37,12 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             internal readonly bool supportProbeVolumeGPUStreaming, supportProbeVolumeDiskStreaming, supportProbeVolumeScenarios, supportProbeVolumeScenarioBlending;
             internal readonly FrameSettings defaultFrameSettings, reflectionFrameSettings;
             internal readonly int reflectionProbeResolution, maxReflectionProbes, cookieAtlasResolution, cookieMaxSize;
-            internal readonly EGBufferLayout gBufferLayout;
-            internal readonly ESceneColorFormat sceneColorFormat;
             internal readonly EDepthStencilFormat depthStencilFormat;
-            internal readonly EMotionVectorFormat motionVectorFormat;
-            internal readonly EIndirectLightingFormat indirectLightingFormat;
-            internal readonly ESubsurfaceLightingMode subsurfaceLightingMode;
             internal readonly bool enableRenderingLayers;
             internal readonly bool enableAnalyticShadow;
             internal readonly bool enableAnalyticIndirectOcclusion;
@@ -61,6 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
                 renderScale = asset.m_RenderScale;
                 atmosphericalProfile = asset.atmosphericalProfile;
                 diffusionProfiles = asset.diffusionProfiles;
+                diffusionProfileCount = diffusionProfiles != null ? diffusionProfiles.Length : 0;
                 hasDiffusionProfiles = diffusionProfiles != null && System.Array.Exists(diffusionProfiles, profile => profile != null);
                 outputMode = asset.outputMode;
                 hdrEncoding = asset.hdrEncoding;
@@ -89,12 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
                 maxReflectionProbes = asset.maxReflectionProbes;
                 cookieAtlasResolution = asset.cookieAtlasResolution;
                 cookieMaxSize = asset.cookieMaxSize;
-                gBufferLayout = asset.m_GBufferLayout;
-                sceneColorFormat = asset.m_SceneColorFormat;
                 depthStencilFormat = asset.m_DepthStencilFormat;
-                motionVectorFormat = asset.m_MotionVectorFormat;
-                indirectLightingFormat = asset.m_IndirectLightingFormat;
-                subsurfaceLightingMode = asset.m_SubsurfaceLightingMode;
                 enableRenderingLayers = asset.m_EnableRenderingLayers;
                 enableAnalyticShadow = asset.m_EnableAnalyticShadow;
                 enableAnalyticIndirectOcclusion = asset.m_EnableAnalyticIndirectOcclusion;

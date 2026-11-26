@@ -30,23 +30,5 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        private static Mesh m_FullScreenMesh;
-
-        internal static Mesh FullScreenMesh
-        {
-            get
-            {
-                if (m_FullScreenMesh != null)
-                {
-                    return m_FullScreenMesh;
-                }
-
-                m_FullScreenMesh = new Mesh { name = "FullScreen Mesh" };
-                m_FullScreenMesh.vertices = new Vector3[] {new Vector3(-1f, -1f, 0f), new Vector3(-1f,  3f, 0f), new Vector3( 3f, -1f, 0f)};
-                m_FullScreenMesh.SetIndices(new int[] { 0, 1, 2 }, MeshTopology.Triangles, 0, false);
-                m_FullScreenMesh.UploadMeshData(false);
-                return m_FullScreenMesh;
-            }
-        }
     }
 }

@@ -22,7 +22,6 @@ Texture2D<float2> SRV_MotionTexture;
 Texture2D<float4> SRV_HistoryColorTexture;
 RWTexture2D<float4> UAV_SuperResolutionTexture;
 RWTexture2D<float4> UAV_SRHistoryColorTexture;
-RWTexture2D<float> UAV_SRHistoryDepthTexture;
 
 static const int2 SampleOffset[9] = {
     int2(-1, -1), int2(0, -1), int2(1, -1),
@@ -164,7 +163,6 @@ void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
 
     // Pending history owns the unsharpened resolve; display sharpening never feeds back.
     UAV_SRHistoryColorTexture[id.xy] = float4(max(0, result), 1);
-    UAV_SRHistoryDepthTexture[id.xy] = SRV_DepthTexture[pixelCoord];
 
     // Optional sharpening via negative mip bias / unsharp mask
     if (SR_Sharpness > 0)

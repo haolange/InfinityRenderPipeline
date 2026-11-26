@@ -12,9 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
         public int version => m_Version;
         public bool isAvailableInPlayerBuild => true;
 
-        [ResourcePath("Runtime/Resources/Textures/System_LUT/LUT_BestFit.png")]
-        public Texture2D bestFitNormalTexture;
-
         // Blue-noise distributed Sobol sequence (Heitz et al. 2019), 256 samples per pixel over a 128x128 tile.
         // Imported uncompressed single-channel; GetBNDSequenceSample (Montcalo.hlsl) decodes the bytes exactly.
         [ResourcePath("Runtime/Resources/Textures/MonteCarlo/RankingTile256SPP.png")]

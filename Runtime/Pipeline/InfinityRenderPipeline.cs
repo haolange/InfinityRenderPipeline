@@ -47,7 +47,6 @@ namespace InfinityTech.Rendering.Pipeline
         readonly ShadowMomentPass m_ShadowMomentPass;
         readonly DeferredShadingPass m_DeferredShadingPass;
         readonly ForwardPass m_ForwardPass;
-        readonly ScreenSpaceCompositePass m_ScreenSpaceCompositePass;
         readonly ScreenSpaceHistoryPass m_ScreenSpaceHistoryPass;
         readonly SubsurfacePass m_SubsurfacePass;
         readonly AtmosphericSkyFogPass m_AtmosphericSkyFogPass;
@@ -87,9 +86,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_HalfResDownsamplePass = new HalfResDownsamplePass(graph, resources);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 m_RenderCapturePass = new RenderCapturePass(graph, resources);
-                m_DebugViewPass = new DebugViewPass(graph, resources, settings);
+                m_DebugViewPass = new DebugViewPass(graph, resources);
 #endif
-                m_RTAOPass = new RTAOPass(graph, settings);
+                m_RTAOPass = new RTAOPass(graph);
                 m_GTAOPass = new GTAOPass(graph, resources
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     , m_RenderCapturePass
@@ -108,7 +107,6 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ShadowMomentPass = new ShadowMomentPass(graph, resources, settings);
                 m_DeferredShadingPass = new DeferredShadingPass(graph, resources, settings);
                 m_ForwardPass = new ForwardPass(graph, settings, InfinityMeshPasses.Forward);
-                m_ScreenSpaceCompositePass = new ScreenSpaceCompositePass(graph, resources, settings);
                 m_ScreenSpaceHistoryPass = new ScreenSpaceHistoryPass(graph);
                 m_SubsurfacePass = new SubsurfacePass(graph, resources, settings, renderContext.resourcePool);
                 m_AtmosphericSkyFogPass = new AtmosphericSkyFogPass(graph, resources);
@@ -157,7 +155,6 @@ namespace InfinityTech.Rendering.Pipeline
             // camera reads them from these two uniforms, uploaded ahead of the graph.
             using (PipelineCpuMarkers.s_RecordUploadCameraUniforms.Auto())
             {
-                cmdBuffer.SetKeyword(GBufferPassUtilityData.BestFitYCoCgKeyword, settings.config.useBestFitYCoCg);
                 LightingCameraState lightingState = context.state.GetLightingState();
                 lightingState.shadowUniform.Upload(cmdBuffer, ShadowInputs.ResolveUniform(context, settings));
                 lightingState.lightLoopUniform.Upload(cmdBuffer, LightTileMaskPass.ResolveLightLoopUniform(context));
@@ -299,7 +296,18 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ShadowMomentPass.ComputeShadowMoments(context);
             }
 
-            // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
+            // PHASE 6: previous-color screen-space effects, then deferred and forward shading, then skin scattering.
+            // SSR and SSGI read only the GBuffer, depth, motion and history, and deferred and forward shading consume
+            // them, so they record after the shadow window and before deferred shading. Recorded ahead of the shadows,
+            // a device without async compute ran them inside the shadow window on the graphics queue (FeatureStatus).
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
+            {
+                m_SSRPass.ComputeScreenSpaceReflection(context);
+            }
+            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
+            {
+                m_SSGIPass.ComputeScreenSpaceIndirect(context);
+            }
             using (PipelineCpuMarkers.s_RecordRasterReflections.Auto())
             {
                 m_ReflectionProbePass.RasterReflections(context);
@@ -318,22 +326,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_ForwardPass.RasterForward(context, meshViews.mainViewHandle);
             }
-            // Previous-color effects, recorded once right before the composite that consumes them. Recorded ahead of
-            // the shadows, a device without async compute ran them on the graphics queue there and Scene_Spazon cost
-            // about 7 ms more GPU time on Apple M3 Max (FeatureStatus, 2026-11-18). Hoisting async-eligible work is the
-            // graph compiler's choice, not a second record position.
-            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceReflection.Auto())
-            {
-                m_SSRPass.ComputeScreenSpaceReflection(context);
-            }
-            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceIndirect.Auto())
-            {
-                m_SSGIPass.ComputeScreenSpaceIndirect(context);
-            }
-            using (PipelineCpuMarkers.s_RecordComputeScreenSpaceComposite.Auto())
-            {
-                m_ScreenSpaceCompositePass.ComputeScreenSpaceComposite(context);
-            }
             // History copies stay after the shadow window; an early graphics copy
             // would join the async effects before independent shadow rasterization.
             using (PipelineCpuMarkers.s_RecordCopyHistorySSR.Auto())
@@ -344,9 +336,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 m_ScreenSpaceHistoryPass.CopyHistorySSGI(context);
             }
-            using (PipelineCpuMarkers.s_RecordComputeBurleySubsurface.Auto())
+            using (PipelineCpuMarkers.s_RecordRasterSubsurfaceScattering.Auto())
             {
-                m_SubsurfacePass.ComputeBurleySubsurface(context);
+                m_SubsurfacePass.RasterSubsurfaceScattering(context);
             }
             using (PipelineCpuMarkers.s_RecordComputeAtmosphericSkyAndFog.Auto())
             {

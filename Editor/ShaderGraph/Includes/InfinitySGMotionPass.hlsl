@@ -1,6 +1,6 @@
 #ifndef INFINITY_SG_MOTION_PASS
 #define INFINITY_SG_MOTION_PASS
-// MotionPass of InfinityLit: jitter-free surface velocity and motion metadata.
+// MotionPass of InfinityLit: jitter-free surface velocity.
 MotionOutput frag(PackedVaryings packedInput)
 {
     Varyings input = UnpackVaryings(packedInput);
@@ -10,7 +10,6 @@ MotionOutput frag(PackedVaryings packedInput)
     InfinityMotionClip(input.positionWS, currentClip, previousClip);
     MotionOutput output;
     output.velocity = SurfaceVelocity(currentClip, previousClip);
-    output.metadata = SurfaceMotionMetadata(currentClip, previousClip, input.positionCS.z);
     return output;
 }
 #endif

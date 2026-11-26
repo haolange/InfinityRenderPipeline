@@ -2,6 +2,20 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Opaque color path convergence — 2026-11-26 (static gate only, no Editor)
+
+Source: branch `claude/happy-feynman-ekmpz3`. Contracts in ARCHITECTURE.md §8 (opaque color path), §4, §11 and §13.
+
+- **Static gate**: `python3 -B Tools/StaticCheck/static_check.py --repo .` → `0 error(s), 0 warning(s)`; `test_static_check.py` → `52/52 OK`; `GpuRecordLayout.generated.cs`, `TextureViewBindings.generated.cs` and `TextureViews.generated.hlsl` regenerated from the source.
+- **Offline shader compile** (`shader_check.py`, `shadergraph_check.py`): not run. The DXC release download and the Unity package registry (Core RP source) are refused by this environment's network policy (403). TODO(UNVERIFIED).
+- **Independent review**: in progress.
+- **Editor compile, domain reload and console**: TODO(UNVERIFIED).
+- **EditMode**: `GBufferContractTests` (RGBA8 ×2 and sideband round trip), `PipelineConfigurationResolverTests`, `RenderingLayerTests` (four channels, clamp command), `MaterialRouteTests` (stencil reference, InfinitySkin routing), `NativeLightingContractTests` (mixed light channel), `DeferredLightLoopGpuTests` (in-place share split, occlusion, SSGI, stencil admission), `SubsurfaceGpuTests` (raster extract and scatter), `VisualContractGpuTests`, `QualityLifecycleTests`, `DebugViewModeTests`, and the TAA, super-resolution, GTAO, SSR, SSGI and surface-metadata tests: TODO(UNVERIFIED).
+- **Frame order** (frame-tree export on `Scene_Spazon`): SSR and SSGI after `ComputeShadowMoments` and before `ComputeDeferredShading`; no `ComputeScreenSpaceComposite`; `RasterSubsurfaceExtract` and `RasterSubsurfaceScatter` after `CopyHistorySSGI`: TODO(UNVERIFIED).
+- **Image**: `Scene_Spazon` Surface Stencil (deferred, skin, forward, motion), Diffuse Ratio (deferred and forward pixels nonzero, sky 0), Rendering Layers, Mixed Light Visibility; Display Color with GTAO, SSGI and SSR toggled (emission not darkened by occlusion); a skin material scattered and reflecting: TODO(UNVERIFIED).
+- **GPU time**: SSR and SSGI moved from after `RasterForward` to before `ComputeDeferredShading`, both after the shadow window; the Spazon GPU frame time against the previous commit: TODO(UNVERIFIED).
+- **Example project migration** (owner action): re-save the pipeline asset to drop removed fields, run Window/Infinity/Lighting/Clamp Light Channels In Open Scenes and save, convert materials that used InfinityLit subsurface to InfinitySkin and set their profile index.
+
 ### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
 Verified against `/Users/gushihao/UnityWork/InfinityExample-arch-20261118` (Apple M3 Max, Metal, Unity `6000.6.0f1`), keeping source project assets and `Scene_Spazon` (`dirty: false`) untouched.

@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 parameters;
         public int mode;
         public float farDepth;
-        public int hasRenderingLayers;
+        public int padding0;
         public int padding1;
     }
 
@@ -54,8 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
             Set(EDebugView.Roughness, EDebugViewKernel.GBuffer);
             Set(EDebugView.Metallic, EDebugViewKernel.GBuffer);
             Set(EDebugView.Specular, EDebugViewKernel.GBuffer);
-            Set(EDebugView.ShadingModel, EDebugViewKernel.GBuffer);
-            Set(EDebugView.RenderingLayers, EDebugViewKernel.GBuffer);
+            Set(EDebugView.SurfaceStencil, EDebugViewKernel.GBuffer);
             Set(EDebugView.MotionMagnitude, EDebugViewKernel.Motion);
             Set(EDebugView.PreTonemapLuma, EDebugViewKernel.SceneColor);
             Set(EDebugView.LightComplexity, EDebugViewKernel.LightLoop);
@@ -70,9 +69,11 @@ namespace InfinityTech.Rendering.Pipeline
             Set(EDebugView.SSGI, EDebugViewKernel.Optional, InfinityShaderIDs.SSGIBuffer);
             Set(EDebugView.TAAConfidence, EDebugViewKernel.Optional, InfinityShaderIDs.TAAConfidenceBuffer);
             Set(EDebugView.LightCookieAtlas, EDebugViewKernel.Optional, InfinityShaderIDs.LightCookieAtlas);
-            Set(EDebugView.BakedDiffuse, EDebugViewKernel.Optional, InfinityShaderIDs.BakedDiffuseBuffer);
-            Set(EDebugView.IndirectDiffuse, EDebugViewKernel.Optional, InfinityShaderIDs.IndirectDiffuseBuffer);
-            Set(EDebugView.IndirectSpecular, EDebugViewKernel.Optional, InfinityShaderIDs.IndirectSpecularBuffer);
+            // The sideband exists only while one of its readers records; without it these views show Missing.
+            Set(EDebugView.RenderingLayers, EDebugViewKernel.Optional, InfinityShaderIDs.SidebandBuffer);
+            Set(EDebugView.DiffuseRatio, EDebugViewKernel.Optional, InfinityShaderIDs.SidebandBuffer);
+            Set(EDebugView.MixedLightVisibility, EDebugViewKernel.Optional, InfinityShaderIDs.SidebandBuffer);
+            Set(EDebugView.SubsurfaceProfile, EDebugViewKernel.Optional, InfinityShaderIDs.SidebandBuffer);
             Set(EDebugView.ContactShadows, EDebugViewKernel.Optional, InfinityShaderIDs.ContactShadowBuffer);
 
             Set(EDebugView.CascadeShadowAtlas, EDebugViewKernel.Shadow, InfinityShaderIDs.CascadeShadowMap);
@@ -115,13 +116,11 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
-        readonly InfinityRenderPipelineAsset.Settings m_Settings;
 
-        internal DebugViewPass(RGBuilder graph, InfinityRenderPipelineResources resources, in InfinityRenderPipelineAsset.Settings settings)
+        internal DebugViewPass(RGBuilder graph, InfinityRenderPipelineResources resources)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
-            m_Settings = settings;
         }
 
         struct DebugViewPassData
@@ -136,7 +135,6 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeShader debugViewShader;
             public RGTextureHandle gBufferAHandle;
             public RGTextureHandle gBufferBHandle;
-            public RGTextureHandle surfaceMetadataHandle;
             public RGTextureHandle motionTextureHandle;
             public RGTextureHandle sceneColorTextureHandle;
             public RGTextureHandle optionalTextureHandle;
@@ -184,7 +182,6 @@ namespace InfinityTech.Rendering.Pipeline
             InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
             RGTextureHandle gBufferAHandle = default;
             RGTextureHandle gBufferBHandle = default;
-            RGTextureHandle surfaceMetadataHandle = default;
             RGTextureHandle motionTextureHandle = default;
             RGTextureHandle sceneColorTextureHandle = default;
             switch (kind)
@@ -192,7 +189,6 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugViewKernel.GBuffer:
                     gBufferAHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferA);
                     gBufferBHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.GBufferB);
-                    surfaceMetadataHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SurfaceMetadataBuffer);
                     break;
                 case EDebugViewKernel.Motion:
                     motionTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
@@ -228,8 +224,7 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y),
                     parameters = parameters,
                     mode = (int)view,
-                    farDepth = GraphicsConventions.SampledFarDepth,
-                    hasRenderingLayers = m_Settings.config.enableRenderingLayers ? 1 : 0
+                    farDepth = GraphicsConventions.SampledFarDepth
                 });
                 passData.debugViewShader = m_Resources.shaders.debugViewShader;
                 switch (kind)
@@ -237,7 +232,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case EDebugViewKernel.GBuffer:
                         passData.gBufferAHandle = passHandle.ReadTexture(gBufferAHandle);
                         passData.gBufferBHandle = passHandle.ReadTexture(gBufferBHandle);
-                        passData.surfaceMetadataHandle = passHandle.ReadTexture(surfaceMetadataHandle);
+                        // Depth marks the empty pixels; the stencil plane of the same target holds the admission bits.
+                        passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                         break;
                     case EDebugViewKernel.Motion:
                         passData.motionTextureHandle = passHandle.ReadTexture(motionTextureHandle);
@@ -275,7 +271,8 @@ namespace InfinityTech.Rendering.Pipeline
                         case EDebugViewKernel.GBuffer:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureA, passData.gBufferAHandle);
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_GBufferTextureB, passData.gBufferBHandle);
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SurfaceMetadata, passData.surfaceMetadataHandle);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_DepthTexture, passData.depthTextureHandle);
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_StencilTexture, passData.depthTextureHandle, 0, RenderTextureSubElement.Stencil);
                             break;
                         case EDebugViewKernel.Motion:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_MotionTexture, passData.motionTextureHandle);

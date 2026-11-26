@@ -8,7 +8,6 @@
 #pragma kernel SSGISpatial
 #pragma kernel SSGIUpsample
 #pragma kernel SSGITraceDebug SSGI_DIAGNOSTICS
-#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 #pragma multi_compile_local _ SSGI_AMBIENT_OCCLUSION
 
 #include "../../Library/Common.hlsl"
@@ -52,11 +51,9 @@ Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_HiZClosestTexture;
 Texture2D<float> SRV_HiZFurthestTexture;
 Texture2D SRV_GBufferB;
-Texture2D SRV_SurfaceMetadata;
-Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
-Texture2D<uint2> SRV_HistoryMeta;
+Texture2D<uint> SRV_HistoryMeta;
 Texture2D<float4> SRV_TraceRadiance;
 Texture2D<float4> SRV_Current;
 Texture2D<float4> SRV_Temporal;
@@ -64,13 +61,13 @@ Texture2D<float4> SRV_Temporal;
 Texture2D<float> SRV_Occlusion;
 #endif
 Texture2D<float4> SRV_Filtered;
-Texture2D<uint2> SRV_Meta;
+Texture2D<uint> SRV_Meta;
 
 RWTexture2D<float4> UAV_RayHit;
 RWTexture2D<float4> UAV_TraceRadiance;
 RWTexture2D<float> UAV_HitDistance;
 RWTexture2D<float4> UAV_Temporal;
-RWTexture2D<uint2> UAV_Meta;
+RWTexture2D<uint> UAV_Meta;
 RWTexture2D<float4> UAV_Output;
 
 #include "../../Library/ScreenSpaceIndirectSurface.hlsl"
@@ -128,7 +125,7 @@ void TracePixel(uint2 tracePixel)
             uint2 hitPixel = min((uint2)(hit.uv * SSGI_Resolution.xy), (uint2)SSGI_Resolution.xy - 1);
             float3 hitNormal = DecodeGBufferNormal(SRV_GBufferB[hitPixel]);
             float confidence;
-            float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, SRV_HitMotionMetadata[hitPixel], 0,
+            float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, 0,
                 Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, confidence);
             confidence *= GetScreenFadeBord(hit.uv, SSGI_EDGE_FADE) * saturate(-dot(hitNormal, L) * 4);
             radiance += float4(color * (SSGI_Intensity * confidence), confidence);
@@ -215,8 +212,9 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
     uint2 surfacePixel = TraceToFullPixel(pixel);
     float2 uv = (surfacePixel + 0.5) * SSGI_Resolution.zw;
     float2 surfaceUV;
-    float expectedDepth;
-    ReprojectSurface(uv, surface.rawDepth, SRV_MotionTexture[surfacePixel].xy, Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, surfaceUV, expectedDepth);
+    float previousDepth;
+    float2 surfaceMotion = SRV_MotionTexture[surfacePixel].xy;
+    ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewFlipYJitterProj, Matrix_LastViewFlipYJitterProj, Matrix_ViewFlipYProj, Matrix_LastViewFlipYProj, surfaceUV, previousDepth);
 
     // Diffuse lighting follows the surface; there is no virtual image to track.
 
@@ -225,18 +223,16 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
         uint2 offset = TraceToFullPixel(uint2(0,0), SSGI_TraceScale, SSGI_PreviousFrameIndex, (uint2)SSGI_Resolution.xy);
         surfaceUV = ((surfaceUV * SSGI_Resolution.xy - offset - 0.5) / SSGI_TraceScale + 0.5) * SSGI_TraceResolution.zw;
     }
+    // History is validated by reprojection, the stored normal and age; no depth crosses frames.
     float historyAge = 0;
     float4 history = current;
-    float2 motionSurface = SRV_HitMotionMetadata[surfacePixel].xy;
-    bool validMotionSurface = isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
-    // Use the previous object surface depth, rather than projecting its current pose.
-    expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
-    float historyValid = (validMotionSurface ? SSGI_HistoryValid : 0) * SurfaceHistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth);
+    bool reprojected = all(isfinite(surfaceMotion)) && all(surfaceUV >= 0) && all(surfaceUV < 1);
+    float historyValid = reprojected ? SSGI_HistoryValid : 0;
     if (historyValid > 0)
     {
-        float4 historyMeta = LoadSurfaceMetadata(SRV_HistoryMeta,SRV_HistoryMeta_InfinityView,surfaceUV);
-        historyValid = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy)) > 0.9 && historyMeta.w >= 1 ? 1 : 0;
-        historyAge = historyValid > 0 ? historyMeta.w : 0;
+        float3 historyMeta = LoadSurfaceMetadata(SRV_HistoryMeta,SRV_HistoryMeta_InfinityView,surfaceUV);
+        historyValid = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy)) > 0.9 && historyMeta.z >= 1 ? 1 : 0;
+        historyAge = historyValid > 0 ? historyMeta.z : 0;
     }
     if (historyValid > 0)
     {
@@ -245,7 +241,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
 
     float currentWeight = TemporalCurrentWeight(historyAge, SSGI_TemporalWeight);
     UAV_Temporal[pixel] = max(0, lerp(history, current, currentWeight));
-    UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, surface.rawDepth, (uint)NextHistoryAge(historyAge), true);
+    UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, (uint)NextHistoryAge(historyAge), true);
 }
 
 // World-space poisson denoise plus the combiner. F(viewZ), F(variance) and F(AO) have no body on the
@@ -334,7 +330,7 @@ void SSGISpatial(uint3 id : SV_DispatchThreadID)
         weightSum += normalWeight;
     }
     filtered = filtered / weightSum;
-    float age = DecodeSurfaceMetadata(SRV_Meta[pixel]).w;
+    float age = DecodeSurfaceMetadata(SRV_Meta[pixel]).z;
     // No motion uses 0.93. A just-rejected history keeps the current sample, so the noisy weight rises.
     float accumSpeed = age <= 1 ? 1 : 0.93;
     UAV_Output[pixel] = lerp(filtered, current, 0.5 * accumSpeed);
@@ -369,10 +365,12 @@ void SSGIUpsample(uint3 id : SV_DispatchThreadID)
     [unroll] for (int x=0;x<=1;++x)
     {
         uint2 tap = (uint2)clamp(origin+int2(x,y),0,int2(SSGI_TraceResolution.xy)-1);
-        float4 meta = DecodeSurfaceMetadata(SRV_Meta[tap]);
+        float3 meta = DecodeSurfaceMetadata(SRV_Meta[tap]);
         float agreement = dot(surface.normalWS,OctahedronToUnitVector(meta.xy));
-        float relativeDepth = abs(ScreenSpaceLinearEyeDepth(meta.z)-ScreenSpaceLinearEyeDepth(surface.rawDepth))/max(ScreenSpaceLinearEyeDepth(surface.rawDepth),1e-4);
-        if (meta.w < 1 || agreement < 0.9 || relativeDepth > 0.02)
+        // The tap's representative surface depth comes from this frame's depth buffer.
+        float tapDepth = SRV_DepthTexture[TraceToFullPixel(tap)];
+        float relativeDepth = abs(ScreenSpaceLinearEyeDepth(tapDepth)-ScreenSpaceLinearEyeDepth(surface.rawDepth))/max(ScreenSpaceLinearEyeDepth(surface.rawDepth),1e-4);
+        if (meta.z < 1 || agreement < 0.9 || relativeDepth > 0.02)
         {
             continue;
         }

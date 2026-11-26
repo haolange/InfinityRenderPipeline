@@ -4,7 +4,6 @@
 #include "ScreenSpaceReprojection.hlsl"
 Texture2D SRV_TemporalColor;
 Texture2D SRV_TemporalColorMips;
-Texture2D SRV_TemporalDepth;
 
 // The TemporalColorParameters record BindTemporalColorView binds as one constant buffer.
 cbuffer CBV_TemporalColorParameters
@@ -27,22 +26,21 @@ float4 SampleTemporalColorMip(float2 uv, uint level)
     else value = InfinitySampleLevel(SRV_TemporalColorMips,Global_bilinear_clamp_sampler,uv,level-1);
     return value;
 }
-float3 SampleTemporalHitColor(float2 hitUV, float hitDepth, float2 motion, float4 metadata, float mip,
+// The previous frame's color at a hit, found by reprojecting the hit with its motion. No depth is kept across frames:
+// the hit is accepted when it reprojects on screen onto accepted temporal samples.
+float3 SampleTemporalHitColor(float2 hitUV, float hitDepth, float2 motion, float mip,
     float4x4 inverseVP, float4x4 previousVP, float4x4 motionVP, float4x4 previousMotionVP, out float confidence)
 {
     float3 color = 0;
     confidence = 0;
-    if (TemporalColorValid != 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
+    if (TemporalColorValid != 0 && all(isfinite(motion)))
     {
-        float2 depthUV;
-        float expectedDepth;
-        ReprojectSurface(hitUV,hitDepth,motion,inverseVP,previousVP,motionVP,previousMotionVP,depthUV,expectedDepth);
-        // Motion metadata carries the actual previous object surface, including moving meshes.
-        expectedDepth = metadata.x;
+        float2 previousUV;
+        float previousDepth;
+        ReprojectSurface(hitUV,hitDepth,motion,inverseVP,previousVP,motionVP,previousMotionVP,previousUV,previousDepth);
         // The source was rendered with the previous frame's jitter.
-        float2 colorUV = depthUV - (View_JitterUV.zw - View_JitterUV.xy);
-        if (all(colorUV >= 0) && all(colorUV < 1)
-            && HistoryDepthConfidence(SRV_TemporalDepth,SRV_TemporalDepth_InfinityView,depthUV,expectedDepth,0) > 0)
+        float2 colorUV = previousUV - (View_JitterUV.zw - View_JitterUV.xy);
+        if (all(colorUV >= 0) && all(colorUV < 1))
         {
             float lod = clamp(mip,0,TemporalColorMipCount-1);
             float4 value = lerp(SampleTemporalColorMip(colorUV,(uint)floor(lod)),

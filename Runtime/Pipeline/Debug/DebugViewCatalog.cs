@@ -41,14 +41,14 @@ namespace InfinityTech.Rendering.Pipeline
                 case EDebugView.Roughness:
                 case EDebugView.Metallic:
                 case EDebugView.Specular:
-                case EDebugView.ShadingModel:
+                case EDebugView.SurfaceStencil:
                 case EDebugView.RenderingLayers:
+                case EDebugView.SubsurfaceProfile:
                     return EDebugViewPanel.Material;
                 case EDebugView.LightComplexity:
                 case EDebugView.ReflectionProbeComplexity:
-                case EDebugView.BakedDiffuse:
-                case EDebugView.IndirectDiffuse:
-                case EDebugView.IndirectSpecular:
+                case EDebugView.DiffuseRatio:
+                case EDebugView.MixedLightVisibility:
                 case EDebugView.CascadeShadowAtlas:
                 case EDebugView.LocalShadowAtlas:
                 case EDebugView.CachedShadowAtlas:

@@ -2,7 +2,11 @@ using System;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
+using UnityEditor.SceneManagement;
 using InfinityTech.Component;
+using InfinityTech.Component.Editor;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
 
@@ -13,8 +17,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(0u)]
         [TestCase(1u)]
         [TestCase(2u)]
-        [TestCase(128u)]
-        [TestCase(255u)]
+        [TestCase(8u)]
+        [TestCase(15u)]
         public void EntityIndexedLayer_RoundTripsToGpuAndRollsBack(uint mask)
         {
             using (var fixture = new MeshWorldFixture())
@@ -32,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(mask, ReadLayer(world, entity));
 
                 using (MeshWorldUpdate update = world.BeginUpdate())
-                    update.SetEntityDesc(entity, MeshTestUtility.Desc(renderingLayerMask: mask ^ 0xFFu));
+                    update.SetEntityDesc(entity, MeshTestUtility.Desc(renderingLayerMask: mask ^ 0x0Fu));
                 Assert.IsTrue(world.TryGetEntity(entity, out record));
                 Assert.AreEqual(mask, record.desc.renderingLayerMask);
                 world.UpdateResidency();
@@ -49,14 +53,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 MeshEntityId reused;
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    reused = MeshTestUtility.CreateEntity(update, float3.zero, renderingLayerMask: 0x80);
+                    reused = MeshTestUtility.CreateEntity(update, float3.zero, renderingLayerMask: 0x08);
                     update.Commit();
                 }
                 Assert.AreEqual(entity.Index, reused.Index);
                 world.UpdateResidency();
-                Assert.AreEqual(0x80u, ReadLayer(world, reused));
+                Assert.AreEqual(0x08u, ReadLayer(world, reused));
                 using (MeshWorldUpdate update = world.BeginUpdate())
-                    Assert.Throws<ArgumentOutOfRangeException>(() => update.SetEntityDesc(reused, MeshTestUtility.Desc(renderingLayerMask: 0x100)));
+                {
+                    Assert.Throws<ArgumentOutOfRangeException>(() => update.SetEntityDesc(reused, MeshTestUtility.Desc(renderingLayerMask: 0x10)));
+                }
             }
         }
 
@@ -67,11 +73,49 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return actual[0];
         }
 
-        [TestCase(256u)]
+        // Four light channels fill the sideband's high nibble; any higher bit is an error, never a truncation.
+        [TestCase(0x10u)]
+        [TestCase(0x80u)]
+        [TestCase(0xFFu)]
         [TestCase(uint.MaxValue)]
-        public void UnknownHighBits_AreNotSilentlyTruncated(uint mask)
+        public void HighBits_AreNotSilentlyTruncated(uint mask)
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => RenderingLayerUtility.Validate(mask));
+        }
+
+        [Test]
+        public void Everything_IsTheFourChannelMask()
+        {
+            Assert.AreEqual(RenderingLayerUtility.ValidMask, (uint)ERenderingLayer.Everything);
+            Assert.AreEqual(0x0Fu, RenderingLayerUtility.Validate(0x0Fu));
+        }
+
+        // The explicit clamp command keeps the four channels of every mask; a mask with none left is reported, not refilled.
+        // It runs on an owned additive scene so no user scene is touched.
+        [Test]
+        public void ClampCommand_KeepsFourChannelsAndReportsEmptiedMasks()
+        {
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            try
+            {
+                var rendererObject = new GameObject("ClampRenderer");
+                var lightObject = new GameObject("ClampLight");
+                SceneManager.MoveGameObjectToScene(rendererObject, scene);
+                SceneManager.MoveGameObjectToScene(lightObject, scene);
+                MeshRenderer renderer = rendererObject.AddComponent<MeshRenderer>();
+                renderer.renderingLayerMask = 0xFFu;
+                Light light = lightObject.AddComponent<Light>();
+                light.renderingLayerMask = 0x30;
+                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("ClampLight used only channels above the four light channels"));
+                Assert.AreEqual(2, LightChannelClampCommand.ClampScene(scene));
+                Assert.AreEqual(0x0Fu, renderer.renderingLayerMask);
+                Assert.AreEqual(0, light.renderingLayerMask);
+                Assert.AreEqual(0, LightChannelClampCommand.ClampScene(scene), "A second run changes nothing.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+            }
         }
 
         [Test]
@@ -82,11 +126,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Light light = go.AddComponent<Light>();
                 InfinityAdditionalLightData extension = go.AddComponent<InfinityAdditionalLightData>();
-                extension.shadowLayer = ERenderingLayer.LightLayer7;
-                Assert.AreEqual(0x80u, light.renderingLayerMask);
+                extension.shadowLayer = ERenderingLayer.LightLayer3;
+                Assert.AreEqual(0x08u, light.renderingLayerMask);
                 light.renderingLayerMask = 2;
                 Assert.AreEqual((ERenderingLayer)2, extension.shadowLayer);
-                light.renderingLayerMask = 0x100;
+                light.renderingLayerMask = 0x10;
                 Assert.Throws<ArgumentOutOfRangeException>(() => { var invalid = extension.shadowLayer; });
                 Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("shadowLayer"));
             }

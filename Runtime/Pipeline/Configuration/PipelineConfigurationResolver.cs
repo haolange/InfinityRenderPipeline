@@ -4,7 +4,7 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    // Single authority turning authored pipeline settings and device capabilities into effective attachment formats and
+    // Single authority turning authored pipeline settings and device capabilities into the effective depth format and
     // per-field diagnostics, shared by runtime pipeline creation, Asset Inspector, build validation and stripping (P1, R8).
     internal static class PipelineConfigurationResolver
     {
@@ -13,146 +13,65 @@ namespace InfinityTech.Rendering.Pipeline
         internal static EffectivePipelineConfiguration Evaluate(in InfinityRenderPipelineAsset.Settings authored, in DeviceCapabilitySnapshot caps,
             TemporalReconstructionSystem temporalSystem = null)
         {
-            bool hasBlockingConflict = false;
+            string blockingConflict = null;
             TemporalReconstructionSystem planner = temporalSystem ?? s_DefaultTemporalPlanner;
 
-            // 1. GBuffer layout & normal encoding.
-            EGBufferLayout effectiveLayout = authored.gBufferLayout;
-            ConfigFieldState gBufferState = ConfigFieldState.Supported;
-            if (effectiveLayout == EGBufferLayout.HighPrecision96Bit && !caps.supportsRGBA16UnormRT)
+            // 1. Opaque color path: fixed RGBA8 sRGB + RGBA8 GBuffer, R11G11B10F Scene Color read and written in place by
+            // deferred shading and the atmosphere, RGBA8 sideband read and written in place by deferred shading, RG16F motion.
+            ConfigFieldState colorPathState = ConfigFieldState.Supported;
+            string colorPathFailure = !caps.supportsR8G8B8A8SRGB ? "R8G8B8A8_SRGB render target (GBuffer A) is not supported on this device."
+                : !caps.supportsR11G11B10FLoadStore ? "B10G11R11_UFloatPack32 with load/store (Scene Color) is not supported on this device."
+                : !caps.supportsR8G8B8A8LoadStore ? "R8G8B8A8_UNorm with load/store (sideband) is not supported on this device."
+                : !caps.supportsRG16F ? "R16G16_SFloat render target (motion vectors) is not supported on this device."
+                : null;
+            if (colorPathFailure != null)
             {
-                gBufferState = new ConfigFieldState(EConfigStatus.Unsupported, "R16G16B16A16_UNorm render target is not supported on this device; effective layout uses Compact64Bit.");
-                effectiveLayout = EGBufferLayout.Compact64Bit;
-            }
-            if ((effectiveLayout == EGBufferLayout.Compact64Bit || effectiveLayout == EGBufferLayout.HighPrecision96Bit) && !caps.supportsR8G8B8A8SRGB)
-            {
-                gBufferState = new ConfigFieldState(EConfigStatus.Unsupported, "R8G8B8A8_SRGB render target is not supported on this device.");
-                hasBlockingConflict = true;
+                colorPathState = new ConfigFieldState(EConfigStatus.Unsupported, colorPathFailure);
+                blockingConflict = blockingConflict ?? colorPathFailure;
             }
 
-            GraphicsFormat gBufferAFormat = effectiveLayout == EGBufferLayout.BestFitYCoCg64Bit
-                ? GraphicsFormat.R8G8B8A8_UNorm
-                : (caps.supportsR8G8B8A8SRGB ? GraphicsFormat.R8G8B8A8_SRGB : GraphicsFormat.R8G8B8A8_UNorm);
-            GraphicsFormat gBufferBFormat = effectiveLayout == EGBufferLayout.HighPrecision96Bit
-                ? GraphicsFormat.R16G16B16A16_UNorm
-                : GraphicsFormat.R8G8B8A8_UNorm;
-
-            // 2. Surface metadata (Routing/Flags + optional Rendering Layers).
-            bool enableRenderingLayers = authored.enableRenderingLayers;
-            ConfigFieldState renderingLayersState = ConfigFieldState.Supported;
-            GraphicsFormat surfaceMetadataFormat;
-            if (enableRenderingLayers)
+            // 2. Depth / stencil: the stencil holds the motion, deferred and subsurface admission bits.
+            ConfigFieldState depthState = ConfigFieldState.Supported;
+            GraphicsFormat depthFormat;
+            bool preferD24 = authored.depthStencilFormat == EDepthStencilFormat.D24S8;
+            bool preferredSupported = preferD24 ? caps.supportsD24S8 : caps.supportsD32FS8;
+            bool otherSupported = preferD24 ? caps.supportsD32FS8 : caps.supportsD24S8;
+            GraphicsFormat preferredFormat = preferD24 ? GraphicsFormat.D24_UNorm_S8_UInt : GraphicsFormat.D32_SFloat_S8_UInt;
+            GraphicsFormat otherFormat = preferD24 ? GraphicsFormat.D32_SFloat_S8_UInt : GraphicsFormat.D24_UNorm_S8_UInt;
+            if (preferredSupported)
             {
-                if (caps.supportsR8G8UnormRT)
-                {
-                    surfaceMetadataFormat = GraphicsFormat.R8G8_UNorm;
-                }
-                else
-                {
-                    surfaceMetadataFormat = GraphicsFormat.R8G8B8A8_UNorm;
-                    renderingLayersState = new ConfigFieldState(EConfigStatus.Unsupported, "R8G8_UNorm is unsupported; promoting SurfaceMetadata to R8G8B8A8_UNorm.");
-                }
+                depthFormat = preferredFormat;
+            }
+            else if (otherSupported)
+            {
+                depthFormat = otherFormat;
+                depthState = new ConfigFieldState(EConfigStatus.PlatformOverride, preferD24
+                    ? "D24_UNorm_S8_UInt is unsupported on this device; the depth buffer uses D32_SFloat_S8_UInt."
+                    : "D32_SFloat_S8_UInt is unsupported on this device; the depth buffer uses D24_UNorm_S8_UInt.");
             }
             else
             {
-                surfaceMetadataFormat = caps.supportsR8UnormRT ? GraphicsFormat.R8_UNorm : GraphicsFormat.R8G8B8A8_UNorm;
+                depthFormat = preferredFormat;
+                depthState = new ConfigFieldState(EConfigStatus.Unsupported, "Neither D24_UNorm_S8_UInt nor D32_SFloat_S8_UInt is supported on this device.");
+                blockingConflict = blockingConflict ?? depthState.reason;
             }
 
-            // 3. Depth / Stencil format (MotionPass requires Stencil bit 0).
-            ConfigFieldState depthState = ConfigFieldState.Supported;
-            GraphicsFormat depthFormat;
-            switch (authored.depthStencilFormat)
+            // 3. Subsurface profiles: skin pixels store profile 1..15 in the sideband.
+            ConfigFieldState subsurfaceState = ConfigFieldState.Supported;
+            if (authored.diffusionProfileCount > EffectivePipelineConfiguration.MaxDiffusionProfiles)
             {
-                case EDepthStencilFormat.D24S8:
-                    if (caps.supportsD24S8)
-                    {
-                        depthFormat = GraphicsFormat.D24_UNorm_S8_UInt;
-                    }
-                    else
-                    {
-                        depthState = new ConfigFieldState(EConfigStatus.Unsupported, "D24_UNorm_S8_UInt is unsupported on this device; effective format uses D32_SFloat_S8_UInt.");
-                        depthFormat = caps.supportsD32FS8 ? GraphicsFormat.D32_SFloat_S8_UInt : GraphicsFormat.D32_SFloat;
-                    }
-                    break;
-                case EDepthStencilFormat.D32FS8:
-                    if (caps.supportsD32FS8)
-                    {
-                        depthFormat = GraphicsFormat.D32_SFloat_S8_UInt;
-                    }
-                    else
-                    {
-                        depthState = new ConfigFieldState(EConfigStatus.Unsupported, "D32_SFloat_S8_UInt is unsupported on this device.");
-                        depthFormat = caps.supportsD24S8 ? GraphicsFormat.D24_UNorm_S8_UInt : GraphicsFormat.D32_SFloat;
-                    }
-                    break;
-                case EDepthStencilFormat.D32F:
-                case EDepthStencilFormat.D16:
-                    depthState = new ConfigFieldState(EConfigStatus.Conflict, "Main depth buffer requires a stencil channel for MotionPass object/camera separation.");
-                    hasBlockingConflict = true;
-                    depthFormat = caps.supportsD32FS8 ? GraphicsFormat.D32_SFloat_S8_UInt
-                        : caps.supportsD24S8 ? GraphicsFormat.D24_UNorm_S8_UInt
-                        : GraphicsFormat.D32_SFloat;
-                    break;
-                default:
-                    depthFormat = GraphicsFormat.D32_SFloat_S8_UInt;
-                    break;
+                subsurfaceState = new ConfigFieldState(EConfigStatus.Conflict, "At most 15 Diffusion Profiles fit the sideband's four-bit profile; remove the extra profiles from the pipeline asset.");
+                blockingConflict = blockingConflict ?? subsurfaceState.reason;
             }
-
-            // 4. SceneColor & Subsurface Scattering representation contract.
-            ConfigFieldState sceneColorState = ConfigFieldState.Supported;
-            ConfigFieldState sssModeState = ConfigFieldState.Supported;
-            ESubsurfaceLightingMode effectiveSSSMode = authored.subsurfaceLightingMode;
-            GraphicsFormat sceneColorFormat = authored.sceneColorFormat == ESceneColorFormat.R11G11B10F
-                ? (caps.supportsR11G11B10FUAV ? GraphicsFormat.B10G11R11_UFloatPack32 : GraphicsFormat.R16G16B16A16_SFloat)
-                : GraphicsFormat.R16G16B16A16_SFloat;
-
-            if (authored.sceneColorFormat == ESceneColorFormat.R11G11B10F && !caps.supportsR11G11B10FUAV)
+            else if (!authored.hasDiffusionProfiles)
             {
-                sceneColorState = new ConfigFieldState(EConfigStatus.Unsupported, "B10G11R11_UFloatPack32 UAV is unsupported on this device; effective format uses RGBA16F.");
+                subsurfaceState = new ConfigFieldState(EConfigStatus.Inactive, "Assign at least one Diffusion Profile to enable Subsurface Scattering.");
             }
 
-            if (!authored.hasDiffusionProfiles)
-            {
-                sssModeState = new ConfigFieldState(EConfigStatus.Inactive, "Assign at least one Diffusion Profile to enable Subsurface Scattering.");
-            }
-            else if (effectiveSSSMode == ESubsurfaceLightingMode.SceneColorAlpha && authored.sceneColorFormat == ESceneColorFormat.R11G11B10F)
-            {
-                sssModeState = new ConfigFieldState(EConfigStatus.Conflict, "SceneColorAlpha SSS requires RGBA16F SceneColor (R11G11B10F has no alpha channel).");
-                sceneColorState = new ConfigFieldState(EConfigStatus.Required, "RGBA16F is required by SceneColorAlpha Subsurface Scattering.");
-                hasBlockingConflict = true;
-                sceneColorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            }
-
-            // 5. Motion vector, 64-bit MotionMetadata & Indirect lighting formats.
-            ConfigFieldState motionState = ConfigFieldState.Supported;
-            GraphicsFormat motionFormat = authored.motionVectorFormat == EMotionVectorFormat.RG32F
-                ? (caps.supportsRG32F ? GraphicsFormat.R32G32_SFloat : GraphicsFormat.R16G16_SFloat)
-                : (caps.supportsRG16F ? GraphicsFormat.R16G16_SFloat : GraphicsFormat.R32G32_SFloat);
-            if (authored.motionVectorFormat == EMotionVectorFormat.RG32F && !caps.supportsRG32F)
-            {
-                motionState = new ConfigFieldState(EConfigStatus.Unsupported, "R32G32_SFloat is unsupported on this device; effective format uses RG16F.");
-            }
-            GraphicsFormat motionMetadataFormat = caps.supportsRG32F ? GraphicsFormat.R32G32_SFloat : GraphicsFormat.R32G32B32A32_SFloat;
-
-            ConfigFieldState indirectState = ConfigFieldState.Supported;
-            GraphicsFormat indirectFormat = authored.indirectLightingFormat == EIndirectLightingFormat.R11G11B10F
-                ? (caps.supportsR11G11B10FUAV ? GraphicsFormat.B10G11R11_UFloatPack32 : GraphicsFormat.R16G16B16A16_SFloat)
-                : GraphicsFormat.R16G16B16A16_SFloat;
-            if (authored.indirectLightingFormat == EIndirectLightingFormat.R11G11B10F && !caps.supportsR11G11B10FUAV)
-            {
-                indirectState = new ConfigFieldState(EConfigStatus.Unsupported, "B10G11R11_UFloatPack32 UAV is unsupported on this device; effective format uses RGBA16F.");
-            }
-
-            // 6. Reflection, Decal & Analytic Shadow capabilities.
+            // 4. Reflection and Analytic Shadow capabilities.
             ConfigFieldState reflectionState = authored.reflectionProbeResolution > 0 && authored.maxReflectionProbes > 0
                 ? ConfigFieldState.Supported
                 : new ConfigFieldState(EConfigStatus.Inactive, "Reflection probe atlas is disabled (resolution or max probe slots == 0); sky & raster reflections remain active.");
-
-            bool useBestFitYCoCg = effectiveLayout == EGBufferLayout.BestFitYCoCg64Bit;
-            bool directDecalSupported = !useBestFitYCoCg;
-            ConfigFieldState directDecalState = directDecalSupported
-                ? ConfigFieldState.Supported
-                : new ConfigFieldState(EConfigStatus.Inactive, "Direct GBuffer decals fall back to DBuffer when BestFitYCoCg64Bit GBuffer encoding is active.");
 
             ConfigFieldState analyticShadowState = authored.enableAnalyticShadow
                 ? ConfigFieldState.Supported
@@ -164,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ? new ConfigFieldState(EConfigStatus.Inactive, "Analytic Shadow master toggle is disabled.")
                 : ConfigFieldState.Supported;
 
-            // 7. Temporal Reconstruction (TRC) backend, mode, quality and render scale resolution.
+            // 5. Temporal Reconstruction (TRC) backend, mode, quality and render scale resolution.
             TemporalBackendCapability requestedTrc = planner.GetCapability(authored.temporal.backend);
             ConfigFieldState temporalBackendState = requestedTrc.supported
                 ? ConfigFieldState.Supported
@@ -191,49 +110,20 @@ namespace InfinityTech.Rendering.Pipeline
                         ? new ConfigFieldState(EConfigStatus.Inactive, "Render Scale is driven automatically by Quality Preset; switch Resolution Policy to FixedScale to customize.")
                         : ConfigFieldState.Supported;
 
-            GraphicsFormat compactHDR = caps.supportsR11G11B10FUAV ? GraphicsFormat.B10G11R11_UFloatPack32 : GraphicsFormat.R16G16B16A16_SFloat;
-            GraphicsFormat customDataSSSFormat = caps.supportsR8G8UnormRT ? GraphicsFormat.R8G8_UNorm : GraphicsFormat.R8G8B8A8_UNorm;
-
-            int coreBits = BitsPerPixel(gBufferAFormat) + BitsPerPixel(gBufferBFormat);
-            int metaBits = BitsPerPixel(surfaceMetadataFormat);
-            int motionMetaBits = BitsPerPixel(motionMetadataFormat);
-            int sceneBits = BitsPerPixel(sceneColorFormat);
-            int commonBits = coreBits + metaBits + sceneBits;
+            int geometryColorBits = BitsPerPixel(EffectivePipelineConfiguration.GBufferAFormat) + BitsPerPixel(EffectivePipelineConfiguration.GBufferBFormat)
+                + BitsPerPixel(EffectivePipelineConfiguration.SceneColorFormat) + BitsPerPixel(EffectivePipelineConfiguration.SidebandFormat);
 
             return new EffectivePipelineConfiguration(
-                gBufferLayout: effectiveLayout,
-                useBestFitYCoCg: useBestFitYCoCg,
-                subsurfaceLightingMode: effectiveSSSMode,
-                enableRenderingLayers: enableRenderingLayers,
-                hasStencil: depthFormat == GraphicsFormat.D32_SFloat_S8_UInt || depthFormat == GraphicsFormat.D24_UNorm_S8_UInt || depthFormat == GraphicsFormat.S8_UInt,
-                directDecalSupported: directDecalSupported,
-                gBufferAFormat: gBufferAFormat,
-                gBufferBFormat: gBufferBFormat,
-                surfaceMetadataFormat: surfaceMetadataFormat,
-                sceneColorFormat: sceneColorFormat,
+                enableRenderingLayers: authored.enableRenderingLayers,
                 depthStencilFormat: depthFormat,
-                motionVectorFormat: motionFormat,
-                motionMetadataFormat: motionMetadataFormat,
-                indirectLightingFormat: indirectFormat,
-                bakedDiffuseFormat: compactHDR,
-                scatterDiffuseFormat: compactHDR,
-                customDataSSSFormat: customDataSSSFormat,
+                geometryColorBitsPerPixel: geometryColorBits,
                 effectiveTemporalBackend: previewReq.activeBackend,
                 effectiveTemporalMode: previewReq.mode,
                 effectiveRenderScale: previewReq.renderScale,
-                coreGBufferBitsPerPixel: coreBits,
-                surfaceMetadataBitsPerPixel: metaBits,
-                motionMetadataBitsPerPixel: motionMetaBits,
-                commonGBufferPassBitsPerPixel: commonBits,
-                gBufferLayoutState: gBufferState,
-                sceneColorState: sceneColorState,
+                colorPathState: colorPathState,
                 depthStencilState: depthState,
-                motionVectorState: motionState,
-                indirectLightingState: indirectState,
-                subsurfaceModeState: sssModeState,
-                renderingLayersState: renderingLayersState,
+                subsurfaceState: subsurfaceState,
                 reflectionState: reflectionState,
-                directDecalState: directDecalState,
                 analyticShadowState: analyticShadowState,
                 analyticIndirectState: analyticIndirectState,
                 analyticDirectState: analyticDirectState,
@@ -241,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                 temporalModeState: temporalModeState,
                 temporalQualityState: temporalQualityState,
                 renderScaleState: renderScaleState,
-                hasBlockingConflict: hasBlockingConflict);
+                blockingConflict: blockingConflict);
         }
 
         internal static int BitsPerPixel(GraphicsFormat format)

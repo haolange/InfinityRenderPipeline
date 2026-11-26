@@ -38,9 +38,10 @@ The command-line adapter under `Editor/Cli` is compiled only with `INFINITY_UNIT
 | Volume Profile | The Core RP component list |
 | Pipeline asset | Rendering, Lighting & Shadows (including shadow-filter quality), Post-processing & Output, Frame Settings (Cameras and Reflection Probe Captures), Default Materials. Runtime shaders are named in a help box and resolve from Global Settings |
 | Atmospherical Profile | Planet, Scatter, Quality. Reset to Earth restores the packaged physical range |
-| Diffusion Profile | Scatter, plus the index of this profile on the pipeline asset |
-| InfinityLit | Surface Options, Surface Inputs, Subsurface when the subsurface control is enabled or the foldout was previously open, Baked Emission, Advanced / Render State |
-| Shader Graph Lit | Surface Options, Subsurface, Advanced / Render State |
+| Diffusion Profile | Scatter (color, distance, surface albedo, maximum radius, thickness), plus the index of this profile on the pipeline asset |
+| InfinityLit | Surface Options, Surface Inputs, Baked Emission, Advanced / Render State |
+| InfinitySkin | Surface Inputs, Specular, Subsurface (profile index with an out-of-list or empty-slot warning) |
+| Shader Graph Lit | Surface Options, Advanced / Render State |
 | Terrain | General, and Rebuild Sector From Unity Terrain |
 | Additional reflection-probe data | Influence, and Sphere Radius when the influence is a sphere |
 

@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // delayed lighting changes, invalid reprojection and filtering across another surface.
     public class SSGITemporalResponseGpuTests
     {
-        enum Signal { Constant, Noise, NoiseScrambled, SlopeNoise, Step, RejectDepth, RejectNormal, DepthEdge, NormalEdge, ZeroConfidence, LowConfidence, InvalidCenter, MatureNoise, NoisyStep, RadianceNoise, NearDepthEdge, FarDepthEdge, RadianceEdge, SpatialNoise, SpatialSlopeConstant, MovingSurfaceDepth }
+        enum Signal { Constant, Noise, NoiseScrambled, SlopeNoise, Step, RejectOffscreen, RejectNonFiniteMotion, RejectNormal, DepthEdge, NormalEdge, ZeroConfidence, LowConfidence, InvalidCenter, MatureNoise, NoisyStep, RadianceNoise, NearDepthEdge, FarDepthEdge, RadianceEdge, SpatialNoise, SpatialSlopeConstant, MovingSurface }
 
         [UnityTest]
         public IEnumerator Constant_PreservesPremultipliedEnergyAndHistoryAge() => Check(Signal.Constant);
@@ -23,9 +23,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator LightingStep_RespondsWithoutSeparatingConfidenceFromRadiance() => Check(Signal.Step);
         [UnityTest]
-        public IEnumerator MovingSurface_UsesExpectedPreviousObjectDepth() => Check(Signal.MovingSurfaceDepth);
+        public IEnumerator MovingSurface_ReprojectsHistoryWithItsMotion() => Check(Signal.MovingSurface);
         [UnityTest]
-        public IEnumerator ChangedDepth_RejectsHistory() => Check(Signal.RejectDepth);
+        public IEnumerator OffscreenReprojection_RejectsHistory() => Check(Signal.RejectOffscreen);
+        [UnityTest]
+        public IEnumerator NonFiniteMotion_RejectsHistory() => Check(Signal.RejectNonFiniteMotion);
         [UnityTest]
         public IEnumerator ChangedNormal_RejectsHistory() => Check(Signal.RejectNormal);
         [UnityTest]
@@ -209,7 +211,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.AreEqual(alpha * .25f, run.color[i + 1], 2e-5f);
                     Assert.AreEqual(alpha * .125f, run.color[i + 2], 2e-5f);
                     Assert.AreEqual(alpha, run.color[i + 3], 2e-5f);
-                    float age = signal == Signal.InvalidCenter ? 0 : signal == Signal.RejectDepth || signal == Signal.RejectNormal ? 1 : 64;
+                    bool rejected = signal == Signal.RejectOffscreen || signal == Signal.RejectNonFiniteMotion || signal == Signal.RejectNormal;
+                    float age = signal == Signal.InvalidCenter ? 0 : rejected ? 1 : 64;
                     Assert.AreEqual(age, run.meta[i + 3], 1e-5f);
                 }
             }
@@ -289,8 +292,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Vector2 flippedOct = EncodeOct(Vector3.back);
                     Bind("SRV_DepthTexture", Texture((x, y) => new Color(signal == Signal.InvalidCenter && Center(x, y) ? (SystemInfo.usesReversedZBuffer ? 0 : 1) : edgeDepth && !Center(x, y) ? other.z / other.w : Depth(x, y), 0, 0, 0)));
                     Bind("SRV_GBufferB", Texture((x, y) => { Vector2 o = edgeNormal && !Center(x, y) ? flippedOct : centerOct; return new Color(o.x, o.y, 0f, .5f); }));
-                    Bind("SRV_SurfaceMetadata", Texture((x, y) => new Color(1f / 255f, 0, 0, 0)));
-                    Bind("SRV_MotionTexture", Texture((x, y) => Color.clear));
+                    Color Motion(int x, int y)
+                    {
+                        if (signal == Signal.MovingSurface)
+                        {
+                            // The surface moved two pixels right since the previous frame.
+                            return new Color(2f / Width, 0, 0, 0);
+                        }
+                        if (signal == Signal.RejectOffscreen)
+                        {
+                            // The center reprojects half a pixel beyond the left edge.
+                            return new Color((Width / 2 + 1f) / Width, 0, 0, 0);
+                        }
+                        if (signal == Signal.RejectNonFiniteMotion)
+                        {
+                            return new Color(float.NaN, float.NaN, 0, 0);
+                        }
+                        return Color.clear;
+                    }
+                    Bind("SRV_MotionTexture", Texture(Motion));
                     Texture2D Current(int phase) => Texture((x, y) =>
                     {
                         if ((edgeDepth || edgeNormal) && !Center(x, y)) return new Color(5, 3, 2, .5f);
@@ -316,11 +336,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         return new Color(alpha * .5f, alpha * .25f, alpha * .125f, alpha);
                     });
                     Texture previousColor = Texture((x, y) => signal == Signal.Step || signal == Signal.NoisyStep ? new Color(.05f, .025f, .0125f, .1f) : new Color(.25f, .125f, .0625f, .5f));
-                    Texture previousMeta = Track(SurfaceMetadataTestUtility.Pack(Texture((x, y) => new Color(signal == Signal.RejectNormal ? 1 : slope ? .4f / 1.4f : 0,
-                        signal == Signal.RejectNormal ? 1 : 0, signal == Signal.RejectDepth || signal == Signal.MovingSurfaceDepth ? other.z / other.w : Depth(x, y), 64))));
+                    Color PreviousMeta(int x, int y)
+                    {
+                        // A moving surface finds its history only where it was, two pixels left of the center.
+                        bool elsewhere = signal == Signal.MovingSurface && (x != Width / 2 - 2 || y != Height / 2);
+                        if (signal == Signal.RejectNormal || elsewhere)
+                        {
+                            // Octahedron 1, 1 is -Z, a normal no surface here faces.
+                            return new Color(1, 1, 64, 1);
+                        }
+                        return new Color(slope ? .4f / 1.4f : 0, 0, 64, 1);
+                    }
+                    Texture previousMeta = Track(SurfaceMetadataTestUtility.Pack(Texture(PreviousMeta)));
                     var colors = new[] { Target(), Target() };
                     var metas = new[] { Target(true), Target(true) };
-                    Bind("SRV_HitMotionMetadata",Texture((x,y)=>new Color(signal==Signal.MovingSurfaceDepth?other.z/other.w:Depth(x,y),Depth(x,y),1,0)));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_Resolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_TraceResolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
                     m_Commands.SetComputeIntParam(shader, "SSGI_TraceScale", 1);
@@ -401,7 +430,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             T Track<T>(T value) where T : Object { value.hideFlags = HideFlags.HideAndDontSave; m_Objects.Add(value); return value; }
             RenderTexture Target(bool metadata = false)
             {
-                var texture = Track(new RenderTexture(Width, Height, 0, metadata ? UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32_UInt : UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat)
+                var texture = Track(new RenderTexture(Width, Height, 0, metadata ? UnityEngine.Experimental.Rendering.GraphicsFormat.R32_UInt : UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat)
                     { enableRandomWrite = true, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp });
                 Assert.IsTrue(texture.Create()); return texture;
             }

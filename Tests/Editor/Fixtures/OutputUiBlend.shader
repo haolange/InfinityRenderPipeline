@@ -11,7 +11,8 @@ Shader "Hidden/InfinityTests/OutputUiBlend"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            float4 vert(float4 vertex : POSITION) : SV_POSITION { return float4(vertex.x, -vertex.y, 0, 1); }
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/FullScreenTriangle.hlsl"
+            float4 vert(uint vertexID : SV_VertexID) : SV_POSITION { return FullScreenTrianglePosition(vertexID); }
             float4 frag() : SV_Target { return float4(.8, .3, .1, .5); }
             ENDHLSL
         }

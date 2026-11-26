@@ -33,13 +33,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SceneColorKeys_FollowTheRecordedProducers()
         {
             var keys = new SceneColorKeys(Recording(EFrameFeature.SSGI, EFrameFeature.VolumetricCloud), ETemporalResolve.TAA, true);
-            Assert.AreEqual(InfinityShaderIDs.ScreenSpaceCompositeBuffer, keys.opaque);
+            Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque);
             Assert.AreEqual(InfinityShaderIDs.FoggedSceneColorBuffer, keys.fogged);
             Assert.AreEqual(InfinityShaderIDs.AntiAliasingBuffer, keys.resolved);
             Assert.AreEqual(InfinityShaderIDs.DebugViewBuffer, keys.display);
 
             keys = new SceneColorKeys(Recording(EFrameFeature.SSR, EFrameFeature.VolumetricFog), ETemporalResolve.SuperResolution, false);
-            Assert.AreEqual(InfinityShaderIDs.ScreenSpaceCompositeBuffer, keys.opaque);
+            Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque);
             Assert.AreEqual(InfinityShaderIDs.FoggedSceneColorBuffer, keys.fogged);
             Assert.AreEqual(InfinityShaderIDs.SuperResolutionBuffer, keys.resolved);
         }

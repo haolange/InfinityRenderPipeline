@@ -59,9 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/Pass/Lighting/Compute_DeferredShading.compute")]
         public ComputeShader deferredShadingShader;
 
-        [ResourcePath("Shaders/Pass/Lighting/Compute_BurleySubsurface.compute")]
-        public ComputeShader subsurfaceShader;
-
         [ResourcePath("Shaders/Pass/Volumetric/Compute_AtmosphericLUT.compute")]
         public ComputeShader atmosphericLUTShader;
 
@@ -76,9 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         [ResourcePath("Shaders/Pass/Translucent/Compute_PyramidColor.compute")]
         public ComputeShader colorPyramidShader;
-
-        [ResourcePath("Shaders/Pass/ScreenSpace/Compute_ScreenSpaceComposite.compute")]
-        public ComputeShader screenSpaceCompositeShader;
 
         [ResourcePath("Shaders/Pass/Temporal/Compute_SuperResolution.compute")]
         public ComputeShader superResolutionShader;

@@ -3,7 +3,7 @@
 
 #include "ViewUniform.hlsl"
 
-// SRV_DepthTexture, SRV_GBufferB, SRV_SurfaceMetadata and SSGI_Resolution are bound by the caller; the inverse matrices come from ViewUniform.
+// SRV_DepthTexture, SRV_GBufferB and SSGI_Resolution are bound by the caller; the inverse matrices come from ViewUniform.
 struct SSGISurface
 {
     float rawDepth;
@@ -12,18 +12,12 @@ struct SSGISurface
     float3 positionWS;
 };
 
-// Deferred and valid. Forward-route pixels keep their own indirect diffuse.
+// Any opaque surface. Deferred and forward pixels both write the GBuffer surface proxy; a forward material decides how
+// it combines the result.
 bool IsIndirectSurface(uint2 pixel, out float rawDepth)
 {
     rawDepth = SRV_DepthTexture[pixel];
-    bool valid = false;
-    if (!ScreenSpaceIsFarDepth(rawDepth))
-    {
-        uint route, flags;
-        UnpackSurfaceMetadataR(SRV_SurfaceMetadata[pixel].r, route, flags);
-        valid = route == SURFACE_ROUTE_DEFERRED;
-    }
-    return valid;
+    return !ScreenSpaceIsFarDepth(rawDepth);
 }
 
 bool LoadSurface(uint2 pixel, out SSGISurface surface)

@@ -532,13 +532,14 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, floa
     return shadow;
 }
 
-float MixBakedAndRealtimeShadow(LightRecord light, float realtime, float4 mask, float viewDepth)
+// bakedVisibility holds the two mixed directional lights' baked visibility (sideband G and B); only a light with a slot reads it.
+float MixBakedAndRealtimeShadow(LightRecord light, float realtime, float2 bakedVisibility, float viewDepth)
 {
     float fade = saturate((viewDepth / max(_InfinityShadowDistance, 0.001) - 0.9) * 10);
     float combined = lerp(realtime, 1, fade);
-    if (LightHasFlag(light, LIGHT_FLAG_SHADOWMASK) && light.bakedOcclusionChannel >= 0 && light.bakedOcclusionChannel <= 3)
+    if (LightHasFlag(light, LIGHT_FLAG_SHADOWMASK) && light.bakedVisibilitySlot >= 0)
     {
-        float baked = mask[light.bakedOcclusionChannel];
+        float baked = light.bakedVisibilitySlot == 0 ? bakedVisibility.x : bakedVisibility.y;
         combined = _InfinityShadowmaskMode == 0 ? min(baked, lerp(realtime, 1, fade)) : lerp(realtime, baked, fade);
     }
     return lerp(1, combined, LightShadowStrength(light));

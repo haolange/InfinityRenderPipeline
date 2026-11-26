@@ -16,8 +16,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal readonly ComputeKernel deferredShading;
         internal readonly ComputeKernel lightTileMask;
-        internal readonly ComputeKernel burleySubsurface;
-        internal readonly ComputeKernel composeSubsurface;
         internal readonly ComputeKernel cookieCopy2D;
         internal readonly ComputeKernel cookieCubeToOctahedral;
         internal readonly ComputeKernel cookieDownsample;
@@ -53,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ComputeKernel ssgiTraceDebug;
 #endif
 
-        internal readonly ComputeKernel screenSpaceComposite;
         internal readonly ComputeKernel colorPyramid;
         internal readonly ComputeKernel temporalColorMip;
 
@@ -92,23 +89,15 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
-        internal readonly LocalKeyword deferredShadingSubsurface;
-        internal readonly LocalKeyword deferredShadingSubsurfaceAlpha;
-        internal readonly LocalKeyword deferredShadingBakedDiffuse;
-        internal readonly LocalKeyword deferredShadingShadowmask;
-        internal readonly LocalKeyword deferredShadingIndirectDiffuse;
-        internal readonly LocalKeyword deferredShadingIndirectSpecular;
+        internal readonly LocalKeyword deferredShadingSideband;
         internal readonly LocalKeyword deferredShadingOcclusion;
+        internal readonly LocalKeyword deferredShadingIndirectDiffuse;
+        internal readonly LocalKeyword deferredShadingReflection;
         internal readonly LocalKeyword deferredShadingRasterReflection;
         internal readonly LocalKeyword deferredShadingClusteredDecals;
         internal readonly LocalKeyword deferredShadingAnalyticShadow;
         internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword deferredShadingContactShadow;
-        internal readonly LocalKeyword subsurfaceAlpha;
-        internal readonly LocalKeyword compositeSubsurface;
-        internal readonly LocalKeyword compositeSubsurfaceAlpha;
-        internal readonly LocalKeyword compositeSSR;
-        internal readonly LocalKeyword compositeSSGI;
         internal readonly LocalKeyword fogCompositeFog;
         internal readonly LocalKeyword fogCompositeCloud;
 
@@ -123,9 +112,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             deferredShading = ComputeKernel.Resolve(shaders.deferredShadingShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.deferredShadingShader), "DeferredShadingCS");
             lightTileMask = ComputeKernel.Resolve(shaders.lightTileMaskShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), "BuildTileMask");
-            const string subsurface = Source + nameof(InfinityRenderPipelineRuntimeShaders.subsurfaceShader);
-            burleySubsurface = ComputeKernel.Resolve(shaders.subsurfaceShader, subsurface, "BurleySubsurfaceCS");
-            composeSubsurface = ComputeKernel.Resolve(shaders.subsurfaceShader, subsurface, "ComposeSubsurfaceCS");
             const string cookie = Source + nameof(InfinityRenderPipelineRuntimeShaders.lightCookieShader);
             cookieCopy2D = ComputeKernel.Resolve(shaders.lightCookieShader, cookie, "CookieCopy2D");
             cookieCubeToOctahedral = ComputeKernel.Resolve(shaders.lightCookieShader, cookie, "CookieCubeToOctahedral");
@@ -167,7 +153,6 @@ namespace InfinityTech.Rendering.Pipeline
             ssgiTraceDebug = ComputeKernel.Resolve(shaders.ssgiShader, ssgi, "SSGITraceDebug");
 #endif
 
-            screenSpaceComposite = ComputeKernel.Resolve(shaders.screenSpaceCompositeShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.screenSpaceCompositeShader), "ScreenSpaceComposite");
             const string colorPyramidField = Source + nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader);
             colorPyramid = ComputeKernel.Resolve(shaders.colorPyramidShader, colorPyramidField, "KMain");
             temporalColorMip = ComputeKernel.Resolve(shaders.colorPyramidShader, colorPyramidField, "TemporalColorMip");
@@ -220,23 +205,15 @@ namespace InfinityTech.Rendering.Pipeline
             };
 #endif
 
-            deferredShadingSubsurface = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_OUTPUT");
-            deferredShadingSubsurfaceAlpha = Keyword(shaders.deferredShadingShader, "INFINITY_SSS_ALPHA");
-            deferredShadingBakedDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_BAKED_DIFFUSE");
-            deferredShadingShadowmask = Keyword(shaders.deferredShadingShader, "DEFERRED_SHADOWMASK");
-            deferredShadingIndirectDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_INDIRECT_DIFFUSE");
-            deferredShadingIndirectSpecular = Keyword(shaders.deferredShadingShader, "DEFERRED_INDIRECT_SPECULAR");
+            deferredShadingSideband = Keyword(shaders.deferredShadingShader, "INFINITY_SIDEBAND");
             deferredShadingOcclusion = Keyword(shaders.deferredShadingShader, "DEFERRED_AO");
+            deferredShadingIndirectDiffuse = Keyword(shaders.deferredShadingShader, "DEFERRED_SSGI");
+            deferredShadingReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_SSR");
             deferredShadingRasterReflection = Keyword(shaders.deferredShadingShader, "DEFERRED_RASTER_REFLECTION");
             deferredShadingClusteredDecals = Keyword(shaders.deferredShadingShader, "DEFERRED_CLUSTERED_DECALS");
             deferredShadingAnalyticShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_ANALYTIC_SHADOW");
             deferredShadingContactShadow = Keyword(shaders.deferredShadingShader, "DEFERRED_CONTACT_SHADOW");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
-            subsurfaceAlpha = Keyword(shaders.subsurfaceShader, "INFINITY_SSS_ALPHA");
-            compositeSubsurface = Keyword(shaders.screenSpaceCompositeShader, "INFINITY_SSS_OUTPUT");
-            compositeSubsurfaceAlpha = Keyword(shaders.screenSpaceCompositeShader, "INFINITY_SSS_ALPHA");
-            compositeSSR = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSR");
-            compositeSSGI = Keyword(shaders.screenSpaceCompositeShader, "COMPOSITE_SSGI");
             fogCompositeFog = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_FOG");
             fogCompositeCloud = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_CLOUD");
         }
@@ -274,6 +251,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly int postCombine;
         internal readonly int upscaleDepth;
         internal readonly int copyShadowDepthTile;
+        internal readonly int subsurfaceExtract;
+        internal readonly int subsurfaceScatter;
 
         internal BlitShaderPasses(Material material)
         {
@@ -282,6 +261,8 @@ namespace InfinityTech.Rendering.Pipeline
             postCombine = Find(material, "RasterPostCombine");
             upscaleDepth = Find(material, "RasterUpscaleDepth");
             copyShadowDepthTile = Find(material, "RasterCopyShadowDepthTile");
+            subsurfaceExtract = Find(material, "RasterSubsurfaceExtract");
+            subsurfaceScatter = Find(material, "RasterSubsurfaceScatter");
         }
 
         static int Find(Material material, string name)

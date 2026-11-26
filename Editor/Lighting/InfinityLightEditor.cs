@@ -628,6 +628,7 @@ namespace InfinityTech.Component.Editor
                     }
                 }
             }
+            DrawMixedLightNotes();
             if (anyBakeDisabled)
             {
                 EditorGUILayout.HelpBox(bakeDisabledReason, MessageType.Info);
@@ -637,6 +638,46 @@ namespace InfinityTech.Component.Editor
                     GUIUtility.ExitGUI();
                 }
             }
+        }
+
+        // Only the first two visible Mixed directional lights keep baked visibility (sideband G and B); local lights never
+        // read a shadowmask.
+        void DrawMixedLightNotes()
+        {
+            bool mixedLocal = false;
+            bool mixedDirectional = false;
+            foreach (Light light in m_Lights)
+            {
+                if (light.lightmapBakeType != LightmapBakeType.Mixed)
+                {
+                    continue;
+                }
+                if (light.type == LightType.Directional)
+                {
+                    mixedDirectional = true;
+                }
+                else
+                {
+                    mixedLocal = true;
+                }
+            }
+            if (mixedLocal)
+                EditorGUILayout.HelpBox("Local lights do not read the shadowmask. A Mixed local light bakes indirect lighting and keeps its realtime shadow inside the shadow distance only.", MessageType.Info);
+            if (mixedDirectional && CountMixedDirectionalLights() > LightContext.MixedLightSlotCount)
+                EditorGUILayout.HelpBox("More than two Mixed directional lights are enabled in the open scenes. Only the first two visible ones keep their baked visibility; the others keep their realtime shadow only.", MessageType.Warning);
+        }
+
+        static int CountMixedDirectionalLights()
+        {
+            int count = 0;
+            foreach (Light light in Object.FindObjectsByType<Light>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (light.enabled && light.type == LightType.Directional && light.lightmapBakeType == LightmapBakeType.Mixed)
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         void DrawCookies(SerializedObject additionalOwner, bool isDirectional, bool isPlanarEmitter,
@@ -733,9 +774,9 @@ namespace InfinityTech.Component.Editor
             SerializedProperty layer = GetProperty(serializedObject, "m_RenderingLayerMask");
             foreach (Light light in m_Lights)
             {
-                if (((uint)light.renderingLayerMask & ~0xFFu) != 0)
+                if (((uint)light.renderingLayerMask & ~RenderingLayerUtility.ValidMask) != 0)
                 {
-                    EditorGUILayout.HelpBox("Caster layers contain unsupported high bits.", MessageType.Error);
+                    EditorGUILayout.HelpBox("Caster layers use bits above the four light channels. Run Window/Infinity/Lighting/Clamp Light Channels In Open Scenes.", MessageType.Error);
                     return;
                 }
             }

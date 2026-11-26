@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1, 0f)]
         [TestCase(1, 0.5f)]
         [TestCase(1, 1f)]
-        public void MixedShadow_UsesEachChannelAndDistanceMode(int mode, float strength)
+        public void MixedShadow_UsesEachSlotAndDistanceMode(int mode, float strength)
         {
             var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             try
@@ -94,7 +94,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector4[] values = Run(shader, "MixedShadowContract", 12);
                 for (int i = 0; i < values.Length; i++)
                 {
-                    float baked = 0.1f * (1 + i % 4), fade = i < 4 ? 0 : i < 8 ? 0.5f : 1;
+                    float baked = 0.1f * (1 + i % 2);
+                    float fade = i < 4 ? 0 : i < 8 ? 0.5f : 1;
                     float expected = mode == 0 ? baked : Mathf.Lerp(0.6f, baked, fade);
                     Assert.That(values[i].x, Is.EqualTo(Mathf.Lerp(1, expected, strength)).Within(1e-5f));
                 }
@@ -140,7 +141,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void IndirectReplacement_PreservesEnergyAtZeroHalfAndFullConfidence()
         {
             var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
-            try { foreach (var value in Run(shader, "EnergyContract", 3)) Assert.That(Vector3.Distance(value, new Vector3(1.2f, 2.4f, 3.6f)), Is.LessThan(1e-5f)); }
+            try
+            {
+                foreach (var value in Run(shader, "EnergyContract", 6))
+                {
+                    Assert.That(Vector3.Distance(value, new Vector3(1.2f, 2.4f, 3.6f)), Is.LessThan(1e-5f));
+                }
+            }
             finally { UnityEngine.Object.DestroyImmediate(shader); }
         }
     }

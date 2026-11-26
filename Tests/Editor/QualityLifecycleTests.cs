@@ -45,21 +45,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var pipeline = (InfinityRenderPipelineBase)create.Invoke(null, new object[] { typeof(InfinityRenderPipeline) });
             var testResources = new InfinityRenderPipelineResources(InfinityRenderPipeline.s_Capabilities.requiredProducers);
             Material originalResourceBlit = testResources.materials.blitMaterial;
-            Texture2D originalResourceBestFit = testResources.textures.bestFitNormalTexture;
             type.GetField("resources", flags).SetValue(pipeline, testResources);
             var settingsField = type.GetField("m_Settings", flags);
             var settingsAsset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            using (var serialized = new UnityEditor.SerializedObject(settingsAsset))
-            {
-                serialized.FindProperty("m_GBufferLayout").intValue = (int)EGBufferLayout.BestFitYCoCg64Bit;
-                serialized.ApplyModifiedPropertiesWithoutUndo();
-            }
             settingsField.SetValue(pipeline, settingsAsset.ResolveSettings());
             var originalBlit = GraphicsUtility.s_BlitMaterial;
-            var originalBestFit = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
             int originalAA = QualitySettings.antiAliasing;
             GraphicsUtility.s_BlitMaterial = null;
-            Shader.SetGlobalTexture("g_BestFitNormal_LUT", Texture2D.grayTexture);
             var supported = SupportedRenderingFeatures.active;
             var shader = Shader.globalRenderPipeline;
             bool linear = GraphicsSettings.lightsUseLinearIntensity;
@@ -81,7 +73,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (editResourceBindings)
                 {
                     testResources.materials.blitMaterial = null;
-                    testResources.textures.bestFitNormalTexture = null;
                 }
                 if (replacementOwnsState)
                 {
@@ -98,7 +89,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (!replacementOwnsState)
                 {
                     Assert.IsNull(GraphicsUtility.s_BlitMaterial);
-                    Assert.AreSame(Texture2D.grayTexture, Shader.GetGlobalTexture("g_BestFitNormal_LUT"));
                     Assert.AreEqual(temperature, GraphicsSettings.lightsUseColorTemperature);
                     Assert.AreEqual(batching, GraphicsSettings.useScriptableRenderPipelineBatching);
                 }
@@ -115,9 +105,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 GraphicsSettings.lightsUseColorTemperature = temperature;
                 GraphicsSettings.useScriptableRenderPipelineBatching = batching;
                 testResources.materials.blitMaterial = originalResourceBlit;
-                testResources.textures.bestFitNormalTexture = originalResourceBestFit;
                 GraphicsUtility.s_BlitMaterial = originalBlit;
-                Shader.SetGlobalTexture("g_BestFitNormal_LUT", originalBestFit);
                 QualitySettings.antiAliasing = originalAA;
                 UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(originalLightmapper);
             }
@@ -173,22 +161,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void MissingRequiredTexture_FailsBeforePipelineChangesGlobalState()
+        public void MissingRequiredMaterial_FailsBeforePipelineChangesGlobalState()
         {
             var asset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
-            GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeTextures textures);
-            Texture2D original = textures.bestFitNormalTexture;
+            GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeMaterials materials);
+            Material original = materials.blitMaterial;
             var features = SupportedRenderingFeatures.active;
             string shader = Shader.globalRenderPipeline;
             try
             {
-                textures.bestFitNormalTexture = null;
+                materials.blitMaterial = null;
                 Assert.Throws<System.InvalidOperationException>(() => new InfinityRenderPipeline(asset));
-                Assert.IsNull(textures.bestFitNormalTexture, "Read/validation must not refill a missing resource.");
+                Assert.IsNull(materials.blitMaterial, "Read/validation must not refill a missing resource.");
                 Assert.AreSame(features, SupportedRenderingFeatures.active);
                 Assert.AreEqual(shader, Shader.globalRenderPipeline);
             }
-            finally { textures.bestFitNormalTexture = original; }
+            finally
+            {
+                materials.blitMaterial = original;
+            }
         }
     }
 }

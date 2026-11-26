@@ -1,5 +1,4 @@
 #pragma kernel HalfResDownsample
-#pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "../../Library/Common.hlsl"
 #include "../../Library/GBufferPack.hlsl"

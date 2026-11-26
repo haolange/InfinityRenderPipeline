@@ -145,8 +145,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Texture2D spatialY = Dispatch(shader, "OcclusionSpatialY", width, height, true,
                     new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", depth), ("SRV_OcclusionTexture", spatialX))[0];
                 Texture2D temporal = Dispatch(shader, "OcclusionTemporal", width, height, true,
-                    new[] { "UAV_AccumulationTexture", "UAV_OcclusionHistoryTexture", "UAV_OcclusionHistoryDepth" }, ("SRV_DepthTexture", depth), ("SRV_NormalTexture", normal), ("SRV_OcclusionTexture", spatialY),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_MotionMetadataTexture", Solid(m_Width,m_Height,new Color(m_PlaneDepth,m_PlaneDepth,1,0))), ("SRV_HistoryTexture", spatialY), ("SRV_HistoryDepthTexture", depth))[0];
+                    new[] { "UAV_AccumulationTexture", "UAV_OcclusionHistoryTexture" }, ("SRV_DepthTexture", depth), ("SRV_NormalTexture", normal), ("SRV_OcclusionTexture", spatialY),
+                    ("SRV_MotionTexture", m_Motion), ("SRV_HistoryTexture", spatialY))[0];
                 Texture2D result = Dispatch(shader, "OcclusionUpsample", m_Width, m_Height, true,
                     new[] { "UAV_UpsampleTexture" }, ("SRV_HalfResDepthTexture", depth), ("SRV_HalfResNormalTexture", normal), ("SRV_DepthTexture", m_Depth),
                     ("SRV_NormalTexture", Solid(m_Width, m_Height, new Color(0.5f, 0.5f, 1, 0))), ("SRV_OcclusionTexture", temporal))[0];

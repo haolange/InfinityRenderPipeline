@@ -2,8 +2,8 @@ using System;
 
 namespace InfinityTech.Rendering
 {
-    // Canonical 8-bit rendering layer mask for lights and meshes.
-    // Surface lighting and caster filtering use these bits; camera visibility is separate.
+    // The four light channels of meshes, lights, decals and analytic occluders. A light reaches a surface when the two
+    // masks share a channel; the sideband stores a pixel's channels in four bits.
     [Flags]
     public enum ERenderingLayer : byte
     {
@@ -12,19 +12,18 @@ namespace InfinityTech.Rendering
         LightLayer1 = 1 << 1,
         LightLayer2 = 1 << 2,
         LightLayer3 = 1 << 3,
-        LightLayer4 = 1 << 4,
-        LightLayer5 = 1 << 5,
-        LightLayer6 = 1 << 6,
-        LightLayer7 = 1 << 7,
-        Everything = 0xFF,
+        Everything = 0x0F,
     }
 
     public static class RenderingLayerUtility
     {
+        // Every bit a mask may set.
+        public const uint ValidMask = 0x0Fu;
+
         public static uint Validate(uint mask)
         {
-            if ((mask & ~0xFFu) != 0)
-                throw new ArgumentOutOfRangeException(nameof(mask), mask, "Infinity rendering layers are eight bits. Migrate Unity Everything explicitly; unknown high bits are invalid.");
+            if ((mask & ~ValidMask) != 0)
+                throw new ArgumentOutOfRangeException(nameof(mask), mask, "Infinity light channels are four bits. Run Window/Infinity/Lighting/Clamp Light Channels In Open Scenes, then correct the remaining masks.");
             return mask;
         }
     }

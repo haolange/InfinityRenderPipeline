@@ -153,7 +153,6 @@ namespace InfinityTech.Rendering.Pipeline
                 if (writeReactive)
                     passHandle.SetColorAttachment(reactiveMaskHandle, 1, initializeReactive ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetColorAttachment(motionTextureHandle, writeReactive ? 2 : 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passHandle.SetColorAttachment(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), writeReactive ? 3 : 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passHandle.GetPassData();

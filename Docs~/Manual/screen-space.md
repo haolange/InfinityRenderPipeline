@@ -1,11 +1,11 @@
 # Screen-space effects
 
-Screen-space effects are Volume components with an enable flag and a Quality level. See [Quality](quality.md). Frame Settings can disable them per camera and for reflection-probe captures. Forward-route pixels are not traced. They keep probe and sky lighting.
+Screen-space effects are Volume components with an enable flag and a Quality level. See [Quality](quality.md). Frame Settings can disable them per camera and for reflection-probe captures. Every pixel with geometry is traced, forward-route pixels included: their GBuffer is the surface the rays start from. Deferred and forward shading compose the results in the same pass that shades the pixel, so every material receives the same reflections and indirect diffuse. No history stores depth; a history sample is reused when it reprojects on screen and its normal agrees.
 
 | Effect | Volume menu | Recorded behavior |
 |---|---|---|
-| Screen Space Reflection | Lighting / Screen Space Reflection | Classify 8×8 tiles, trace GGX rays at half or full resolution, then resolve, accumulate and optionally filter at full resolution. History is the temporal result, before the spatial filter. Confidence replaces probe and sky reflection. |
-| Screen Space Indirect Diffuse | Lighting / Screen Space Indirect Diffuse | Half-resolution cosine rays against the accepted previous color. No ray-reuse resolve. Two temporal-then-world-space stages, 6 m then 3 m. Bilateral upsample writes full resolution. Each stage history is its mix. |
+| Screen Space Reflection | Lighting / Screen Space Reflection | Classify 8×8 tiles, trace GGX rays at half or full resolution, then resolve, accumulate and optionally filter at full resolution. History is the temporal result, before the spatial filter. Edge fade replaces the occluded probe and sky reflection. |
+| Screen Space Indirect Diffuse | Lighting / Screen Space Indirect Diffuse | Half-resolution cosine rays against the accepted previous color. No ray-reuse resolve. Two temporal-then-world-space stages, 6 m then 3 m. Bilateral upsample writes full resolution. Each stage history is its mix. Confidence replaces the occluded baked or sky indirect diffuse. |
 | Ambient occlusion | Lighting / Screen Space Ambient Occlusion | Horizon search, temporal accumulation and spatial filter at half resolution, then a full-resolution upsample. |
 | Ray-traced ambient occlusion | Ray Tracing / Ray Traced Ambient Occlusion | Unified Ray Tracing at internal resolution when the pipeline asset enables ray tracing and the acceleration structure has instances. Otherwise horizon ambient occlusion owns the buffer. |
 | Contact shadows | Shadowing / Contact Shadow | See [Shadows](shadows.md). |

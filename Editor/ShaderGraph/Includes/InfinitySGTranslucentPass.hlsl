@@ -2,7 +2,7 @@
 #ifndef INFINITY_SG_TRANSLUCENT_PASS
 #define INFINITY_SG_TRANSLUCENT_PASS
 // Translucent stages of InfinityLit / InfinityUnlit: T0 fogged, T1 refracted through the color pyramid, T2 plain. All
-// write the reactive mask, motion and motion metadata like the hand-written shaders.
+// write the reactive mask and motion like the hand-written shaders.
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/TranslucentOutput.hlsl"
 struct InfinityTranslucentOutput
 {
@@ -11,7 +11,6 @@ struct InfinityTranslucentOutput
     float reactive : SV_Target1;
 #endif
     float2 motion : INFINITY_MOTION_TARGET;
-    float2 motionMetadata : INFINITY_METADATA_TARGET;
 };
 
 InfinityTranslucentOutput frag(PackedVaryings packedInput)
@@ -40,7 +39,6 @@ InfinityTranslucentOutput frag(PackedVaryings packedInput)
     float4 currentClip, previousClip;
     InfinityMotionClip(positionWS, currentClip, previousClip);
     output.motion = SurfaceVelocity(currentClip, previousClip);
-    output.motionMetadata = SurfaceMotionMetadata(currentClip, previousClip, input.positionCS.z);
     return output;
 }
 #endif

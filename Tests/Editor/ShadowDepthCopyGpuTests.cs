@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
-        static void Copy(CommandBuffer commands, Material material, Mesh triangle, int pass,
+        static void Copy(CommandBuffer commands, Material material, int pass,
             Texture source, RenderTexture destination, RectInt sourceRect, RectInt destinationRect)
         {
             commands.SetRenderTarget(destination, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             commands.SetGlobalVector("_InfinityDepthCopyOffset", LocalShadowPassUtilityData.DepthCopyOffset(
                 new Vector4(sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height),
                 new Vector4(destinationRect.x, destinationRect.y, destinationRect.width, destinationRect.height)));
-            commands.DrawMesh(triangle, Matrix4x4.identity, material, 0, pass);
+            commands.DrawProcedural(Matrix4x4.identity, material, pass, MeshTopology.Triangles, 3);
         }
 
         static void ExpectedCopy(float[] source, int sourceWidth, int sourceHeight, float[] destination,
@@ -86,7 +86,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
                 Assert.Ignore("Compute and async readback are required.");
             Material material = null;
-            Mesh triangle = null;
             Texture2D source = null, sentinel = null;
             RenderTexture frame = null, cache = null, restored = null, referenceCache = null, referenceRestored = null;
             ComputeShader readback = null;
@@ -95,9 +94,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 material = new Material(AssetDatabase.LoadAssetAtPath<Shader>(
                     "Packages/com.infinity.render-pipeline/Shaders/Utility/DrawFullScreen.shader"));
-                triangle = new Mesh();
-                triangle.vertices = new[] { new Vector3(-1, -1, 0), new Vector3(-1, 3, 0), new Vector3(3, -1, 0) };
-                triangle.triangles = new[] { 0, 1, 2 };
                 var sourcePixels = new float[32 * 24];
                 for (int y = 0; y < 24; ++y)
                     for (int x = 0; x < 32; ++x) sourcePixels[y * 32 + x] = .1f + x / 256f + y / 128f;
@@ -121,9 +117,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 commands = new CommandBuffer();
                 int pass = material.FindPass("RasterCopyShadowDepthTile");
                 Assert.GreaterOrEqual(pass, 0);
-                Copy(commands, material, triangle, pass, source, frame, new RectInt(0, 0, 32, 24), new RectInt(0, 0, 32, 24));
-                Copy(commands, material, triangle, pass, sentinel, cache, new RectInt(0, 0, 48, 40), new RectInt(0, 0, 48, 40));
-                Copy(commands, material, triangle, pass, source, restored, new RectInt(0, 0, 32, 24), new RectInt(0, 0, 32, 24));
+                Copy(commands, material, pass, source, frame, new RectInt(0, 0, 32, 24), new RectInt(0, 0, 32, 24));
+                Copy(commands, material, pass, sentinel, cache, new RectInt(0, 0, 48, 40), new RectInt(0, 0, 48, 40));
+                Copy(commands, material, pass, source, restored, new RectInt(0, 0, 32, 24), new RectInt(0, 0, 32, 24));
                 var from = new[] { new RectInt(3, 5, 8, 6), new RectInt(17, 13, 7, 5) };
                 var slots = new[] { new RectInt(21, 29, 8, 6), new RectInt(2, 3, 7, 5) };
                 var targets = new[] { new RectInt(14, 2, 8, 6), new RectInt(1, 17, 7, 5) };
@@ -131,12 +127,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var expectedRestored = (float[])sourcePixels.Clone();
                 for (int i = 0; i < 2; ++i)
                 {
-                    Copy(commands, material, triangle, pass, frame, cache, from[i], slots[i]);
+                    Copy(commands, material, pass, frame, cache, from[i], slots[i]);
                     ExpectedCopy(sourcePixels, 32, 24, expectedCache, 48, 40, from[i], slots[i]);
                 }
                 for (int i = 0; i < 2; ++i)
                 {
-                    Copy(commands, material, triangle, pass, cache, restored, slots[i], targets[i]);
+                    Copy(commands, material, pass, cache, restored, slots[i], targets[i]);
                     ExpectedCopy(expectedCache, 48, 40, expectedRestored, 32, 24, slots[i], targets[i]);
                 }
                 // Legal color region copies are an independent GPU oracle for the atlas pixel convention.
@@ -180,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     texture.Release();
                     UnityEngine.Object.DestroyImmediate(texture);
                 }
-                foreach (var resource in new UnityEngine.Object[] { source, sentinel, material, triangle, readback })
+                foreach (var resource in new UnityEngine.Object[] { source, sentinel, material, readback })
                     if (resource != null) UnityEngine.Object.DestroyImmediate(resource);
             }
         }

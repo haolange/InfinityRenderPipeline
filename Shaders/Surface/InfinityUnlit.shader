@@ -127,7 +127,6 @@ Shader "InfinityPipeline/InfinityUnlit"
                 reactive = float4(color.a, 0, 0, 1);
 #endif
                 motion = 0;
-                metadata = 0;
             }
             ENDHLSL
         }

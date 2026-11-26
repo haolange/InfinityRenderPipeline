@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering
         High = 2
     }
 
-    // GPU-RECORD: DiffusionProfileRecord Shaders/Pass/Lighting/Compute_BurleySubsurface.compute
+    // GPU-RECORD: DiffusionProfileRecord Shaders/Library/Subsurface.hlsl
     [StructLayout(LayoutKind.Sequential)]
     public struct DiffusionProfileRecord
     {
@@ -26,13 +26,15 @@ namespace InfinityTech.Rendering
         public float scatterDistance = 1.0f;
         public Color surfaceAlbedo = new Color(0.8f, 0.4f, 0.3f, 1.0f);
         public float maxRadius = 5.0f;
+        // The share of a skin pixel's diffuse light that scatters: 0 keeps the lit diffuse, 1 replaces it with the blur.
+        [Range(0.0f, 1.0f)] public float thickness = 1.0f;
 
         public DiffusionProfileRecord ToRecord()
         {
             DiffusionProfileRecord record;
             Color albedo = scatterColor * surfaceAlbedo;
             record.scatterAlbedoDistance = new Vector4(albedo.r, albedo.g, albedo.b, scatterDistance);
-            record.parameters = new Vector4(maxRadius, 0.0f, 0.0f, 0.0f);
+            record.parameters = new Vector4(maxRadius, thickness, 0.0f, 0.0f);
             return record;
         }
 

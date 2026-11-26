@@ -53,8 +53,8 @@ namespace InfinityTech.Rendering.Editor.Validation
 
         static void ValidateMask(uint mask, string scene, UnityEngine.Component component)
         {
-            if ((mask & ~0xFFu) != 0)
-                throw new InvalidOperationException($"Unsupported rendering layers 0x{mask:X8} on {scene}/{component.name}. Run explicit Everything migration; other high bits require correction.");
+            if ((mask & ~RenderingLayerUtility.ValidMask) != 0)
+                throw new InvalidOperationException($"Light channels 0x{mask:X8} on {scene}/{component.name} use bits above the four channels. Run Window/Infinity/Lighting/Clamp Light Channels In Open Scenes, then correct the remaining masks.");
         }
     }
 }

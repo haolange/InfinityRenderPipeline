@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Decal
             m_ClusterIndex.FlushRetired();
         }
 
-        internal void Build(SceneTable<DecalComponent> decalTable, Camera camera, int2 screenSize, bool allowDirectGBuffer)
+        internal void Build(SceneTable<DecalComponent> decalTable, Camera camera, int2 screenSize)
         {
             m_Candidates.Clear();
             m_Records.Clear();
@@ -129,10 +129,6 @@ namespace InfinityTech.Rendering.Decal
                 }
 
                 EDecalExecutionMode mode = decal.executionMode;
-                if (mode == EDecalExecutionMode.DirectGBuffer && !allowDirectGBuffer)
-                {
-                    mode = EDecalExecutionMode.DBuffer;
-                }
 
                 if (mode == EDecalExecutionMode.DBuffer)
                 {
@@ -194,7 +190,7 @@ namespace InfinityTech.Rendering.Decal
                     materialParams = new Vector4(decal.clusteredRoughness, decal.clusteredMetallic, decal.clusteredSpecular, affectMask),
                     normalBlend = new Vector4(up.x, up.y, up.z, 1.0f),
                     angleFadeParams = DecalComponent.AngleFadeParameters(decal.startAngleFade, decal.endAngleFade),
-                    layerAndFlags = new Vector4((byte)decal.renderingLayerMask, 0.0f, 0.0f, 0.0f)
+                    layerAndFlags = new Vector4(RenderingLayerUtility.Validate((uint)decal.renderingLayerMask), 0.0f, 0.0f, 0.0f)
                 });
                 m_ClusterIndex.AddItem(candidate.tileRect, candidate.depthRange);
             }

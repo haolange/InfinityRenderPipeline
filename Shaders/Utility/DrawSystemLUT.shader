@@ -620,9 +620,6 @@
 			}
 			return Irradiance;*/
 		}
-		Texture2D _BestFitLUT;
-		SamplerState sampler_BestFitLUT;
-
 		float frag_Integrated_ProxyShadow(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;

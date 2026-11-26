@@ -79,6 +79,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(stage == 0 && route == 1 ? 2 : 1, enabled);
             Assert.AreEqual(stage == 0, m_Material.GetShaderPassEnabled("RasterDepthPass"));
             Assert.AreEqual(stage != 0, m_Material.GetShaderPassEnabled("RasterTranslucentDepthPass"));
+            // Only a deferred surface carries the stencil bit that admits it to deferred shading.
+            Assert.AreEqual(route == 0 ? 2.0f : 0.0f, m_Material.GetFloat("_StencilRefGBuffer"));
             string before = EditorJsonUtility.ToJson(m_Material);
             MaterialRouteUtility.ApplyPassState(m_Material);
             Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));
@@ -98,14 +100,48 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));
         }
 
-        [TestCase(1, 0)]
-        [TestCase(0, 1)]
-        public void Subsurface_RejectsNonDeferredSurface(int route, int stage)
+        [Test]
+        public void Skin_DrawsTheGBufferProxyAndForwardShading()
         {
-            m_Material.SetFloat("_SurfaceRoute", route);
-            m_Material.SetFloat("_TranslucentStage", stage);
-            m_Material.SetFloat("_Subsurface", 1);
-            Assert.Throws<InvalidOperationException>(() => MaterialRouteUtility.ApplyPassState(m_Material));
+            Material skin = CreateSkinMaterial();
+            try
+            {
+                MaterialRouteUtility.ApplyPassState(skin);
+                Assert.IsTrue(skin.GetShaderPassEnabled("RasterGBufferPass"));
+                Assert.IsTrue(skin.GetShaderPassEnabled("RasterForwardPass"));
+                Assert.IsTrue(skin.GetShaderPassEnabled("RasterDepthPass"));
+                Assert.IsTrue(skin.GetShaderPassEnabled("RasterMotionPass"));
+                Assert.Less(skin.FindPass("RasterTranslucentT0Pass"), 0, "Skin has no translucent stage.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(skin);
+            }
+        }
+
+        // Skin scattering reads the sideband after forward shading; a skin material is Forward opaque or nothing.
+        [TestCase(0, 0)]
+        [TestCase(1, 1)]
+        public void Skin_RejectsAnyRouteButForwardOpaque(int route, int stage)
+        {
+            Material skin = CreateSkinMaterial();
+            try
+            {
+                skin.SetFloat("_SurfaceRoute", route);
+                skin.SetFloat("_TranslucentStage", stage);
+                Assert.Throws<InvalidOperationException>(() => MaterialRouteUtility.ApplyPassState(skin));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(skin);
+            }
+        }
+
+        static Material CreateSkinMaterial()
+        {
+            Shader skin = Shader.Find("InfinityPipeline/InfinitySkin");
+            Assert.NotNull(skin);
+            return new Material(skin);
         }
 
         [Test]

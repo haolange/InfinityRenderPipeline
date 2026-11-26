@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList;
             readonly RenderTexture m_RayHit, m_TraceRadiance, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferB, m_SurfaceMetadata, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferB, m_Lighting, m_Motion, m_HistoryRadiance;
             readonly RenderTexture m_HistoryMeta;
             readonly UniformBinding<ViewUniform> m_View;
 
@@ -181,14 +181,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Depth = Solid(width, height, new Color(depth, 0, 0, 0), false);
                 m_HiZ = Solid((width + 1) / 2, (height + 1) / 2, new Color(depth, 0, 0, 0), true);
                 m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 0.0f, 0.5f), false);
-                // Surface route = Deferred (1).
-                m_SurfaceMetadata = Solid(width, height, new Color(1.0f / 255.0f, 0, 0, 0), false);
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
-                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, depth, 8), false));
+                // The plane's own normal (octahedron 0, 0 is +Z), a valid history of age 8.
+                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, 8, 1), false));
                 m_Objects.Add(m_HistoryMeta);
-                m_MotionMetadata = Solid(width,height,new Color(depth,depth,1,0),false);
 
                 m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 4);
                 m_TileList = Buffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, m_Trace.x * m_Trace.y));
@@ -226,10 +224,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public void CheckSparseList(int phase)
             {
                 m_Shader.SetInt("SSGI_FrameIndex", phase);
-                var pixels = m_SurfaceMetadata.GetPixels();
-                for (int y = 0; y < m_Height; ++y) for (int x = 0; x < m_Width; ++x)
-                    pixels[y * m_Width + x] = (x + y * 3) % 5 == 0 ? new Color(1.0f / 255f,0,0,0) : Color.clear;
-                m_SurfaceMetadata.SetPixels(pixels); m_SurfaceMetadata.Apply();
+                // Every pixel with a surface is traced; far depth marks the pixels without one.
+                float farDepth = SystemInfo.usesReversedZBuffer ? 0.0f : 1.0f;
+                Color[] depths = m_Depth.GetPixels();
+                for (int y = 0; y < m_Height; ++y)
+                {
+                    for (int x = 0; x < m_Width; ++x)
+                    {
+                        if ((x + y * 3) % 5 != 0)
+                        {
+                            depths[y * m_Width + x] = new Color(farDepth, 0, 0, 0);
+                        }
+                    }
+                }
+                m_Depth.SetPixels(depths);
+                m_Depth.Apply(false, false);
                 Trace();
                 float[] rays = Read(m_RayHit, 4);
                 int[] px = { 0, 1, 1, 0 }, py = { 0, 1, 0, 1 };
@@ -252,8 +261,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     BindSurface(trace);
                     m_Shader.SetTexture(trace,"SRV_TemporalColor",m_Lighting);
                     m_Shader.SetTexture(trace,"SRV_TemporalColorMips",m_Lighting);
-                    m_Shader.SetTexture(trace,"SRV_TemporalDepth",m_Depth);
-                    m_Shader.SetTexture(trace,"SRV_HitMotionMetadata",m_MotionMetadata);
                     m_Shader.SetTexture(trace,"SRV_MotionTexture",m_Motion);
                     m_Shader.SetInt("TemporalColorValid",0);
                     m_Shader.SetInt("TemporalColorMipCount",m_Lighting.mipmapCount);
@@ -287,9 +294,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             float[] FilterTemporal(Texture bilateral, Texture traceDecoy)
             {
                 RenderTexture temporal = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32_UInt);
+                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32_UInt);
                 int kernel = m_Shader.FindKernel("SSGITemporal");
-                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Current", bilateral);
                 m_Shader.SetTexture(kernel, "SRV_TraceRadiance", traceDecoy);
@@ -308,7 +314,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public float[] Spatial(Color input)
             {
                 RenderTexture output = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32_UInt);
+                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32_UInt);
                 int kernel = m_Shader.FindKernel("SSGISpatial");
                 BindSurface(kernel);
                 m_Shader.SetInt("SSGI_SpatialPass", 0);
@@ -331,7 +337,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 BindSurface(kernel);
                 var output = Target(m_Width,m_Height,GraphicsFormat.R32G32B32A32_SFloat);
                 m_Shader.SetTexture(kernel,"SRV_Filtered",Solid(m_Trace.x,m_Trace.y,new Color(.25f,.125f,.0625f,.6f),false));
-                var metadata = reject ? SurfaceMetadataTestUtility.Pack(Solid(m_Trace.x,m_Trace.y,new Color(1,1,.5f,8),false)) : m_HistoryMeta;
+                // A rejected tap stores a flipped normal: octahedron 1, 1 is -Z.
+                var metadata = reject ? SurfaceMetadataTestUtility.Pack(Solid(m_Trace.x, m_Trace.y, new Color(1, 1, 8, 1), false)) : m_HistoryMeta;
                 if (reject) m_Objects.Add(metadata);
                 m_Shader.SetTexture(kernel,"SRV_Meta",metadata);
                 m_Shader.SetTexture(kernel,"UAV_Output",output);
@@ -360,7 +367,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 m_Shader.SetTexture(kernel, "SRV_DepthTexture", m_Depth);
                 m_Shader.SetTexture(kernel, "SRV_GBufferB", m_GBufferB);
-                m_Shader.SetTexture(kernel, "SRV_SurfaceMetadata", m_SurfaceMetadata);
             }
 
             void DispatchTrace(int kernel)

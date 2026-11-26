@@ -264,7 +264,7 @@ namespace InfinityTech.Rendering.AnalyticShadow
                 shapeParams = new Vector4(vol.halfExtents.x, vol.halfExtents.y, vol.halfExtents.z, vol.radius),
                 centerAndRadius = new Vector4(vol.center.x, vol.center.y, vol.center.z, vol.BoundingRadius()),
                 attenuationParams = new Vector4(occluder.indirectStrength, occluder.indirectFalloffDistance, occluder.directStrength, occluder.directSoftness),
-                flagsAndMeta = new Vector4((uint)vol.kind, (byte)occluder.renderingLayerMask, flags, occluder.directMaxDistance)
+                flagsAndMeta = new Vector4((uint)vol.kind, RenderingLayerUtility.Validate((uint)occluder.renderingLayerMask), flags, occluder.directMaxDistance)
             };
         }
 

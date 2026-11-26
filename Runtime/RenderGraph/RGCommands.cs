@@ -30,6 +30,8 @@ namespace InfinityTech.Rendering.RenderGraph
         // A graph texture binds its logical view to the property's view companion; a texture outside the graph cannot bind to a texture-view property.
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RGTextureHandle textureHandle);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RGTextureHandle textureHandle, int mipLevel);
+        // Binds one plane of a graph texture, such as the stencil plane of a depth-stencil target.
+        void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RGTextureHandle textureHandle, int mipLevel, RenderTextureSubElement element);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
         // A texture outside the graph states its own logical view for a texture-view property.
@@ -72,6 +74,7 @@ namespace InfinityTech.Rendering.RenderGraph
     public interface IRasterCommands
     {
         void SetKeyword(GlobalKeyword keyword, bool value);
+        void SetKeyword(Material material, in LocalKeyword keyword, bool value);
         void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data);
         void SetViewport(in Rect pixelRect);
         void SetGlobalFloat(int nameID, float value);
@@ -86,7 +89,8 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetGlobalTexture(int nameID, RenderTargetIdentifier value);
         // A texture outside the graph states its own logical view for a texture-view property.
         void SetGlobalTexture(int nameID, RenderTargetIdentifier value, in TextureView view);
-        void DrawMesh(Mesh mesh, in Matrix4x4 matrix, Material material, in int submeshIndex, in int shaderPass);
+        // A full-screen pass draws one procedural triangle: vertexCount 3 with the vertex shader building positions from SV_VertexID.
+        void DrawProcedural(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, in int vertexCount);
         void DrawRendererList(in RendererList rendererList);
         void BeginSample(ProfilingSampler sampler);
         void EndSample(ProfilingSampler sampler);

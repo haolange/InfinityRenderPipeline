@@ -42,7 +42,8 @@ namespace InfinityTech.Component.Editor
                 Field("uvBias", "UV Bias");
                 Field("startAngleFade", "Start Angle Fade");
                 Field("endAngleFade", "End Angle Fade");
-                EditorGUILayout.HelpBox("Decals apply to every opaque surface inside the box; decal layers are not supported.", MessageType.None);
+                Field("renderingLayerMask", "Light Channels");
+                EditorGUILayout.HelpBox("A clustered decal affects the surfaces inside the box that share one of its light channels; DBuffer and direct GBuffer decals affect every opaque surface inside the box.", MessageType.None);
             }
             InfinityInspectorGUI.EndFoldout();
             serializedObject.ApplyModifiedProperties();

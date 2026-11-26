@@ -52,12 +52,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_DefaultLineMaterial;
         SerializedProperty m_DefaultTerrainMaterial;
         SerializedProperty m_Default2DMaterial;
-        SerializedProperty m_GBufferLayout;
-        SerializedProperty m_SceneColorFormat;
         SerializedProperty m_DepthStencilFormat;
-        SerializedProperty m_MotionVectorFormat;
-        SerializedProperty m_IndirectLightingFormat;
-        SerializedProperty m_SubsurfaceLightingMode;
         SerializedProperty m_EnableRenderingLayers;
         SerializedProperty m_EnableAnalyticShadow;
         SerializedProperty m_EnableAnalyticIndirectOcclusion;
@@ -111,12 +106,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_DefaultLineMaterial = serializedObject.FindProperty("m_DefaultLineMaterial");
             m_DefaultTerrainMaterial = serializedObject.FindProperty("m_DefaultTerrainMaterial");
             m_Default2DMaterial = serializedObject.FindProperty("m_Default2DMaterial");
-            m_GBufferLayout = serializedObject.FindProperty("m_GBufferLayout");
-            m_SceneColorFormat = serializedObject.FindProperty("m_SceneColorFormat");
             m_DepthStencilFormat = serializedObject.FindProperty("m_DepthStencilFormat");
-            m_MotionVectorFormat = serializedObject.FindProperty("m_MotionVectorFormat");
-            m_IndirectLightingFormat = serializedObject.FindProperty("m_IndirectLightingFormat");
-            m_SubsurfaceLightingMode = serializedObject.FindProperty("m_SubsurfaceLightingMode");
             m_EnableRenderingLayers = serializedObject.FindProperty("m_EnableRenderingLayers");
             m_EnableAnalyticShadow = serializedObject.FindProperty("m_EnableAnalyticShadow");
             m_EnableAnalyticIndirectOcclusion = serializedObject.FindProperty("m_EnableAnalyticIndirectOcclusion");
@@ -237,13 +227,9 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             // 2. Surface & Attachments
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "SurfaceAttachments", "Surface & Attachments"))
             {
-                DrawResolvedField(m_GBufferLayout, new GUIContent("GBuffer Layout", "Compact64Bit: full RGB albedo + Oct8x2 normal (default). HighPrecision96Bit: RGB + Oct16x2. BestFitYCoCg64Bit: YCoCg checkerboard + BestFit normal."), resolvedConfig.gBufferLayoutState);
-                DrawResolvedField(m_SceneColorFormat, new GUIContent("Scene Color Format", "R11G11B10F (32 bit, default) or RGBA16F (64 bit, required by SceneColorAlpha SSS)."), resolvedConfig.sceneColorState);
-                DrawResolvedField(m_DepthStencilFormat, new GUIContent("Depth Stencil Format", "Main camera depth buffer format. MotionPass requires a stencil channel."), resolvedConfig.depthStencilState);
-                DrawResolvedField(m_MotionVectorFormat, new GUIContent("Motion Vector Format"), resolvedConfig.motionVectorState);
-                DrawResolvedField(m_IndirectLightingFormat, new GUIContent("Indirect Lighting Format"), resolvedConfig.indirectLightingState);
-                DrawResolvedField(m_SubsurfaceLightingMode, new GUIContent("Subsurface Lighting Mode", "SeparateBuffer uses on-demand R11G11B10F ScatterDiffuse; SceneColorAlpha stores diffuse luminance in RGBA16F SceneColor alpha."), resolvedConfig.subsurfaceModeState);
-                DrawResolvedField(m_EnableRenderingLayers, new GUIContent("Rendering Layers", "Stores object rendering layers in SurfaceMetadata.g (R8G8_UNorm vs R8_UNorm)."), resolvedConfig.renderingLayersState);
+                DrawStatusLine("Opaque Color Path", resolvedConfig.colorPathState);
+                DrawResolvedField(m_DepthStencilFormat, new GUIContent("Depth Stencil Format", "Main camera depth buffer. The stencil holds the object-motion, deferred and subsurface admission bits."), resolvedConfig.depthStencilState);
+                DrawResolvedField(m_EnableRenderingLayers, new GUIContent("Rendering Layers", "Writes the object's four light channels into the sideband so lights, clustered decals and analytic occluders filter per pixel."), ConfigFieldState.Supported);
 
                 m_ShowEffectiveConfiguration = EditorGUILayout.Foldout(m_ShowEffectiveConfiguration, "Effective Configuration", true);
                 if (m_ShowEffectiveConfiguration)
@@ -251,15 +237,12 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                     ++EditorGUI.indentLevel;
                     using (new EditorGUI.DisabledScope(true))
                     {
-                        EditorGUILayout.TextField("GBuffer A / B", $"{resolvedConfig.gBufferAFormat} / {resolvedConfig.gBufferBFormat}");
-                        EditorGUILayout.TextField("Surface Metadata", resolvedConfig.surfaceMetadataFormat.ToString());
-                        EditorGUILayout.TextField("Motion / Metadata", $"{resolvedConfig.motionVectorFormat} / {resolvedConfig.motionMetadataFormat} ({resolvedConfig.motionMetadataBitsPerPixel} bit)");
-                        EditorGUILayout.TextField("Scene Color", resolvedConfig.sceneColorFormat.ToString());
+                        EditorGUILayout.TextField("GBuffer A / B", $"{EffectivePipelineConfiguration.GBufferAFormat} / {EffectivePipelineConfiguration.GBufferBFormat}");
+                        EditorGUILayout.TextField("Scene Color", EffectivePipelineConfiguration.SceneColorFormat.ToString());
+                        EditorGUILayout.TextField("Sideband", EffectivePipelineConfiguration.SidebandFormat + " (allocated on demand)");
+                        EditorGUILayout.TextField("Geometry Color", $"{resolvedConfig.geometryColorBitsPerPixel} bit");
+                        EditorGUILayout.TextField("Motion", EffectivePipelineConfiguration.MotionFormat.ToString());
                         EditorGUILayout.TextField("Depth Stencil", resolvedConfig.depthStencilFormat.ToString());
-                        EditorGUILayout.TextField("Indirect Lighting", resolvedConfig.indirectLightingFormat.ToString());
-                        EditorGUILayout.TextField("Baked / SSS Format", $"{resolvedConfig.bakedDiffuseFormat} / {resolvedConfig.scatterDiffuseFormat}");
-                        EditorGUILayout.TextField("CustomData SSS", resolvedConfig.customDataSSSFormat.ToString());
-                        EditorGUILayout.TextField("Common BPP", $"Core {resolvedConfig.coreGBufferBitsPerPixel} + Meta {resolvedConfig.surfaceMetadataBitsPerPixel} = {resolvedConfig.commonGBufferPassBitsPerPixel} bit");
                         EditorGUILayout.TextField("Effective TRC", $"{resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x)");
                     }
                     --EditorGUI.indentLevel;
@@ -271,7 +254,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Lighting", "Lighting & Shadows"))
             {
                 EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"));
-                EditorGUILayout.PropertyField(m_DiffusionProfiles, new GUIContent("Diffusion Profiles"), true);
+                EditorGUILayout.PropertyField(m_DiffusionProfiles, new GUIContent("Diffusion Profiles", "Skin materials pick a profile by index 0..14; at most 15 profiles fit the sideband."), true);
+                DrawStatusLine("Subsurface Scattering", resolvedConfig.subsurfaceState);
                 if (!m_DiffusionProfiles.hasMultipleDifferentValues)
                 {
                     for (int i = 0; i < m_DiffusionProfiles.arraySize; ++i)
@@ -326,8 +310,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             // 5. Decal
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Decal", "Decal"))
             {
-                DrawStatusLine("Direct GBuffer Decal Path", resolvedConfig.directDecalState);
-                EditorGUILayout.HelpBox("Supported paths execute in order: DBuffer -> Direct GBuffer -> Clustered Decals (priority by drawOrder, filtered by Rendering Layer).", MessageType.None);
+                EditorGUILayout.HelpBox("Paths execute in order: DBuffer -> Direct GBuffer -> Clustered Decals (priority by drawOrder; clustered decals filter by light channel).", MessageType.None);
             }
             InfinityInspectorGUI.EndFoldout();
 

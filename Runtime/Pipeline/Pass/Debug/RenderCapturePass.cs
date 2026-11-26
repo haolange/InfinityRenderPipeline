@@ -174,29 +174,17 @@ namespace InfinityTech.Rendering.Pipeline
                 int id;
                 switch (buffer)
                 {
-                    case "TemporalColorSource": case "TemporalColorDepth":
+                    case "TemporalColorSource":
                         if (!context.state.GetTemporalState().temporalColorView.valid)
                             throw new InvalidOperationException("Temporal color source capture requires an accepted history.");
-                        id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
+                        id = InfinityShaderIDs.TemporalColorSourceBuffer;
                         break;
                     case "LightTileMask":
                         id = RecordLightMaskCapture(context);
                         break;
-                    case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
+                    case "TAAInput": case "TAAHistoryColor":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer);
                     break;
-                    case "BakedDiffuse":
-                        id = InfinityShaderIDs.BakedDiffuseBuffer;
-                        break;
-                    case "BakedShadowmask":
-                        id = InfinityShaderIDs.BakedShadowmaskBuffer;
-                        break;
-                    case "IndirectDiffuse":
-                        id = InfinityShaderIDs.IndirectDiffuseBuffer;
-                        break;
-                    case "IndirectSpecular":
-                        id = InfinityShaderIDs.IndirectSpecularBuffer;
-                        break;
                     case "HalfResDepth":
                         id = InfinityShaderIDs.HalfResDepthBuffer;
                         break;
@@ -257,11 +245,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSGIHitDistance":
                         id = InfinityShaderIDs.SSGIHitDistanceBuffer;
                         break;
-                    case "ScatterDiffuse":
-                        id = InfinityShaderIDs.ScatterDiffuseBuffer;
-                        break;
-                    case "SubsurfaceDiffuse":
-                        id = InfinityShaderIDs.SubsurfaceBuffer;
+                    case "SubsurfaceIrradiance":
+                        id = InfinityShaderIDs.SubsurfaceIrradianceBuffer;
                         break;
                     case "ReactiveMask":
                         id = InfinityShaderIDs.ReactiveMaskBuffer;
@@ -275,20 +260,11 @@ namespace InfinityTech.Rendering.Pipeline
                     case "Motion":
                         id = InfinityShaderIDs.MotionBuffer;
                         break;
-                    case "MotionMetadata":
-                        id = InfinityShaderIDs.MotionMetadataBuffer;
-                        break;
                     case "SRAccumulation":
                         id = InfinityShaderIDs.SRAccumulationBuffer;
                         break;
-                    case "SRDepth":
-                        id = InfinityShaderIDs.SRDepthBuffer;
-                        break;
                     case "TAAAccumulation":
                         id = InfinityShaderIDs.TAAAccumulationBuffer;
-                        break;
-                    case "TAADepth":
-                        id = InfinityShaderIDs.TAADepthBuffer;
                         break;
                     case "TAAReprojection":
                         id = InfinityShaderIDs.TAAReprojectionBuffer;
@@ -311,11 +287,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "GBufferB":
                         id = InfinityShaderIDs.GBufferB;
                         break;
-                    case "SurfaceMetadata":
-                        id = InfinityShaderIDs.SurfaceMetadataBuffer;
-                        break;
-                    case "CustomData":
-                        id = InfinityShaderIDs.CustomDataBuffer;
+                    case "Sideband":
+                        id = InfinityShaderIDs.SidebandBuffer;
                         break;
                     case "Occlusion":
                         id = InfinityShaderIDs.OcclusionBuffer;
@@ -428,7 +401,7 @@ namespace InfinityTech.Rendering.Pipeline
                 sourceHandle = ConvertCaptureDepth(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             }
-            if (descriptor.colorFormat == GraphicsFormat.R32G32_UInt)
+            if (descriptor.colorFormat == GraphicsFormat.R32_UInt)
             {
                 sourceHandle = ConvertCaptureMetadata(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);

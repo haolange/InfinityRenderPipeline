@@ -12,7 +12,7 @@
 #include "../../../Shaders/Library/GBufferPack.hlsl"
 
 Texture2D<float> SRV_DepthTexture;
-Texture2D SRV_GBufferB, SRV_SurfaceMetadata;
+Texture2D SRV_GBufferB;
 float4 SSGI_Resolution;
 float4x4 ContractInvViewProj;
 #include "../../../Shaders/Library/ScreenSpaceIndirectSurface.hlsl"
@@ -37,11 +37,11 @@ void ReprojectionContract(uint3 id : SV_DispatchThreadID)
 {
     float4 input = ContractInputs[id.x];
     float2 historyUV = -2;
-    float expectedDepth = -2;
+    float previousDepth = -2;
     ReprojectSurface(input.xy, input.z, float2(.05, -.03), ContractInvViewProj,
-        ContractPreviousVP, ContractCurrentMotionVP, ContractPreviousMotionVP, historyUV, expectedDepth);
+        ContractPreviousVP, ContractCurrentMotionVP, ContractPreviousMotionVP, historyUV, previousDepth);
     float2 virtualUV = ReprojectVirtualPoint(float3(.2, .3, 1), float3(0, 0, 1), 2, ContractPreviousVP);
-    ContractResults[id.x] = float4(historyUV, expectedDepth, virtualUV.x);
+    ContractResults[id.x] = float4(historyUV, previousDepth, virtualUV.x);
 }
 
 [numthreads(1, 1, 1)]

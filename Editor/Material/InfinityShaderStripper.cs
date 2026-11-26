@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Editor.Build
                 InfinityRenderPipelineAsset.Settings settings = asset.ResolveSettings();
                 if (settings.config.hasBlockingConflict)
                 {
-                    throw new BuildFailedException($"InfinityRP: '{asset.name}' has an unresolved configuration conflict (SceneColor={settings.sceneColorFormat}, Subsurface={settings.subsurfaceLightingMode}, Depth={settings.depthStencilFormat}). Fix the asset inspector warning before building.");
+                    throw new BuildFailedException($"InfinityRP: '{asset.name}' has an unresolved configuration conflict: {settings.config.blockingConflict} Fix the asset inspector warning before building.");
                 }
             }
         }
@@ -139,24 +139,7 @@ namespace InfinityTech.Rendering.Editor.Build
             }
 
             StripUnusedProbeVolumeVariants(shader, data);
-            StripUnusedBestFitVariants(shader, data);
             s_Kept += data.Count;
-        }
-
-        static void StripUnusedBestFitVariants(Shader shader, IList<ShaderCompilerData> data)
-        {
-            if (!shader.keywordSpace.FindKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG").isValid || UsesBestFitYCoCg())
-            {
-                return;
-            }
-            var bestFitKeyword = new ShaderKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG");
-            for (int i = data.Count - 1; i >= 0; --i)
-            {
-                if (data[i].shaderKeywordSet.IsEnabled(bestFitKeyword))
-                {
-                    data.RemoveAt(i);
-                }
-            }
         }
 
         // PROBE_VOLUMES_L1 / L2 variants exist for Adaptive Probe Volumes; a build keeps a band only when an Infinity
@@ -200,18 +183,6 @@ namespace InfinityTech.Rendering.Editor.Build
                 }
             }
             return assets;
-        }
-
-        internal static bool UsesBestFitYCoCg()
-        {
-            foreach (InfinityRenderPipelineAsset asset in CollectInfinityAssets())
-            {
-                if (asset.ResolveSettings().config.useBestFitYCoCg)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         internal static void UsedProbeVolumeBands(out bool l1, out bool l2)
@@ -283,17 +254,6 @@ namespace InfinityTech.Rendering.Editor.Build
             if (shader == null)
             {
                 throw new ArgumentNullException(nameof(shader));
-            }
-            if (shader.keywordSpace.FindKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG").isValid && !InfinityShaderStripper.UsesBestFitYCoCg())
-            {
-                var bestFitKeyword = new ShaderKeyword("INFINITY_GBUFFER_BESTFIT_YCOCG");
-                for (int i = data.Count - 1; i >= 0; --i)
-                {
-                    if (data[i].shaderKeywordSet.IsEnabled(bestFitKeyword))
-                    {
-                        data.RemoveAt(i);
-                    }
-                }
             }
             // Compute shaders have no RenderPipeline/LightMode contract. Preserve kernels
             // selected by Unity's dependency collection, including CoreRP UnifiedRayTracing.

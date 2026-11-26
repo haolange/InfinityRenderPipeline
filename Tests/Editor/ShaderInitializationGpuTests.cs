@@ -118,18 +118,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void SurfaceRejection_PreservesRawDepthAndDoesNotPopulateGeometry()
+        public void SurfaceRejection_RejectsOnlyFarDepthAndPreservesItsRawDepth()
         {
             var depth = new Texture2D(3, 1, TextureFormat.RGBAFloat, false, true);
-            var flags = new Texture2D(3, 1, TextureFormat.RGBAFloat, false, true);
             var normals = new Texture2D(3, 1, TextureFormat.RGBAFloat, false, true);
             float far = SystemInfo.usesReversedZBuffer ? 0 : 1;
             try
             {
                 depth.SetPixels(new[] { new Color(far, 0, 0, 0), new Color(.4f, 0, 0, 0), new Color(.6f, 0, 0, 0) });
-                flags.SetPixels(new[] { Color.clear, new Color(2f / 255f, 0, 0, 0), new Color(1f / 255f, 0, 0, 0) });
                 normals.SetPixels(new[] { new Color(.5f, .5f, 0, 0), new Color(.5f, .5f, 0, 0), new Color(.5f, .5f, 0, 0) });
-                depth.Apply(); flags.Apply(); normals.Apply();
+                depth.Apply();
+                normals.Apply();
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
@@ -138,18 +137,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Vector4[] results = Run("SurfaceContract", new Vector4[3], (shader, kernel) =>
                 {
                     shader.SetTexture(kernel, "SRV_DepthTexture", depth);
-                    shader.SetTexture(kernel, "SRV_SurfaceMetadata", flags);
                     shader.SetTexture(kernel, "SRV_GBufferB", normals);
                     shader.SetVector("SSGI_Resolution", new Vector4(3, 1, 1f / 3, 1));
                 });
+                // A far pixel keeps its raw depth and populates no geometry.
                 Assert.AreEqual(new Vector4(far, 0, 0, 0), results[0]);
-                Assert.AreEqual(new Vector4(.4f, 0, 0, 0), results[1]);
-                Assert.That(results[2].x, Is.EqualTo(.6f).Within(1e-6));
-                Assert.AreEqual(1, results[2].y);
-                Assert.That(results[2].z, Is.EqualTo(1).Within(1e-6));
-                Assert.Greater(results[2].w, 0);
+                // Every other pixel is a surface, deferred or forward alike: both write the GBuffer surface proxy.
+                for (int i = 1; i < 3; i++)
+                {
+                    Assert.That(results[i].x, Is.EqualTo(i == 1 ? .4f : .6f).Within(1e-6));
+                    Assert.AreEqual(1, results[i].y);
+                    Assert.That(results[i].z, Is.EqualTo(1).Within(1e-6));
+                    Assert.Greater(results[i].w, 0);
+                }
             }
-            finally { Object.DestroyImmediate(depth); Object.DestroyImmediate(flags); Object.DestroyImmediate(normals); }
+            finally
+            {
+                Object.DestroyImmediate(depth);
+                Object.DestroyImmediate(normals);
+            }
         }
 
         [TestCase(false)]

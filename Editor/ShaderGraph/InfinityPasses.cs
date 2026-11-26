@@ -131,6 +131,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             BlockFields.SurfaceDescription.Metallic,
             InfinityBlockFields.SurfaceDescription.Roughness,
             InfinityBlockFields.SurfaceDescription.SpecularLevel,
+            BlockFields.SurfaceDescription.Occlusion,
             BlockFields.SurfaceDescription.Emission,
             BlockFields.SurfaceDescription.Alpha,
             BlockFields.SurfaceDescription.AlphaClipThreshold,
@@ -238,11 +239,13 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             { RenderState.ColorMask("ColorMask 0") },
         };
 
+        // A deferred pixel writes stencil bit 1 (_StencilRefGBuffer 2), a forward pixel clears bits 1 and 2 (0).
         static RenderStateCollection GBufferStates(InfinityTarget target) => new RenderStateCollection
         {
             { RenderState.ZTest(ZTest.LEqual) },
             { RenderState.ZWrite(ZWrite.On) },
             { RenderState.Cull(FaceCull(target)) },
+            { RenderState.Stencil(new StencilDescriptor { Ref = "[_StencilRefGBuffer]", WriteMask = "6", Comp = "Always", Pass = "Replace" }) },
         };
 
         static RenderStateCollection EqualDepthStates(InfinityTarget target) => new RenderStateCollection
@@ -252,6 +255,14 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             { RenderState.Cull(FaceCull(target)) },
         };
 
+        // Forward shading overwrites Scene Color and, with a sideband, only its diffuse share in R.
+        static RenderStateCollection ForwardStates(InfinityTarget target)
+        {
+            RenderStateCollection states = EqualDepthStates(target);
+            states.Add(RenderState.ColorMask("ColorMask R 1"));
+            return states;
+        }
+
         static RenderStateCollection MotionStates(InfinityTarget target)
         {
             RenderStateCollection states = EqualDepthStates(target);
@@ -259,7 +270,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             return states;
         }
 
-        // Translucent stages blend color in target 0 and overwrite reactive, motion and motion metadata.
+        // Translucent stages blend color in target 0 and overwrite reactive and motion.
         static RenderStateCollection TranslucentStates(InfinityTarget target)
         {
             string color;
@@ -277,7 +288,6 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                 { RenderState.Blend(color) },
                 { RenderState.Blend("Blend 1 One Zero") },
                 { RenderState.Blend("Blend 2 One Zero") },
-                { RenderState.Blend("Blend 3 One Zero") },
             };
         }
 
@@ -360,12 +370,12 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor RasterGBufferPass(InfinityTarget target) =>
             Pass(kRasterGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG", "multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE", "multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER", "multi_compile _ INFINITY_SIDEBAND"),
                 Defines(target), Includes(kBakedLighting, kGBuffer), true);
 
         public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
-            Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW", "multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE", "multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR", "multi_compile _ INFINITY_SSS_OUTPUT", "multi_compile _ INFINITY_SSS_ALPHA", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
+            Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, ForwardStates(target),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_SIDEBAND", "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_SSGI", "multi_compile _ INFINITY_FORWARD_SSR", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW", "multi_compile _ INFINITY_FORWARD_ANALYTIC_SHADOW", "multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS", "multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS", "multi_compile _ INFINITY_LIGHT_COOKIES", "multi_compile _ INFINITY_REFLECTION_PROBES"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
         public static PassDescriptor RasterMotionPass(InfinityTarget target) =>

@@ -56,6 +56,14 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
 			Tags { "LightMode" = "RasterGBufferPass" }
 
 			ZTest LEqual ZWrite On Cull Back
+			// Terrain is deferred: bit 1 admits it to deferred shading.
+			Stencil
+			{
+				Ref 2
+				WriteMask 6
+				Comp Always
+				Pass Replace
+			}
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -68,39 +76,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
-            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
-            #pragma multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE
-            #pragma multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS
-            //#pragma enable_d3d11_debug_symbols
-            #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
-
-            #pragma shader_feature_local _NORMALMAP
-            #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
-
-            #define _METALLICSPECGLOSSMAP 1
-            #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
-
-            #include "TerrainLitInclude.hlsl"
-            ENDHLSL
-        }
-
-        Pass
-        {
-			Name "RasterForwardPass"
-			Tags { "LightMode" = "RasterForwardPass" }
-
-			ZTest Equal ZWrite On Cull Back
-
-            HLSLPROGRAM
-            #pragma target 4.5
-            #pragma vertex SplatmapVert
-            #pragma fragment ForwardFragment
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR
-            #pragma multi_compile _ INFINITY_SSS_OUTPUT
-            #pragma multi_compile _ INFINITY_SSS_ALPHA
-
-            #pragma multi_compile_instancing
+            #pragma multi_compile _ INFINITY_SIDEBAND
             //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 

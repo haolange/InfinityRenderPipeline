@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     BindFinalOutput(passData, commands);
                     commands.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.srcTextureHandle);
-                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
+                    commands.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                     CompleteFinalOutput(passData, commands);
                 });
             }

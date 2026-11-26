@@ -25,13 +25,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 		[Header(PixelDepthOffset)]
         _PixelDepthOffset ("PixelDepthOffset", Range(-1, 1)) = 0
 
-		[Header(Subsurface)]
-		[Toggle(_SUBSURFACE)] _Subsurface ("Subsurface", Float) = 0
-		_SSSProfileIndex ("SSS Profile Index", Range(0, 15)) = 0
-		_SSSThickness ("SSS Thickness", Range(0, 1)) = 0
-
 		[Header(Surface Route)]
 		[Enum(Deferred, 0, Forward, 1)] _SurfaceRoute ("Surface Route", Float) = 0
+		// Written by MaterialRouteUtility.ApplyPassState from the route: Deferred 2, Forward 0.
+		[HideInInspector] _StencilRefGBuffer ("Stencil Ref GBuffer", Float) = 2
 		[Enum(None, 0, T0, 1, T1, 2, T2, 3)] _TranslucentStage ("Translucent Stage", Float) = 0
 		_RefractionStrength ("Refraction Strength", Range(0, 0.2)) = 0.04
 
@@ -181,6 +178,13 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Name "RasterGBufferPass"
 			Tags { "LightMode" = "RasterGBufferPass" }
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
+			Stencil
+			{
+				Ref [_StencilRefGBuffer]
+				WriteMask 6
+				Comp Always
+				Pass Replace
+			}
 
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
@@ -190,9 +194,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma fragment frag
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
             #pragma multi_compile _ SHADOWS_SHADOWMASK
-            #pragma multi_compile _ INFINITY_GBUFFER_BESTFIT_YCOCG
-            #pragma multi_compile _ INFINITY_GBUFFER_BAKED_DIFFUSE
-            #pragma multi_compile _ INFINITY_GBUFFER_CUSTOM_DATA_SSS
+            #pragma multi_compile _ INFINITY_SIDEBAND
 			//#pragma enable_debug_symbols
 
 			#pragma multi_compile _ _DBUFFER
@@ -201,12 +203,11 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#include "../Library/GPUScene.hlsl"
 			#include "../Library/Lightmap.hlsl"
 			#include "../Library/GBufferPack.hlsl"
-			#include "../Library/GBufferOutput.hlsl"
+			#include "../Library/GeometryColor.hlsl"
 			#include "../Library/DBuffer.hlsl"
 			#include "../Library/BSDF.hlsl"
 			#include "../Library/ImageBasedLighting.hlsl"
 			#include "../Library/ShaderVariables.hlsl"
-            #include "../Library/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
@@ -221,9 +222,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
@@ -310,33 +308,13 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				surface.Specular = surfaceSpecular;
 				surface.Roughness = surfaceRoughness;
 				surface.Metallic = surfaceReflctance;
-				surface.Route = _SurfaceRoute > 0.5 ? SURFACE_ROUTE_FORWARD : SURFACE_ROUTE_DEFERRED;
-				surface.Flags = _Subsurface > 0.5 ? SURFACE_FLAG_SUBSURFACE : 0u;
-                if (bakedDiffuse.a > 0)
-                {
-                    surface.Flags |= SURFACE_FLAG_HAS_BAKED_GI;
-                }
-                surface.RenderingLayer = EntityRenderingLayers[In.EntityIndex];
 
                 GBufferFragmentOutput output = (GBufferFragmentOutput)0;
-                float2 surfaceMetadata = 0;
-				EncodeSurfaceGBuffer(surface, In.vertexCS.xy, output.gBufferA, output.gBufferB, surfaceMetadata);
-                output.surfaceMetadata = float4(surfaceMetadata, 0, 0);
-
-#if defined(INFINITY_GBUFFER_BAKED_DIFFUSE)
-				output.lightingBuffer = float4(_EmissionColor.rgb, 0);
-                output.bakedDiffuse = bakedDiffuse;
-#else
+				EncodeSurfaceGBuffer(surface, output.gBufferA, output.gBufferB);
                 float3 diffuseColor = surfaceAlbedo * (1.0 - surfaceReflctance);
-                float3 envDiffuse = diffuseColor * (bakedDiffuse.a > 0 ? bakedDiffuse.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
-                output.lightingBuffer = float4(_EmissionColor.rgb + envDiffuse, 0);
-#endif
-#if defined(SHADOWS_SHADOWMASK)
-                output.bakedShadowmask = 1 - mask;
-#endif
-#if defined(INFINITY_GBUFFER_CUSTOM_DATA_SSS)
-                output.customData = _Subsurface > 0.5 ? float4(PackCustomDataSSS((uint)(_SSSProfileIndex + 0.5), _SSSThickness), 0, 0) : float4(0, 0, 0, 0);
-#endif
+                // InfinityLit has no occlusion input: the material occlusion is 1.
+                WriteGeometryColor(_EmissionColor.rgb, diffuseColor, 1.0, bakedDiffuse, mask, pnormalWS, _AtmosphereSkySH,
+                    EntityRenderingLayers[In.EntityIndex], 0u, output);
                 return output;
 			}
 			ENDHLSL
@@ -348,12 +326,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Name "RasterForwardPass"
 			Tags { "LightMode" = "RasterForwardPass" }
 			ZTest Equal ZWrite Off Cull Back
+			ColorMask R 1
 
 			HLSLPROGRAM
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_DIFFUSE
-            #pragma multi_compile _ INFINITY_FORWARD_INDIRECT_SPECULAR
-            #pragma multi_compile _ INFINITY_SSS_OUTPUT
-            #pragma multi_compile _ INFINITY_SSS_ALPHA
+            #pragma multi_compile _ INFINITY_SIDEBAND
+            #pragma multi_compile _ INFINITY_FORWARD_SSGI
+            #pragma multi_compile _ INFINITY_FORWARD_SSR
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma multi_compile _ INFINITY_LOD_DITHER
@@ -366,9 +344,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             #pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
             #pragma multi_compile _ INFINITY_LIGHT_COOKIES
             #pragma multi_compile _ INFINITY_REFLECTION_PROBES
-#if defined(INFINITY_FORWARD_AO)
-            Texture2D<float> SRV_ForwardOcclusion;
-#endif
             #include "../Library/SurfaceLighting.hlsl"
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 			//#pragma enable_debug_symbols
@@ -397,9 +372,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
@@ -472,45 +444,23 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float surfaceRoughness = _Roughness;
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
 
-                float4 baked, mask;
+                uint2 positionSS = (uint2)In.vertexCS.xy;
+                uint lightChannels = EntityRenderingLayers[In.EntityIndex];
+                float4 mask;
                 float3 probeDiffuse;
-                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, EntityRenderingLayers[In.EntityIndex], probeDiffuse, mask);
-                baked = float4(probeDiffuse, hasAPV ? 1 : 0);
+                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, lightChannels, probeDiffuse, mask);
+                float4 baked = float4(probeDiffuse, hasAPV ? 1 : 0);
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
-                float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
+                float occlusion = ForwardIndirectOcclusion(positionSS, viewDepth, positionWS, pnormalWS, lightChannels);
+                float3 indirectDiffuse = ForwardIndirectDiffuse(positionSS, microfaceContext.AlbedoColor, IndirectIrradiance(baked, pnormalWS, _AtmosphereSkySH), occlusion);
                 float3 reflectionWS = reflect(-cameraDirWS, pnormalWS);
                 float3 sky = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflectionWS, microfaceContext.RoughnessClamp, _AtmosphereIBLMaxMip);
-                float3 specular = BlendReflectionProbesWithSky(positionWS, reflectionWS, microfaceContext.RoughnessClamp, (uint2)In.vertexCS.xy, viewDepth, sky)
-                    * EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
-                #if defined(INFINITY_FORWARD_AO)
-                float ao = SRV_ForwardOcclusion.Load(int3(In.vertexCS.xy, 0));
-                diffuse *= ao;
-                specular *= ao;
-#endif
-#if defined(INFINITY_FORWARD_ANALYTIC_SHADOW)
-                float analyticIndirectAO = EvaluateAnalyticIndirectOcclusion((uint2)In.vertexCS.xy, viewDepth, positionWS, pnormalWS, EntityRenderingLayers[In.EntityIndex]);
-                diffuse *= analyticIndirectAO;
-                specular *= analyticIndirectAO;
-#endif
-                ForwardFragmentOutput output = (ForwardFragmentOutput)0;
-#if defined(INFINITY_FORWARD_INDIRECT_DIFFUSE)
-                output.indirectDiffuse = float4(diffuse, 1);
-#endif
-#if defined(INFINITY_FORWARD_INDIRECT_SPECULAR)
-                output.indirectSpecular = float4(specular, 1);
-#endif
+                float3 environmentBRDF = EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
+                float3 environmentSpecular = ForwardEnvironmentSpecular(positionSS,
+                    BlendReflectionProbesWithSky(positionWS, reflectionWS, microfaceContext.RoughnessClamp, positionSS, viewDepth, sky), environmentBRDF, occlusion);
                 float3 directDiffuse;
-                float3 totalLighting = EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, EntityRenderingLayers[In.EntityIndex], (uint2)In.vertexCS.xy, directDiffuse)
-                    + diffuse + specular + _EmissionColor.rgb;
-#if defined(INFINITY_SSS_ALPHA)
-                float diffuseLuma = _Subsurface > 0.5 ? Luminance(max(0, directDiffuse + diffuse)) : 0.0;
-                output.lightingBuffer = float4(totalLighting, diffuseLuma);
-#else
-                output.lightingBuffer = float4(totalLighting, 1);
-#endif
-#if defined(INFINITY_SSS_OUTPUT)
-                output.scatterDiffuse = float4(directDiffuse + diffuse, 1);
-#endif
+                float3 direct = EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, SelectMixedLightVisibility(mask), viewDepth, lightChannels, positionSS, directDiffuse);
+                ForwardFragmentOutput output = WriteForwardColor(_EmissionColor.rgb + indirectDiffuse + direct + environmentSpecular, indirectDiffuse + directDiffuse);
                 return output;
 			}
 			ENDHLSL
@@ -587,7 +537,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #endif
                 MotionOutput output;
                 output.velocity = SurfaceVelocity(In.clipPos, In.clipPosOld);
-                output.metadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
                 return output;
             }
 
@@ -648,7 +597,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
-            Blend 3 One Zero
 
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
@@ -695,7 +643,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -723,7 +670,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				o.reactive = TranslucentReactive(_BaseColor.a);
 #endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
-                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
@@ -737,7 +683,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
-            Blend 3 One Zero
 
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
@@ -786,7 +731,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -817,7 +761,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				o.reactive = TranslucentReactive(_BaseColor.a);
 #endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
-                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
@@ -831,7 +774,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
-            Blend 3 One Zero
 
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
@@ -875,7 +817,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float reactive : SV_Target1;
 #endif
 				float2 motion : INFINITY_MOTION_TARGET;
-                float2 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -900,7 +841,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				o.reactive = TranslucentReactive(_BaseColor.a);
 #endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
-                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
@@ -935,9 +875,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
@@ -999,9 +936,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END

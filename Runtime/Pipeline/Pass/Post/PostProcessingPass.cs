@@ -492,7 +492,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_CombineLUTID, passData.combineLUTHandle);
                     commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEVHandle);
-                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.output.shaderPass);
+                    commands.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.output.shaderPass, MeshTopology.Triangles, 3);
                     FinalOutputPass.CompleteFinalOutput(passData.output, commands);
                 });
             }

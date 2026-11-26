@@ -67,8 +67,6 @@ namespace InfinityTech.Rendering.Pipeline
             textures = resolvedTextures;
             materials = resolvedMaterials;
             defaultVolumeProfile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
-            if (textures.bestFitNormalTexture == null)
-                throw new InvalidOperationException("InfinityRP: GlobalSettings RuntimeTextures.bestFitNormalTexture is required.");
             if (materials.blitMaterial == null)
                 throw new InvalidOperationException("InfinityRP: GlobalSettings RuntimeMaterials.blitMaterial is required.");
             if (!DefaultVolumeProfileFactory.HasRequiredDefaultComponents(defaultVolumeProfile))

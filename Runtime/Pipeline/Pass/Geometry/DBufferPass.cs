@@ -174,7 +174,7 @@ namespace InfinityTech.Rendering.Pipeline
         // GBuffer A uses linear/sRGB RGB rather than YCoCg checkerboard compression.
         internal void RasterDirectDecals(in ViewContext context)
         {
-            if (context.decals.DirectDecalCount == 0 || m_Settings.config.useBestFitYCoCg || !context.features.ShouldRecord(EFrameFeature.DBuffer))
+            if (context.decals.DirectDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
             {
                 return;
             }

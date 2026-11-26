@@ -59,19 +59,44 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_RectCapacity;
         int m_LocalMatrixCapacity;
         int m_RecordStride;
-        bool m_HasShadowmask;
-        internal bool HasShadowmask => m_HasShadowmask;
+        // Mixed lighting
 
-        internal static bool IsBakedShadowmaskLight(Light light)
+        // The sideband stores the baked visibility of two mixed directional lights (G and B).
+        internal const int MixedLightSlotCount = 2;
+        // x, y: Unity shadowmask channel of slot 0 and 1, -1 when the slot is empty.
+        Vector4 m_MixedLightChannels;
+        int m_MixedLightCount;
+        int m_DroppedMixedLightCount;
+
+        internal bool HasMixedLights => m_MixedLightCount > 0;
+        internal Vector4 MixedLightChannels => m_MixedLightChannels;
+        // Mixed directional lights beyond the two slots this camera; they keep their realtime shadow only.
+        internal int DroppedMixedLightCount => m_DroppedMixedLightCount;
+
+        // The shadowmask channel of a baked Mixed directional light in Shadowmask mode, else -1. Local lights never read
+        // a shadowmask.
+        internal static int MixedLightChannel(Light light)
         {
-            if (light == null)
+            if (light == null || light.type != LightType.Directional)
             {
-                return false;
+                return -1;
             }
             LightBakingOutput baking = light.bakingOutput;
-            return baking.lightmapBakeType == LightmapBakeType.Mixed
-                && baking.mixedLightingMode == MixedLightingMode.Shadowmask
-                && baking.occlusionMaskChannel >= 0 && baking.occlusionMaskChannel < 4;
+            bool mixed = baking.lightmapBakeType == LightmapBakeType.Mixed && baking.mixedLightingMode == MixedLightingMode.Shadowmask;
+            return mixed && baking.occlusionMaskChannel >= 0 && baking.occlusionMaskChannel < 4 ? baking.occlusionMaskChannel : -1;
+        }
+
+        void AssignMixedLightSlot(ref LightRecord record, int channel)
+        {
+            if (m_MixedLightCount >= MixedLightSlotCount)
+            {
+                m_DroppedMixedLightCount++;
+                return;
+            }
+            record.bakedVisibilitySlot = m_MixedLightCount;
+            record.flags |= LightRecordFlags.MixedShadowmask;
+            m_MixedLightChannels[m_MixedLightCount] = channel;
+            m_MixedLightCount++;
         }
 
         int m_DirectionalCount;
@@ -217,6 +242,9 @@ namespace InfinityTech.Rendering.LightPipeline
             m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
             m_ContactLightCount = 0;
+            m_MixedLightChannels = new Vector4(-1, -1, 0, 0);
+            m_MixedLightCount = 0;
+            m_DroppedMixedLightCount = 0;
             m_Cookies.Clear();
             m_ShadowAllocator.Reset();
         }
@@ -241,7 +269,6 @@ namespace InfinityTech.Rendering.LightPipeline
             using (LightCpuMarkers.s_Setup.Auto())
             {
                 Clear();
-                m_HasShadowmask = false;
                 m_ScreenSize = math.max(screenSize, new int2(1, 1));
 
                 visibleLights = cullingResults.visibleLights;
@@ -310,9 +337,13 @@ namespace InfinityTech.Rendering.LightPipeline
                         continue;
                     }
 
-                    m_HasShadowmask |= IsBakedShadowmaskLight(light);
                     if (record.IsDirectional)
                     {
+                        int mixedChannel = MixedLightChannel(light);
+                        if (mixedChannel >= 0)
+                        {
+                            AssignMixedLightSlot(ref record, mixedChannel);
+                        }
                         if (sun != null && light == sun)
                         {
                             m_SunRecordIndex = m_Records.Length;

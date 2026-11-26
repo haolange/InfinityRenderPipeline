@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             string trc = hasTemporalRequirements
                 ? $" | TRC={lastTemporalRequirements.activeBackend} ({lastTemporalRequirements.renderSize.x}x{lastTemporalRequirements.renderSize.y} -> {lastTemporalRequirements.displaySize.x}x{lastTemporalRequirements.displaySize.y})"
                 : $" | TRC={lastConfiguration.effectiveTemporalBackend}";
-            return $"{lastConfiguration.gBufferLayout} ({lastConfiguration.coreGBufferBitsPerPixel}+{lastConfiguration.surfaceMetadataBitsPerPixel} bit) | MotionMeta={lastConfiguration.motionMetadataFormat} ({lastConfiguration.motionMetadataBitsPerPixel} bit) | SceneColor={lastConfiguration.sceneColorFormat}{trc}";
+            return $"Geometry color {lastConfiguration.geometryColorBitsPerPixel} bit | Depth={lastConfiguration.depthStencilFormat}{trc}";
         }
 
         public string DescribeFrameSetting(EFrameSetting setting)
@@ -73,6 +73,8 @@ namespace InfinityTech.Rendering.Pipeline
         public int lastLocalCount;
         public int lastUnsupportedShapeCount;
         public int lastDistanceCulledCount;
+        // Mixed directional lights beyond the sideband's two baked-visibility slots.
+        public int lastDroppedMixedLightCount;
         // Cached local shadow tiles drawn this frame (copied or re-rendered) and how many were re-rendered.
         public int lastCachedShadowTiles;
         public int lastCachedShadowRenders;
@@ -118,6 +120,7 @@ namespace InfinityTech.Rendering.Pipeline
             lastLocalCount = 0;
             lastUnsupportedShapeCount = 0;
             lastDistanceCulledCount = 0;
+            lastDroppedMixedLightCount = 0;
             lastCachedShadowTiles = 0;
             lastCachedShadowRenders = 0;
             lastCachedShadowEvictions = 0;

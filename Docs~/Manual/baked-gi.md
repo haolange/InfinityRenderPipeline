@@ -10,12 +10,19 @@ Each native Unity Renderer pixel takes its baked diffuse lighting from the first
 4. **Light probes** (Unity per-renderer interpolation).
 5. **Sky** ambient (the atmosphere's SH).
 
+The geometry draw writes that diffuse lighting, times the material occlusion, into Scene Color together with emission, and stores the share it makes of the pixel's color. Deferred and forward shading then scale only that share by screen-space and analytic occlusion and let screen-space indirect diffuse replace it; emission is never occluded.
+
 Shadowmask and probe occlusion come from the same native source. Infinity Mesh instances do not consume lightmaps, LPPV or CPU-interpolated per-instance probes. Their shader may sample APV directly in world space, with atmosphere/IBL used when no APV data is available. Adding a MeshComponent does not disable a MeshRenderer; native and custom content must be authored independently.
 
 ## Mixed lighting
 
 Lighting Settings → Mixed Lighting supports **Baked Indirect** and **Shadowmask** (Quality → Shadowmask Mode chooses
 Shadowmask or Distance Shadowmask). Subtractive is not supported (the Render Pipeline Wizard flags it).
+
+Baked visibility comes only from **directional** Mixed lights in Shadowmask mode, and only from the first two visible
+ones; their visibility travels in the sideband. A third gets a warning in the Light inspector and a count in the
+Rendering Debugger, and keeps realtime shadows only. Mixed point, spot and area lights never read the shadowmask: they
+contribute realtime shadows and baked indirect lighting.
 
 ## Adaptive Probe Volumes
 
@@ -41,5 +48,6 @@ Tube and line lights are realtime only.
 
 ## Debugging
 
-Rendering Debugger → Infinity Lighting: Baked Diffuse, Indirect Diffuse, Indirect Specular. Fixture: Window → Infinity
-→ Create Baked Lighting Fixture, then Generate Lighting.
+Rendering Debugger → Infinity Lighting: Diffuse Ratio (the diffuse share of Scene Color) and Mixed Light Visibility (red:
+first mixed directional light, green: second). Fixture: Window → Infinity → Create Baked Lighting Fixture, then Generate
+Lighting.

@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
-using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
@@ -55,13 +54,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
-                motionTextureDsc.colorFormat = m_Settings.config.motionVectorFormat;
+                motionTextureDsc.colorFormat = EffectivePipelineConfiguration.MotionFormat;
             }
             RGTextureHandle motionTextureHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
-            motionTextureDsc.name = "MotionMetadata";
-            motionTextureDsc.colorFormat = GraphicsFormat.R32G32_SFloat;
-            motionTextureDsc.clearColor = new Color(-1.0f, 0.0f, 0.0f, 0.0f);
-            RGTextureHandle motionMetadataHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             RGRendererListHandle motionRendererListHandle = m_RGBuilder.CreateRendererList(CameraRendererLists.Create(context.cullingResults, context.camera, InfinityPassIDs.RasterMotionPass,
                 new RenderQueueRange(0, 2999), SortingCriteria.CommonOpaque, PerObjectData.MotionVectors, m_Settings.enableInstanceBatch));
@@ -72,7 +67,6 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(motionTextureHandle, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passHandle.SetColorAttachment(motionMetadataHandle, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 // Shader ZWrite Off keeps depth values while writing stencil bit 0 (ObjectMotion).
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnlyDepth | EDepthAccess.WriteStencil);
 
@@ -96,7 +90,6 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passHandle.EnablePassCulling(false);
                 passHandle.SetColorAttachment(motionTextureHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passHandle.SetColorAttachment(motionMetadataHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref CameraMotionPassData passData = ref passHandle.GetPassData();
@@ -109,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTextureHandle);
-                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
+                    cmdEncoder.DrawProcedural(Matrix4x4.identity, GraphicsUtility.BlitMaterial, passData.shaderPass, MeshTopology.Triangles, 3);
                 });
             }
 

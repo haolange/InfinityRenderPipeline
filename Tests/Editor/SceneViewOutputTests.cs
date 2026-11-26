@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         commands.SetRenderTarget(target);
                         commands.SetViewport(new Rect(0,0,2,2));
                         commands.ClearRenderTarget(false,true,Color.magenta);
-                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, presentPass);
+                        commands.DrawProcedural(Matrix4x4.identity, material, presentPass, MeshTopology.Triangles, 3);
                         Graphics.ExecuteCommandBuffer(commands);
                         var readback = AsyncGPUReadback.Request(target, 0, _ =>
                         {

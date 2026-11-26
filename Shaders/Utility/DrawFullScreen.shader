@@ -6,103 +6,6 @@
 		
 		Pass
 		{
-			Name"RasterDefaultFullScreen"
-			ZTest Always ZWrite Off Blend Off Cull Off
-
-			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
-			#pragma target 4.5
-			#pragma vertex vert
-			#pragma fragment frag
-
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-
-			Texture2D _MainTex;
-			SamplerState sampler_MainTex;
-
-			struct Attributes
-			{
-				float4 vertex : POSITION;
-			};
-
-			struct Varyings
-			{
-				float2 uv : TEXCOORD0;
-				float4 vertex : SV_POSITION;
-			};
-
-			Varyings vert(Attributes v)
-			{
-				Varyings o;
-				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-				o.uv = (v.vertex.xy + 1) * 0.5;
-				return o;
-			}
-
-			float4 frag(Varyings i) : SV_Target
-			{
-				float2 UV = i.uv.xy;
-				//return GBufferB / 127.0 - 1;
-				return InfinitySampleLevel(_MainTex,sampler_MainTex,UV,0);
-				//return SAMPLE_TEXTURE2D_X_LOD(_MainTex, sampler_MainTex, UV, 0);
-			}
-			ENDHLSL
-		}
-
-		Pass
-		{
-			Name"RasterSmartFullScreen"
-			ZTest Always ZWrite Off Blend Off Cull Off
-
-			HLSLPROGRAM
-            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
-			#pragma target 4.5
-			#pragma vertex vert
-			#pragma fragment frag
-
-			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
-			#include "../Library/Common.hlsl"
-			#include "../Library/GBufferPack.hlsl"
-			#include "../Library/ShaderVariables.hlsl"
-            #include "../Library/MotionVectors.hlsl"
-            #include "../Library/ScreenSpaceDepth.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-			
-			float4 _ScaleBais;
-			Texture2D _MainTex;
-			SamplerState sampler_MainTex;
-
-			struct Attributes
-			{
-				float4 vertex : POSITION;
-			};
-
-			struct Varyings
-			{
-				float2 uv : TEXCOORD0;
-				float4 vertex : SV_POSITION;
-			};
-
-			Varyings vert(Attributes v)
-			{
-				Varyings o;
-				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-				o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
-				return o;
-			}
-
-			float4 frag(Varyings i) : SV_Target
-			{
-				float2 uv = i.uv.xy;
-				return InfinitySampleLevel(_MainTex,Global_bilinear_clamp_sampler,uv,0);
-
-
-			}
-			ENDHLSL
-		}
-
-		Pass
-		{
 			Name"RasterCameraMotion"
 			ZTest Always ZWrite Off Blend Off Cull Off
 			Stencil 
@@ -120,30 +23,23 @@
 			#pragma fragment frag
 
 			#include "../Library/Common.hlsl"
-			#include "../Library/GBufferPack.hlsl"
 			#include "../Library/ShaderVariables.hlsl"
             #include "../Library/MotionVectors.hlsl"
             #include "../Library/ScreenSpaceDepth.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			Texture2D _MainTex;
 
-			struct Attributes
-			{
-				float4 vertex : POSITION;
-			};
-
 			struct Varyings
 			{
-				float2 uv : TEXCOORD0;
 				float4 vertex : SV_POSITION;
 			};
 
-			Varyings vert(Attributes v)
+			Varyings vert(uint vertexID : SV_VertexID)
 			{
 				Varyings o;
-				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-				o.uv = (v.vertex.xy + 1) * 0.5;
+				o.vertex = FullScreenTrianglePosition(vertexID);
 				return o;
 			}
 
@@ -168,24 +64,11 @@
                 MotionOutput output;
                 if (sky && Matrix_FlipYProj[3][3] != 0)
                 {
-                    // Parallel sky rays have no screen-space parallax. Translation and
-                    // roll preserve the ray; a changed viewing direction has no matching
-                    // ray anywhere in the previous orthographic framebuffer.
-                    float3 currentAxis = normalize(Matrix_ViewFlipYProj[2].xyz);
-                    float3 previousAxis = normalize(Matrix_LastViewFlipYProj[2].xyz);
-                    float3 directionDelta = currentAxis - previousAxis;
+                    // Parallel sky rays have no screen-space parallax: translation and roll keep the ray in place.
                     output.velocity = 0;
-                    output.metadata = float2(
-                        dot(directionDelta, directionDelta) <= 1e-10 ? depth : -1.0,
-                        depth);
                     return output;
                 }
                 output.velocity = SurfaceVelocity(current, previous);
-                output.metadata = SurfaceMotionMetadata(current, previous, depth);
-                if (sky)
-                {
-                    output.metadata = float2(previous.w > 0 ? depth : -1.0, depth);
-                }
                 return output;
             }
 
@@ -202,16 +85,16 @@
             #pragma fragment frag
             #include "../Library/Common.hlsl"
             #include "../Library/OutputTransform.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
             float4 _ScaleBais;
             float4 _InfinityOutputTransfer;
             Texture2D<float4> _MainTex;
-            struct Attributes { float4 vertex : POSITION; };
             struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
-            Varyings vert(Attributes v)
+            Varyings vert(uint vertexID : SV_VertexID)
             {
                 Varyings o;
-                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
-                o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+                o.position = FullScreenTrianglePosition(vertexID);
+                o.uv = FullScreenTriangleUV(vertexID) * _ScaleBais.xy + _ScaleBais.zw;
                 return o;
             }
             float4 frag(Varyings i) : SV_Target
@@ -235,15 +118,15 @@
             #include "../Library/Common.hlsl"
             #include "../Library/PostCombine.hlsl"
             #include "../Library/OutputTransform.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
             float4 _ScaleBais;
             float4 _InfinityOutputTransfer;
-            struct Attributes { float4 vertex : POSITION; };
             struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
-            Varyings vert(Attributes v)
+            Varyings vert(uint vertexID : SV_VertexID)
             {
                 Varyings o;
-                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
-                o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+                o.position = FullScreenTrianglePosition(vertexID);
+                o.uv = FullScreenTriangleUV(vertexID) * _ScaleBais.xy + _ScaleBais.zw;
                 return o;
             }
             float4 frag(Varyings i) : SV_Target
@@ -263,14 +146,14 @@
             #pragma vertex vert
             #pragma fragment frag
             #include "../Library/Common.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
             Texture2D<float> _InfinitySourceDepth;
-            struct Attributes { float4 vertex : POSITION; };
             struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
-            Varyings vert(Attributes v)
+            Varyings vert(uint vertexID : SV_VertexID)
             {
                 Varyings o;
-                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
-                o.uv = (v.vertex.xy + 1) * 0.5;
+                o.position = FullScreenTrianglePosition(vertexID);
+                o.uv = FullScreenTriangleUV(vertexID);
                 return o;
             }
             float frag(Varyings i) : SV_Depth
@@ -288,20 +171,84 @@
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
+            #include "../Library/FullScreenTriangle.hlsl"
             Texture2D<float> _InfinitySourceDepth;
             float4 _InfinityDepthCopyOffset;
-            struct Attributes { float4 vertex : POSITION; };
             struct Varyings { float4 position : SV_POSITION; };
-            Varyings vert(Attributes v)
+            Varyings vert(uint vertexID : SV_VertexID)
             {
                 Varyings o;
-                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
+                o.position = FullScreenTrianglePosition(vertexID);
                 return o;
             }
             float frag(Varyings i) : SV_Depth
             {
                 // Copy the stored depth exactly, without filtering or reversed-Z conversion.
                 return _InfinitySourceDepth.Load(int3(int2(i.position.xy) + int2(_InfinityDepthCopyOffset.xy), 0));
+            }
+            ENDHLSL
+        }
+        // Skin scattering, step 1: the diffuse of each subsurface pixel into the irradiance target.
+        Pass
+        {
+            Name "RasterSubsurfaceExtract"
+            ZTest Always ZWrite Off Blend Off Cull Off
+            Stencil
+            {
+                Ref 4
+                ReadMask 4
+                Comp Equal
+                Pass Keep
+            }
+            HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "../Library/Subsurface.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
+            struct Varyings { float4 position : SV_POSITION; };
+            Varyings vert(uint vertexID : SV_VertexID)
+            {
+                Varyings o;
+                o.position = FullScreenTrianglePosition(vertexID);
+                return o;
+            }
+            float4 frag(Varyings i) : SV_Target
+            {
+                return float4(ExtractSubsurfaceIrradiance((uint2)i.position.xy), 1);
+            }
+            ENDHLSL
+        }
+        // Skin scattering, step 2: Out = t·blur(D) + Dst·(1 − t·R) over Scene Color.
+        Pass
+        {
+            Name "RasterSubsurfaceScatter"
+            ZTest Always ZWrite Off Blend One SrcAlpha Cull Off
+            Stencil
+            {
+                Ref 4
+                ReadMask 4
+                Comp Equal
+                Pass Keep
+            }
+            HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "../Library/Subsurface.hlsl"
+            #include "../Library/FullScreenTriangle.hlsl"
+            struct Varyings { float4 position : SV_POSITION; };
+            Varyings vert(uint vertexID : SV_VertexID)
+            {
+                Varyings o;
+                o.position = FullScreenTrianglePosition(vertexID);
+                return o;
+            }
+            float4 frag(Varyings i) : SV_Target
+            {
+                return ScatterSubsurface((uint2)i.position.xy);
             }
             ENDHLSL
         }

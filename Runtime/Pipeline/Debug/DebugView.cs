@@ -28,18 +28,19 @@ namespace InfinityTech.Rendering.Pipeline
         ShadowMoments,
         // Light cookie / IES atlas (mip 0, stretched).
         LightCookieAtlas,
-        // Material (GBuffer): metallic, specular level, shading model / route, rendering layer mask.
+        // Material: metallic and specular level (GBuffer), the stencil admission bits, the sideband's light channels.
         Metallic,
         Specular,
-        ShadingModel,
+        SurfaceStencil,
         RenderingLayers,
         // Lighting: clustered-list heat maps (local lights / reflection probes a pixel's loop visits).
         LightComplexity,
         ReflectionProbeComplexity,
-        // Lighting: deferred indirect terms (baked irradiance before albedo, indirect diffuse, environment specular).
-        BakedDiffuse,
-        IndirectDiffuse,
-        IndirectSpecular,
+        // Sideband: diffuse share of Scene Color (Lighting), baked visibility of the two mixed lights (Lighting), subsurface
+        // profile (Material).
+        DiffuseRatio,
+        MixedLightVisibility,
+        SubsurfaceProfile,
         // Lighting: the six faces of one reflection probe in the probe atlas (InfinityDebugDisplaySettingsLighting).
         ReflectionProbeAtlas,
         // Lighting: screen space trace shadow of the sun.

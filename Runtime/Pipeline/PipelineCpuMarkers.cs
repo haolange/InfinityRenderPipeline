@@ -54,10 +54,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilerMarker s_RecordComputeDeferredShading = Define("Record.ComputeDeferredShading");
         internal static readonly ProfilerMarker s_RecordRecordDeferredLightingCapture = Define("Record.RecordDeferredLightingCapture");
         internal static readonly ProfilerMarker s_RecordRasterForward = Define("Record.RasterForward");
-        internal static readonly ProfilerMarker s_RecordComputeScreenSpaceComposite = Define("Record.ComputeScreenSpaceComposite");
         internal static readonly ProfilerMarker s_RecordCopyHistorySSR = Define("Record.CopyHistorySSR");
         internal static readonly ProfilerMarker s_RecordCopyHistorySSGI = Define("Record.CopyHistorySSGI");
-        internal static readonly ProfilerMarker s_RecordComputeBurleySubsurface = Define("Record.ComputeBurleySubsurface");
+        internal static readonly ProfilerMarker s_RecordRasterSubsurfaceScattering = Define("Record.RasterSubsurfaceScattering");
         internal static readonly ProfilerMarker s_RecordComputeAtmosphericSkyAndFog = Define("Record.ComputeAtmosphericSkyAndFog");
         internal static readonly ProfilerMarker s_RecordRecordLightingCapture = Define("Record.RecordLightingCapture");
         internal static readonly ProfilerMarker s_RecordRasterTranslucentDepth = Define("Record.RasterTranslucentDepth");
