@@ -2,6 +2,20 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
+### Raster deferred shading — 2026-11-27 (Unity 6000.6.0f1, Apple M3 Max, Metal)
+
+Package `main` `a9651337`. Example global settings `c66ee7d` points `deferredShadingShader` at `Shaders/Pass/Lighting/DeferredShading.shader`. Contract in ARCHITECTURE.md §8 and §16.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Static checks | Pass | `static_check.py` 0 errors, 0 warnings. `test_static_check.py` 53/53. |
+| C# compile | Pass | Editor refresh loaded Runtime, Editor, Tests, Validation and CLI assemblies. The console window after that refresh had no CS error. |
+| Shader compile | Pass | `ShaderUtil.GetShaderMessages` reported 0 errors for `DeferredShading.shader`, `InfinityLit.shader` and `InfinityDecal.shader`. |
+| Deferred GPU tests | Pass | `DeferredLightLoopGpuTests` 19/19. Covers light accumulation, weight split, AO on I, packed Scene Color, SSGI confidence, pixels without bit 1, and 19×19 coverage. |
+| Route and decal tests | Pass | `MaterialRouteTests` 21/21. `ReflectionAndDecalTests` 4/4 after the cleanup fix in `a9651337`. |
+| Full EditMode, two runs | Fail | Run 1: 1014 passed, 11 failed, 1 skipped, of 1026. Run 2: 1015 passed, 10 failed, 1 skipped. The decal failure is gone in run 2. The remaining 10 are `ShaderStrippingTests` aborted by Unity's log `attempt to write a readonly database` from `ShaderUtil.ShaderHasError`. The project Library is on exFAT (`/Volumes/DataDisk`). No assertion inside those tests failed. |
+| Frame tree, images, GPU time | Blocked | Not captured. The Editor spent the first part of the session on the Safe Mode dialog, and no baseline against `46139510` was recorded before the later commits. |
+
 ### Opaque color path convergence — 2026-11-26 (Unity 6000.6.0f1, Apple M3 Max, Metal)
 
 Source branch `claude/happy-feynman-ekmpz3`, starting at `dc9a5464`. Runtime contract in ARCHITECTURE.md §§4, 8, 11 and 13. The candidate and exact `04f5a570` baseline ran in isolated APFS projects with the same pre-migration Spazon scene and Game view dimensions. The explicit EVSM and skin cases used a temporary Play Mode scene, volume, diffusion profile and sun filter override alongside Spazon. The run paths below identify raw artifacts at collection time. This section preserves the verified results after task cleanup.
