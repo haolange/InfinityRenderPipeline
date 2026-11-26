@@ -1,6 +1,7 @@
 #ifndef INFINITY_SKIN_SURFACE
 #define INFINITY_SKIN_SURFACE
 
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "BSDF.hlsl"
 #include "InfinitySkinMaterial.hlsl"
 

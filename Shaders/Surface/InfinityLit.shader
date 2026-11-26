@@ -265,6 +265,7 @@
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"
@@ -403,6 +404,7 @@
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../Library/NativeMotion.hlsl"
 			#include "../Library/InfinityLitMaterial.hlsl"

@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             else
             {
                 depthFormat = preferredFormat;
-                depthState = new ConfigFieldState(EConfigStatus.Unsupported, "Neither D24_UNorm_S8_UInt nor D32_SFloat_S8_UInt is supported on this device.");
+                depthState = new ConfigFieldState(EConfigStatus.Unsupported, "Neither D24_UNorm_S8_UInt nor D32_SFloat_S8_UInt is supported with a readable R8_UInt stencil plane on this device.");
                 blockingConflict = blockingConflict ?? depthState.reason;
             }
 

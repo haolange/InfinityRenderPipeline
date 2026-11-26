@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.LightPipeline;
 
@@ -26,9 +27,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ActualDeferredKernel_AccumulatesLocalLightsAcrossMaskWords(int localCount)
         {
             var actual = Dispatch(new Fixture { localCount = localCount }).color[0][8 * 16 + 8];
-            float distanceSquared = 1 + 2 * .0625f * .0625f;
+            float normalDistance = 1 + Fixture.SurfaceDepth;
+            float distanceSquared = normalDistance * normalDistance + 2 * .0625f * .0625f;
             float window = 1 - Mathf.Pow(Mathf.Sqrt(distanceSquared) / 20, 4);
-            float expected = localCount == 0 ? 0 : .5f / Mathf.PI * 30 * window * window / distanceSquared / Mathf.Sqrt(distanceSquared);
+            float expected = localCount == 0 ? 0 : .5f / Mathf.PI * 30 * window * window / distanceSquared * (normalDistance / Mathf.Sqrt(distanceSquared));
             for (int channel = 0; channel < 3; ++channel)
                 Assert.That(actual[channel], Is.EqualTo(expected).Within(.015f), "Actual production Deferred kernel, local=" + localCount);
         }
@@ -78,19 +80,29 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
-        // Scene Color 1 with diffuse share 0.5 splits into emission 0.5 and indirect diffuse 0.5. Occlusion scales only the
-        // indirect part; with no light and a black environment the result is E + I·ao and the new share I·ao / result.
+        // Occlusion scales the indirect part decoded from the RGBA8 sideband. Emission passes through.
         [TestCase(1.0f)]
         [TestCase(0.25f)]
         [TestCase(0.0f)]
         public void ActualDeferredKernel_OccludesOnlyTheIndirectShareOfSceneColor(float occlusion)
         {
-            var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = 0.5f, occlusion = occlusion };
+            const float geometryShare = 128.0f / 255.0f;
+            var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = occlusion };
             Result result = Dispatch(fixture);
-            float indirect = 0.5f * occlusion;
-            float expected = 0.5f + indirect;
+            float indirect = geometryShare * occlusion;
+            float expected = 1.0f - geometryShare + indirect;
             AssertUniform(result.color[0], expected, 1e-4f, "E + I·ao");
             AssertUniformRatio(result.sideband, indirect / expected, "diffuse share after deferred shading");
+        }
+
+        [Test]
+        public void ActualDeferredKernel_ReadsAndWritesPackedSceneColorInPlace()
+        {
+            var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = 1.0f, occlusion = 0.25f,
+                sceneColorFormat = EffectivePipelineConfiguration.SceneColorFormat };
+            Result result = Dispatch(fixture);
+            AssertUniform(result.color[0], 0.25f, 1e-6f, "Packed Scene Color after in-place deferred shading");
+            AssertUniformRatio(result.sideband, 1.0f, "Packed Scene Color stays all diffuse");
         }
 
         // SSGI replaces the occluded indirect diffuse by its confidence and adds its premultiplied irradiance times the
@@ -98,10 +110,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void ActualDeferredKernel_SSGIReplacesTheOccludedIndirectByConfidence()
         {
-            var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = 0.5f, occlusion = 0.25f, ssgi = new Color(0.2f, 0.2f, 0.2f, 0.5f) };
+            const float geometryShare = 128.0f / 255.0f;
+            var fixture = new Fixture { sceneColor = Color.white, sidebandRatio = geometryShare, occlusion = 0.25f, ssgi = new Color(0.2f, 0.2f, 0.2f, 0.5f) };
             Result result = Dispatch(fixture);
-            float indirect = 0.5f * 0.25f * (1 - 0.5f) + 0.5f * 0.2f;
-            float expected = 0.5f + indirect;
+            float indirect = geometryShare * 0.25f * (1 - 0.5f) + 0.5f * 0.2f;
+            float expected = 1.0f - geometryShare + indirect;
             AssertUniform(result.color[0], expected, 1e-4f, "E + SSGI-replaced indirect");
             AssertUniformRatio(result.sideband, indirect / expected, "diffuse share with SSGI");
         }
@@ -149,12 +162,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             // Light channel 0 (high nibble), no profile.
             internal const float SidebandAlpha = 16.0f / 255.0f;
+            // Half depth is preserved by the clear on both forward and reversed Z devices.
+            internal const float SurfaceDepth = 0.5f;
             internal int localCount;
             internal bool weightCases;
             internal int size = 16;
             internal float? occlusion;
             internal bool contact;
             internal Color sceneColor = Color.clear;
+            internal GraphicsFormat sceneColorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             internal float? sidebandRatio;
             internal Color? ssgi;
             internal uint stencil = 2;
@@ -216,8 +232,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 RenderTexture Target()
                 {
-                    var target = new RenderTexture(size, size, 0, RenderTextureFormat.ARGBFloat) { enableRandomWrite = true };
-                    owned.Add(target); target.Create();
+                    var target = new RenderTexture(new RenderTextureDescriptor(size, size, fixture.sceneColorFormat, 0) { enableRandomWrite = true });
+                    owned.Add(target);
+                    Assert.IsTrue(target.Create());
+                    Assert.AreEqual(fixture.sceneColorFormat, target.graphicsFormat);
                     RenderTexture.active = target; GL.Clear(false, true, Color.clear);
                     RenderTexture.active = previous;
                     return target;
@@ -235,11 +253,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int i = 0; i < 6; i++) environment.SetPixels(new[] { Color.clear }, i);
                 environment.Apply();
                 var output = Target();
-                // Depth 0 (not far) and the fixture's stencil admission bits, read through both planes of one target.
+                // The fixture reads both depth and stencil through the planes of one target.
                 var depthStencil = new RenderTexture(new RenderTextureDescriptor(size, size)
                 {
-                    graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.None,
-                    depthStencilFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.D32_SFloat_S8_UInt
+                    graphicsFormat = GraphicsFormat.None,
+                    depthStencilFormat = GraphicsFormat.D32_SFloat_S8_UInt,
+                    stencilFormat = GraphicsFormat.R8_UInt
                 });
                 owned.Add(depthStencil);
                 Assert.IsTrue(depthStencil.Create());
@@ -312,8 +331,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     directionalCount = directionalCount,
                     localCount = localCount
                 });
-                shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
-                shader.SetInt("DeferredShading_HasRenderingLayers", 1);
+                int parameterSize = Marshal.SizeOf<DeferredShadingParameters>();
+                using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
+                parameters.SetData(new[] { new DeferredShadingParameters { resolution = new Vector4(size, size, 1f / size, 1f / size), hasRenderingLayers = 1 } });
+                shader.SetConstantBuffer(DeferredShadingPassUtilityData.CBV_DeferredShadingParametersID, parameters, 0, parameterSize);
                 using var view = new UniformBinding<ViewUniform>(new ViewUniform
                 {
                     matrix_InvFlipYJitterProj = Matrix4x4.identity,
@@ -321,7 +342,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     matrix_ViewToWorld = Matrix4x4.Translate(new Vector3(0, 0, -2))
                 });
                 using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform { shadowDistance = 1000 });
-                shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
                 shader.SetTexture(kernel, "SRV_DepthTexture", depthStencil, 0, RenderTextureSubElement.Depth);
                 shader.SetTexture(kernel, "SRV_StencilTexture", depthStencil, 0, RenderTextureSubElement.Stencil);
@@ -358,7 +378,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     using (var cmd = new CommandBuffer())
                     {
                         cmd.SetRenderTarget(output, depthStencil);
-                        cmd.ClearRenderTarget(RTClearFlags.All, fixture.sceneColor, 0.0f, fixture.stencil);
+                        cmd.ClearRenderTarget(RTClearFlags.All, fixture.sceneColor, Fixture.SurfaceDepth, fixture.stencil);
                         if (sideband)
                         {
                             cmd.SetRenderTarget(sidebandTarget);
@@ -368,7 +388,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     }
                     shader.GetKernelThreadGroupSizes(kernel, out uint threadsX, out uint threadsY, out _);
                     shader.Dispatch(kernel, Mathf.CeilToInt(size / (float)threadsX), Mathf.CeilToInt(size / (float)threadsY), 1);
-                    var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                    var readback = AsyncGPUReadback.Request(output, 0, TextureFormat.RGBAFloat); readback.WaitForCompletion();
                     Assert.IsFalse(readback.hasError);
                     results[w] = readback.GetData<Color>().ToArray();
                 }

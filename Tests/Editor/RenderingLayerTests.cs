@@ -91,11 +91,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         // The explicit clamp command keeps the four channels of every mask; a mask with none left is reported, not refilled.
-        // It runs on an owned additive scene so no user scene is touched.
+        // Run in a preview scene independent of the test runner's untitled bootstrap scene.
         [Test]
         public void ClampCommand_KeepsFourChannelsAndReportsEmptiedMasks()
         {
-            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            Scene scene = EditorSceneManager.NewPreviewScene();
             try
             {
                 var rendererObject = new GameObject("ClampRenderer");
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                EditorSceneManager.CloseScene(scene, true);
+                EditorSceneManager.ClosePreviewScene(scene);
             }
         }
 

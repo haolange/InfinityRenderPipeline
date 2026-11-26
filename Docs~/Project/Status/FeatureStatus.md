@@ -2,19 +2,46 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
 
-### Opaque color path convergence — 2026-11-26 (static gate only, no Editor)
+### Opaque color path convergence — 2026-11-26 (Unity 6000.6.0f1, Apple M3 Max, Metal)
 
-Source: branch `claude/happy-feynman-ekmpz3`. Contracts in ARCHITECTURE.md §8 (opaque color path), §4, §11 and §13.
+Source branch `claude/happy-feynman-ekmpz3`, starting at `dc9a5464`. Runtime contract in ARCHITECTURE.md §§4, 8, 11 and 13. The candidate and exact `04f5a570` baseline ran in isolated APFS projects with the same pre-migration Spazon scene and Game view dimensions. The explicit EVSM and skin cases used a temporary Play Mode scene, volume, diffusion profile and sun filter override alongside Spazon. The run paths below identify raw artifacts at collection time. This section preserves the verified results after task cleanup.
 
-- **Static gate**: `python3 -B Tools/StaticCheck/static_check.py --repo .` → `0 error(s), 0 warning(s)`; `test_static_check.py` → `52/52 OK`; `GpuRecordLayout.generated.cs`, `TextureViewBindings.generated.cs` and `TextureViews.generated.hlsl` regenerated from the source.
-- **Offline shader compile** (`shader_check.py`, `shadergraph_check.py`): not run. The DXC release download and the Unity package registry (Core RP source) are refused by this environment's network policy (403). TODO(UNVERIFIED).
-- **Independent review** (a separate agent, static, against base `04f5a57`): two compile errors fixed (GTAO included `GBufferPack.hlsl` next to its own common header, redefining samplers and math helpers: the normal decode moved to the dependency-free `GBufferNormal.hlsl`; InfinityUnlit T2 kept an output on the removed metadata semantic). Also fixed: capture decoded every `R32_UInt` buffer as surface metadata (now only `SSRMeta` and `SSGIMeta`); deferred shading declared only writes for the Scene Color and sideband it reads in place; clustered decals were not a sideband reader; SSR and SSGI wrote raw depth bits into the metadata word of pixels without a surface; SSR kept counting the age of a history it rejected; `UAV_SceneColor` and `requiresPreviousDepth` had no reader. Recorded as limits (ARCHITECTURE §16): direct GBuffer decals do not retint indirect diffuse; Forward materials saved before `_StencilRefGBuffer` existed are shaded twice until their route is applied. Clean: C# symbol closure, HLSL call signatures, keyword and binding closure, graph declarations, stencil bits, sideband packing, share and scatter formulas, mixed-light slots, profile range, `EDebugView` mirror, `.meta` GUIDs.
-- **Editor compile, domain reload and console**: TODO(UNVERIFIED).
-- **EditMode**: `GBufferContractTests` (RGBA8 ×2 and sideband round trip), `PipelineConfigurationResolverTests`, `RenderingLayerTests` (four channels, clamp command), `MaterialRouteTests` (stencil reference, InfinitySkin routing), `NativeLightingContractTests` (mixed light channel), `DeferredLightLoopGpuTests` (in-place share split, occlusion, SSGI, stencil admission), `SubsurfaceGpuTests` (raster extract and scatter), `VisualContractGpuTests`, `QualityLifecycleTests`, `DebugViewModeTests`, and the TAA, super-resolution, GTAO, SSR, SSGI and surface-metadata tests: TODO(UNVERIFIED).
-- **Frame order** (frame-tree export on `Scene_Spazon`): SSR and SSGI after `ComputeShadowMoments` and before `ComputeDeferredShading`; no `ComputeScreenSpaceComposite`; `RasterSubsurfaceExtract` and `RasterSubsurfaceScatter` after `CopyHistorySSGI`: TODO(UNVERIFIED).
-- **Image**: `Scene_Spazon` Surface Stencil (deferred, skin, forward, motion), Diffuse Ratio (deferred and forward pixels nonzero, sky 0), Rendering Layers, Mixed Light Visibility; Display Color with GTAO, SSGI and SSR toggled (emission not darkened by occlusion); a skin material scattered and reflecting: TODO(UNVERIFIED).
-- **GPU time**: SSR and SSGI moved from after `RasterForward` to before `ComputeDeferredShading`, both after the shadow window; the Spazon GPU frame time against the previous commit: TODO(UNVERIFIED).
-- **Example project migration** (owner action): re-save the pipeline asset to drop removed fields; run Window/Infinity/Lighting/Clamp Light Channels In Open Scenes and save each scene; run Window/Infinity/Materials/Apply Surface Route State To Project Materials and save; convert materials that used InfinityLit subsurface to InfinitySkin and set their profile index.
+#### Verification
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Static checks | Pass | `static_check.py` reported 0 errors and 0 warnings. `test_static_check.py` passed 52/52. |
+| C# compile and reload | Pass | `run-01/refresh-final.txt` verified fresh Runtime, Editor, Tests, Validation and CLI DLLs. `Application.consoleLogPath` reported 0 CS errors in the marked window. |
+| Shader compilation | Pass | `run-03/shader-diagnostics-final.txt` recorded 28 assets with 0 errors, including forced raster pass compilation, the corrected Temporal Color Source compute fixture and a generated Lit Shader Graph. |
+| EditMode and GPU | Pass | `run-03/editmode-final/results.xml` reported 1023 passed, 0 failed and 1 skipped, matching `run-01/editmode-03/results.xml`. `CrossQueueHazardsAndPhysicalReuse_PreserveValues` requires async compute, which the Metal device does not expose. The production deferred kernel read and wrote R11G11B10F in place and returned the expected 0.25 RGB. |
+| Game frame tree | Pass | `run-01/spazon-fixture-frame/frame-tree.json` captured 172 native events. The final compiled graph in `run-01/final-reflection-on/` recorded ShadowMoments 30, SSR 31, SSGI 32, Deferred 33, Forward 34, both SSGI copies 37–38 and Scatter passes 39–40. `ComputeScreenSpaceComposite` was absent. The native Extract and Scatter draws each used three vertices. |
+| Game image and attachment readback | Pass | Viewed the actual Editor Game window, then the graph-transfer captures from `MainCamera`, 1698×1750. `run-01/spazon-beauty/capture.json` reported 0 non-finite values for each of nine buffers, including R11G11B10F DeferredLighting and Lighting, the two RGBA8 GBuffer targets and RGBA8 Sideband. |
+| Debug views | Pass | Viewed Surface Stencil, Diffuse Ratio, Rendering Layers and Mixed Light Visibility. `run-01/final-stencil/` recorded 91,311 gray deferred, 14,331 orange skin, 25,782 blue forward and 2,638,210 green-tinted deferred pixels. Diffuse Ratio was 0 on sky, 1.0 at the forward sphere center and 254/255 at the skin sphere center. Mixed Light Visibility varied the first baked slot across the scene, with the second slot fully visible. |
+| GTAO, SSGI, SSR and scattering | Pass | Viewed the five control and single-effect-off DisplayColor captures in `run-01/effects-*/` and the final SSR on/off pair. GTAO on/off produced identical RGB at the emission control center. The forward skin reflector had SSR confidence 1 and SSGI confidence 0.113 at the sampled pixel. Its Lighting RGB was (4.375, 0.213, 6.000) with SSR and (0.0161, 0.0159, 0.0205) with SSR disabled. The skin region also wrote nonzero extracted irradiance. Turning scattering off changed packed Lighting RGB by 0.000173 mean absolute per-channel difference over its 4,053-pixel control region. |
+| Source asset migration | Partial | Saved the pipeline asset and 29 routed materials. The protected `Scene_Spazon` contains 37 masks with value `0x21`; the migration replica clamped all 37 to `0x01` and a second invocation changed zero. The protected scene still triggers the source layer validator on entering Play. |
+
+#### GPU frame time
+
+`FrameTimingManager.gpuFrameTime`, 45 warmup frames then 80 positive samples per window, candidate and base alternated, the other Editor paused. Each entry is that window's median. The summary takes the median of the four window medians.
+
+| Build | Round 1 | Round 2 | Round 3 | Round 4 | Median |
+|---|---:|---:|---:|---:|---:|
+| Candidate | 12.9329 ms | 12.9186 ms | 12.9384 ms | 12.9311 ms | 12.9320 ms |
+| `04f5a570` | 18.4801 ms | 18.4649 ms | 18.4931 ms | 18.4808 ms | 18.4805 ms |
+
+The candidate used 5.5485 ms less GPU time per frame, a 30.02% reduction. The windows are `run-01/branch-final-round-{1..4}.txt` and `run-02/base-final-round-{1..4}.txt`.
+
+#### Example assets saved
+
+The source project received the exact bytes verified in its independent APFS copy. The pipeline asset kept its active serialized values, GUID and local ID. Every material's only serialized field change was its disabled shader pass list. The second save was byte-identical and the separate repeat route operation was a no-op. No legacy InfinityLit materials had SSS enabled.
+
+- `Assets/Profile/RenderPipelineAsset.asset` and `Assets/Animation/Anim_MAT.mat`.
+- Under `Assets/Material/` the saves were `M_Black.mat`, `M_BoxA.mat`, `M_BoxA_Instance.mat`, `M_BoxB.mat`, `M_BoxB_Instance.mat`, `M_BoxC.mat`, `M_BoxC_Instance.mat`, `M_MaskA.mat`, `M_MaskB.mat`.
+- Under `Assets/Material/Spazon/` the saves were `M_Spazon_Arch.mat`, `M_Spazon_Brick1.mat`, `M_Spazon_Ceilling.mat`, `M_Spazon_Column1.mat`, `M_Spazon_Column2.mat`, `M_Spazon_Column3.mat`, `M_Spazon_Fabrick1.mat`, `M_Spazon_Fabrick2.mat`, `M_Spazon_Fabrick3.mat`, `M_Spazon_Fabrick4.mat`, `M_Spazon_Fabrick5.mat`, `M_Spazon_Fabrick6.mat`, `M_Spazon_Flagpole.mat`, `M_Spazon_Floor.mat`, `M_Spazon_Lion1.mat`, `M_Spazon_Lion2.mat`, `M_Spazon_Roof.mat`, `M_Spazon_Vase.mat`, `M_Spazon_Window.mat`.
+
+The channel migration replica was saved at `Assets/Scene/Spazon/__OpaqueColorChannelMigration.unity` within each migration mirror. The original source scene's SHA-256 remained `6c7f075f86e1cae95f70561d72fd6ee4c49f66e4d0c64ecd7f764cc5175ae03e`. Source asset hashes and save paths were recorded in `run-03/migration-published.tsv`; scene and material no-op checks were recorded in `run-03/migration-result.tsv`.
+
+One repeated test run in `run-01/editmode-final/` stalled in native `AsyncGPUReadbackBuffer::Update` while running `FilmGrain_PreservesMeanAndBlackWithoutBloomBinding(0.02f)`. The separately owned migration mirror completed the final suite. D3D12 and Vulkan remain TODO(UNVERIFIED).
 
 ### Phase P2: Camera State Extensions, Unified TRC, 64-bit MotionMetadata & Inspector/Debugger UI — 2026-11-26 (macOS Metal, Unity 6000.6.0f1, APFS mirror)
 
