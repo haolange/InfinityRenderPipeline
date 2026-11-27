@@ -1,10 +1,10 @@
 # Feature status
 
-The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The sections below are the measurement record.
+The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The plain account of raster deferred shading is [Raster deferred shading](RasterDeferred.md). The sections below are the measurement record.
 
 ### Raster deferred shading — 2026-11-27 (Unity 6000.6.0f1, Apple M3 Max, Metal)
 
-Package `main` `a9651337`. Example global settings `c66ee7d` points `deferredShadingShader` at `Shaders/Pass/Lighting/DeferredShading.shader`. Contract in ARCHITECTURE.md §8 and §16.
+Package `main` `05e7189a`. Example global settings `c66ee7d` points `deferredShadingShader` at `Shaders/Pass/Lighting/DeferredShading.shader`. Contract in ARCHITECTURE.md §8 and §16. The readable account, including which example assets were saved and which local material edits were left uncommitted, is [Raster deferred shading](RasterDeferred.md).
 
 | Gate | Result | Evidence |
 |---|---|---|

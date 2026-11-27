@@ -1,6 +1,22 @@
 # Materials
 
-InfinityLit inspector groups: Surface Options, Surface Inputs, Baked Emission, Advanced / Render State. `ValidateMaterial` is read-only. Pass state is applied only on user edit or shader assign. Surface Route selects Deferred or Forward; both draw the GBuffer, and the material writes the stencil bit that admits a deferred pixel to deferred shading (applied with the route). Pipeline stencil uses bits 0–2 only (object motion, deferred, subsurface). Bits 3–7 are free for a custom pass; the pipeline does not read or write them. There is no custom depth target. A pass that only needs to mark pixels uses those five stencil bits. A Forward material authored before that stencil reference existed keeps the deferred default until its route is applied: run **Window > Infinity > Materials > Apply Surface Route State To Project Materials** once and save the project. Until then such a pixel is shaded twice (deferred, then forward over it) and shows as deferred in the Surface Stencil view. Deferred opaque InfinityLit draws `RasterEmissivePass` when any channel of `_EmissionColor` is above zero; the same menu writes that pass enable. A script that changes `_EmissionColor` at runtime calls `MaterialRouteUtility.ApplyPassState`. Shader Graph Lit has no `_EmissionColor`, so a deferred opaque graph keeps the pass on and a black emission output adds nothing.
+InfinityLit groups its inspector into Surface Options, Surface Inputs, Baked Emission, and Advanced / Render State. `ValidateMaterial` only checks the material. It does not write pass enables. Pass enables change when you edit the material or assign the shader.
+
+**Surface Route** is Deferred or Forward. Both routes draw the GBuffer. The route also writes the stencil bit that lets deferred shading touch that pixel.
+
+Pipeline stencil uses three bits:
+
+| Bit | Meaning |
+|---|---|
+| 0 | Object motion |
+| 1 | Deferred shading |
+| 2 | Subsurface scattering |
+
+Bits 3–7 are free for a custom pass. The pipeline does not read or write them. There is no custom depth target. A pass that only needs to mark pixels uses those five stencil bits.
+
+A Forward material saved before the stencil reference existed still carries the deferred default. Run **Window > Infinity > Materials > Apply Surface Route State To Project Materials** once and save the project. Until then that pixel is shaded twice, first deferred and then forward, and the Surface Stencil view shows it as deferred.
+
+Deferred opaque InfinityLit draws `RasterEmissivePass` when any channel of `_EmissionColor` is above zero. The same menu writes that enable. A script that changes `_EmissionColor` at runtime calls `MaterialRouteUtility.ApplyPassState`. Shader Graph Lit has no `_EmissionColor`. A deferred opaque graph keeps the pass on, and a black emission output adds nothing.
 
 ## Skin
 
