@@ -11,15 +11,4 @@
 #define STENCIL_PIPELINE_MASK 0x07u
 #define STENCIL_USER_MASK 0xF8u
 
-// Reads the stencil plane of a depth-stencil target bound with RenderTextureSubElement.Stencil.
-uint LoadStencil(Texture2D<uint2> stencilTexture, int2 pixel)
-{
-    uint2 value = stencilTexture.Load(int3(pixel, 0));
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_GAMECORE)
-    return value.y;
-#else
-    return value.x;
-#endif
-}
-
 #endif

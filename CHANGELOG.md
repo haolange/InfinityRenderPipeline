@@ -5,6 +5,7 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Direct3D 12, Vulkan, and Metal are the supported graphics APIs. The Surface Stencil debug view uses Unity Core RP's stencil plane decoding.
 - Native Terrain and its distant basemap write depth in the GBuffer. The Emissive pass tests the deferred stencil bit before adding to Scene Color.
 - Deferred shading is a full-screen raster pass (`Blend One SrcAlpha`, stencil Equal bit 1). Geometry writes indirect diffuse only. `RasterEmissivePass` adds emission afterwards for deferred materials. The sideband's R channel is the forward diffuse share, read only by skin scattering. Scene Color stays load/store because the atmosphere still reads and writes it in place. The plain account is [Raster deferred shading](Docs~/Project/Status/RasterDeferred.md).
 - There is no custom depth target. Indirect irradiance in the geometry draw is baked only; the asset has no APV / SSGI / ray-traced irradiance mode.

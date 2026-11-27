@@ -2,6 +2,35 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The plain account of raster deferred shading is [Raster deferred shading](RasterDeferred.md). The sections below are the measurement record.
 
+### Native terrain and emissive stencil follow-up — 2026-11-27
+
+Unity `6000.6.0f1`, Apple M3 Max, Metal, with independent APFS project libraries. The Example snapshot is `c66ee7d`. The compute baseline uses the package at `46139510`, the matching global settings asset, and the three instanced materials from before `5b65a36`. Evidence paths are relative to the task run roots at collection time.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Native Terrain and decals | Pass | `candidate/terrain-depth-store/capture.json`, `terrain-stencil/capture.json`, `terrain-basemap/capture.json`, and the Game window showed the near splat layers and distant basemap, terrain stencil gray, the green clustered decal and red Direct decal. At the overlapping terrain pixel the DBuffer was blue `(5, 97, 242, 255)` and GBuffer A kept the terrain `(128, 26, 122, 55)`. The exposed part of the same native mesh received the blue decal. The Direct test pixel changed GBuffer A to `(217, 25, 13, 55)`. The final graph records the Direct draw outside the native GBuffer pass. `batch1-terrain-defaults/results.xml` passed 7/7. |
+| Deferred emission admission | Pass | `candidate/batch1-emissive-final/results.xml` passed both production pass draws. The stale-enabled forward pixel kept Scene Color `(0.125, 0.25, 0.375, 1)`. The deferred pixel read `(1.125, 0.25, 1.375, 1)`. `batch1-shaders.json` recorded a compiled emissive pass with zero messages for InfinityLit and generated Shader Graph Lit. |
+| Spazon Game view and Surface Stencil | Pass | `candidate` and `baseline` each captured `spazon-locked-{beauty,stencil}` at game time zero, with matching view and projection matrices and the same nine authored rotations. Viewed both Game windows. The Surface Stencil buffers matched byte for byte. DisplayColor mean absolute linear RGB difference was `0.00018634`, with maximum `0.05908203`. |
+| Clustered decal across surface routes | Pass | `candidate/spazon-locked-fixture/capture.json` and its Game window show the green stripe on both the deferred and forward emissive controls. Their stripe centers both read `(5, 184, 36)` in GBuffer A RGB. The compute baseline shows the stripe on the deferred control. |
+| Emission with GTAO, SSGI and direct light | Pass | `candidate/{effects-on,gtao-off,ssgi-off,light-off}/capture.json`. Across the three GTAO/SSGI conditions at game time zero, the packed `Lighting − DeferredLighting` difference varied by at most `(0.00226, 0.015625, 0)` RGB, within one encoding step per channel. With the fixture light disabled, green in `DeferredLighting` changed from `1.046875` to `0.46484375` at the same emissive pixel. The enabled-effect captures have nonzero SSGI and occlusion below 1. |
+| Native Renderer and MeshComponent | Pass with identical lighting inputs | `candidate/spazon-parity-{native,mesh}-common/capture.json` and the Game windows show the same object at the same pose. The 40×40 interior ROI matched exactly in DisplayColor, Lighting, Depth and both GBuffers. The fixture removed the scene's 279 legacy probes in Play mode to give both draws the same lighting inputs. With the original scene probes, the native Renderer uses its own baked probe path and its Lighting differs. |
+| Full EditMode | Pass for executable tests | `candidate/editmode-{1,2}/results.xml` each completed with 1,029 passed and zero failures out of 1,030 discovered. `ShaderStrippingTests` were 16/16 in both runs. The first run resumed after a synchronous Metal shader-variant compilation observed in `editmode-1/editor-sample.txt`. Both runs ended in the same Editor. |
+| Cross-queue GPU test | Blocked | The existing `CrossQueueHazardsAndPhysicalReuse_PreserveValues` requires independent async compute. Both XML reports contain the hardware skip. |
+| DX12 and Vulkan | Not run | Unity's stencil documentation specifies green for DX12. The installed Core RP helper selects green with Unity's shared Direct3D shader define and red for Metal and Vulkan. The candidate compiled the Metal debug kernel with zero messages in `candidate/stencil-shader.json`. |
+
+The terrain Frame Debugger enumerated 21 events, including `RasterDBuffer` and `RasterDirectDecals`. Native event payload collection timed out at event 1. The completed graph transfer and Game window establish the image checks above.
+
+The source project saved no assets. The baseline-only resource and material files were restored from Git into its APFS copy. Both validation Editors stopped after readback retirement. The two `intermediate/raster-deferred-round3` directories were removed after recording these results. Both project libraries were retained.
+
+#### Spazon GPU frame time
+
+Game camera at 1698×1750. `FrameTimingManager.gpuFrameTime`, 45 warmup timings and 80 positive frame samples per window. Candidate and `46139510` alternated with the other task Editor paused. Each entry is a window median in milliseconds. The last column is the median of the four window medians. The accepted runs are `candidate/round-{1..4}.csv` and `baseline/round-{1..4}.csv`.
+
+| Build | Round 1 | Round 2 | Round 3 | Round 4 | Median |
+|---|---:|---:|---:|---:|---:|
+| Candidate | 112.1665 | 112.6836 | 112.3143 | 112.9228 | 112.4990 |
+| `46139510` | 1.1563 | 1.1564 | 1.1563 | 1.1565 | 1.1564 |
+
 ### Direct GBuffer decal blend feasibility
 
 | Gate | Result | Evidence |

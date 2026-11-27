@@ -131,7 +131,7 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     else if (DV_Mode == DEBUGVIEW_SURFACESTENCIL)
     {
         // Black: no surface; gray: deferred; orange: subsurface (skin); blue: other forward. Object motion tints green.
-        uint stencil = LoadStencil(SRV_StencilTexture, inputPixel);
+        uint stencil = GetStencilValue(SRV_StencilTexture.Load(int3(inputPixel, 0)));
         color = !validSurface ? float3(0, 0, 0)
             : (stencil & STENCIL_BIT_DEFERRED) != 0 ? float3(0.7, 0.7, 0.7)
             : (stencil & STENCIL_BIT_SUBSURFACE) != 0 ? float3(1.0, 0.5, 0.2)

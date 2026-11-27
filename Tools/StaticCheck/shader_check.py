@@ -10,8 +10,9 @@ prove FXC/HLSLcc acceptance; it catches syntax, type and binding-declaration err
 """
 import argparse, json, os, re, subprocess, tempfile, itertools, sys
 
+# Core RP selects its shared Direct3D HLSL header with SHADER_API_D3D11 for DX12 too.
 UNITY_DEFINES = ["SHADER_API_D3D11=1", "UNITY_REVERSED_Z=1", "UNITY_UV_STARTS_AT_TOP=1", "UNITY_COMPILER_HLSL=1",
-                 "SHADER_TARGET=50", "UNITY_VERSION=60060", "UNITY_NEAR_CLIP_VALUE=1.0", "UNITY_PLATFORM_DIRECT3D11=1"]
+                 "SHADER_TARGET=50", "UNITY_VERSION=60060", "UNITY_NEAR_CLIP_VALUE=1.0"]
 
 def parse_keywords(text):
     sets = []

@@ -32,11 +32,10 @@ namespace InfinityTech.Rendering.Editor
 
     internal static class InfinityWizardChecks
     {
-        // The first graphics API of each platform is the one a Player starts with; these run the compute-based pipeline.
-        static readonly GraphicsDeviceType[] s_ComputeApis =
+        // The first graphics API of each platform is the one a Player starts with.
+        static readonly GraphicsDeviceType[] s_SupportedApis =
         {
-            GraphicsDeviceType.Direct3D11, GraphicsDeviceType.Direct3D12, GraphicsDeviceType.Vulkan, GraphicsDeviceType.Metal,
-            GraphicsDeviceType.PlayStation4, GraphicsDeviceType.PlayStation5, GraphicsDeviceType.GameCoreXboxOne, GraphicsDeviceType.GameCoreXboxSeries,
+            GraphicsDeviceType.Direct3D12, GraphicsDeviceType.Vulkan, GraphicsDeviceType.Metal,
         };
 
         public static readonly InfinityWizardCheck[] All =
@@ -51,10 +50,10 @@ namespace InfinityTech.Rendering.Editor
             },
             new InfinityWizardCheck
             {
-                title = "Compute-capable graphics API",
-                description = "The active build target's first graphics API must support compute and structured buffers (not OpenGL / GLES / WebGL).",
+                title = "Supported graphics API",
+                description = "Set the active build target's first graphics API to Direct3D 12, Vulkan, or Metal.",
                 scope = EWizardScope.Project,
-                isSatisfied = () => s_ComputeApis.Contains(FirstApi(EditorUserBuildSettings.activeBuildTarget)),
+                isSatisfied = () => s_SupportedApis.Contains(FirstApi(EditorUserBuildSettings.activeBuildTarget)),
                 fix = FixGraphicsApi,
             },
             new InfinityWizardCheck
@@ -172,10 +171,10 @@ namespace InfinityTech.Rendering.Editor
         static void FixGraphicsApi()
         {
             BuildTarget target = EditorUserBuildSettings.activeBuildTarget;
-            List<GraphicsDeviceType> apis = PlayerSettings.GetGraphicsAPIs(target).Where(a => s_ComputeApis.Contains(a)).ToList();
+            List<GraphicsDeviceType> apis = PlayerSettings.GetGraphicsAPIs(target).Where(a => s_SupportedApis.Contains(a)).ToList();
             if (apis.Count == 0)
             {
-                Debug.LogWarning($"[InfinityRP] {target} lists no compute-capable graphics API; add Direct3D12, Vulkan or Metal in Player Settings.");
+                Debug.LogWarning($"[InfinityRP] {target} lists no supported graphics API. Add Direct3D 12, Vulkan, or Metal in Player Settings.");
                 return;
             }
             PlayerSettings.SetUseDefaultGraphicsAPIs(target, false);

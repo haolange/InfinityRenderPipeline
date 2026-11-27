@@ -32,7 +32,7 @@ To enable a terrain depth prepass, (1) add a pass tagged `LightMode = RasterDept
 - Specular: roughness, specular level (0.35 is the skin reflectance 0.028), Second Lobe Mix and Second Lobe Roughness Scale of the dual-lobe Beckmann specular.
 - Subsurface: Diffusion Profile Index 0..14, a slot of the pipeline asset's Diffusion Profile list. The inspector warns when the slot is outside the list or empty; such a skin is shaded but not scattered.
 
-Skin shades completely in the forward pass, reflections included; scattering then blurs only its diffuse light within the same profile. A material that used the removed InfinityLit subsurface controls becomes InfinitySkin: assign the shader and set its profile index.
+Skin shades completely in the forward pass, reflections included. Scattering then blurs only its diffuse light within the same profile. InfinitySkin does not receive clustered decals. A material that used the removed InfinityLit subsurface controls becomes InfinitySkin: assign the shader and set its profile index.
 
 `InfinityUnlit` and `SRPDefaultUnlit` / untagged passes are accepted in the T2 translucent RendererList.
 
