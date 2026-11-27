@@ -401,7 +401,7 @@ Subsurface scattering applies to InfinitySkin only, when the Volume is active an
 
 - Screen-space reflection `Samples` is rays per pixel, 1 to 4; `ResolveSamples` is the Poisson reuse count, not a ray count. There is no world-space ray length. Hit color is the accepted unsharpened previous frame. `SCREEN_TRACE_RELATIVE_THICKNESS` and `SSGI_TRACE_LINEAR` are diagnostic variants. Bilateral reflection cleanup uses hysteresis 0.5 on the reconstruction variance.
 - Only InfinitySkin scatters, and it is Forward opaque. Profiles are 1..15 in the sideband; the material stores 0..14.
-- Ray-traced occlusion selects `ComputeRayTracedOcclusion` or `RayTracingOcclusion` from its Unified Ray Tracing backend; its graph pass type stays RayTracing.
+- Ray-traced occlusion selects `ComputeRayTracedOcclusion` or `RayTracingOcclusion` from its Unified Ray Tracing backend; its graph pass type stays RayTracing. Unity imports `VisibilityRTAO.urtshader` as compute and ray tracing subassets. Its `only_renderers` directive uses Unity 6.6's `dx12`, `vulkan`, and `metal` compiler identifiers.
 
 ## 12. Atmosphere, fog, clouds and translucency
 

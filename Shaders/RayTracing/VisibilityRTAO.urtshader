@@ -1,4 +1,5 @@
 #pragma only_renderers dx12 vulkan metal
+// The Unity 6.6 manual lists dx12 for DirectX 12 at https://docs.unity3d.com/6000.6/Documentation/Manual/SL-ShaderCompilationAPIs.html
 
 #define UNIFIED_RT_GROUP_SIZE_X 8
 #define UNIFIED_RT_GROUP_SIZE_Y 8

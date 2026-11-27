@@ -58,6 +58,14 @@ The GPU time is the union of active Metal encoder intervals for command buffers 
 
 The parser rejected the render state before Metal could draw it. Direct GBuffer decals retain albedo and metallic blending and the Replace Normal clip pass. Use the DBuffer target for soft roughness and specular. The proposed dual-source numeric cases did not run because the state could not compile. DX12 and Vulkan did not run.
 
+### RTAO renderer identifiers — 2026-11-27
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Shader pragma identifiers | Pass | The [Unity 6.6 shader compilation API list](https://docs.unity3d.com/6000.6/Documentation/Manual/SL-ShaderCompilationAPIs.html) specifies `dx12` for DirectX 12 and lists `vulkan` and `metal`. Unity's `d3d11` renderer token is a compatibility name for both Direct3D versions. |
+| Metal import and compute compilation | Pass | On `6000.6.0f1` the production `.urtshader` imported as a `ComputeShader` and a `RayTracingShader`. `ShaderUtil` returned zero import messages for both. A forced Metal compile succeeded for `MainRayGenShader` and `ComputeIndirectDispatchDims`. Evidence at collection was `candidate/run-01/rtao-compile.json`. |
+| DX12 and Vulkan execution | Not run | The test environment used Metal. |
+
 ### Raster deferred shading — 2026-11-27 (Unity 6000.6.0f1, Apple M3 Max, Metal)
 
 Package `main` `05e7189a`. Example global settings `c66ee7d` points `deferredShadingShader` at `Shaders/Pass/Lighting/DeferredShading.shader`. Contract in ARCHITECTURE.md §8 and §16. The readable account, including which example assets were saved and which local material edits were left uncommitted, is [Raster deferred shading](RasterDeferred.md).

@@ -191,6 +191,7 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Removed
+- Unused gamma conversion helpers in `GammaCorrectionCommon.hlsl`, including `LinearTo709Branchless` and `ApplyGammaCorrection`.
 - GBuffer layouts (`EGBufferLayout`: HighPrecision96Bit, BestFitYCoCg64Bit), the BestFit LUT and its keyword, `ESceneColorFormat`, `EMotionVectorFormat`, `EIndirectLightingFormat`, `ESubsurfaceLightingMode` and the `D32F` and `D16` depth formats, with their asset fields. Re-save pipeline assets to drop the old keys.
 - The `SurfaceMetadata`, `CustomData`, `BakedDiffuse`, `BakedShadowmask`, `IndirectDiffuse`, `IndirectSpecular`, `ScatterDiffuse`, `ScreenSpaceComposite` and `MotionMetadata` buffers, the TAA, super-resolution, temporal-color and GTAO depth histories, `ScreenSpaceCompositePass` and `Compute_ScreenSpaceComposite`, `Compute_BurleySubsurface`, `GraphicsUtility.FullScreenMesh` and `IRasterCommands.DrawMesh`.
 - InfinityLit and Shader Graph subsurface properties (`_Subsurface`, `_SSSProfileIndex`, `_SSSThickness`); skin materials use InfinitySkin.
