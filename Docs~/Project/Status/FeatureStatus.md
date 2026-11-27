@@ -24,12 +24,31 @@ The source project saved no assets. The baseline-only resource and material file
 
 #### Spazon GPU frame time
 
-Game camera at 1698×1750. `FrameTimingManager.gpuFrameTime`, 45 warmup timings and 80 positive frame samples per window. Candidate and `46139510` alternated with the other task Editor paused. Each entry is a window median in milliseconds. The last column is the median of the four window medians. The accepted runs are `candidate/round-{1..4}.csv` and `baseline/round-{1..4}.csv`.
+**Measurement contamination.** The previous candidate and `46139510` numbers are invalid. The sampler pulled delayed, Editor-wide `FrameTimingManager` records from `endCameraRendering` without matching the selected camera's successful submission and presentation to each record. In the old diagnostic pair before restoration of the three baseline materials, the baseline's Editor records arrived at a 100 ms cadence and its callback counter showed 122 camera callbacks for 125 timing records. A positive timing from that stream does not establish how much work MainCamera executed. The previously published run's CSVs were removed during task cleanup, so the exact packet that produced the low number cannot be identified.
+
+In fresh diagnostic runs with a live Game view, all 80 records on each build reported `cpuTimeFrameComplete == cpuTimePresentCalled`. The candidate API median was 94.50 ms and the baseline API median was 209.21 ms. These are rejected diagnostic API readings. The native frame trace measures GPU execution directly. It reproduces the roughly 14 ms workload on both builds and gives no evidence for the previously reported candidate slowdown. Unity documents that Metal tile scheduling can inflate the reported elapsed GPU time and that Present can stand in for completion. [Unity 6.6 Frame Timing Manager](https://docs.unity3d.com/6000.6/Documentation/Manual/frame-timing-manager.html)
+
+| Gate | Result | Evidence at collection |
+|---|---|---|
+| Spazon rendering and presentation | Pass | Viewed the candidate and baseline Game windows. Both `beauty/capture.json` files report a retired 1698×1750 Metal output attachment for Spazon MainCamera, matching camera matrices, and complete DisplayColor. The native benchmark independently required `RasterFinalOutput` and a Present in every accepted frame. |
+| Alternating GPU measurement | Pass | `candidate/run-01/{alternating,replacement}-windows.csv` and `accepted-analysis.txt`. Both task Editors used Game View VSync off, quality VSync 0, target FPS -1, game time zero, and the same nine authored rotations. Each window discards 45 presented Game frames and measures the next 80. The first attempt at the third pair was discarded because the paused baseline repainted during three of the candidate's sampled intervals. A replacement pair ran with the idle Game camera disabled. The table lists accepted pairs in capture order. The accepted native GPU intervals contain no overlapping Game work from the other task Editor. |
+| Steady-state shader and render-target activity | Pass | No recorded compiler activity or new kernel resources in the accepted traces and no Editor shader-compiling frames in the accepted windows. The candidate user-space resource table shows per-frame buffer activity and zero texture allocations in the selected intervals. The standalone baseline trace also shows buffer activity only. |
+| Individual pass GPU timings | Blocked for merged passes | Metal reports GPU execution for the encoder as a whole. The compiled graph and short traces identify the passes in each group below. |
+
+The GPU time is the union of active Metal encoder intervals for command buffers assigned to the presented Game frame. Editor UI and unnamed render and blit encoders are outside the Game encoder total. The last column is the median of four window medians in ms. Including UI and unnamed encoders, that median was 14.5062 ms on the candidate and 14.5291 ms on `46139510`.
 
 | Build | Round 1 | Round 2 | Round 3 | Round 4 | Median |
 |---|---:|---:|---:|---:|---:|
-| Candidate | 112.1665 | 112.6836 | 112.3143 | 112.9228 | 112.4990 |
-| `46139510` | 1.1563 | 1.1564 | 1.1563 | 1.1565 | 1.1564 |
+| Candidate (`760e55a7`) | 14.0148 | 14.0909 | 14.0812 | 14.0165 | 14.0488 |
+| `46139510` | 14.0268 | 14.1066 | 14.0402 | 14.0710 | 14.0556 |
+
+| Metal encoder group | Candidate (ms) | `46139510` (ms) |
+|---|---:|---:|
+| `SSR_Classify` encoder, includes SSR and SSGI on both builds and `ComputeDeferredShading` on `46139510` | 6.9129 | 8.3157 |
+| Deferred/forward-stage raster encoder, labeled `RasterDeferredShading` on the candidate and `RasterForward` on `46139510` | 3.5519 | 2.0235 |
+| `CopyHistorySSR` encoder, includes SSR and SSGI history copies | 3.4463 | 2.0686 |
+| `ComputeHiZ` encoder | 1.4330 | 1.4421 |
+| `ColorPyramid_Mip0-1` encoder | 1.1171 | 1.1204 |
 
 ### Direct GBuffer decal blend feasibility
 
