@@ -16,7 +16,13 @@ Bits 3–7 are free for a custom pass. The pipeline does not read or write them.
 
 A Forward material saved before the stencil reference existed still carries the deferred default. Run **Window > Infinity > Materials > Apply Surface Route State To Project Materials** once and save the project. Until then that pixel is shaded twice, first deferred and then forward, and the Surface Stencil view shows it as deferred.
 
-Deferred opaque InfinityLit draws `RasterEmissivePass` when any channel of `_EmissionColor` is above zero. The same menu writes that enable. A script that changes `_EmissionColor` at runtime calls `MaterialRouteUtility.ApplyPassState`. Shader Graph Lit has no `_EmissionColor`. A deferred opaque graph keeps the pass on, and a black emission output adds nothing.
+Deferred opaque InfinityLit draws `RasterEmissivePass` when any channel of `_EmissionColor` is above zero. The same menu writes that enable. A script that changes `_EmissionColor` at runtime calls `MaterialRouteUtility.ApplyPassState`. Shader Graph Lit has no `_EmissionColor`. A deferred opaque graph keeps the pass on, and a black emission output adds nothing. The pass tests stencil bit 1, so a stale pass enable cannot add emission to a forward pixel.
+
+## Terrain
+
+Use `InfinityPipeline/TerrainLit` on a Unity Terrain. Its GBuffer pass and distant basemap write depth with the hidden `_ZTest` (LEqual, 4) and `_ZWrite` (On, 1) settings. Additional splat layers use that depth.
+
+To enable a terrain depth prepass, (1) add a pass tagged `LightMode = RasterDepthPass` to the main and basemap shaders and use the same geometry and holes as the GBuffer, (2) switch the GBuffer defaults to `_ZTest = 3` (Equal) and `_ZWrite = 0`, and (3) use the existing native depth renderer list, which already selects that tag. Unity submits native Terrain through that list, outside `MaterialRouteUtility` and the `MeshComponent` pass table. See [Decals](decals.md) for the effects of writing terrain depth in the GBuffer.
 
 ## Skin
 

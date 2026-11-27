@@ -127,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passHandle.SetColorAttachment(sidebandHandle, 3, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 }
-                // Depth comes from the depth prepass; the stencil receives the deferred and subsurface admission bits.
+                // Native terrain can add depth to the prepass result. The stencil receives the deferred and subsurface admission bits.
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref GBufferPassData passData = ref passHandle.GetPassData();

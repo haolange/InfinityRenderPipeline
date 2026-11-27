@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
+using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
@@ -8,6 +9,28 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class DepthStencilFormatTests
     {
+        [TestCase("InfinityPipeline/TerrainLit")]
+        [TestCase("Hidden/InfinityPipeline/TerrainLitBase")]
+        public void TerrainGBufferDefaultsToLessEqualAndWritesDepth(string shaderName)
+        {
+            Shader shader = Shader.Find(shaderName);
+            Assert.IsNotNull(shader, shaderName);
+            var material = new Material(shader);
+            try
+            {
+                int passIndex = material.FindPass("RasterGBufferPass");
+                Assert.GreaterOrEqual(passIndex, 0);
+                Assert.AreEqual(new ShaderTagId("RasterGBufferPass"), shader.FindPassTagValue(passIndex, new ShaderTagId("LightMode")));
+                Assert.AreEqual(-1, material.FindPass("RasterDepthPass"));
+                Assert.AreEqual((float)CompareFunction.LessEqual, material.GetFloat("_ZTest"));
+                Assert.AreEqual(1f, material.GetFloat("_ZWrite"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(material);
+            }
+        }
+
         [Test]
         public void CreateDepthStencil_SetsExplicitFormatAndHashDistinction()
         {

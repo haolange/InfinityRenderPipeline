@@ -51,18 +51,18 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 			Tags { "LightMode" = "RasterGBufferPass" }
 
             Blend One One
-			ZTest Equal ZWrite Off Cull Back
+			ZTest Equal
+			ZWrite Off
+			Cull Back
 
             HLSLPROGRAM
             #pragma vertex SplatmapVert
             #pragma fragment DeferredFragment
             
             #pragma multi_compile_instancing
-            #pragma multi_compile _ _DBUFFER
             #pragma multi_compile _ _CLUSTERED_DECALS
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ INFINITY_SIDEBAND
-            //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
             #pragma shader_feature_local _MASKMAP

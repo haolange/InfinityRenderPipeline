@@ -520,6 +520,24 @@ class StaticCheckTests(unittest.TestCase):
         self.assertTrue(any('User.shader' in message and 'ReadMask 0xf8' in message for message in messages))
         self.assertTrue(any('User.shader' in message and 'Ref 0x10' in message for message in messages))
 
+    def test_emissive_admission_matches_the_pipeline_deferred_bit(self):
+        self.write('Runtime/Core/StencilBits.cs', 'public const int Deferred = 2;')
+        self.write('Shaders/Surface/InfinityLit.shader',
+                   'Name "RasterEmissivePass" Tags { "LightMode" = "RasterEmissivePass" } '
+                   'Stencil { Ref 2 ReadMask 2 WriteMask 0 Comp Equal Pass Keep }')
+        graph = ('const int k_DeferredStencilBit = 2; EmissiveStates(InfinityTarget target) { '
+                 'string deferredStencilBit = k_DeferredStencilBit.ToString(CultureInfo.InvariantCulture); '
+                 'new StencilDescriptor { Ref = deferredStencilBit, ReadMask = deferredStencilBit, '
+                 'WriteMask = "0", Comp = "Equal", Pass = "Keep" } }')
+        self.write('Editor/ShaderGraph/InfinityPasses.cs', graph)
+        out = []
+        static_check.check_stencil_mask(str(self.repo), out)
+        self.assertEqual([], out)
+
+        self.write('Editor/ShaderGraph/InfinityPasses.cs', graph.replace('Bit = 2', 'Bit = 4'))
+        static_check.check_stencil_mask(str(self.repo), out)
+        self.assertEqual([('ERROR', 'stencilmask', 'Editor/ShaderGraph/InfinityPasses.cs: EmissiveStates must test StencilBits.Deferred with no stencil writes.')], out)
+
     def test_opaque_mesh_passes_dither_lod_transitions(self):
         dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'
         plain = 'Pass { Tags { "LightMode" = "RasterGBufferPass" } HLSLPROGRAM\nENDHLSL }'

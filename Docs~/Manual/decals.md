@@ -19,6 +19,11 @@ projector: it projects along its -Y axis onto every opaque surface inside the bo
   whole GBuffer sample, including the normal. Soft normal edges belong on the DBuffer target. GBuffer-target decals
   leave baked indirect light in the old color.
 
+Unity Terrain writes depth in the GBuffer. DBuffer reconstructs surface positions from the earlier prepass depth,
+so it cannot project onto terrain. Clustered decals use the terrain's world position, and GBuffer-target decals
+use the depth after terrain draws. Meshes behind terrain can incur extra overdraw because terrain does not provide
+depth to the early occlusion stage.
+
 Lit, Shader Graph Lit and terrain apply clustered decals in the GBuffer, and forward Lit applies them again before
 shading, so deferred and forward surfaces receive them the same way. Indirect diffuse is computed from the decaled
 albedo. InfinitySkin does not receive DBuffer or clustered decals. A direct GBuffer decal changes albedo after that

@@ -1099,6 +1099,29 @@ def check_stencil_mask(repo, out):
             if ref and int(ref.group(1), 0) & STENCIL_USER_MASK:
                 out.append(('ERROR', 'stencilmask', f'{rel}:{line}: Stencil Ref {int(ref.group(1), 0):#x} touches user bits 0xF8'))
 
+    bits_path = os.path.join(repo, 'Runtime/Core/StencilBits.cs')
+    if not os.path.isfile(bits_path):
+        return
+    deferred = re.search(r'\bconst int Deferred\s*=\s*(\d+)\s*;', read(bits_path))
+    if not deferred:
+        out.append(('ERROR', 'stencilmask', 'StencilBits.Deferred must declare the deferred admission bit.'))
+        return
+
+    bit = deferred.group(1)
+    lit = 'Shaders/Surface/InfinityLit.shader'
+    graph = 'Editor/ShaderGraph/InfinityPasses.cs'
+    lit_source = read(os.path.join(repo, lit))
+    graph_source = read(os.path.join(repo, graph))
+    if not re.search(r'Name\s+"RasterEmissivePass"[^{}]*\{[^{}]*\}[^{}]*Stencil\s*\{\s*'
+                     rf'Ref\s+{bit}\s+ReadMask\s+{bit}\s+WriteMask\s+0\s+Comp\s+Equal\s+Pass\s+Keep\s*\}}', lit_source):
+        out.append(('ERROR', 'stencilmask', f'{lit}: RasterEmissivePass must test StencilBits.Deferred with no stencil writes.'))
+    if (not re.search(rf'\bconst int k_DeferredStencilBit\s*=\s*{bit}\s*;', graph_source)
+            or not re.search(r'EmissiveStates\([^)]*\)[^{}]*\{[^{}]*deferredStencilBit\s*=\s*k_DeferredStencilBit\.ToString\([^)]*\);'
+                             r'[^{}]*StencilDescriptor\s*\{\s*'
+                             r'Ref\s*=\s*deferredStencilBit,\s*ReadMask\s*=\s*deferredStencilBit,\s*'
+                             r'WriteMask\s*=\s*"0",\s*Comp\s*=\s*"Equal",\s*Pass\s*=\s*"Keep"\s*\}', graph_source)):
+        out.append(('ERROR', 'stencilmask', f'{graph}: EmissiveStates must test StencilBits.Deferred with no stencil writes.'))
+
 
 AGENTS_LIMIT = 15 * 1024
 

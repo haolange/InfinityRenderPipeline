@@ -1,3 +1,4 @@
+using System.Globalization;
 using UnityEditor.ShaderGraph;
 
 namespace UnityEditor.Rendering.Infinity.ShaderGraph
@@ -23,6 +24,9 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         public const string kRasterDBufferPass = "RasterDBufferPass";
         public const string kRasterDirectDecalPass = "RasterDirectDecalPass";
         public const string kRasterDirectDecalNormalPass = "RasterDirectDecalNormalPass";
+
+        // Shader Graph's assembly cannot reference Infinity's runtime assembly. The stencil check matches this to StencilBits.Deferred.
+        internal const int k_DeferredStencilBit = 2;
 
         const string kCore = InfinityTarget.kIncludePath + "InfinitySGCore.hlsl";
         const string kGraphFunctions = InfinityTarget.kIncludePath + "InfinitySGGraphFunctions.hlsl";
@@ -258,6 +262,15 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
         {
             RenderStateCollection states = EqualDepthStates(target);
             states.Add(RenderState.Blend("Blend One One"));
+            string deferredStencilBit = k_DeferredStencilBit.ToString(CultureInfo.InvariantCulture);
+            states.Add(RenderState.Stencil(new StencilDescriptor
+            {
+                Ref = deferredStencilBit,
+                ReadMask = deferredStencilBit,
+                WriteMask = "0",
+                Comp = "Equal",
+                Pass = "Keep"
+            }));
             return states;
         }
 

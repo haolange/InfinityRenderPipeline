@@ -552,6 +552,15 @@
 			ZWrite Off
 			Cull Back
 			Blend One One
+			// ShaderLab render state uses the literal value of StencilBits.Deferred.
+			Stencil
+			{
+				Ref 2
+				ReadMask 2
+				WriteMask 0
+				Comp Equal
+				Pass Keep
+			}
 
 			HLSLPROGRAM
 			#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"

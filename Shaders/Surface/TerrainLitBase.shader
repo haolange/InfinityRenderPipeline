@@ -2,6 +2,9 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
 {
     Properties
     {
+        [HideInInspector] _ZTest ("ZTest", Float) = 4
+        [HideInInspector] _ZWrite ("ZWrite", Float) = 1
+
         [HideInInspector] [ToggleUI] _EnableHeightBlend("EnableHeightBlend", Float) = 0.0
         _HeightTransition("Height Transition", Range(0, 1.0)) = 0.0
         // Layer count is passed down to guide height-blend enable/disable, due
@@ -55,7 +58,9 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
 			Name "RasterGBufferPass"
 			Tags { "LightMode" = "RasterGBufferPass" }
 
-			ZTest Equal ZWrite Off Cull Back
+			ZTest [_ZTest]
+			ZWrite [_ZWrite]
+			Cull Back
 			// Terrain is deferred: bit 1 admits it to deferred shading.
 			Stencil
 			{
@@ -79,7 +84,6 @@ Shader "Hidden/InfinityPipeline/TerrainLitBase"
             #pragma multi_compile _ SHADOWS_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
             #pragma multi_compile _ INFINITY_SIDEBAND
-            //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
             #pragma shader_feature_local _NORMALMAP

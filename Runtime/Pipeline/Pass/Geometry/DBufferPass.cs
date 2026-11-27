@@ -170,8 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
             context.features.MarkProduced(EFrameFeature.DBuffer);
         }
 
-        // Direct GBuffer Decal path: blends straight into GBufferA RGB when only Albedo modification is required and
-        // GBuffer A uses linear/sRGB RGB rather than YCoCg checkerboard compression.
+        // Direct decals sample stored GBuffer depth. The MRT binding still requires a read-only depth attachment.
         internal void RasterDirectDecals(in ViewContext context)
         {
             if (context.decals.DirectDecalCount == 0 || !context.features.ShouldRecord(EFrameFeature.DBuffer))
@@ -189,17 +188,18 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGRasterPassHandle<DirectDecalPassData> passHandle = m_RGBuilder.AddRasterPass<DirectDecalPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDirectDecals));
                 passHandle.EnablePassCulling(false);
+                passHandle.EnableNativeRenderPass(false);
                 passHandle.SetColorAttachment(gBufferAHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetColorAttachment(gBufferBHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref DirectDecalPassData passData = ref passHandle.GetPassData();
                 passData.rendererListHandle = passHandle.UseRendererList(directRendererListHandle);
-                passData.depthTextureHandle = depthTextureHandle;
+                passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
 
                 passHandle.SetExecuteFunc((in DirectDecalPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle, RenderTextureSubElement.Depth);
                     cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }
@@ -214,15 +214,16 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 RGRasterPassHandle<DirectDecalPassData> passHandle = m_RGBuilder.AddRasterPass<DirectDecalPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDirectDecalNormals));
                 passHandle.EnablePassCulling(false);
+                passHandle.EnableNativeRenderPass(false);
                 passHandle.SetColorAttachment(gBufferAHandle, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetColorAttachment(gBufferBHandle, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passHandle.SetDepthStencilAttachment(depthTextureHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 ref DirectDecalPassData passData = ref passHandle.GetPassData();
                 passData.rendererListHandle = passHandle.UseRendererList(normalRendererListHandle);
-                passData.depthTextureHandle = depthTextureHandle;
+                passData.depthTextureHandle = passHandle.ReadTexture(depthTextureHandle);
                 passHandle.SetExecuteFunc((in DirectDecalPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTextureHandle, RenderTextureSubElement.Depth);
                     cmdEncoder.DrawRendererList(passData.rendererListHandle);
                 });
             }

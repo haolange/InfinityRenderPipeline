@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.MaterialPipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -26,6 +27,81 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         // The production light loop checks aggregate contribution across words; the exact-index probe and normal multi-tile frames complement it.
         static readonly int[] s_LocalCounts = { 0, 1, 31, 32, 33, 63, 64, 65 };
         static readonly float[] s_Occlusions = { 1.0f, 0.25f, 0.0f };
+
+        [UnityTest]
+        public IEnumerator EmissionUsesThePixelStencilEvenWithAStalePassEnable([Values(false, true)] bool deferred)
+        {
+            const float surfaceDepth = 0.5f;
+            var initial = new Color(0.125f, 0.25f, 0.375f, 1f);
+            // The endpoints survive Unity's material color-space conversion exactly.
+            var emission = new Color(1f, 0f, 1f, 0f);
+            Shader shader = Shader.Find("InfinityPipeline/InfinityLit");
+            Assert.IsNotNull(shader);
+            var material = new Material(shader);
+            var mesh = new Mesh();
+            var target = new RenderTexture(new RenderTextureDescriptor(4, 4)
+            {
+                graphicsFormat = GraphicsFormat.R32G32B32A32_SFloat,
+                depthStencilFormat = GraphicsFormat.D32_SFloat_S8_UInt
+            });
+            var view = new UniformBuffer<ViewUniform>();
+            AsyncGPUReadbackRequest readback = default;
+            bool readbackPending = false;
+            try
+            {
+                Assert.IsTrue(target.Create());
+                material.SetFloat("_SurfaceRoute", deferred ? 0f : 1f);
+                material.SetColor("_EmissionColor", emission);
+                MaterialRouteUtility.ApplyPassState(material);
+                string passName = MaterialRouteUtility.EmissivePassName;
+                Assert.AreEqual(deferred, material.GetShaderPassEnabled(passName));
+                material.SetShaderPassEnabled(passName, true);
+                int passIndex = material.FindPass(passName);
+                Assert.GreaterOrEqual(passIndex, 0);
+                int stencil = (int)material.GetFloat("_StencilRefGBuffer") | StencilBits.UserMask;
+                mesh.vertices = new[] { new Vector3(-1, -1, surfaceDepth), new Vector3(-1, 3, surfaceDepth), new Vector3(3, -1, surfaceDepth) };
+                mesh.triangles = new[] { 0, 1, 2, 2, 1, 0 };
+
+                using var commands = new CommandBuffer();
+                commands.SetRenderTarget(target);
+                commands.ClearRenderTarget(RTClearFlags.All, initial, surfaceDepth, (uint)stencil);
+                Graphics.ExecuteCommandBuffer(commands);
+                readback = AsyncGPUReadback.Request(target, 0, TextureFormat.RGBAFloat);
+                readbackPending = true;
+                yield return GpuReadbackTestUtility.Await(readback);
+                readbackPending = !readback.done;
+                Assert.IsFalse(readbackPending);
+                Assert.IsFalse(readback.hasError);
+                Color before = readback.GetData<Color>()[10];
+                Assert.AreEqual(initial, before);
+
+                commands.Clear();
+                commands.SetRenderTarget(target);
+                view.Upload(commands, new ViewUniform { matrix_ViewJitterProj = Matrix4x4.identity });
+                commands.DrawMesh(mesh, Matrix4x4.identity, material, 0, passIndex);
+                Graphics.ExecuteCommandBuffer(commands);
+                readback = AsyncGPUReadback.Request(target, 0, TextureFormat.RGBAFloat);
+                readbackPending = true;
+                yield return GpuReadbackTestUtility.Await(readback);
+                readbackPending = !readback.done;
+                Assert.IsFalse(readbackPending);
+                Assert.IsFalse(readback.hasError);
+                Color after = readback.GetData<Color>()[10];
+                Assert.AreEqual(deferred ? before + emission : before, after);
+                TestContext.Progress.WriteLine($"{(deferred ? "Deferred" : "Forward")}: Scene Color {before} -> {after} with stencil 0x{stencil:X2}.");
+            }
+            finally
+            {
+                // Retain the draw inputs until the GPU finishes reading them, including on timeout.
+                if (!readbackPending)
+                {
+                    view.Dispose();
+                    UnityEngine.Object.DestroyImmediate(target);
+                    UnityEngine.Object.DestroyImmediate(mesh);
+                    UnityEngine.Object.DestroyImmediate(material);
+                }
+            }
+        }
 
         [UnityTest]
         public IEnumerator RasterDeferred_AccumulatesLocalLightsAcrossMaskWords([ValueSource(nameof(s_LocalCounts))] int localCount)

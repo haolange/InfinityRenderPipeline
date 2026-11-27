@@ -51,6 +51,7 @@ CBUFFER_START(UnityPerMaterial)
     half4 _AlbedoColor;
     half4 _EmissionColor;
     half _Cutoff;
+    float _ZWrite;
 CBUFFER_END
 
 CBUFFER_START(_Terrain)
@@ -510,10 +511,14 @@ GBufferFragmentOutput DeferredFragment(Varyings IN)
     float surfaceSpecular = mixedDiffuse.g;
     float3 surfaceNormal = normalize(inputData.normalWS);
 
-    #if defined(_DBUFFER)
-    float2 screenUV = IN.clipPos.xy * rcp(_ScreenParams.xy);
-    ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
-    #endif
+#if defined(_DBUFFER)
+    // A depth-writing terrain pixel can cover a DBuffer sample projected onto a prepassed mesh behind it.
+    if (_ZWrite == 0.0)
+    {
+        float2 screenUV = IN.clipPos.xy * rcp(_ScreenParams.xy);
+        ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
+    }
+#endif
 #if defined(_CLUSTERED_DECALS)
     float clusterViewDepth = -mul(unity_MatrixV, float4(inputData.positionWS, 1)).z;
     ApplyClusteredDecals((uint2)IN.clipPos.xy, clusterViewDepth, inputData.positionWS, asuint(unity_RenderingLayer.x), surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance, surfaceSpecular);
