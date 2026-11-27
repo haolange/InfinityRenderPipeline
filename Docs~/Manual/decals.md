@@ -16,7 +16,7 @@ projector: it projects along its -Y axis onto every opaque surface inside the bo
 - **Target** (`_DecalTarget` on the decal material): DBuffer draws into the DBuffer before the GBuffer, so baked
   indirect light and forward materials follow the decal. GBuffer blends albedo and metallic onto the GBuffer after it
   is written; roughness, specular and the octahedral normal are not blended. Set Replace Normal to clip-replace the
-  whole GBuffer sample, including the normal. Soft normal edges belong on the DBuffer target. GBuffer-target decals
+  whole GBuffer sample, including the normal. Use the DBuffer target for soft roughness, specular and normal edges. GBuffer-target decals
   leave baked indirect light in the old color.
 
 Unity Terrain writes depth in the GBuffer. DBuffer reconstructs surface positions from the earlier prepass depth,

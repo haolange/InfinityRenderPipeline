@@ -2,6 +2,14 @@
 
 The plain account of the 2026-11-17 CPU and allocation work is [CPU time](CpuTime.md). The plain account of raster deferred shading is [Raster deferred shading](RasterDeferred.md). The sections below are the measurement record.
 
+### Direct GBuffer decal blend feasibility
+
+| Gate | Result | Evidence |
+|---|---|---|
+| ShaderLab dual-source factors | Unsupported in Unity 6000.6.0f1 | The [Unity 6.6 Blend reference](https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/reference/sl-reference/sl-commands/sl-blend) lists the available factors without `Src1Color` or `Src1Alpha`. In the Metal Editor, `ShaderUtil.CreateShaderAsset` and synchronous `ShaderUtil.CompilePass` accepted the single-target `Blend One Zero, One Zero` control with zero diagnostics. `Blend One Src1Color, One Src1Alpha` and `Blend One One, One Src1Alpha` both failed ShaderLab parsing at line 2 with `unexpected TVAL_ID, expecting TVAL_VARREF or TVAL_BMODE`. Neither variant exposed a pass to compile. Raw results were recorded in `candidate/dual-source.json` and `candidate/dual-source-alpha.json`. |
+
+The parser rejected the render state before Metal could draw it. Direct GBuffer decals retain albedo and metallic blending and the Replace Normal clip pass. Use the DBuffer target for soft roughness and specular. The proposed dual-source numeric cases did not run because the state could not compile. DX12 and Vulkan did not run.
+
 ### Raster deferred shading — 2026-11-27 (Unity 6000.6.0f1, Apple M3 Max, Metal)
 
 Package `main` `05e7189a`. Example global settings `c66ee7d` points `deferredShadingShader` at `Shaders/Pass/Lighting/DeferredShading.shader`. Contract in ARCHITECTURE.md §8 and §16. The readable account, including which example assets were saved and which local material edits were left uncommitted, is [Raster deferred shading](RasterDeferred.md).
