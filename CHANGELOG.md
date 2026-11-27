@@ -6,10 +6,11 @@ Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/
 
 ### Changed
 - Direct3D 12, Vulkan, and Metal are the supported graphics APIs. The Surface Stencil debug view uses Unity Core RP's stencil plane decoding.
-- Native Terrain and its distant basemap write depth in the GBuffer. The Emissive pass tests the deferred stencil bit before adding to Scene Color.
+- Native Unity Terrain and its distant basemap write depth in the GBuffer. Clustered and Direct GBuffer decals work on Terrain. DBuffer decals require a depth prepass on the receiving surface.
+- Deferred emission checks the pixel's stencil before adding to Scene Color. A forward pixel keeps the emission it already received in its forward draw even if the separate emissive pass is still enabled on the material.
 - Deferred shading is a full-screen raster pass (`Blend One SrcAlpha`, stencil Equal bit 1). Geometry writes indirect diffuse only. `RasterEmissivePass` adds emission afterwards for deferred materials. The sideband's R channel is the forward diffuse share, read only by skin scattering. Scene Color stays load/store because the atmosphere still reads and writes it in place. The plain account is [Raster deferred shading](Docs~/Project/Status/RasterDeferred.md).
 - There is no custom depth target. Indirect irradiance in the geometry draw is baked only; the asset has no APV / SSGI / ray-traced irradiance mode.
-- A decal material's `_DecalTarget` chooses DBuffer or GBuffer. GBuffer blends albedo and metallic; a separate clip pass replaces the octahedral normal. Clustered decals are not that path.
+- A Direct decal material's `_DecalTarget` selects DBuffer or GBuffer. Use GBuffer to blend albedo and metallic, and DBuffer to also blend roughness and specular. Replace Normal uses a separate clip pass to replace the encoded normal.
 - Clustered decals change albedo, normal and the other surface fields in the GBuffer and forward passes before indirect diffuse is stored. Deferred shading no longer retints them.
 - `InfinityLit` and `InfinityLit-Instanced` are one shader. Mesh draws use procedural instancing (`SetupInfinityInstance`); renderer draws keep the SRP Batcher.
 - Stencil bits 3–7 belong to user passes. Pipeline stencil ReadMask and WriteMask stay inside `0x07` (bit 0 object motion, bit 1 deferred, bit 2 subsurface).
