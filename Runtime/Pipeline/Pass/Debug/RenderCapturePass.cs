@@ -15,8 +15,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int CaptureBufferSizeID = Shader.PropertyToID("CaptureBufferSize");
         internal static readonly int CaptureSizeID = Shader.PropertyToID("CaptureSize");
         internal static readonly int Capture_LightTileMaskID = Shader.PropertyToID("Capture_LightTileMask");
-        internal static readonly int Capture_SSGITraceRadianceID = Shader.PropertyToID("Capture_SSGITraceRadiance");
         internal static readonly int SRV_CaptureID = Shader.PropertyToID("SRV_Capture");
+        internal static readonly int CaptureSourceMipID = Shader.PropertyToID("CaptureSourceMip");
+        internal static readonly int SRV_CaptureConfidenceID = Shader.PropertyToID("SRV_CaptureConfidence");
+        internal static readonly int SRV_CaptureRadianceID = Shader.PropertyToID("SRV_CaptureRadiance");
         internal static readonly int SRV_CaptureMetadataID = Shader.PropertyToID("SRV_CaptureMetadata");
         internal static readonly int SRV_CaptureUIntID = Shader.PropertyToID("SRV_CaptureUInt");
         internal static readonly int SRV_DepthID = Shader.PropertyToID("SRV_Depth");
@@ -77,9 +79,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle sourceHandle, destinationHandle;
             public RenderCaptureSession.Staging staging;
             public RGBuilder graph;
-            public int frame, sourceMip, width, height;
+            public int frame, sourceMip;
+            public RectInt sourceRegion;
         }
         static readonly ProfilingSampler s_CaptureLightMaskSampler = new ProfilingSampler("ComputeCaptureLightMask");
+        static readonly ProfilingSampler s_CaptureRadianceSampler = new ProfilingSampler("ComputeCaptureRadiance");
         static readonly ProfilingSampler s_CaptureMetadataSampler = new ProfilingSampler("ComputeCaptureSurfaceMetadata");
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
@@ -234,7 +238,7 @@ namespace InfinityTech.Rendering.Pipeline
                         id = InfinityShaderIDs.SSGIRayHitBuffer;
                         break;
                     case "SSGITraceRadiance":
-                        id = RenderCapturePassUtilityData.Capture_SSGITraceRadianceID;
+                        id = InfinityShaderIDs.SSGITraceRadianceBuffer;
                         break;
                     case "SSGITemporal":
                         id = InfinityShaderIDs.SSGITemporalBuffer;
@@ -296,6 +300,9 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSGI":
                         id = InfinityShaderIDs.SSGIBuffer;
                         break;
+                    case "SSGIConfidence":
+                        id = InfinityShaderIDs.SSGIConfidenceBuffer;
+                        break;
                     case "SceneColor":
                         id = context.sceneColor.fogged;
                         break;
@@ -348,27 +355,47 @@ namespace InfinityTech.Rendering.Pipeline
             return destinationHandle;
         }
 
-        RGTextureHandle ConvertCaptureMetadata(RGTextureHandle sourceHandle, TextureDescriptor descriptor)
+        struct CaptureSurfacePassData
         {
-            ComputeKernel kernel = CaptureKernels.Require(m_Resources.captureKernels.surfaceMetadata);
+            public RGTextureHandle sourceHandle, destinationHandle, confidenceHandle;
+            public ComputeKernel kernel;
+            public int width, height, sourceBinding, sourceMip;
+        }
+
+        RGTextureHandle ConvertCaptureSurface(RGTextureHandle sourceHandle, TextureDescriptor descriptor, int sourceMip, bool radiance, bool irradiance)
+        {
+            ComputeKernel kernel = CaptureKernels.Require(irradiance ? m_Resources.captureKernels.irradiance :
+                radiance ? m_Resources.captureKernels.radiance : m_Resources.captureKernels.surfaceMetadata);
             descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
+            descriptor.dimension = TextureDimension.Tex2D;
+            descriptor.slices = 1;
             descriptor.enableRandomWrite = true;
-            descriptor.name = "CaptureSurfaceValues";
+            descriptor.name = radiance || irradiance ? "CaptureRadianceValues" : "CaptureSurfaceValues";
             var destination = m_RGBuilder.CreateTexture(descriptor);
             {
-                RGComputePassHandle<CaptureDepthPassData> passHandle = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler);
-                ref CaptureDepthPassData passData = ref passHandle.GetPassData();
+                RGComputePassHandle<CaptureSurfacePassData> passHandle = m_RGBuilder.AddComputePass<CaptureSurfacePassData>(
+                    radiance || irradiance ? s_CaptureRadianceSampler : s_CaptureMetadataSampler);
+                ref CaptureSurfacePassData passData = ref passHandle.GetPassData();
                 passData.sourceHandle = passHandle.ReadTexture(sourceHandle);
                 passData.destinationHandle = passHandle.WriteTexture(destination);
                 passData.kernel = kernel;
                 passData.width = descriptor.width;
                 passData.height = descriptor.height;
-                passHandle.SetExecuteFunc((in CaptureDepthPassData passData, in RGComputeEncoder commands) =>
+                passData.sourceMip = sourceMip;
+                passData.sourceBinding = irradiance ? RenderCapturePassUtilityData.SRV_CaptureID :
+                    radiance ? RenderCapturePassUtilityData.SRV_CaptureRadianceID : RenderCapturePassUtilityData.SRV_CaptureMetadataID;
+                passData.confidenceHandle = irradiance
+                    ? passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIConfidenceBuffer))
+                    : default;
+                passHandle.SetExecuteFunc((in CaptureSurfacePassData passData, in RGComputeEncoder commands) =>
                 {
                     ComputeShader shader = passData.kernel.shader;
                     int kernel = passData.kernel.index;
                     commands.SetComputeVectorParam(shader, RenderCapturePassUtilityData.CaptureSizeID, new Vector4(passData.width, passData.height, 0, 0));
-                    commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureMetadataID, passData.sourceHandle);
+                    commands.SetComputeIntParam(shader, RenderCapturePassUtilityData.CaptureSourceMipID, passData.sourceMip);
+                    commands.SetComputeTextureParam(shader, kernel, passData.sourceBinding, passData.sourceHandle);
+                    if (passData.confidenceHandle.IsValid())
+                        commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.SRV_CaptureConfidenceID, passData.confidenceHandle);
                     commands.SetComputeTextureParam(shader, kernel, RenderCapturePassUtilityData.UAV_CaptureID, passData.destinationHandle);
                     commands.DispatchCompute(shader, kernel, passData.kernel.GroupsX(passData.width), passData.kernel.GroupsY(passData.height), 1);
                 });
@@ -398,11 +425,16 @@ namespace InfinityTech.Rendering.Pipeline
                 sourceHandle = ConvertCaptureDepth(sourceHandle, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
             }
-            // SSR and SSGI surface metadata decode to normal and age; other R32_UInt captures (contact mask, tile class) stay raw.
-            if (semantic == "SSRMeta" || semantic == "SSGIMeta")
+            // Decode the working representation to radiance and confidence or normal and age at the capture boundary.
+            bool radiance = semantic is "SSR" or "SSRResolved" or "SSRTemporal" or "SSGITraceRadiance" or "SSGITemporal" ||
+                semantic.StartsWith("TemporalColorMips_Mip", StringComparison.Ordinal);
+            bool irradiance = semantic == "SSGI";
+            int transferMip = sourceMip;
+            if (radiance || irradiance || semantic is "SSRMeta" or "SSGIMeta")
             {
-                sourceHandle = ConvertCaptureMetadata(sourceHandle, descriptor);
+                sourceHandle = ConvertCaptureSurface(sourceHandle, descriptor, sourceMip, radiance, irradiance);
                 descriptor = m_RGBuilder.GetTextureDescriptor(sourceHandle);
+                transferMip = 0;
             }
             RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, context.resetsHistory);
             staging.evidence.sourceQueue = sourceQueue;
@@ -424,13 +456,16 @@ namespace InfinityTech.Rendering.Pipeline
                 passHandle.SetQueueObserver(staging);
                 data.graph = m_RGBuilder;
                 data.frame = context.frame;
-                data.sourceMip = sourceMip;
-                data.width = descriptor.width;
-                data.height = descriptor.height;
+                data.sourceMip = transferMip;
+                data.sourceRegion = session.request.captureRegionOnly
+                    ? staging.evidence.sourceRoi
+                    : new RectInt(0, 0, descriptor.width, descriptor.height);
                 passHandle.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands) =>
                 {
                     parameters.staging.owner.RecordGraph(parameters.graph, parameters.frame);
-                    commands.CopyTexture(parameters.sourceHandle, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destinationHandle, 0, 0, 0, 0);
+                    RectInt region = parameters.sourceRegion;
+                    commands.CopyTexture(parameters.sourceHandle, 0, parameters.sourceMip, region.x, region.y,
+                        region.width, region.height, parameters.destinationHandle, 0, 0, 0, 0);
                     commands.RequestAsyncReadback(parameters.staging.texture, parameters.staging.Complete);
                 });
             }

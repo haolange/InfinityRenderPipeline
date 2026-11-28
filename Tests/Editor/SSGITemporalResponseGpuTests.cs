@@ -311,7 +311,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         return Color.clear;
                     }
                     Bind("SRV_MotionTexture", Texture(Motion));
-                    Texture2D Current(int phase) => Texture((x, y) =>
+                    Texture2DArray Current(int phase) => Track(ScreenSpaceRadianceTestUtility.Source(Width, Height, (x, y) =>
                     {
                         if ((edgeDepth || edgeNormal) && !Center(x, y)) return new Color(5, 3, 2, .5f);
                         if (Spatial(signal))
@@ -334,8 +334,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             return new Color(.25f + .1f * Sign(0), .125f + .05f * Sign(1), .0625f + .025f * Sign(2), .5f + .15f * Sign(3));
                         }
                         return new Color(alpha * .5f, alpha * .25f, alpha * .125f, alpha);
-                    });
-                    Texture previousColor = Texture((x, y) => signal == Signal.Step || signal == Signal.NoisyStep ? new Color(.05f, .025f, .0125f, .1f) : new Color(.25f, .125f, .0625f, .5f));
+                    }));
+                    Texture previousColor = Track(ScreenSpaceRadianceTestUtility.Source(Width, Height,
+                        (_, _) => signal == Signal.Step || signal == Signal.NoisyStep ? new Color(.05f, .025f, .0125f, .1f) : new Color(.25f, .125f, .0625f, .5f)));
                     Color PreviousMeta(int x, int y)
                     {
                         // A moving surface finds its history only where it was, two pixels left of the center.
@@ -377,7 +378,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             m_Commands.SetComputeFloatParam(shader, "SSGI_FrameAngle", 0);
                             Bind("SRV_Temporal", Current(frame - 1));
                             Bind("SRV_Meta", previousMeta);
-                            Bind("UAV_Output", colors[target]);
+                            Bind("UAV_Filtered", colors[target]);
                         }
                         else
                         {
@@ -414,7 +415,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     if (request.hasError) throw new InvalidOperationException("Production temporal readback failed.");
-                    float[] values = request.GetData<float>().ToArray();
+                    float[] values = isColor ? ScreenSpaceRadianceTestUtility.Unpack(request) : request.GetData<float>().ToArray();
                     if (values.Length != Width * Height * 4) throw new InvalidOperationException("Unexpected readback dimensions.");
                     if (isColor) { sequence[frame] = values; if (frame == m_Frames) color = values; }
                     else if (frame == m_Frames) meta = values;
@@ -430,7 +431,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             T Track<T>(T value) where T : Object { value.hideFlags = HideFlags.HideAndDontSave; m_Objects.Add(value); return value; }
             RenderTexture Target(bool metadata = false)
             {
-                var texture = Track(new RenderTexture(Width, Height, 0, metadata ? UnityEngine.Experimental.Rendering.GraphicsFormat.R32_UInt : UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat)
+                if (!metadata)
+                    return Track(ScreenSpaceRadianceTestUtility.Target(Width, Height));
+                var texture = Track(new RenderTexture(Width, Height, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R32_UInt)
                     { enableRandomWrite = true, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp });
                 Assert.IsTrue(texture.Create()); return texture;
             }

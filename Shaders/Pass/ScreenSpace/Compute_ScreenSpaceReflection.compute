@@ -11,7 +11,7 @@
 //
 // Trace resolution is full or half; tiles, quad rotation, ray records and ray reuse are shared with SSGI
 // (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
-// Resolved / Temporal / SSRTexture (RGBA16F): rgb = hit radiance premultiplied by the hit edge fade, a = that fade.
+// Resolved / Temporal / SSRTexture (RG16F array, RG then B/confidence): rgb = hit radiance premultiplied by the hit edge fade, a = that fade.
 // A miss does not enter the average. No hit leaves alpha at 0 so the environment term stays.
 // Meta (R32UInt): oct12x2 world normal, age7 and valid1; no depth.
 
@@ -24,6 +24,7 @@
 #pragma kernel SSRDebug
 
 #include "../../Library/Common.hlsl"
+#include "../../Library/ScreenSpaceRadiance.hlsl"
 #include "../../Library/ScreenSpaceDepth.hlsl"
 #include "../../Library/ScreenSpaceReprojection.hlsl"
 #include "../../Library/TemporalColorSource.hlsl"
@@ -76,14 +77,13 @@ Texture2D<float> SRV_HiZFurthestTexture;
 Texture2D SRV_GBufferA;
 Texture2D SRV_GBufferB;
 Texture2D SRV_MotionTexture;
-Texture2D SRV_HistoryRadiance;
+Texture2DArray<float2> SRV_HistoryRadiance;
 Texture2D<uint> SRV_HistoryMeta;
 Texture2D<float4> SRV_RayHit;
-Texture2D<float4> SRV_Resolved;
+Texture2DArray<float2> SRV_Resolved;
 Texture2D<float> SRV_HitDistance;
-Texture2D<float4> SRV_Temporal;
-Texture2D<float4> SRV_HitMean;
-Texture2D<float4> SRV_HitDev;
+Texture2DArray<float2> SRV_Temporal;
+Texture2DArray<float2> SRV_HitStatistics;
 Texture2D<float> SRV_HistoryVariance;
 Texture2D<float> SRV_Variance;
 Texture2D<uint> SRV_Meta;
@@ -101,14 +101,13 @@ struct ReflectionSample
 };
 RWStructuredBuffer<ReflectionSample> UAV_Samples;
 StructuredBuffer<ReflectionSample> SRV_Samples;
-RWTexture2D<float4> UAV_Resolved;
-RWTexture2D<float4> UAV_HitMean;
-RWTexture2D<float4> UAV_HitDev;
+RWTexture2DArray<float2> UAV_Resolved;
+RWTexture2DArray<float2> UAV_HitStatistics;
 RWTexture2D<float> UAV_HitDistance;
 RWTexture2D<float> UAV_Variance;
-RWTexture2D<float4> UAV_Temporal;
+RWTexture2DArray<float2> UAV_Temporal;
 RWTexture2D<uint> UAV_Meta;
-RWTexture2D<float4> UAV_Output;
+RWTexture2DArray<float2> UAV_Output;
 RWTexture2D<float4> UAV_Debug;
 
 struct SSRSurface
@@ -400,8 +399,7 @@ float3 TracePixelOrigin(uint2 tracePixel)
 
 void AccumulateReflectionRecord(ReflectionSample record, uint2 tracePixel, SSRSurface surface, float3 N,
     inout float3 radianceSum, inout float confidenceSum, inout float weightSum, inout float distanceSum, inout float distanceWeight,
-    inout float3 rawColorSum, inout float3 rawColorSquareSum, inout float rawColorCount,
-    inout float confidenceStatSum, inout float confidenceStatSquareSum, inout float confidenceStatCount)
+    inout float3 rawColorSum, inout float3 rawColorSquareSum)
 {
     float signedInvPdf = record.dirT.w;
     // A miss keeps alpha at 0 so the environment term stays. It does not dilute a hit.
@@ -428,10 +426,6 @@ void AccumulateReflectionRecord(ReflectionSample record, uint2 tracePixel, SSRSu
     weightSum += 1;
     rawColorSum += radiance;
     rawColorSquareSum += radiance * radiance;
-    rawColorCount += 1;
-    confidenceStatSum += edgeFade;
-    confidenceStatSquareSum += edgeFade * edgeFade;
-    confidenceStatCount += 1;
     distanceSum += hitDistance;
     distanceWeight += 1;
 }
@@ -450,10 +444,11 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     SSRSurface surface;
     if (!LoadSurface(pixel, surface))
     {
-        UAV_Resolved[pixel] = 0;
+        StoreScreenSpaceRadiance(UAV_Resolved, pixel, 0);
         UAV_HitDistance[pixel] = 0;
-        UAV_HitMean[pixel] = 0;
-        UAV_HitDev[pixel] = 0;
+        UAV_HitStatistics[uint3(pixel, 0)] = 0;
+        UAV_HitStatistics[uint3(pixel, 1)] = 0;
+        UAV_HitStatistics[uint3(pixel, 2)] = 0;
         return;
     }
 
@@ -472,30 +467,25 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     float distanceWeight = 0;
     float3 rawColorSum = 0;
     float3 rawColorSquareSum = 0;
-    float rawColorCount = 0;
-    float confidenceStatSum = 0;
-    float confidenceStatSquareSum = 0;
-    float confidenceStatCount = 0;
     [loop]
     for (uint own = 0; own < spp; ++own)
-        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex(traceCenter, own)], traceCenter, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum, rawColorCount, confidenceStatSum, confidenceStatSquareSum, confidenceStatCount);
+        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex(traceCenter, own)], traceCenter, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum);
     [loop]
     for (uint i = 1; i < reuseCount; ++i)
     {
         int2 samplePixel = clamp(int2(traceCenter) + RayReuseOffset(i, reuseCount, SSR_ResolveRadius, rotation), 0, int2(SSR_TraceResolution.xy) - 1);
-        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex((uint2)samplePixel, 0)], (uint2)samplePixel, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum, rawColorCount, confidenceStatSum, confidenceStatSquareSum, confidenceStatCount);
+        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex((uint2)samplePixel, 0)], (uint2)samplePixel, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum);
     }
 
     float inverseWeight = weightSum > 0 ? rcp(weightSum) : 0;
     float edgeFade = saturate(confidenceSum * inverseWeight);
-    UAV_Resolved[pixel] = float4(radianceSum * inverseWeight * edgeFade, edgeFade);
+    StoreScreenSpaceRadiance(UAV_Resolved, pixel, float4(radianceSum * inverseWeight * edgeFade, edgeFade));
     UAV_HitDistance[pixel] = distanceWeight > 0 ? distanceSum / distanceWeight : 0;
-    float3 colorMean = rawColorCount > 0 ? rawColorSum / rawColorCount : 0;
-    float3 colorDev = rawColorCount > 0 ? sqrt(max(rawColorSquareSum / rawColorCount - colorMean * colorMean, 0)) : 0;
-    float confidenceMean = confidenceStatCount > 0 ? confidenceStatSum / confidenceStatCount : 0;
-    float confidenceDev = confidenceStatCount > 0 ? sqrt(max(confidenceStatSquareSum / confidenceStatCount - confidenceMean * confidenceMean, 0)) : 0;
-    UAV_HitMean[pixel] = float4(colorMean, confidenceMean);
-    UAV_HitDev[pixel] = float4(colorDev, confidenceDev);
+    float3 colorMean = rawColorSum * inverseWeight;
+    float3 colorDev = sqrt(max(rawColorSquareSum * inverseWeight - colorMean * colorMean, 0));
+    UAV_HitStatistics[uint3(pixel, 0)] = min(float2(colorMean.r, colorDev.r), 65504.0);
+    UAV_HitStatistics[uint3(pixel, 1)] = min(float2(colorMean.g, colorDev.g), 65504.0);
+    UAV_HitStatistics[uint3(pixel, 2)] = min(float2(colorMean.b, colorDev.b), 65504.0);
 }
 
 float ReflectionLuma(float3 rgb)
@@ -517,15 +507,18 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     SSRSurface surface;
     if (!LoadSurface(pixel, surface))
     {
-        UAV_Temporal[pixel] = 0;
+        StoreScreenSpaceRadiance(UAV_Temporal, pixel, 0);
         // No surface: the cleared word has no valid bit.
         UAV_Meta[pixel] = 0;
         return;
     }
 
-    float4 current = SRV_Resolved[pixel];
-    float3 colorMean = SRV_HitMean[pixel].rgb;
-    float3 colorDev = max(SRV_HitDev[pixel].rgb, 1e-5);
+    float4 current = LoadScreenSpaceRadiance(SRV_Resolved, pixel, 0);
+    float2 red = SRV_HitStatistics.Load(int4(pixel, 0, 0));
+    float2 green = SRV_HitStatistics.Load(int4(pixel, 1, 0));
+    float2 blue = SRV_HitStatistics.Load(int4(pixel, 2, 0));
+    float3 colorMean = float3(red.x, green.x, blue.x);
+    float3 colorDev = max(float3(red.y, green.y, blue.y), 1e-5);
     float currentVariance = dot(colorDev * colorDev, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0));
     float3 resolvedColor = current.a > 1e-5 ? current.rgb / current.a : 0;
 
@@ -551,11 +544,13 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     float3 filtered = resolvedColor;
     if (historyValid > 0)
     {
-        float4 surfaceHistory = InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, surfaceUV, 0);
+        float4 surfaceHistory = SampleScreenSpaceRadiance(SRV_HistoryRadiance, Global_bilinear_clamp_sampler,
+            InfinityTextureUV(surfaceUV, SRV_HistoryRadiance_InfinityView, 0), 0);
         float hitDistance = SRV_HitDistance[pixel];
         float2 hitUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_LastViewFlipYJitterProj) : -1;
         bool hitValid = all(hitUV >= 0) && all(hitUV <= 1);
-        float4 hitHistory = hitValid ? InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, hitUV, 0) : surfaceHistory;
+        float4 hitHistory = hitValid ? SampleScreenSpaceRadiance(SRV_HistoryRadiance, Global_bilinear_clamp_sampler,
+            InfinityTextureUV(hitUV, SRV_HistoryRadiance_InfinityView, 0), 0) : surfaceHistory;
         // A near-zero history alpha unpremultiplies to black and, at a ~0.97 history weight, covers this frame's hit.
         float historyConfidence = max(surfaceHistory.a, hitValid ? hitHistory.a : 0);
         bool historyHasSignal = historyConfidence >= max(current.a * 0.5, 1e-3);
@@ -568,21 +563,24 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
         {
             float3 surfaceColor = surfaceHistory.a > 1e-5 ? surfaceHistory.rgb / surfaceHistory.a : 0;
             float3 hitColor = hitHistory.a > 1e-5 ? hitHistory.rgb / hitHistory.a : 0;
-            float surfaceWeight = exp2(-10 * ReflectionLuma((surfaceColor - colorMean) / colorDev));
-            float hitWeight = hitValid ? exp2(-10 * ReflectionLuma((hitColor - colorMean) / colorDev)) : 0;
-            float3 surfaceColorClamped = max(clamp(surfaceColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
-            float3 hitColorClamped = max(clamp(hitColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
-            float weight = surfaceWeight + hitWeight;
-            float3 historyColor = weight > 0
-                ? (surfaceColorClamped * surfaceWeight + hitColorClamped * hitWeight) / weight
-                : surfaceColorClamped;
+            float3 historyColor = max(clamp(surfaceColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
+            if (hitValid)
+            {
+                float surfaceLogWeight = -10 * ReflectionLuma((surfaceColor - colorMean) / colorDev);
+                float hitLogWeight = -10 * ReflectionLuma((hitColor - colorMean) / colorDev);
+                float weightOffset = max(surfaceLogWeight, hitLogWeight);
+                float surfaceWeight = exp2(surfaceLogWeight - weightOffset);
+                float hitWeight = exp2(hitLogWeight - weightOffset);
+                float3 hitColorClamped = max(clamp(hitColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
+                historyColor = (historyColor * surfaceWeight + hitColorClamped * hitWeight) / (surfaceWeight + hitWeight);
+            }
             filtered = lerp(historyColor, resolvedColor, TemporalCurrentWeight(historyAge, SSR_TemporalWeight));
             historyVariance = SRV_HistoryVariance.SampleLevel(Global_bilinear_clamp_sampler, surfaceUV, 0);
         }
     }
 
     filtered = max(filtered, resolvedColor);
-    UAV_Temporal[pixel] = float4(max(0, filtered) * current.a, current.a);
+    StoreScreenSpaceRadiance(UAV_Temporal, pixel, float4(max(0, filtered) * current.a, current.a));
     UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, (uint)NextHistoryAge(historyAge), true);
     // Hysteresis 0.5 on the reconstruction variance. The slide does not name a reprojection for this scalar.
     UAV_Variance[pixel] = lerp(currentVariance, historyVariance, historyValid > 0 ? 0.5 : 0);
@@ -600,17 +598,17 @@ void SSRBilateral(uint3 id : SV_DispatchThreadID)
         return;
     }
     uint2 pixel = id.xy;
-    float4 center = SRV_Temporal[pixel];
+    float4 center = LoadScreenSpaceRadiance(SRV_Temporal, pixel, 0);
     float variance = SRV_Variance[pixel];
     if (variance < 1e-4)
     {
-        UAV_Output[pixel] = center;
+        StoreScreenSpaceRadiance(UAV_Output, pixel, center);
         return;
     }
     float centerDepth, centerRoughness;
     if (!IsReflectiveSurface(pixel, centerDepth, centerRoughness))
     {
-        UAV_Output[pixel] = center;
+        StoreScreenSpaceRadiance(UAV_Output, pixel, center);
         return;
     }
     float response = saturate(variance / (variance + 0.05));
@@ -639,10 +637,10 @@ void SSRBilateral(uint3 id : SV_DispatchThreadID)
         float3 sampleNormal = DecodeGBufferNormal(SRV_GBufferB[samplePixel]);
         float weight = AtrousDepthWeight(centerEye, ScreenSpaceLinearEyeDepth(sampleDepth), 0.05)
             * saturate(dot(centerNormal, sampleNormal));
-        sum += SRV_Temporal[samplePixel].rgb * weight;
+        sum += LoadScreenSpaceRadiance(SRV_Temporal, samplePixel, 0).rgb * weight;
         weightSum += weight;
     }
-    UAV_Output[pixel] = float4(weightSum > 0 ? sum / weightSum : center.rgb, center.a);
+    StoreScreenSpaceRadiance(UAV_Output, pixel, float4(weightSum > 0 ? sum / weightSum : center.rgb, center.a));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -697,7 +695,7 @@ void SSRDebug(uint3 id : SV_DispatchThreadID)
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRCONFIDENCE)
     {
-        color = SRV_Resolved[pixel].aaa;
+        color = LoadScreenSpaceRadiance(SRV_Resolved, pixel, 0).aaa;
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRHISTORYAGE)
     {

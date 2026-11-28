@@ -123,14 +123,14 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey SSRTemporalBuffer = new RGResourceKey("_SSRTemporalTexture");
         public static readonly RGResourceKey SSRMetaBuffer = new RGResourceKey("_SSRMetaTexture");
         public static readonly RGResourceKey SSRDebugBuffer = new RGResourceKey("_SSRDebugTexture");
-        public static readonly RGResourceKey SSRHitMeanBuffer = new RGResourceKey("_SSRHitMeanTexture");
-        public static readonly RGResourceKey SSRHitDevBuffer = new RGResourceKey("_SSRHitDevTexture");
+        public static readonly RGResourceKey SSRHitStatisticsBuffer = new RGResourceKey("_SSRHitStatisticsTexture");
         public static readonly RGResourceKey SSRVarianceBuffer = new RGResourceKey("_SSRVarianceTexture");
         public static readonly RGResourceKey HistorySSRRadianceBuffer = new RGResourceKey("_HistorySSRRadianceTexture");
         public static readonly RGResourceKey HistorySSRMetaBuffer = new RGResourceKey("_HistorySSRMetaTexture");
         public static readonly RGResourceKey HistorySSRVarianceBuffer = new RGResourceKey("_HistorySSRVarianceTexture");
         public static readonly RGResourceKey HistorySSGINarrowBuffer = new RGResourceKey("_HistorySSGINarrowTexture");
         public static readonly RGResourceKey SSGIBuffer = new RGResourceKey("_SSGITexture");
+        public static readonly RGResourceKey SSGIConfidenceBuffer = new RGResourceKey("_SSGIConfidenceTexture");
         public static readonly RGResourceKey SSGIRayHitBuffer = new RGResourceKey("_SSGIRayHitTexture");
         public static readonly RGResourceKey SSGITraceRadianceBuffer = new RGResourceKey("_SSGITraceRadianceTexture");
         public static readonly RGResourceKey SSGIHitDistanceBuffer = new RGResourceKey("_SSGIHitDistanceTexture");

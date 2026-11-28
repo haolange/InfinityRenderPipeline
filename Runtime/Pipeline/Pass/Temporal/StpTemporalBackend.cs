@@ -64,11 +64,11 @@ namespace InfinityTech.Rendering.Pipeline
             internal static readonly int PriorConvergence = Shader.PropertyToID("_StpPriorConvergence");
             internal static readonly int Convergence = Shader.PropertyToID("_StpConvergence");
             internal static readonly int PriorFeedback = Shader.PropertyToID("_StpPriorFeedback");
+            internal static readonly int DepthMotionSRV = Shader.PropertyToID("_StpDepthMotionSRV");
             internal static readonly int Feedback = Shader.PropertyToID("_StpFeedback");
             internal static readonly int IntermediateColorSRV = Shader.PropertyToID("_StpIntermediateColorSRV");
             internal static readonly int IntermediateConvergenceSRV = Shader.PropertyToID("_StpIntermediateConvergenceSRV");
             internal static readonly int IntermediateWeightsSRV = Shader.PropertyToID("_StpIntermediateWeightsSRV");
-            internal static readonly int DepthMotionSRV = Shader.PropertyToID("_StpDepthMotionSRV");
             internal static readonly int LumaSRV = Shader.PropertyToID("_StpLumaSRV");
             internal static readonly int ConvergenceSRV = Shader.PropertyToID("_StpConvergenceSRV");
             internal static readonly int HistoryOutput = Shader.PropertyToID("_StpHistoryOutput");
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
                 out RGTextureHandle priorConvergenceHandle, out RGTextureHandle convergenceWriteHandle, out bool convergenceValid);
 
             TextureDescriptor feedbackDesc = TemporalReconstructionUtility.CreateScratchDescriptor(
-                displaySize.x, displaySize.y, "StpFeedback", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Display);
+                displaySize.x, displaySize.y, "StpFeedback", GraphicsFormat.A2B10G10R10_UNormPack32, FilterMode.Bilinear, ETextureSizingDomain.Display);
             TemporalReconstructionUtility.ReadPingPongHistory(
                 historyCache, graph, StpShaderIDs.HistoryFeedbackID, in feedbackDesc, resetRequested,
                 out RGTextureHandle priorFeedbackHandle, out RGTextureHandle feedbackWriteHandle, out bool feedbackValid);
@@ -213,7 +213,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureHandle intermediateColorHandle = graph.CreateTexture(
                 TemporalReconstructionUtility.CreateScratchDescriptor(
-                    renderSize.x, renderSize.y, "StpIntermediateColor", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Internal));
+                    renderSize.x, renderSize.y, "StpIntermediateColor", GraphicsFormat.A2B10G10R10_UNormPack32, FilterMode.Bilinear, ETextureSizingDomain.Internal));
             RGTextureHandle intermediateConvergenceHandle = graph.CreateTexture(
                 TemporalReconstructionUtility.CreateScratchDescriptor(
                     convergenceSize.x, convergenceSize.y, "StpIntermediateConvergence", GraphicsFormat.R8_UNorm, FilterMode.Bilinear, ETextureSizingDomain.Internal));
@@ -376,7 +376,8 @@ namespace InfinityTech.Rendering.Pipeline
             int commonPacked = packedHasValidHistory | packedBlueNoiseWidthMinusOne;
             float zBufferParamZ = (farPlane - nearPlane) / (nearPlane * farPlane);
             float zBufferParamW = 1.0f / farPlane;
-            constants.commonConstant = new Vector4(BitConverter.Int32BitsToSingle(commonPacked), zBufferParamZ, zBufferParamW, 0.0f);
+            // Setup reconstructs orthographic depth linearly instead of using the perspective reciprocal.
+            constants.commonConstant = new Vector4(BitConverter.Int32BitsToSingle(commonPacked), zBufferParamZ, zBufferParamW, camera.orthographic ? 1.0f : 0.0f);
 
             constants.setupConstants0 = new Vector4(
                 1.0f / currentImageSize.x,
@@ -425,13 +426,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ? BuildStpViewMatrix(cameraUniform.lastLastWorldToView, cameraUniform.lastLastWorldPos)
                 : lastView;
 
-            PopulatePerViewConstants(currentProj, lastProj, lastLastProj, currentView, lastView, lastLastView, ref constants);
+            PopulatePerViewConstants(currentProj, lastProj, lastLastProj, currentView, lastView, lastLastView, camera.orthographic, ref constants);
 
+            int2 convergenceSize = (currentImageSize + 3) >> 2;
             constants.dilConstants0 = new Vector4(
-                4.0f / currentImageSize.x,
-                4.0f / currentImageSize.y,
-                BitConverter.Int32BitsToSingle(currentImageSize.x >> 2),
-                BitConverter.Int32BitsToSingle(currentImageSize.y >> 2));
+                1.0f / convergenceSize.x,
+                1.0f / convergenceSize.y,
+                BitConverter.Int32BitsToSingle(convergenceSize.x),
+                BitConverter.Int32BitsToSingle(convergenceSize.y));
 
             constants.taaConstants0 = new Vector4(
                 (float)currentImageSize.x / outputImageSize.x,
@@ -482,9 +484,11 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix4x4 currentView,
             Matrix4x4 lastView,
             Matrix4x4 lastLastView,
+            bool orthographic,
             ref TemporalStpParameters constants)
         {
-            Vector4 prjPriABEF = new Vector4(lastProj[0, 0], Mathf.Abs(lastProj[1, 1]), -lastProj[0, 2], -lastProj[1, 2]);
+            Vector4 prjPriABEF = new Vector4(lastProj[0, 0], Mathf.Abs(lastProj[1, 1]),
+                orthographic ? lastProj[0, 2] : -lastProj[0, 2], orthographic ? lastProj[1, 2] : -lastProj[1, 2]);
             Vector4 prjPriCDGH = new Vector4(lastProj[2, 2], lastProj[2, 3], lastProj[3, 2], lastProj[3, 3]);
 
             Vector4 prjCurABEF = new Vector4(currentProj[0, 0], Mathf.Abs(currentProj[1, 1]), currentProj[0, 2], currentProj[1, 2]);
@@ -505,6 +509,20 @@ namespace InfinityTech.Rendering.Pipeline
                 * Matrix4x4.Translate(-lastLastView.GetColumn(3))
                 * Matrix4x4.Translate(lastView.GetColumn(3))
                 * ExtractRotation(lastView).transpose;
+            if (orthographic)
+            {
+                // StpFor reconstructs XY directly and uses positive eye depth for Z.
+                Matrix4x4 prior = ExtractRotation(lastView) * Matrix4x4.Translate(lastView.GetColumn(3));
+                Matrix4x4 current = ExtractRotation(currentView) * Matrix4x4.Translate(currentView.GetColumn(3));
+                Matrix4x4 previous = ExtractRotation(lastLastView) * Matrix4x4.Translate(lastLastView.GetColumn(3));
+                Matrix4x4 fromStpView = Matrix4x4.Translate(new Vector3(-lastProj[0, 3] / prjPriABEF.x,
+                    -lastProj[1, 3] / prjPriABEF.y, 0)) * Matrix4x4.Scale(new Vector3(1, 1, -1));
+                forwardTransform = current * prior.inverse * fromStpView;
+                backwardTransform = previous * prior.inverse * fromStpView;
+                forIJKL = forwardTransform.GetRow(0);
+                forMNOP = forwardTransform.GetRow(1);
+                forQRST = forwardTransform.GetRow(2);
+            }
             Vector4 bckIJKL = backwardTransform.GetRow(0);
             Vector4 bckMNOP = backwardTransform.GetRow(1);
             Vector4 bckQRST = backwardTransform.GetRow(2);
@@ -523,13 +541,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             constants.setupPerViewConstants2 = new Vector4(
                 forIJKL.z * prjCurABEF.x + forQRST.z * prjCurABEF.z,
-                forIJKL.w * prjCurABEF.x + forQRST.w * prjCurABEF.z,
+                forIJKL.w * prjCurABEF.x + forQRST.w * prjCurABEF.z + (orthographic ? currentProj[0, 3] : 0),
                 forMNOP.x * prjCurABEF.y + forQRST.x * prjCurABEF.w,
                 forMNOP.y * prjCurABEF.y + forQRST.y * prjCurABEF.w);
 
             constants.setupPerViewConstants3 = new Vector4(
                 forMNOP.z * prjCurABEF.y + forQRST.z * prjCurABEF.w,
-                forMNOP.w * prjCurABEF.y + forQRST.w * prjCurABEF.w,
+                forMNOP.w * prjCurABEF.y + forQRST.w * prjCurABEF.w + (orthographic ? currentProj[1, 3] : 0),
                 forQRST.x * prjCurCDGH.z,
                 forQRST.y * prjCurCDGH.z);
 
@@ -541,13 +559,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             constants.setupPerViewConstants5 = new Vector4(
                 bckIJKL.z * prjPrvABEF.x + bckQRST.z * prjPrvABEF.z,
-                bckIJKL.w * prjPrvABEF.x + bckQRST.w * prjPrvABEF.z,
+                bckIJKL.w * prjPrvABEF.x + bckQRST.w * prjPrvABEF.z + (orthographic ? lastLastProj[0, 3] : 0),
                 bckMNOP.x * prjPrvABEF.y + bckQRST.x * prjPrvABEF.w,
                 bckMNOP.y * prjPrvABEF.y + bckQRST.y * prjPrvABEF.w);
 
             constants.setupPerViewConstants6 = new Vector4(
                 bckMNOP.z * prjPrvABEF.y + bckQRST.z * prjPrvABEF.w,
-                bckMNOP.w * prjPrvABEF.y + bckQRST.w * prjPrvABEF.w,
+                bckMNOP.w * prjPrvABEF.y + bckQRST.w * prjPrvABEF.w + (orthographic ? lastLastProj[1, 3] : 0),
                 bckQRST.x * prjPrvCDGH.z,
                 bckQRST.y * prjPrvCDGH.z);
 

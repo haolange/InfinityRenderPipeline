@@ -34,8 +34,9 @@ namespace InfinityTech.Rendering.RenderGraph
 def main():
     failed = False
     for path,text in outputs().items():
-        if '--write' in sys.argv: path.write_text(text)
-        elif not path.exists() or path.read_text() != text:
-            print('Stale texture-view binding registry:',path.relative_to(ROOT)); failed = True
+        if not path.exists() or path.read_text() != text:
+            if '--write' in sys.argv: path.write_text(text)
+            else:
+                print('Stale texture-view binding registry:',path.relative_to(ROOT)); failed = True
     return int(failed)
 if __name__ == '__main__': sys.exit(main())

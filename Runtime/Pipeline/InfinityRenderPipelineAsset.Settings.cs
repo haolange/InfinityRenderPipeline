@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             internal readonly TemporalSettings temporal;
             internal readonly EffectivePipelineConfiguration config;
 
-            internal Settings(InfinityRenderPipelineAsset asset)
+            internal Settings(InfinityRenderPipelineAsset asset, TemporalReconstructionSystem temporalSystem = null)
             {
                 enableRayTrace = asset.enableRayTrace;
                 enableSRPBatch = asset.enableSRPBatch;
@@ -87,13 +87,13 @@ namespace InfinityTech.Rendering.Pipeline
                 enableAnalyticDirectShadow = asset.m_EnableAnalyticDirectShadow;
                 temporal = new TemporalSettings(asset.m_TemporalBackend, asset.m_TemporalMode, asset.m_TemporalQuality, asset.m_TemporalSharpness);
                 config = default;
-                config = PipelineConfigurationResolver.Evaluate(in this, DeviceCapabilitySnapshot.FromCurrentDevice());
+                config = PipelineConfigurationResolver.Evaluate(in this, DeviceCapabilitySnapshot.FromCurrentDevice(), temporalSystem);
             }
 
             internal bool supportProbeVolume => lightProbeSystem == ELightProbeSystem.ProbeVolumes;
         }
 
-        internal Settings ResolveSettings() => new Settings(this);
+        internal Settings ResolveSettings(TemporalReconstructionSystem temporalSystem = null) => new Settings(this, temporalSystem);
 
         // Editor inspectors read single serialized values without normalizing the whole asset, so an invalid shadow
         // setting never breaks an unrelated inspector.

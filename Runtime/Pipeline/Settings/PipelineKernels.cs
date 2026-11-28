@@ -61,13 +61,20 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ComputeKernel stpPreTaa;
         internal readonly ComputeKernel stpTaa;
         internal readonly ComputeKernel stpSharpen;
+        internal readonly ComputeKernel fsrClear;
         internal readonly ComputeKernel fsrPrepareInputs;
+        internal readonly ComputeKernel fsrLumaPyramid;
+        internal readonly ComputeKernel fsrFinalizeLuma;
+        internal readonly ComputeKernel fsrShadingPyramid;
+        internal readonly ComputeKernel fsrShadingChange;
+        internal readonly ComputeKernel fsrPrepareReactivity;
         internal readonly ComputeKernel fsrLumaInstability;
         internal readonly ComputeKernel fsrAccumulate;
         internal readonly ComputeKernel fsrRcas;
         internal readonly ComputeKernel sgsrConvert;
         internal readonly ComputeKernel sgsrActivate;
         internal readonly ComputeKernel sgsrUpscale;
+        internal readonly ComputeKernel sgsrSharpen;
 
         internal readonly ComputeKernel transmittanceLUT;
         internal readonly ComputeKernel multiScatteringLUT;
@@ -102,6 +109,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly LocalKeyword taaUpscaling;
         internal readonly LocalKeyword stpReactiveMask;
         internal readonly LocalKeyword fsrReactiveMask;
+        internal readonly LocalKeyword fsrSharpen;
         internal readonly LocalKeyword sgsrReactiveMask;
         internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword fogCompositeFog;
@@ -175,7 +183,13 @@ namespace InfinityTech.Rendering.Pipeline
             stpSharpen = ComputeKernel.Resolve(shaders.temporalStpShader, temporalStp, "StpSharpen");
 
             const string temporalFsr = Source + nameof(InfinityRenderPipelineRuntimeShaders.temporalFsrShader);
+            fsrClear = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_Clear");
             fsrPrepareInputs = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_PrepareInputs");
+            fsrLumaPyramid = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_LumaPyramid");
+            fsrFinalizeLuma = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_FinalizeLuma");
+            fsrShadingPyramid = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_ShadingPyramid");
+            fsrShadingChange = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_ShadingChange");
+            fsrPrepareReactivity = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_PrepareReactivity");
             fsrLumaInstability = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_LumaInstability");
             fsrAccumulate = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_Accumulate");
             fsrRcas = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_RCAS");
@@ -184,6 +198,7 @@ namespace InfinityTech.Rendering.Pipeline
             sgsrConvert = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Convert");
             sgsrActivate = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Activate");
             sgsrUpscale = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Upscale");
+            sgsrSharpen = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Sharpen");
 
             const string atmosphere = Source + nameof(InfinityRenderPipelineRuntimeShaders.atmosphericLUTShader);
             transmittanceLUT = ComputeKernel.Resolve(shaders.atmosphericLUTShader, atmosphere, "TransmittanceLUT");
@@ -222,7 +237,8 @@ namespace InfinityTech.Rendering.Pipeline
                 ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewMissing"),
                 ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewShadow"),
                 ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewLightLoop"),
-                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewProbeAtlas")
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewProbeAtlas"),
+                ComputeKernel.Resolve(shaders.debugViewShader, debugViewShader, "DebugViewScreenSpaceRadiance")
             };
 #endif
 
@@ -230,6 +246,7 @@ namespace InfinityTech.Rendering.Pipeline
             taaUpscaling = Keyword(shaders.taaShader, "TAA_UPSCALING");
             stpReactiveMask = Keyword(shaders.temporalStpShader, "STP_REACTIVE_MASK");
             fsrReactiveMask = Keyword(shaders.temporalFsrShader, "FSR_REACTIVE_MASK");
+            fsrSharpen = Keyword(shaders.temporalFsrShader, "FSR_SHARPEN");
             sgsrReactiveMask = Keyword(shaders.temporalSgsrShader, "SGSR_REACTIVE_MASK");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
             fogCompositeFog = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_FOG");

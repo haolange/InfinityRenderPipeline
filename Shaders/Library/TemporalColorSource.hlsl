@@ -2,8 +2,9 @@
 #define INFINITY_TEMPORAL_COLOR_SOURCE
 #include "TextureView.hlsl"
 #include "ScreenSpaceReprojection.hlsl"
+#include "ScreenSpaceRadiance.hlsl"
 Texture2D SRV_TemporalColor;
-Texture2D SRV_TemporalColorMips;
+Texture2DArray<float2> SRV_TemporalColorMips;
 
 // The TemporalColorParameters record BindTemporalColorView binds as one constant buffer.
 cbuffer CBV_TemporalColorParameters
@@ -21,9 +22,10 @@ float4 SampleTemporalColorMip(float2 uv, uint level)
     if (level == 0)
     {
         value = InfinitySampleLevel(SRV_TemporalColor,Global_bilinear_clamp_sampler,uv,0);
-        value = value.a >= 1 ? float4(value.rgb,1) : 0;
+        value = value.a >= 1 && all(isfinite(value.rgb)) ? float4(value.rgb,1) : 0;
     }
-    else value = InfinitySampleLevel(SRV_TemporalColorMips,Global_bilinear_clamp_sampler,uv,level-1);
+    else value = SampleScreenSpaceRadiance(SRV_TemporalColorMips, Global_bilinear_clamp_sampler,
+        InfinityTextureUV(uv, SRV_TemporalColorMips_InfinityView, level - 1), level - 1);
     return value;
 }
 // The previous frame's color at a hit, found by reprojecting the hit with its motion. No depth is kept across frames:

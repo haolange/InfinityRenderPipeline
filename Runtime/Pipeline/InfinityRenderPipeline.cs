@@ -95,11 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                     );
                 m_ContactShadowPass = new ContactShadowPass(graph, resources);
                 m_SSRPass = new SSRPass(graph, resources);
-                m_SSGIPass = new SSGIPass(graph, resources
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    , m_RenderCapturePass
-#endif
-                    );
+                m_SSGIPass = new SSGIPass(graph, resources);
                 m_ShadowCasterCulling = new ShadowCasterCulling();
                 m_CascadeShadowPass = new CascadeShadowPass(graph, settings, InfinityMeshPasses.Shadow);
                 m_LocalShadowPass = new LocalShadowPass(graph, resources, settings, renderContext.sceneWorld.lights.shadowCache, InfinityMeshPasses.Shadow);

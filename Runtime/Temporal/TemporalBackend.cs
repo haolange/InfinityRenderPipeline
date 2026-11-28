@@ -416,6 +416,7 @@ namespace InfinityTech.Rendering.Temporal
                 float scale = mode == ETemporalReconstructionMode.Upscaling ? math.max(m_Cap.minRenderScale, ResolveQualityScale(input.settings.quality)) : 1.0f;
                 int2 render = mode == ETemporalReconstructionMode.Upscaling ? ComputeRenderSize(input.displaySize, scale) : input.displaySize;
                 float mipBias = mode == ETemporalReconstructionMode.Upscaling ? math.log2(math.max(scale, 0.25f)) - 1.0f : 0.0f;
+                float ratio = (float)input.displaySize.x / render.x;
                 return new TemporalFrameRequirements(
                     requestedBackend: requestedBackend,
                     activeBackend: ETemporalBackend.FSR,
@@ -427,7 +428,7 @@ namespace InfinityTech.Rendering.Temporal
                     renderScale: scale,
                     mipBias: mipBias,
                     sharpness: input.settings.sharpness,
-                    jitterPhaseCount: ComputeRatioPhases(scale),
+                    jitterPhaseCount: math.max(1, (int)(8f * ratio * ratio)),
                     jitterSpread: 1.0f,
                     requiresJitter: true,
                     requiresMotionVectors: true,

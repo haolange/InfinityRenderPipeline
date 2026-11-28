@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         public string cameraEntity;
         public bool requestRepaint;
         public bool useFirstFrameDimensions;
+        public bool captureRegionOnly;
         public Vector2Int waitForSizeChangeFrom;
         internal bool Matches(Camera target) => target.cameraType == cameraType &&
             (string.IsNullOrEmpty(cameraEntity) ? target.name == camera &&
@@ -184,6 +185,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new ArgumentException("Invalid capture dimensions, frame range or timeout.");
             if (request.roi.width < 1 || request.roi.height < 1 || request.roi.xMin < 0 || request.roi.yMin < 0 || request.roi.xMax > request.width || request.roi.yMax > request.height)
                 throw new ArgumentException("Declare a nonempty in-bounds ROI before capture.");
+            if (request.captureRegionOnly && request.useFirstFrameDimensions)
+                throw new ArgumentException("Region capture requires explicit frame dimensions.");
             if (request.buffers == null || request.buffers.Length == 0)
             {
                 throw new ArgumentException("Capture requires explicit source buffers.");
@@ -313,7 +316,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (descriptor.width < 1 || descriptor.height < 1 || descriptor.slices != 1 || descriptor.dimension != TextureDimension.Tex2D || descriptor.msaaSamples != EMSAASamples.None || descriptor.useMipMap)
                 throw new InvalidOperationException("Capture source requires an explicit single-mip, non-MSAA 2D descriptor.");
-            RTHandle handle = RTHandles.Alloc(descriptor.width, descriptor.height, new RTHandleAllocInfo("CaptureStaging_" + semantic)
+            RectInt sourceRoi = ScaleRoi(descriptor.width, descriptor.height);
+            int width = request.captureRegionOnly ? sourceRoi.width : descriptor.width;
+            int height = request.captureRegionOnly ? sourceRoi.height : descriptor.height;
+            RTHandle handle = RTHandles.Alloc(width, height, new RTHandleAllocInfo("CaptureStaging_" + semantic)
             {
                 slices = descriptor.slices,
                 format = descriptor.depthStencilFormat != GraphicsFormat.None ? descriptor.depthStencilFormat : descriptor.colorFormat,
@@ -336,7 +342,7 @@ namespace InfinityTech.Rendering.Pipeline
                 transferEncoding = semantic == "DisplayColor" || semantic == "PostProcess" ? "Linear; final target transfer belongs to Present" : "None",
                 width = texture.width, height = texture.height, layers = texture.volumeDepth, samples = texture.antiAliasing,
                 producerFrame = m_Frame, recordedFrame = m_Frame, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
-                sourceRoi = ScaleRoi(descriptor.width, descriptor.height) };
+                sourceRoi = sourceRoi };
             var staging = new Staging { texture = texture, handle = handle, evidence = evidence, owner = this, readbackFormat = readbackFormat };
             m_Staging.Add(staging);
             m_Evidence.buffers.Add(evidence);
@@ -532,8 +538,11 @@ namespace InfinityTech.Rendering.Pipeline
                 staging.evidence.bytes = bytes.LongLength;
                 staging.evidence.file = staging.evidence.semantic + "-" + staging.evidence.captureIndex + "-" + staging.evidence.producerFrame + ".bin";
                 File.WriteAllBytes(Path.Combine(request.outputDirectory, staging.evidence.file), bytes);
+                RectInt statisticsRoi = request.captureRegionOnly
+                    ? new RectInt(0, 0, staging.evidence.width, staging.evidence.height)
+                    : staging.evidence.sourceRoi;
                 staging.evidence.statistics = RawCaptureStatistics.Compute(bytes, staging.readbackFormat,
-                    staging.evidence.width, staging.evidence.height, staging.evidence.sourceRoi);
+                    staging.evidence.width, staging.evidence.height, statisticsRoi);
                 if (staging.evidence.statistics.nonFinite != 0)
                 {
                     Fail("Raw GPU data contains NaN/Inf; preserved without sanitization.");

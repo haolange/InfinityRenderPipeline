@@ -36,6 +36,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int CBV_SSGIParametersID = Shader.PropertyToID("CBV_SSGIParameters");
         internal static readonly int SRV_CurrentID = Shader.PropertyToID("SRV_Current");
         internal static readonly int SRV_FilteredID = Shader.PropertyToID("SRV_Filtered");
+        internal static readonly int UAV_FilteredID = Shader.PropertyToID("UAV_Filtered");
+        internal static readonly int UAV_ConfidenceID = Shader.PropertyToID("UAV_SSGIConfidence");
         internal static readonly int SRV_OcclusionID = Shader.PropertyToID("SRV_Occlusion");
         internal static readonly int SSGI_SpatialPassID = Shader.PropertyToID("SSGI_SpatialPass");
         internal static readonly ProfilingSampler SSGITraceSampler = new ProfilingSampler("SSGI_Trace");
@@ -44,7 +46,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilingSampler SSGITemporal2Sampler = new ProfilingSampler("SSGI_Temporal2");
         internal static readonly ProfilingSampler SSGISpatialNarrowSampler = new ProfilingSampler("SSGI_SpatialNarrow");
         internal static readonly ProfilingSampler SSGIUpsampleSampler = new ProfilingSampler("SSGI_Upsample");
-        internal static readonly int SRV_TraceRadianceID = Shader.PropertyToID("SRV_TraceRadiance");
         internal static readonly int UAV_TraceRadianceID = Shader.PropertyToID("UAV_TraceRadiance");
         internal const string RayHitName = "SSGIRayHit";
         internal const string TraceRadianceName = "SSGITraceRadiance";
@@ -59,21 +60,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         readonly RGBuilder m_RGBuilder;
         readonly InfinityRenderPipelineResources m_Resources;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        readonly RenderCapturePass m_RenderCapturePass;
-#endif
-
-        internal SSGIPass(RGBuilder graph, InfinityRenderPipelineResources resources
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            , RenderCapturePass renderCapturePass
-#endif
-            )
+        internal SSGIPass(RGBuilder graph, InfinityRenderPipelineResources resources)
         {
             m_RGBuilder = graph;
             m_Resources = resources;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            m_RenderCapturePass = renderCapturePass;
-#endif
         }
 
         struct SSGIPassData
@@ -106,7 +96,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle rayHitHandle;
             public bool captureRayHit;
             public int traceDebugKernel;
-            public RenderCapturePass.CaptureStageSnapshot traceSnapshot;
 #endif
             public RGTextureHandle traceRadianceHandle;
             public RGTextureHandle hitDistanceHandle;
@@ -116,6 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle combinerNarrowHandle;
             public RGTextureHandle metaHandle;
             public RGTextureHandle outputHandle;
+            public RGTextureHandle outputConfidenceHandle;
         }
 
         internal void ComputeScreenSpaceIndirect(in ViewContext context)
@@ -141,19 +131,21 @@ namespace InfinityTech.Rendering.Pipeline
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor)) : default;
 #endif
             RGTextureHandle traceRadianceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TraceRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TraceRadianceName, divisor));
             RGTextureHandle hitDistanceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGIHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
             RGTextureHandle temporalHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TemporalName, divisor));
             RGTextureHandle combinerWideHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIFilteredBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGICombinerWide", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, "SSGICombinerWide", divisor));
             RGTextureHandle metaHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.MetaName, GraphicsFormat.R32_UInt, FilterMode.Point, divisor));
             RGTextureHandle outputHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIBuffer,
-                SSRPassUtilityData.CreateDescriptor(width, height, SSGIPassUtilityData.OutputName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
-            m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.SSGIBuffer, outputHandle);
-            TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
+                SSRPassUtilityData.CreateDescriptor(width, height, SSGIPassUtilityData.OutputName,
+                    EffectivePipelineConfiguration.SceneColorFormat, FilterMode.Point));
+            RGTextureHandle outputConfidenceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIConfidenceBuffer,
+                SSRPassUtilityData.CreateDescriptor(width, height, "SSGIConfidence", GraphicsFormat.R16_SFloat, FilterMode.Point));
+            TextureDescriptor historyRadianceDsc = ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryMetaName, GraphicsFormat.R32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
             TextureDescriptor historyNarrowDsc = historyRadianceDsc;
@@ -221,17 +213,17 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.captureRayHit = captureRayHit;
                 passData.traceDebugKernel = m_Resources.kernels.ssgiTraceDebug.index;
                 passData.rayHitHandle = captureRayHit ? passHandle.WriteTexture(rayHitHandle) : default;
-                passData.traceSnapshot = m_RenderCapturePass.PrepareStageSnapshot(passHandle, ECaptureBuffer.SSGITraceRadiance, traceRadianceHandle);
 #endif
                 passData.traceRadianceHandle = passHandle.WriteTexture(traceRadianceHandle);
                 passData.hitDistanceHandle = passHandle.WriteTexture(hitDistanceHandle);
                 passData.temporalHandle = passHandle.WriteTexture(temporalHandle);
-                passData.temporalNarrowHandle = passHandle.CreatePassLocalTexture(SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGITemporalNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                passData.temporalNarrowHandle = passHandle.CreatePassLocalTexture(ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, "SSGITemporalNarrow", divisor));
                 passData.combinerWideHandle = passHandle.WriteTexture(combinerWideHandle);
                 passData.combinerNarrowHandle = passHandle.WriteTexture(m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGICombinerNarrowBuffer,
-                    SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGICombinerNarrow", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor)));
+                    ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, "SSGICombinerNarrow", divisor)));
                 passData.metaHandle = passHandle.WriteTexture(metaHandle);
                 passData.outputHandle = passHandle.WriteTexture(outputHandle);
+                passData.outputConfidenceHandle = passHandle.WriteTexture(outputConfidenceHandle);
 
                 passHandle.EnablePassCulling(false);
                 passHandle.EnableAsyncCompute(true);
@@ -268,7 +260,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, trace, tileCount.x, tileCount.y, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGITraceSampler);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    passData.traceSnapshot.Record(cmdEncoder, passData.traceRadianceHandle);
 #endif
 
                     int groupsX = passData.denoiseGroups.x;
@@ -294,6 +285,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.SRV_FilteredID, passData.combinerNarrowHandle);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.SRV_Meta, passData.metaHandle);
                     cmdEncoder.SetComputeTextureParam(shader, upsample, PassShaderIDs.UAV_Output, passData.outputHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, upsample, SSGIPassUtilityData.UAV_ConfidenceID, passData.outputConfidenceHandle);
                     cmdEncoder.DispatchCompute(shader, upsample, passData.upsampleGroups.x, passData.upsampleGroups.y, 1);
                     cmdEncoder.EndSample(SSGIPassUtilityData.SSGIUpsampleSampler);
 
@@ -331,7 +323,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.SRV_OcclusionID, passData.occlusionHandle);
             }
-            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.UAV_Output, outputHandle);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, SSGIPassUtilityData.UAV_FilteredID, outputHandle);
         }
 
         // Depth and GBuffer inputs shared by every kernel that tests or reconstructs the surface.

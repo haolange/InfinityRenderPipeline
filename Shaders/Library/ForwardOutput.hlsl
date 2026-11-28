@@ -25,10 +25,12 @@ Texture2D<float> SRV_ForwardOcclusion;
 #if defined(INFINITY_FORWARD_SSGI)
 // Premultiplied indirect irradiance, alpha = confidence.
 Texture2D<float4> SRV_SSGITexture;
+Texture2D<float> SRV_SSGIConfidenceTexture;
 #endif
 #if defined(INFINITY_FORWARD_SSR)
 // Premultiplied reflected radiance, alpha = edge fade.
-Texture2D<float4> SRV_SSRTexture;
+#include "ScreenSpaceRadiance.hlsl"
+Texture2DArray<float2> SRV_SSRTexture;
 #endif
 
 // Indirect occlusion of a forward pixel: screen-space occlusion times analytic indirect occlusion. It scales indirect diffuse
@@ -50,7 +52,9 @@ float3 ForwardIndirectDiffuse(uint2 positionSS, float3 diffuseColor, float3 irra
 {
     float3 indirectDiffuse = diffuseColor * irradiance * occlusion;
 #if defined(INFINITY_FORWARD_SSGI)
-    indirectDiffuse = ReplaceIndirectDiffuse(indirectDiffuse, diffuseColor, SRV_SSGITexture.Load(int3(positionSS, 0)));
+    float4 ssgi = float4(SRV_SSGITexture.Load(int3(positionSS, 0)).rgb,
+        SRV_SSGIConfidenceTexture.Load(int3(positionSS, 0)));
+    indirectDiffuse = ReplaceIndirectDiffuse(indirectDiffuse, diffuseColor, ssgi);
 #endif
     return indirectDiffuse;
 }
@@ -60,7 +64,7 @@ float3 ForwardEnvironmentSpecular(uint2 positionSS, float3 environment, float3 e
 {
     float3 environmentSpecular = environment * environmentBRDF * occlusion;
 #if defined(INFINITY_FORWARD_SSR)
-    environmentSpecular = ReplaceEnvironmentSpecular(environmentSpecular, environmentBRDF, SRV_SSRTexture.Load(int3(positionSS, 0)));
+    environmentSpecular = ReplaceEnvironmentSpecular(environmentSpecular, environmentBRDF, LoadScreenSpaceRadiance(SRV_SSRTexture, positionSS, 0));
 #endif
     return environmentSpecular;
 }

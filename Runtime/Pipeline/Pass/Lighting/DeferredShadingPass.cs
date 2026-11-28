@@ -79,6 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle depthTextureHandle;
             public RGTextureHandle occlusionTextureHandle;
             public RGTextureHandle ssgiTextureHandle;
+            public RGTextureHandle ssgiConfidenceHandle;
             public RGTextureHandle ssrTextureHandle;
             public RGTextureHandle contactShadowTextureHandle;
             public RGTextureHandle contactShadowMaskHandle;
@@ -140,6 +141,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (hasIndirectDiffuse)
             {
                 passData.ssgiTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer));
+                passData.ssgiConfidenceHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIConfidenceBuffer));
             }
             passData.hasReflection = hasReflection;
             if (hasReflection)
@@ -198,6 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (passData.hasIndirectDiffuse)
                 {
                     cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_SSGITexture, passData.ssgiTextureHandle);
+                    cmdEncoder.SetGlobalTexture(PassShaderIDs.SRV_SSGIConfidenceTexture, passData.ssgiConfidenceHandle);
                 }
                 if (passData.hasReflection)
                 {

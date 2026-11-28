@@ -14,252 +14,191 @@ namespace InfinityTech.Rendering.Pipeline
     [StructLayout(LayoutKind.Sequential)]
     internal struct TemporalSgsrParameters
     {
-        public Vector4 renderSizeAndRcp;
-        public Vector4 displaySizeAndRcp;
-        public Vector4 jitterAndFov;
-        public Vector4 previousJitter;
-        public Matrix4x4 previousFromCurrentClip;
-        public int resetHistory;
-        public int reversedZ;
-        public float preExposure;
-        public int padding0;
+        public Vector4 renderSizeAndReciprocal;
+        public Vector4 displaySizeAndReciprocal;
+        public Vector4 jitterResetAndSharpness;
+        public Vector4 depthProjection;
+        public Vector4 projectionFlagsAndScale;
     }
 
-    /// <summary>
-    /// Mobile-first pure HLSL compute backend for Qualcomm Snapdragon Game Super Resolution v2 (3-pass CS) (PRD §10.2).
-    /// Supports Upscaling mode only, writing both unified unsharpened history and optionally sharpened display output.
-    /// </summary>
     internal sealed class SgsrTemporalBackend : ITemporalExecutionBackend
     {
         ETemporalBackend ITemporalExecutionBackend.Backend => ETemporalBackend.SGSR;
 
-        static class SgsrShaderIDs
-        {
-            internal static readonly int CBV_Sgsr = Shader.PropertyToID("CBV_TemporalSgsrParameters");
-            internal static readonly int SRV_SgsrYCoCg = Shader.PropertyToID("SRV_SgsrYCoCg");
-            internal static readonly int SRV_SgsrMotionDepthAlpha = Shader.PropertyToID("SRV_SgsrMotionDepthAlpha");
-            internal static readonly int SRV_SgsrCurrentDepth = Shader.PropertyToID("SRV_SgsrCurrentDepth");
-            internal static readonly int SRV_SgsrPreviousDepth = Shader.PropertyToID("SRV_SgsrPreviousDepth");
-            internal static readonly int SRV_SgsrPrevLumaHistory = Shader.PropertyToID("SRV_SgsrPrevLumaHistory");
-            internal static readonly int SRV_SgsrMotionDepthClipAlpha = Shader.PropertyToID("SRV_SgsrMotionDepthClipAlpha");
-            internal static readonly int SRV_SgsrPrevHistory = Shader.PropertyToID("SRV_SgsrPrevHistory");
-            internal static readonly int UAV_SgsrYCoCg = Shader.PropertyToID("UAV_SgsrYCoCg");
-            internal static readonly int UAV_SgsrMotionDepthAlpha = Shader.PropertyToID("UAV_SgsrMotionDepthAlpha");
-            internal static readonly int UAV_SgsrDepth = Shader.PropertyToID("UAV_SgsrDepth");
-            internal static readonly int UAV_SgsrLumaHistory = Shader.PropertyToID("UAV_SgsrLumaHistory");
-            internal static readonly int UAV_SgsrMotionDepthClipAlpha = Shader.PropertyToID("UAV_SgsrMotionDepthClipAlpha");
-            internal static readonly int UAV_SgsrHistory = Shader.PropertyToID("UAV_SgsrHistory");
-
-            internal static readonly int HistoryLumaID = Shader.PropertyToID("SgsrLumaHistory");
-            internal static readonly int HistoryDepthID = Shader.PropertyToID("SgsrDepthHistory");
-            internal static readonly int HistoryYCoCgID = Shader.PropertyToID("SgsrHistory");
-        }
+        static readonly int s_Constants = Shader.PropertyToID("CBV_TemporalSgsrParameters");
+        static readonly int s_ColorLumaRead = Shader.PropertyToID("SRV_SgsrColorLuma");
+        static readonly int s_ColorLumaWrite = Shader.PropertyToID("UAV_SgsrColorLuma");
+        static readonly int s_MotionDepthLumaRead = Shader.PropertyToID("SRV_SgsrMotionDepthLuma");
+        static readonly int s_MotionDepthLumaWrite = Shader.PropertyToID("UAV_SgsrMotionDepthLuma");
+        static readonly int s_DepthClipRead = Shader.PropertyToID("SRV_SgsrDepthClip");
+        static readonly int s_DepthClipWrite = Shader.PropertyToID("UAV_SgsrDepthClip");
+        static readonly int s_PreviousHistory = Shader.PropertyToID("SRV_SgsrPreviousHistory");
+        static readonly int s_History = Shader.PropertyToID("UAV_SgsrHistory");
+        static readonly int s_HistoryID = Shader.PropertyToID("SgsrHistory");
+        static readonly int s_DisplayInput = Shader.PropertyToID("SRV_SgsrDisplayInput");
 
         static readonly ProfilingSampler s_ConvertSampler = new ProfilingSampler("ComputeTemporalSGSR.Convert");
         static readonly ProfilingSampler s_ActivateSampler = new ProfilingSampler("ComputeTemporalSGSR.Activate");
         static readonly ProfilingSampler s_UpscaleSampler = new ProfilingSampler("ComputeTemporalSGSR.Upscale");
+        static readonly ProfilingSampler s_SharpenSampler = new ProfilingSampler("ComputeTemporalSGSR.Sharpen");
 
-        struct SgsrConvertPassData
+        struct ConvertData
         {
-            public ComputeShader shader;
-            public int kernelIndex;
+            public ComputeKernel kernel;
+            public int2 size;
+            public RGConstantsHandle constantsHandle;
+            public RGTextureHandle colorHandle, depthHandle, motionHandle, colorLumaHandle, motionDepthLumaHandle;
+        }
+
+        struct ActivateData
+        {
+            public ComputeKernel kernel;
+            public int2 size;
+            public RGConstantsHandle constantsHandle;
+            public RGTextureHandle motionDepthLumaHandle, depthClipHandle;
+        }
+
+        struct UpscaleData
+        {
+            public ComputeKernel kernel;
             public LocalKeyword reactiveKeyword;
             public bool hasReactiveMask;
-            public int2 groups;
-            public RGConstantsHandle parametersHandle;
-            public RGTextureHandle sceneColorHandle;
-            public RGTextureHandle depthHandle;
-            public RGTextureHandle motionHandle;
-            public RGTextureHandle reactiveMaskHandle;
-            public RGTextureHandle ycocgWriteHandle;
-            public RGTextureHandle mdaWriteHandle;
-            public RGTextureHandle depthHistoryWriteHandle;
+            public int2 size;
+            public RGConstantsHandle constantsHandle;
+            public RGTextureHandle colorLumaHandle, motionDepthLumaHandle, depthClipHandle, reactiveMaskHandle;
+            public RGTextureHandle previousHistoryHandle, historyHandle, historyColorHandle;
         }
 
-        struct SgsrActivatePassData
+        struct SharpenData
         {
-            public ComputeShader shader;
-            public int kernelIndex;
-            public int2 groups;
-            public RGConstantsHandle parametersHandle;
-            public RGTextureHandle ycocgReadHandle;
-            public RGTextureHandle mdaReadHandle;
-            public RGTextureHandle currentDepthReadHandle;
-            public RGTextureHandle previousDepthReadHandle;
-            public RGTextureHandle prevLumaHistoryHandle;
-            public RGTextureHandle lumaHistoryWriteHandle;
-            public RGTextureHandle clipAlphaWriteHandle;
-        }
-
-        struct SgsrUpscalePassData
-        {
-            public ComputeShader shader;
-            public int kernelIndex;
-            public int2 groups;
-            public RGConstantsHandle parametersHandle;
-            public RGTextureHandle ycocgReadHandle;
-            public RGTextureHandle clipAlphaReadHandle;
-            public RGTextureHandle prevHistoryReadHandle;
-            public RGTextureHandle historyWriteHandle;
-            public RGTextureHandle temporalHistoryWriteHandle;
-            public RGTextureHandle displayOutputHandle;
+            public ComputeKernel kernel;
+            public int2 size;
+            public RGConstantsHandle constantsHandle;
+            public RGTextureHandle historyHandle, outputHandle;
         }
 
         public void Record(RGBuilder graph, InfinityRenderPipelineResources resources, in TemporalExecutionContext executionContext)
         {
-            ComputeKernel convertKernel = resources.kernels.sgsrConvert;
-            ComputeKernel activateKernel = resources.kernels.sgsrActivate;
-            ComputeKernel upscaleKernel = resources.kernels.sgsrUpscale;
-            TemporalReconstructionUtility.RequireKernel(convertKernel);
-            TemporalReconstructionUtility.RequireKernel(activateKernel);
-            TemporalReconstructionUtility.RequireKernel(upscaleKernel);
+            ComputeKernel convert = resources.kernels.sgsrConvert;
+            ComputeKernel activate = resources.kernels.sgsrActivate;
+            ComputeKernel upscale = resources.kernels.sgsrUpscale;
+            ComputeKernel sharpen = resources.kernels.sgsrSharpen;
+            TemporalReconstructionUtility.RequireKernel(convert);
+            TemporalReconstructionUtility.RequireKernel(activate);
+            TemporalReconstructionUtility.RequireKernel(upscale);
+            TemporalReconstructionUtility.RequireKernel(sharpen);
 
             ViewContext view = executionContext.view;
             TemporalFrameRequirements requirements = view.temporalRequirements;
             int2 renderSize = requirements.renderSize;
             int2 displaySize = requirements.displaySize;
-
-            HistoryCache historyCache = view.historyCache;
-            bool resetRequested = executionContext.resetHistory;
-
-            TextureDescriptor lumaDesc = TemporalReconstructionUtility.CreateScratchDescriptor(
-                renderSize.x, renderSize.y, "SgsrLumaHistory", GraphicsFormat.R32_UInt, FilterMode.Point, ETextureSizingDomain.Internal);
-            TemporalReconstructionUtility.ReadPingPongHistory(
-                historyCache, graph, SgsrShaderIDs.HistoryLumaID, in lumaDesc, resetRequested,
-                out RGTextureHandle prevLumaHandle, out RGTextureHandle lumaWriteHandle, out bool lumaValid);
-
-            TextureDescriptor sgsrHistoryDesc = TemporalReconstructionUtility.CreateScratchDescriptor(
+            TextureDescriptor historyDesc = TemporalReconstructionUtility.CreateScratchDescriptor(
                 displaySize.x, displaySize.y, "SgsrHistory", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Display);
             TemporalReconstructionUtility.ReadPingPongHistory(
-                historyCache, graph, SgsrShaderIDs.HistoryYCoCgID, in sgsrHistoryDesc, resetRequested,
-                out RGTextureHandle prevHistoryHandle, out RGTextureHandle historyWriteHandle, out bool historyValid);
+                view.historyCache, graph, s_HistoryID, in historyDesc, executionContext.resetHistory,
+                out RGTextureHandle previousHistoryHandle, out RGTextureHandle historyHandle, out bool historyValid);
 
-            TextureDescriptor depthDesc = TemporalReconstructionUtility.CreateScratchDescriptor(
-                renderSize.x, renderSize.y, "SgsrDepthHistory", GraphicsFormat.R32_SFloat, FilterMode.Point, ETextureSizingDomain.Internal);
-            TemporalReconstructionUtility.ReadPingPongHistory(
-                historyCache, graph, SgsrShaderIDs.HistoryDepthID, in depthDesc, resetRequested,
-                out RGTextureHandle previousDepthHandle, out RGTextureHandle depthWriteHandle, out bool depthValid);
+            TemporalSgsrParameters constants = BuildParameters(renderSize, displaySize,
+                view.cameraUniform.currentJitterUV, view.cameraUniform.matrix_FlipYProj,
+                view.camera.orthographic, SystemInfo.usesReversedZBuffer, !historyValid, requirements.sharpness);
+            RGTextureHandle colorLumaHandle = graph.CreateTexture(TemporalReconstructionUtility.CreateScratchDescriptor(
+                renderSize.x, renderSize.y, "SgsrColorLuma", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, ETextureSizingDomain.Internal));
+            RGTextureHandle motionDepthLumaHandle = graph.CreateTexture(TemporalReconstructionUtility.CreateScratchDescriptor(
+                renderSize.x, renderSize.y, "SgsrMotionDepthLuma", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Internal));
+            RGTextureHandle depthClipHandle = graph.CreateTexture(TemporalReconstructionUtility.CreateScratchDescriptor(
+                renderSize.x, renderSize.y, "SgsrDepthClip", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Internal));
 
-            bool resetHistory = resetRequested || !lumaValid || !historyValid || !depthValid;
-
-            Camera camera = view.camera;
-            float tanHalfFovH = Mathf.Tan(0.5f * Mathf.Deg2Rad * camera.fieldOfView) * camera.aspect;
-            CameraUniform cameraUniform = view.cameraUniform;
-
-            var parameters = new TemporalSgsrParameters
             {
-                renderSizeAndRcp = new Vector4(renderSize.x, renderSize.y, 1.0f / renderSize.x, 1.0f / renderSize.y),
-                displaySizeAndRcp = new Vector4(displaySize.x, displaySize.y, 1.0f / displaySize.x, 1.0f / displaySize.y),
-                jitterAndFov = new Vector4(cameraUniform.currentJitterUV.x * renderSize.x, cameraUniform.currentJitterUV.y * renderSize.y, tanHalfFovH * 2.0f, requirements.sharpness),
-                previousJitter = new Vector4(cameraUniform.previousJitterUV.x * cameraUniform.priorRenderSize.x, cameraUniform.previousJitterUV.y * cameraUniform.priorRenderSize.y, 0, 0),
-                previousFromCurrentClip = cameraUniform.matrix_LastViewFlipYJitterProj * cameraUniform.matrix_InvViewFlipYJitterProj,
-                resetHistory = resetHistory ? 1 : 0,
-                reversedZ = SystemInfo.usesReversedZBuffer ? 1 : 0,
-                preExposure = 1.0f,
-                padding0 = 0,
-            };
-
-            RGTextureHandle ycocgHandle = graph.CreateTexture(
-                TemporalReconstructionUtility.CreateScratchDescriptor(
-                    renderSize.x, renderSize.y, "SgsrYCoCg", GraphicsFormat.R32_UInt, FilterMode.Point, ETextureSizingDomain.Internal));
-            RGTextureHandle mdaHandle = graph.CreateTexture(
-                TemporalReconstructionUtility.CreateScratchDescriptor(
-                    renderSize.x, renderSize.y, "SgsrMotionDepthAlpha", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, ETextureSizingDomain.Internal));
-            RGTextureHandle clipAlphaHandle = graph.CreateTexture(
-                TemporalReconstructionUtility.CreateScratchDescriptor(
-                    renderSize.x, renderSize.y, "SgsrMotionDepthClipAlpha", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, ETextureSizingDomain.Internal));
-
-            // Pass 1: SGSR_Convert (Depth dilation + UV motion + YCoCg 11/11/10 encode).
-            {
-                RGComputePassHandle<SgsrConvertPassData> passHandle = graph.AddComputePass<SgsrConvertPassData>(s_ConvertSampler);
-                ref SgsrConvertPassData passData = ref passHandle.GetPassData();
-                passData.shader = convertKernel.shader;
-                passData.kernelIndex = convertKernel.index;
-                passData.reactiveKeyword = resources.kernels.sgsrReactiveMask;
-                passData.hasReactiveMask = executionContext.hasReactiveMask;
-                passData.groups = new int2(convertKernel.GroupsX(renderSize.x), convertKernel.GroupsY(renderSize.y));
-                passData.parametersHandle = passHandle.WriteConstants(in parameters);
-                passData.sceneColorHandle = passHandle.ReadTexture(executionContext.sceneColorHandle);
-                passData.depthHandle = passHandle.ReadTexture(executionContext.depthHandle);
-                passData.motionHandle = passHandle.ReadTexture(executionContext.motionHandle);
-                passData.reactiveMaskHandle = executionContext.hasReactiveMask ? passHandle.ReadTexture(executionContext.reactiveMaskHandle) : default;
-                passData.ycocgWriteHandle = passHandle.WriteTexture(ycocgHandle);
-                passData.mdaWriteHandle = passHandle.WriteTexture(mdaHandle);
-                passData.depthHistoryWriteHandle = passHandle.WriteTexture(depthWriteHandle);
-
-                passHandle.SetExecuteFunc((in SgsrConvertPassData data, in RGComputeEncoder cmdEncoder) =>
+                RGComputePassHandle<ConvertData> passHandle = graph.AddComputePass<ConvertData>(s_ConvertSampler);
+                ref ConvertData data = ref passHandle.GetPassData();
+                data.kernel = convert;
+                data.size = renderSize;
+                data.constantsHandle = passHandle.WriteConstants(in constants);
+                data.colorHandle = passHandle.ReadTexture(executionContext.sceneColorHandle);
+                data.depthHandle = passHandle.ReadTexture(executionContext.depthHandle);
+                data.motionHandle = passHandle.ReadTexture(executionContext.motionHandle);
+                data.colorLumaHandle = passHandle.WriteTexture(colorLumaHandle);
+                data.motionDepthLumaHandle = passHandle.WriteTexture(motionDepthLumaHandle);
+                passHandle.SetExecuteFunc((in ConvertData parameters, in RGComputeEncoder encoder) =>
                 {
-                    cmdEncoder.SetKeyword(data.shader, data.reactiveKeyword, data.hasReactiveMask);
-                    cmdEncoder.SetComputeConstantBufferParam(data.shader, SgsrShaderIDs.CBV_Sgsr, data.parametersHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_SceneColorTexture, data.sceneColorHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_DepthTexture, data.depthHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_MotionTexture, data.motionHandle);
-                    if (data.hasReactiveMask)
+                    ComputeKernel kernel = parameters.kernel;
+                    encoder.SetComputeConstantBufferParam(kernel.shader, s_Constants, parameters.constantsHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, PassShaderIDs.SRV_SceneColorTexture, parameters.colorHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, PassShaderIDs.SRV_DepthTexture, parameters.depthHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, PassShaderIDs.SRV_MotionTexture, parameters.motionHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_ColorLumaWrite, parameters.colorLumaHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_MotionDepthLumaWrite, parameters.motionDepthLumaHandle);
+                    encoder.DispatchCompute(kernel.shader, kernel.index, kernel.GroupsX(parameters.size.x), kernel.GroupsY(parameters.size.y), 1);
+                });
+            }
+
+            {
+                RGComputePassHandle<ActivateData> passHandle = graph.AddComputePass<ActivateData>(s_ActivateSampler);
+                ref ActivateData data = ref passHandle.GetPassData();
+                data.kernel = activate;
+                data.size = renderSize;
+                data.constantsHandle = passHandle.WriteConstants(in constants);
+                data.motionDepthLumaHandle = passHandle.ReadTexture(motionDepthLumaHandle);
+                data.depthClipHandle = passHandle.WriteTexture(depthClipHandle);
+                passHandle.SetExecuteFunc((in ActivateData parameters, in RGComputeEncoder encoder) =>
+                {
+                    ComputeKernel kernel = parameters.kernel;
+                    encoder.SetComputeConstantBufferParam(kernel.shader, s_Constants, parameters.constantsHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_MotionDepthLumaRead, parameters.motionDepthLumaHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_DepthClipWrite, parameters.depthClipHandle);
+                    encoder.DispatchCompute(kernel.shader, kernel.index, kernel.GroupsX(parameters.size.x), kernel.GroupsY(parameters.size.y), 1);
+                });
+            }
+
+            {
+                RGComputePassHandle<UpscaleData> passHandle = graph.AddComputePass<UpscaleData>(s_UpscaleSampler);
+                ref UpscaleData data = ref passHandle.GetPassData();
+                data.kernel = upscale;
+                data.size = displaySize;
+                data.constantsHandle = passHandle.WriteConstants(in constants);
+                data.reactiveKeyword = resources.kernels.sgsrReactiveMask;
+                data.hasReactiveMask = executionContext.hasReactiveMask;
+                data.colorLumaHandle = passHandle.ReadTexture(colorLumaHandle);
+                data.motionDepthLumaHandle = passHandle.ReadTexture(motionDepthLumaHandle);
+                data.depthClipHandle = passHandle.ReadTexture(depthClipHandle);
+                data.reactiveMaskHandle = executionContext.hasReactiveMask ? passHandle.ReadTexture(executionContext.reactiveMaskHandle) : default;
+                data.previousHistoryHandle = passHandle.ReadTexture(previousHistoryHandle);
+                data.historyHandle = passHandle.WriteTexture(historyHandle);
+                data.historyColorHandle = passHandle.WriteTexture(executionContext.historyColorWriteHandle);
+                passHandle.SetExecuteFunc((in UpscaleData parameters, in RGComputeEncoder encoder) =>
+                {
+                    ComputeKernel kernel = parameters.kernel;
+                    encoder.SetKeyword(kernel.shader, parameters.reactiveKeyword, parameters.hasReactiveMask);
+                    encoder.SetComputeConstantBufferParam(kernel.shader, s_Constants, parameters.constantsHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_ColorLumaRead, parameters.colorLumaHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_MotionDepthLumaRead, parameters.motionDepthLumaHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_DepthClipRead, parameters.depthClipHandle);
+                    if (parameters.hasReactiveMask)
                     {
-                        cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, TemporalShaderIDs.SRV_ReactiveMaskTexture, data.reactiveMaskHandle);
+                        encoder.SetComputeTextureParam(kernel.shader, kernel.index, TemporalShaderIDs.SRV_ReactiveMaskTexture, parameters.reactiveMaskHandle);
                     }
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrYCoCg, data.ycocgWriteHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrMotionDepthAlpha, data.mdaWriteHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrDepth, data.depthHistoryWriteHandle);
-                    cmdEncoder.DispatchCompute(data.shader, data.kernelIndex, data.groups.x, data.groups.y, 1);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_PreviousHistory, parameters.previousHistoryHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_History, parameters.historyHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, TemporalShaderIDs.UAV_TemporalHistoryTexture, parameters.historyColorHandle);
+                    encoder.DispatchCompute(kernel.shader, kernel.index, kernel.GroupsX(parameters.size.x), kernel.GroupsY(parameters.size.y), 1);
                 });
             }
 
-            // Pass 2: SGSR_Activate (Depth disocclusion clipping & luma history tracking).
             {
-                RGComputePassHandle<SgsrActivatePassData> passHandle = graph.AddComputePass<SgsrActivatePassData>(s_ActivateSampler);
-                ref SgsrActivatePassData passData = ref passHandle.GetPassData();
-                passData.shader = activateKernel.shader;
-                passData.kernelIndex = activateKernel.index;
-                passData.groups = new int2(activateKernel.GroupsX(renderSize.x), activateKernel.GroupsY(renderSize.y));
-                passData.parametersHandle = passHandle.WriteConstants(in parameters);
-                passData.ycocgReadHandle = passHandle.ReadTexture(ycocgHandle);
-                passData.mdaReadHandle = passHandle.ReadTexture(mdaHandle);
-                passData.currentDepthReadHandle = passHandle.ReadTexture(depthWriteHandle);
-                passData.previousDepthReadHandle = passHandle.ReadTexture(previousDepthHandle);
-                passData.prevLumaHistoryHandle = passHandle.ReadTexture(prevLumaHandle);
-                passData.lumaHistoryWriteHandle = passHandle.WriteTexture(lumaWriteHandle);
-                passData.clipAlphaWriteHandle = passHandle.WriteTexture(clipAlphaHandle);
-
-                passHandle.SetExecuteFunc((in SgsrActivatePassData data, in RGComputeEncoder cmdEncoder) =>
+                RGComputePassHandle<SharpenData> passHandle = graph.AddComputePass<SharpenData>(s_SharpenSampler);
+                ref SharpenData data = ref passHandle.GetPassData();
+                data.kernel = sharpen;
+                data.size = displaySize;
+                data.constantsHandle = passHandle.WriteConstants(in constants);
+                data.historyHandle = passHandle.ReadTexture(historyHandle);
+                data.outputHandle = passHandle.WriteTexture(executionContext.outputHandle);
+                passHandle.SetExecuteFunc((in SharpenData parameters, in RGComputeEncoder encoder) =>
                 {
-                    cmdEncoder.SetComputeConstantBufferParam(data.shader, SgsrShaderIDs.CBV_Sgsr, data.parametersHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrYCoCg, data.ycocgReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrMotionDepthAlpha, data.mdaReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrCurrentDepth, data.currentDepthReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrPreviousDepth, data.previousDepthReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrPrevLumaHistory, data.prevLumaHistoryHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrLumaHistory, data.lumaHistoryWriteHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrMotionDepthClipAlpha, data.clipAlphaWriteHandle);
-                    cmdEncoder.DispatchCompute(data.shader, data.kernelIndex, data.groups.x, data.groups.y, 1);
-                });
-            }
-
-            // Pass 3: SGSR_Upscale (Directional Lanczos Upsample + Temporal Rectification + Unified Unsharpened History).
-            {
-                RGComputePassHandle<SgsrUpscalePassData> passHandle = graph.AddComputePass<SgsrUpscalePassData>(s_UpscaleSampler);
-                ref SgsrUpscalePassData passData = ref passHandle.GetPassData();
-                passData.shader = upscaleKernel.shader;
-                passData.kernelIndex = upscaleKernel.index;
-                passData.groups = new int2(upscaleKernel.GroupsX(displaySize.x), upscaleKernel.GroupsY(displaySize.y));
-                passData.parametersHandle = passHandle.WriteConstants(in parameters);
-                passData.ycocgReadHandle = passHandle.ReadTexture(ycocgHandle);
-                passData.clipAlphaReadHandle = passHandle.ReadTexture(clipAlphaHandle);
-                passData.prevHistoryReadHandle = passHandle.ReadTexture(prevHistoryHandle);
-                passData.historyWriteHandle = passHandle.WriteTexture(historyWriteHandle);
-                passData.temporalHistoryWriteHandle = passHandle.WriteTexture(executionContext.historyColorWriteHandle);
-                passData.displayOutputHandle = passHandle.WriteTexture(executionContext.outputHandle);
-
-                passHandle.SetExecuteFunc((in SgsrUpscalePassData data, in RGComputeEncoder cmdEncoder) =>
-                {
-                    cmdEncoder.SetComputeConstantBufferParam(data.shader, SgsrShaderIDs.CBV_Sgsr, data.parametersHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrYCoCg, data.ycocgReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrMotionDepthClipAlpha, data.clipAlphaReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.SRV_SgsrPrevHistory, data.prevHistoryReadHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, SgsrShaderIDs.UAV_SgsrHistory, data.historyWriteHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, TemporalShaderIDs.UAV_TemporalHistoryTexture, data.temporalHistoryWriteHandle);
-                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, TemporalShaderIDs.UAV_TemporalOutputTexture, data.displayOutputHandle);
-                    cmdEncoder.DispatchCompute(data.shader, data.kernelIndex, data.groups.x, data.groups.y, 1);
+                    ComputeKernel kernel = parameters.kernel;
+                    encoder.SetComputeConstantBufferParam(kernel.shader, s_Constants, parameters.constantsHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, s_DisplayInput, parameters.historyHandle);
+                    encoder.SetComputeTextureParam(kernel.shader, kernel.index, TemporalShaderIDs.UAV_TemporalOutputTexture, parameters.outputHandle);
+                    encoder.DispatchCompute(kernel.shader, kernel.index, kernel.GroupsX(parameters.size.x), kernel.GroupsY(parameters.size.y), 1);
                 });
             }
 
@@ -270,6 +209,23 @@ namespace InfinityTech.Rendering.Pipeline
                 graph.scoper.RegisterTexture(InfinityShaderIDs.TemporalAccumulationBuffer, executionContext.historyColorWriteHandle);
             }
 #endif
+        }
+
+        internal static TemporalSgsrParameters BuildParameters(int2 renderSize, int2 displaySize,
+            Vector2 jitterUV, Matrix4x4 projection, bool orthographic, bool reversedZ, bool reset, float sharpness)
+        {
+            float areaRatio = (float)displaySize.x / renderSize.x * displaySize.y / renderSize.y;
+            float projectedDepthOffset = orthographic ? projection[2, 2] : projection[2, 2] / projection[3, 2];
+            return new TemporalSgsrParameters
+            {
+                renderSizeAndReciprocal = new Vector4(renderSize.x, renderSize.y, 1f / renderSize.x, 1f / renderSize.y),
+                displaySizeAndReciprocal = new Vector4(displaySize.x, displaySize.y, 1f / displaySize.x, 1f / displaySize.y),
+                jitterResetAndSharpness = new Vector4(jitterUV.x * renderSize.x, jitterUV.y * renderSize.y,
+                    reset ? 1f : 0f, TemporalReconstructionUtility.ResolveRCASGain(sharpness)),
+                depthProjection = new Vector4(projectedDepthOffset, projection[2, 3], 1f / projection[0, 0], 1f / projection[1, 1]),
+                projectionFlagsAndScale = new Vector4(orthographic ? 1f : 0f, reversedZ ? 1f : 0f,
+                    Mathf.Min(20f, areaRatio * areaRatio * areaRatio), 0f),
+            };
         }
     }
 }

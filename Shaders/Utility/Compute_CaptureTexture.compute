@@ -17,3 +17,25 @@ void CaptureSurfaceMetadata(uint3 id : SV_DispatchThreadID)
 {
     if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Capture[id.xy] = float4(DecodeSurfaceMetadata(SRV_CaptureMetadata.Load(int3(id.xy, 0))), 0);
 }
+
+#pragma kernel CaptureRadiance
+#include "../Library/ScreenSpaceRadiance.hlsl"
+Texture2DArray<float2> SRV_CaptureRadiance;
+int CaptureSourceMip;
+
+[numthreads(8, 8, 1)]
+void CaptureRadiance(uint3 id : SV_DispatchThreadID)
+{
+    if (all(id.xy < (uint2)CaptureSize.xy))
+        UAV_Capture[id.xy] = LoadScreenSpaceRadiance(SRV_CaptureRadiance, id.xy, CaptureSourceMip);
+}
+
+#pragma kernel CaptureIrradiance
+Texture2D<float> SRV_CaptureConfidence;
+
+[numthreads(8, 8, 1)]
+void CaptureIrradiance(uint3 id : SV_DispatchThreadID)
+{
+    if (all(id.xy < (uint2)CaptureSize.xy))
+        UAV_Capture[id.xy] = float4(SRV_Capture.Load(int3(id.xy, 0)).rgb, SRV_CaptureConfidence.Load(int3(id.xy, 0)));
+}

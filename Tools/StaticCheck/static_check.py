@@ -1431,9 +1431,10 @@ def main():
         text = gpu_record_layout_text(repo)
         path = os.path.join(repo, GPU_RECORD_LAYOUT)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', newline='\n') as handle:
-            handle.write(text)
-        print('wrote', GPU_RECORD_LAYOUT)
+        if not os.path.exists(path) or read(path) != text:
+            with open(path, 'w', newline='\n') as handle:
+                handle.write(text)
+            print('wrote', GPU_RECORD_LAYOUT)
     global _SOURCE_CACHE
     _SOURCE_CACHE = {}
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}

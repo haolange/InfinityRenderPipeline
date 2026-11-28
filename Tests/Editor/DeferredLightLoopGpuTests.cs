@@ -426,6 +426,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (ssgi)
                 {
                     material.SetTexture("SRV_SSGITexture", Texture(fixture.ssgi.Value));
+                    material.SetTexture("SRV_SSGIConfidenceTexture", Texture(new Color(fixture.ssgi.Value.a, 0, 0, 0)));
                 }
                 if (sideband)
                 {

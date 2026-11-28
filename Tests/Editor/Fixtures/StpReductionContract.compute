@@ -1,0 +1,25 @@
+#pragma kernel StpReductionContract
+
+#include "Packages/com.infinity.render-pipeline/Shaders/Pass/Temporal/StpReduction.hlsl"
+
+StructuredBuffer<float4> InputA;
+StructuredBuffer<float4> InputB;
+RWStructuredBuffer<float4> OutputA;
+RWStructuredBuffer<float4> OutputB;
+RWStructuredBuffer<float4> OutputSum;
+uint2 InputDimensions;
+
+[numthreads(64, 1, 1)]
+void StpReductionContract(uint lane : SV_GroupIndex)
+{
+    float4 a = InputA[lane];
+    float4 b = InputB[lane];
+    float4 sum = a;
+    uint2 localPosition = uint2((lane & 1u) | ((lane >> 2u) & 6u), ((lane >> 1u) & 3u) | ((lane >> 3u) & 4u));
+    StpSetReductionSource(lane, localPosition, InputDimensions);
+    StpReduceMax(lane, a, b);
+    StpReduceSum(lane, sum);
+    OutputA[lane] = a;
+    OutputB[lane] = b;
+    OutputSum[lane] = sum;
+}

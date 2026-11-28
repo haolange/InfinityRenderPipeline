@@ -1,378 +1,674 @@
-#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
-#pragma kernel SGSR_Convert
-#pragma kernel SGSR_Activate
-#pragma kernel SGSR_Upscale
+/*
+Copyright (c) 2026, Qualcomm Innovation Center, Inc. All rights reserved.
 
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+SPDX-License-Identifier: BSD-3-Clause
+*/
+// SGSR v2 3-pass compute, Snapdragon Game Studios Unity v1.0.0.
+// InfinityRP binds the default 9-tap, no-pixel-lock path and exports linear HDR.
+
+#pragma kernel SGSR_Convert SGSR_STAGE_CONVERT
+#pragma kernel SGSR_Activate SGSR_STAGE_ACTIVATE
+#pragma kernel SGSR_Upscale SGSR_STAGE_UPSCALE
+#pragma kernel SGSR_Sharpen SGSR_STAGE_SHARPEN
 #pragma multi_compile_local _ SGSR_REACTIVE_MASK
 
-#include "../../Library/Common.hlsl"
-#include "../../Library/ColorUtility.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/MotionVectors.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/ColorUtility.hlsl"
 
-// Pure HLSL Compute port of Qualcomm Snapdragon Game Super Resolution v2 (3-pass CS)
-// adapted to InfinityRP's Reversed-Z Depth, UV-space FlipY Motion Vectors, and RGBuilder.
 cbuffer CBV_TemporalSgsrParameters
 {
-    float4 SGSR_RenderSizeAndRcp;   // xy = renderSize, zw = 1 / renderSize
-    float4 SGSR_DisplaySizeAndRcp;  // xy = displaySize, zw = 1 / displaySize
-    float4 SGSR_JitterAndFov;       // xy = jitter in render pixels, z = tanHalfFovH * 2 (hor fov approx), w = sharpness
-    float4 SGSR_PreviousJitter;     // xy = previous projection shift in render pixels
-    float4x4 SGSR_PreviousFromCurrentClip;
-    int SGSR_ResetHistory;
-    int SGSR_ReversedZ;
-    float SGSR_PreExposure;
-    int SGSR_Padding0;
+    float4 SGSR_RenderSizeAndReciprocal;
+    float4 SGSR_DisplaySizeAndReciprocal;
+    float4 SGSR_JitterResetAndSharpness;
+    float4 SGSR_DepthProjection;
+    float4 SGSR_ProjectionFlagsAndScale;
 };
 
-Texture2D<float4> SRV_SceneColorTexture;
-Texture2D<float> SRV_DepthTexture;
+#define InputInfo_ViewportSize SGSR_RenderSizeAndReciprocal.xy
+#define InputInfo_ViewportSizeInverse SGSR_RenderSizeAndReciprocal.zw
+#define DepthInfo_ViewportSize SGSR_RenderSizeAndReciprocal.xy
+#define HistoryInfo_ViewportSize SGSR_DisplaySizeAndReciprocal.xy
+#define HistoryInfo_ViewportSizeInverse SGSR_DisplaySizeAndReciprocal.zw
+#define OutputInfo_ViewportSize SGSR_DisplaySizeAndReciprocal.xy
+#define InputJitter SGSR_JitterResetAndSharpness.xy
+#define ValidReset SGSR_JitterResetAndSharpness.z
+#define RCASGain SGSR_JitterResetAndSharpness.w
+#define DeviceToViewDepth SGSR_DepthProjection
+#define Scalefactor SGSR_ProjectionFlagsAndScale.z
+
+#define FLT_FP16_MIN (6.10e-05f)
+#define FLT_FP16_MAX (65504.0f)
+#define FLT_EPSILON (1.192092896e-07f)
+#define LOG2E (1.442695f)
+
+SamplerState s_point_clamp_sampler;
+SamplerState s_linear_clamp_sampler;
+
+half3 Tonemap(half3 fRgb)
+{
+    return fRgb / (max(max((half)FLT_FP16_MIN, fRgb.r), max(fRgb.g, fRgb.b)) + 1.0h).xxx;
+}
+
+half3 InverseTonemap(half3 fRgb)
+{
+    fRgb = clamp(fRgb, (half)FLT_FP16_MIN, 0.999h);
+    return fRgb / max((half)FLT_FP16_MIN/*fp16 inf fix*/, 1.0h - max(fRgb.r, max(fRgb.g, fRgb.b))).xxx;
+}
+
+half3 RGBToYCoCg(half3 RGB)
+{
+    half Y  = dot(RGB, half3( 0.25h,  0.5h,  0.25h));
+    half Co = dot(RGB, half3( 0.5h,   0.0h, -0.5h));
+    half Cg = dot(RGB, half3(-0.25h,  0.5h, -0.25h));
+    return half3(Y, Co, Cg);
+}
+
+half3 YCoCgToRGB(half3 YCoCg)
+{
+    half R = dot(YCoCg, half3(1.0h,  1.0h, -1.0h));
+    half G = dot(YCoCg, half3(1.0h,  0.0h,  1.0h));
+    half B = dot(YCoCg, half3(1.0h, -1.0h, -1.0h));
+    return half3(R, G, B);
+}
+
+//Functions related to coordinate calculation
+int2 ClampLoad(int2 iPxSample, int2 iPxOffset, int2 iTextureSize)
+{
+    int2 result = iPxSample + iPxOffset;
+    result.x = clamp(result.x, 0, iTextureSize.x - 1);
+    result.y = clamp(result.y, 0, iTextureSize.y - 1);
+    return result;
+}
+
+bool IsUvInside(float2 fUv)
+{
+    return (fUv.x >= 0.0f && fUv.x <= 1.0f) && (fUv.y >= 0.0f && fUv.y <= 1.0f);
+}
+
+#if defined(SGSR_STAGE_CONVERT)
 Texture2D<float2> SRV_MotionTexture;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float4> SRV_SceneColorTexture;
+RWTexture2D<half4> UAV_SgsrColorLuma;
+RWTexture2D<half4> UAV_SgsrMotionDepthLuma;
+
+half ComputeLuma(half3 fRgb)
+{
+    half luma = dot(Tonemap(fRgb), half3(0.2126, 0.7152, 0.0722));
+    return pow(abs(luma), half(1.0 / 18.0));
+}
+
+
+
+half FindNearestDepth(int2 iPxPos, int2 iPxSize, out int2 iNearestDepthCoord)
+{
+    float2 gatherCoord = (float2(iPxPos.x, iPxPos.y) + float2(0.5, 0.5) /* iPxPos is middle*/) * InputInfo_ViewportSizeInverse;
+    half fDepths[9];
+    half4 gDepths = SRV_DepthTexture.GatherRed(s_point_clamp_sampler, InfinityTextureUV(gatherCoord, SRV_DepthTexture_InfinityView, 0), int2(0, 0));
+    fDepths[0] = gDepths.x;
+    fDepths[1] = gDepths.y;
+    fDepths[2] = gDepths.z;
+    fDepths[3] = gDepths.w;
+    gDepths = SRV_DepthTexture.GatherRed(s_point_clamp_sampler, InfinityTextureUV(gatherCoord, SRV_DepthTexture_InfinityView, 0), int2(-1, -1));
+
+    fDepths[4] = gDepths.x;
+    //fDepths[3] = gDepths.y;	// would be same as fDepths[3] - ie center
+    fDepths[5] = gDepths.z;
+    fDepths[6] = gDepths.w;
+
+    fDepths[7] = SRV_DepthTexture.GatherRed(s_point_clamp_sampler, InfinityTextureUV(gatherCoord, SRV_DepthTexture_InfinityView, 0), int2(0, -1)).z;
+
+    fDepths[8] = SRV_DepthTexture.GatherRed(s_point_clamp_sampler, InfinityTextureUV(gatherCoord, SRV_DepthTexture_InfinityView, 0), int2(-1, 0)).x;
+
+    half fNearestDepth;
+    const int iSampleCount = 9;
+    const int2 iSampleOffsets[iSampleCount] = {
+        int2(0, 1),
+        int2(1, 1),
+        int2(1, 0),
+        int2(0, 0),
+
+        int2(-1, 0),
+        //int2(0, 0),
+        int2(0, -1),
+        int2(-1, -1),
+
+        int2(1, -1),	// top right
+        int2(-1, 1),	// bottom left
+    };
+
+    int iNearestIndex = 0;
+
+    fNearestDepth = fDepths[0];
+    for (int iSampleIndex = 1; iSampleIndex < iSampleCount; ++iSampleIndex)
+    {
+        //if (all(iPos < iPxSize))
+        {
+            half fNdDepth = fDepths[iSampleIndex].x;
+            if (SGSR_ProjectionFlagsAndScale.y > 0.5 ? fNdDepth > fNearestDepth : fNdDepth < fNearestDepth)
+            {
+                fNearestDepth = fNdDepth;
+                iNearestIndex = iSampleIndex;
+            }
+        }
+    }
+
+    iNearestDepthCoord = iPxPos + iSampleOffsets[iNearestIndex];
+
+    return fNearestDepth;
+}
+
+
+
+
+void Convert(int2 DisThreadID)
+{
+    int2 fNearestDepthCoord;
+    half NearestZ = FindNearestDepth(DisThreadID, (int2)InputInfo_ViewportSize, fNearestDepthCoord);
+
+    int2 motionPixel = clamp(fNearestDepthCoord, 0, (int2)InputInfo_ViewportSize - 1);
+    // InfinityRP already stores jitter-free current minus previous in sampled UV.
+    float2 motion = -SRV_MotionTexture[motionPixel];
+    half3 ColorPostAlpha = (half3)SRV_SceneColorTexture[DisThreadID].xyz;
+
+    half3 ycocg = RGBToYCoCg(ColorPostAlpha);
+    UAV_SgsrColorLuma[DisThreadID] = half4(ycocg, 0.0);
+    half3 fPreparedRgb = max(half3(0, 0, 0), ColorPostAlpha);
+    half fLuma = ComputeLuma(fPreparedRgb);
+    UAV_SgsrMotionDepthLuma[DisThreadID] = half4(motion, NearestZ, fLuma);
+}
+
+#define TILE_SIZE_X 16
+#define TILE_SIZE_Y 8
+
+[numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
+void SGSR_Convert(uint2 dispatchThreadID : SV_DispatchThreadID)
+{
+    int2 DisThreadID = (int2)dispatchThreadID;
+
+    if (any(DisThreadID >= (int2)InputInfo_ViewportSize))
+    {
+        return;
+    }
+
+    Convert(DisThreadID);
+}
+#endif
+
+#if defined(SGSR_STAGE_ACTIVATE)
+Texture2D<float4> SRV_SgsrMotionDepthLuma;
+RWTexture2D<float> UAV_SgsrDepthClip;
+
+float GetViewSpaceDepth(float fDeviceDepth)
+{
+
+    return SGSR_ProjectionFlagsAndScale.x > 0.5
+        ? (DeviceToViewDepth.y - fDeviceDepth) / DeviceToViewDepth.x
+        : DeviceToViewDepth.y / (fDeviceDepth - DeviceToViewDepth.x);
+
+}
+
+float3 GetViewSpacePosition(float2 iViewportPos, int2 iViewportSize, float fDeviceDepth)
+{
+
+    float Z = GetViewSpaceDepth(fDeviceDepth);
+    //ComputeNdc
+    float2 fNdcPos = iViewportPos/float2(iViewportSize)*float2(2.0,-2.0)+float2(-1.0,1.0);
+    float xyScale = SGSR_ProjectionFlagsAndScale.x > 0.5 ? 1.0 : Z;
+    float X = DeviceToViewDepth[2] * fNdcPos.x * xyScale;
+    float Y = DeviceToViewDepth[3] * fNdcPos.y * xyScale;
+    return float3(X,Y,Z);
+
+}
+
+float EvaluateSurface(int2 iPxPos, float2 fMotionVector)
+{
+    float d0 = GetViewSpaceDepth((SRV_SgsrMotionDepthLuma[ClampLoad(iPxPos, int2(0, -1), (int2)InputInfo_ViewportSize)].z));
+    float d1 = GetViewSpaceDepth((SRV_SgsrMotionDepthLuma[iPxPos + int2(0,  0)].z));
+    float d2 = GetViewSpaceDepth((SRV_SgsrMotionDepthLuma[ClampLoad(iPxPos, int2(0, 1), (int2)InputInfo_ViewportSize)].z));
+
+    return 1.0 - float(((d0 - d1) > (d1 * 0.01)) && ((d1 - d2) > (d2 * 0.01)));
+}
+
+float ComputeDepthClip(float2 fUvSample, float fCurrentDepthSample)
+{
+    float fCurrentDepthViewSpace = GetViewSpaceDepth(fCurrentDepthSample);
+    int2 iOffsets[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
+    float fWeights[4];
+
+    float2 fPxSample = (fUvSample * InputInfo_ViewportSize) - float2(0.5, 0.5);
+    int2   iBasePos  = int2(floor(fPxSample));
+    float2 fPxFrac   = frac(fPxSample);
+
+    fWeights[0] = (1 - fPxFrac.x) * (1 - fPxFrac.y);
+    fWeights[1] = (fPxFrac.x) * (1 - fPxFrac.y);
+    fWeights[2] = (1 - fPxFrac.x) * (fPxFrac.y);
+    fWeights[3] = (fPxFrac.x) * (fPxFrac.y);
+
+    float fDepth      = 0.0;
+    float fWeightSum  = 0.0;
+
+    [unroll]
+    for (int iSampleIndex = 0; iSampleIndex < 4; iSampleIndex++)
+    {
+
+        const int2  iOffset    = iOffsets[iSampleIndex];
+        const int2  iSamplePos = iBasePos + iOffset;
+
+        if (all(iSamplePos >= 0) && all(iSamplePos < InputInfo_ViewportSize))
+        {
+            const float fWeight = fWeights[iSampleIndex];
+            if (fWeight > 0.01)
+            {
+                const float fPrevDepthSample           = SRV_SgsrMotionDepthLuma[iSamplePos].z;
+                const float fPrevNearestDepthViewSpace = GetViewSpaceDepth(fPrevDepthSample);
+                const float fDepthDiff                 = fCurrentDepthViewSpace - fPrevNearestDepthViewSpace;
+
+                if (fDepthDiff > 0.0)
+                {
+                    const float fPlaneDepth = SGSR_ProjectionFlagsAndScale.y > 0.5
+                        ? min(fPrevDepthSample, fCurrentDepthSample) : max(fPrevDepthSample, fCurrentDepthSample);
+
+                    const float3 fCenter = GetViewSpacePosition(int2(InputInfo_ViewportSize * 0.5), InputInfo_ViewportSize, fPlaneDepth);
+                    const float3 fCorner = GetViewSpacePosition(int2(0, 0), InputInfo_ViewportSize, fPlaneDepth);
+
+                    const float fHalfViewportWidth = length(float2(InputInfo_ViewportSize));
+                    const float fDepthThreshold    = max(fCurrentDepthViewSpace, fPrevNearestDepthViewSpace);
+
+                    const float Ksep = 1.37e-05f;
+                    const float Kfov = length(fCorner) / length(fCenter);
+                    const float fRequiredDepthSeparation = Ksep * Kfov * fHalfViewportWidth * fDepthThreshold;
+
+                    const float fResolutionFactor = saturate(length(float2(InputInfo_ViewportSize)) / length(float2(1920.0f, 1080.0f)));
+                    const float fPower = lerp(1.0f, 3.0f, fResolutionFactor);
+
+                    fDepth     += pow(saturate(float(fRequiredDepthSeparation / fDepthDiff)), fPower) * fWeight;
+                    fWeightSum += fWeight;
+                }
+            }
+        }
+    }
+
+    return (fWeightSum > 0) ? saturate(1.0f - fDepth / fWeightSum) : 0.0f;
+}
+
+void Activate(int2 DisThreadID)
+{
+    float2 ViewportUV = (float2(DisThreadID) + 0.5f) * InputInfo_ViewportSizeInverse;
+
+    float3 motionDepth = SRV_SgsrMotionDepthLuma[DisThreadID].xyz;
+    float2 motion = motionDepth.xy;
+    float depth = motionDepth.z;
+
+    float2 motionClamped = motion * float(length(motion * HistoryInfo_ViewportSize) > 0.01f);
+    float2 PrevUV;
+
+    PrevUV.x = motionClamped.x + ViewportUV.x;
+    PrevUV.y = motionClamped.y + ViewportUV.y;
+
+    float depthclip = 0.0f;
+    bool finiteDepth = SGSR_ProjectionFlagsAndScale.y > 0.5 ? depth > FLT_FP16_MIN : depth < 1.0 - FLT_FP16_MIN;
+    if (finiteDepth && SurfaceMotionIsValid(motion) && IsUvInside(PrevUV))
+    {
+        int2 prevPos = ClampLoad(
+            int2(PrevUV * DepthInfo_ViewportSize),
+            int2(0, 0),
+            (int2)DepthInfo_ViewportSize);
+
+        depthclip = ComputeDepthClip(PrevUV, depth) * EvaluateSurface(prevPos, motionClamped);
+    }
+
+    UAV_SgsrDepthClip[DisThreadID] = depthclip;
+}
+
+#define TILE_SIZE_X 16
+#define TILE_SIZE_Y 8
+
+[numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
+void SGSR_Activate(uint2 dispatchThreadID : SV_DispatchThreadID)
+{
+    int2 DisThreadID = (int2)dispatchThreadID;
+
+    if (any(DisThreadID >= (int2)InputInfo_ViewportSize))
+    {
+        return;
+    }
+
+    Activate(DisThreadID);
+}
+#endif
+
+#if defined(SGSR_STAGE_UPSCALE)
+Texture2D<half4> SRV_SgsrColorLuma;
+Texture2D<half4> SRV_SgsrMotionDepthLuma;
+Texture2D<half4> SRV_SgsrPreviousHistory;
+Texture2D<half> SRV_SgsrDepthClip;
 #if defined(SGSR_REACTIVE_MASK)
 Texture2D<float> SRV_ReactiveMaskTexture;
 #endif
-
-Texture2D<uint> SRV_SgsrYCoCg;
-Texture2D<float4> SRV_SgsrMotionDepthAlpha;
-Texture2D<float> SRV_SgsrCurrentDepth;
-Texture2D<float> SRV_SgsrPreviousDepth;
-Texture2D<uint> SRV_SgsrPrevLumaHistory;
-Texture2D<float4> SRV_SgsrMotionDepthClipAlpha;
-Texture2D<float4> SRV_SgsrPrevHistory;
-
-RWTexture2D<uint> UAV_SgsrYCoCg;
-RWTexture2D<float4> UAV_SgsrMotionDepthAlpha;
-RWTexture2D<float> UAV_SgsrDepth;
-RWTexture2D<uint> UAV_SgsrLumaHistory;
-RWTexture2D<float4> UAV_SgsrMotionDepthClipAlpha;
 RWTexture2D<float4> UAV_SgsrHistory;
 RWTexture2D<float4> UAV_TemporalHistoryTexture;
-RWTexture2D<float4> UAV_TemporalOutputTexture;
 
-float SgsrToStandardDepth(float deviceDepth)
+half3 ComputeBaseAccumulationWeight(
+    half  fThisFrameReactive,
+    half  fDepthClipFactor,
+    bool  bIsExistingSample,
+    half  bInMotionLastFrame,
+    half  fUpsampledWeight,
+    half  fHrVelocity)
 {
-    return SGSR_ReversedZ != 0 ? (1.0 - deviceDepth) : deviceDepth;
+    half fBaseAccumulation = half(bIsExistingSample) * (1.0 - fThisFrameReactive) * (1.0 - fDepthClipFactor);
+    fBaseAccumulation = min(fBaseAccumulation, lerp(fBaseAccumulation, fUpsampledWeight * 10.0, max(bInMotionLastFrame, saturate(fHrVelocity * 10.0))));
+    fBaseAccumulation = min(fBaseAccumulation, lerp(fBaseAccumulation, fUpsampledWeight, saturate(fHrVelocity / 20.0)));
+    return fBaseAccumulation.xxx;
 }
 
-float3 SgsrDecodeYCoCg(uint packed)
+half ComputeTemporalReactiveFactor(
+    half  fTemporalReactiveFactor,
+    half  fDepthClipFactor,
+    half  fHrVelocity,
+    bool  bIsNewSample)
 {
-    uint x11 = packed >> 21u;
-    uint y11 = packed & (2047u << 10u);
-    uint z10 = packed & 1023u;
-    float3 c;
-    c.x = (float)x11 * (1.0 / 2047.5);
-    c.y = (float)y11 * 4.76953602e-7 - 0.5;
-    c.z = (float)z10 * (1.0 / 1023.5) - 0.5;
-    return c;
-}
+    half fNewFactor = min(0.99, fTemporalReactiveFactor);
+    fNewFactor = max(fNewFactor, lerp(fNewFactor, 0.4, saturate(fHrVelocity)));
+    fNewFactor = max(fNewFactor * fNewFactor, max(fDepthClipFactor * 0.1, 0.0));
+    fNewFactor = bIsNewSample ? 1.0 : fNewFactor;
 
-float SgsrDecodeLumaY(uint packed)
-{
-    uint x11 = packed >> 21u;
-    return (float)x11 * (1.0 / 2047.5);
-}
-
-float SgsrFastLanczos(float base)
-{
-    float y = base - 1.0;
-    float y2 = y * y;
-    return (0.75 * y + y2) * y2;
-}
-
-// ----------------------------------------------------------------------------
-// Pass 1: SGSR_Convert (Depth dilation + UV motion + YCoCg 11/11/10 pack)
-// ----------------------------------------------------------------------------
-[numthreads(8, 8, 1)]
-void SGSR_Convert(uint3 id : SV_DispatchThreadID)
-{
-    int2 renderMax = (int2)SGSR_RenderSizeAndRcp.xy - 1;
-    if (any((int2)id.xy > renderMax))
-        return;
-
-    int2 pos = (int2)id.xy;
-    float2 renderRcp = SGSR_RenderSizeAndRcp.zw;
-    float2 gatherCoord = (float2)pos * renderRcp;
-
-    // 3x3 nearest depth in SGSR standard depth (0 = near, 1 = far).
-    float nearestZ = SgsrToStandardDepth(SRV_DepthTexture.Load(int3(pos, 0)));
-    int2 nearestPos = pos;
-    [unroll]
-    for (int dy = -1; dy <= 1; ++dy)
+    if (saturate(fHrVelocity * 10.0) >= 1.0)
     {
-        [unroll]
-        for (int dx = -1; dx <= 1; ++dx)
-        {
-            int2 sp = clamp(pos + int2(dx, dy), 0, renderMax);
-            float sz = SgsrToStandardDepth(SRV_DepthTexture.Load(int3(sp, 0)));
-            if (sz < nearestZ)
-            {
-                nearestZ = sz;
-                nearestPos = sp;
-            }
-        }
+        fNewFactor = -max(1e-03, fNewFactor);
     }
+    return fNewFactor;
+}
 
-    float2 motion = SRV_MotionTexture.Load(int3(nearestPos, 0));
+half FastLanczos(half x2)
+{
+    //x2 = min(x2, 4.0f);  TODO
+    half a = (2.0 / 5.0) * x2 - 1.0;
+    half b = (1.0 / 4.0) * x2 - 1.0;
+    return ((25.0 / 16.0) * a * a - (9.0 / 16.0)) * (b * b);
+}
 
-    float3 rgb = max(0.0, SRV_SceneColorTexture.Load(int3(pos, 0)).rgb);
-    float denom = max3(rgb.r, rgb.g, rgb.b) + max(SGSR_PreExposure, 1e-4);
-    rgb /= denom;
 
-    float3 ycocg;
-    ycocg.x = 0.25 * (rgb.r + 2.0 * rgb.g + rgb.b);
-    ycocg.y = saturate(0.5 * rgb.r + 0.5 - 0.5 * rgb.b);
-    ycocg.z = saturate(ycocg.x + ycocg.y - rgb.r);
+// ---------------------------------------------------------------------------
+// Update
+// ---------------------------------------------------------------------------
 
-    uint x11 = (uint)round(saturate(ycocg.x) * 2047.0);
-    uint y11 = (uint)round(saturate(ycocg.y) * 2047.0);
-    uint z10 = (uint)round(saturate(ycocg.z) * 1023.0);
+void Update(int2 DisThreadID)
+{
+    float2 Hruv = (DisThreadID + 0.5) * HistoryInfo_ViewportSizeInverse;
+    float2 Jitteruv;
+    Jitteruv.x = saturate(Hruv.x + InputJitter.x * InputInfo_ViewportSizeInverse.x);
+    Jitteruv.y = saturate(Hruv.y + InputJitter.y * InputInfo_ViewportSizeInverse.y);
+    int2 InputPos = min(int2(Jitteruv * InputInfo_ViewportSize), (int2)InputInfo_ViewportSize - 1);
 
-    float alphaMask = 0.0;
+    float2 Motion       = InfinitySampleLevel(SRV_SgsrMotionDepthLuma, s_linear_clamp_sampler, Jitteruv, 0).xy;
+    half   fDepthFactor = (half)InfinitySampleLevel(SRV_SgsrDepthClip, s_linear_clamp_sampler, Jitteruv, 0).x;
+    float2 PrevUV = float2(Motion.x + Hruv.x, Motion.y + Hruv.y);
+
+    half4 History = half4(0.0, 0.0, 0.0, 0.0);
+
+    half fTemporalReactiveFactor = 0.0;
+    half bInMotionLastFrame      = 0.0;
+    float2 motionUV = InfinityTextureUV(Jitteruv, SRV_SgsrMotionDepthLuma_InfinityView, 0);
+    float4 motionTaps = SRV_SgsrMotionDepthLuma.GatherRed(s_point_clamp_sampler, motionUV);
+    bool bIsExistingSample       = IsUvInside(PrevUV) && all(abs(motionTaps) <= 1.0);
+    bool bIsResetFrame           = (ValidReset > FLT_EPSILON);
+    bool bIsNewSample            = (!bIsExistingSample || bIsResetFrame);
+
+    if (bIsExistingSample && !bIsResetFrame)
+    {
+        History = (half4)InfinitySampleLevel(SRV_SgsrPreviousHistory, s_linear_clamp_sampler, PrevUV, 0);
+        fTemporalReactiveFactor = saturate(abs(History.w));
+        bInMotionLastFrame      = (History.w < 0.0);
+    }
+    half fThisFrameReactiveFactor = fTemporalReactiveFactor;
 #if defined(SGSR_REACTIVE_MASK)
-    alphaMask = saturate(SRV_ReactiveMaskTexture.Load(int3(pos, 0))) * 350.0;
+    fThisFrameReactiveFactor = max(fThisFrameReactiveFactor, (half)SRV_ReactiveMaskTexture[InputPos]);
 #endif
 
-    UAV_SgsrYCoCg[pos] = (x11 << 21u) | (y11 << 10u) | z10;
-    UAV_SgsrMotionDepthAlpha[pos] = float4(motion, nearestZ, alphaMask);
-    UAV_SgsrDepth[pos] = nearestZ;
-}
+    History.xyz = RGBToYCoCg(History.xyz);
 
-// ----------------------------------------------------------------------------
-// Pass 2: SGSR_Activate (Depth Disocclusion Clipping & Luma History Tracking)
-// ----------------------------------------------------------------------------
-[numthreads(8, 8, 1)]
-void SGSR_Activate(uint3 id : SV_DispatchThreadID)
-{
-    int2 renderMax = (int2)SGSR_RenderSizeAndRcp.xy - 1;
-    if (any((int2)id.xy > renderMax))
-        return;
+    half3 HistoryColor = History.xyz;
 
-    int2 pos = (int2)id.xy;
-    float2 uv = ((float2)pos + 0.5) * SGSR_RenderSizeAndRcp.zw;
+    half  fKernelReactiveFacor = max(fThisFrameReactiveFactor, half(bIsNewSample));
+    half  fKernelWeight        = half(1.0 + (HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x - 1.0) /* * 1.0*/);
+    half  fKernelBiasMax       = max(1.99, fKernelWeight) * (1.0 - fKernelReactiveFacor);
+    half  fKernelBiasMin       = max(1.0, (1.0 + fKernelBiasMax) * 0.3);
+    half  fKernelBiasFactor    = max(ValidReset, max(0.25 * fDepthFactor, fKernelReactiveFacor));
+    half  fKernelBias          = lerp(fKernelBiasMax, fKernelBiasMin, fKernelBiasFactor);
 
-    float lumaRef = SgsrDecodeLumaY(SRV_SgsrYCoCg.Load(int3(pos, 0)));
-    float4 mda = SRV_SgsrMotionDepthAlpha.Load(int3(pos, 0));
-    float2 motion = mda.xy;
-    float depth = SRV_SgsrCurrentDepth.Load(int3(pos, 0));
-    float alphaMask = mda.w;
+    fKernelBias *= 0.7;
 
-    bool finiteMotion = all(isfinite(motion));
-    float2 prevUV = finiteMotion ? uv - motion + (SGSR_PreviousJitter.xy - SGSR_JitterAndFov.xy) * SGSR_RenderSizeAndRcp.zw : float2(-1.0, -1.0);
-    bool historyValid = SGSR_ResetHistory == 0 && finiteMotion && all(prevUV >= 0.0) && all(prevUV < 1.0);
-    float expectedPreviousDepth = depth;
-    if (historyValid)
+    half4 UpsampledColorAndWeight = half4(0.0, 0.0, 0.0, 0.0);
+
+    half  fHrVelocity = half(length(Motion * HistoryInfo_ViewportSize));
+    half  curvebias   = lerp(-2.0, -3.0, saturate(fHrVelocity * 0.02));
+    half  curvebias2  = curvebias * LOG2E;
+
+    half3 rectboxcenter = half3(0.0, 0.0, 0.0);
+    half3 rectboxvar    = half3(0.0, 0.0, 0.0);
+    half  rectboxweight = 0.0;
+
+    float2 srcpos       = InputPos + float2(0.5, 0.5) - InputJitter;
+    float2 srcOutputPos = Hruv * InputInfo_ViewportSize;
+
+    half2 srcpos_srcOutputPos = half2(srcpos - srcOutputPos);
+
+    half3 rectboxmin = half3(FLT_FP16_MAX, FLT_FP16_MAX, FLT_FP16_MAX);
+    half3 rectboxmax = half3(0.0, 0.0, 0.0);
+
+    const int2 sampleOffset[9] =
     {
-        float deviceDepth = SGSR_ReversedZ != 0 ? 1.0 - depth : depth;
-        float4 previousClip = mul(SGSR_PreviousFromCurrentClip, float4(uv * 2.0 - 1.0, deviceDepth, 1.0));
-        float previousDeviceDepth = previousClip.z / max(previousClip.w, 1e-6);
-        historyValid = all(isfinite(previousClip)) && previousClip.w > 0.0 && previousDeviceDepth >= 0.0 && previousDeviceDepth <= 1.0;
-        expectedPreviousDepth = SgsrToStandardDepth(previousDeviceDepth);
+        int2( 1,  0),
+        int2(-1,  0),
+        int2( 0,  0),
+        int2( 0,  1),
+        int2( 0, -1),
+        int2( 1,  1),
+        int2(-1, -1),
+        int2( 1, -1),
+        int2(-1,  1),
+    };
+    const int sampleNums = 9;
+
+    half fLockContributionThisFrame = 0.0;
+
+    [unroll] for (int i = 0; i < sampleNums; i++)
+    {
+        int2 offset = sampleOffset[i];
+
+        half3 samplecolor = (half3)SRV_SgsrColorLuma[ClampLoad(InputPos, offset, (int2)InputInfo_ViewportSize)].xyz;
+
+        half2 baseoffset     = (srcpos_srcOutputPos + half2(offset)) * fKernelBias;
+        half  baseoffset_dot = dot(baseoffset, baseoffset);
+        half  base           = min(baseoffset_dot, 4.0);
+
+        half weight = FastLanczos(base);
+
+        UpsampledColorAndWeight += half4(samplecolor * weight, weight);
+        half  boxweight = exp(baseoffset_dot * curvebias2);
+        rectboxmin = min(rectboxmin, samplecolor);
+        rectboxmax = max(rectboxmax, samplecolor);
+        half3 wsample = samplecolor * boxweight;
+        rectboxcenter += wsample;
+        rectboxvar    += (samplecolor * wsample);
+        rectboxweight += boxweight;
+
     }
-    float depthClip = historyValid ? 0.0 : 1.0;
 
-    if (historyValid && depth < 1.0 - 1e-5)
+
+    half fBoxCenterWeight = abs(rectboxweight) > 0.001 ? rectboxweight : 1.0;
+    rectboxweight  = 1.0 / fBoxCenterWeight;
+    rectboxcenter *= rectboxweight;
+    rectboxvar    *= rectboxweight;
+    rectboxvar     = sqrt(abs(rectboxvar - rectboxcenter * rectboxcenter));
+
+    if (UpsampledColorAndWeight.w > 0.001)
     {
-        float2 prevSample = prevUV * SGSR_RenderSizeAndRcp.xy - 0.5;
-        int2 basePrev = (int2)floor(prevSample);
-        float2 prevFrac = frac(prevSample);
-        float oneMinusX = 1.0 - prevFrac.x;
-        float bilin[4] = {
-            oneMinusX * (1.0 - prevFrac.y),
-            prevFrac.x * (1.0 - prevFrac.y),
-            oneMinusX * prevFrac.y,
-            prevFrac.x * prevFrac.y
-        };
-        int2 corners[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
+        UpsampledColorAndWeight.xyz = UpsampledColorAndWeight.xyz / UpsampledColorAndWeight.w;
+        UpsampledColorAndWeight.w   = UpsampledColorAndWeight.w * (1.0 / (half)sampleNums);
+        UpsampledColorAndWeight.xyz = clamp(UpsampledColorAndWeight.xyz, rectboxmin, rectboxmax);
+    }
 
-        float diagLen = length(SGSR_RenderSizeAndRcp.xy);
-        float kSepFovDiag = 1.37e-5 * max(SGSR_JitterAndFov.z, 0.5) * diagLen;
-        float wDepth = 0.0;
-        [unroll]
-        for (int c = 0; c < 4; ++c)
+    if (bIsNewSample)
+    {
+        HistoryColor = YCoCgToRGB(UpsampledColorAndWeight.xyz);
+    }
+    else
+    {
+        half fVelocityFactor = saturate(fHrVelocity * 0.05);
+        half boxscale        = max(fDepthFactor, fVelocityFactor);
+        half boxsize         = lerp(Scalefactor, 1.0, boxscale);
+
+        half3 sboxvar       = rectboxvar * boxsize;
+        half3 boxmin        = rectboxcenter - sboxvar;
+        half3 boxmax        = rectboxcenter + sboxvar;
+        rectboxmax = min(rectboxmax, boxmax);
+        rectboxmin = max(rectboxmin, boxmin);
+        half3 clampedHistoryColor = clamp(HistoryColor, rectboxmin, rectboxmax);
+
+        half3 fAccumulation = ComputeBaseAccumulationWeight(
+            fThisFrameReactiveFactor, fDepthFactor,
+            bIsExistingSample, bInMotionLastFrame,
+            UpsampledColorAndWeight.w, fHrVelocity);
+
+        if (any(rectboxmin > HistoryColor) || any(HistoryColor > rectboxmax))
         {
-            float fPrevDepth = 1.0;
-            [unroll]
-            for (int sy = -1; sy <= 0; ++sy)
-            {
-                [unroll]
-                for (int sx = -1; sx <= 0; ++sx)
-                {
-                    int2 sp = clamp(basePrev + corners[c] + int2(sx, sy), 0, renderMax);
-                    fPrevDepth = min(fPrevDepth, SRV_SgsrPreviousDepth.Load(int3(sp, 0)));
-                }
-            }
-            float depthSep = kSepFovDiag * (1.0 - min(fPrevDepth, expectedPreviousDepth));
-            wDepth += saturate(depthSep / (abs(fPrevDepth - expectedPreviousDepth) + 1.19e-7)) * bilin[c];
+            half lerpcontribution = saturate(fLockContributionThisFrame);
+            HistoryColor = lerp(clampedHistoryColor, HistoryColor, lerpcontribution);
+
+            // History came from a moving object but this pixel now has no velocity:
+            // it was just revealed from occlusion. Drive the accumulation floor toward
+            // 0 so the ghost clears in one frame instead of the default ~7-frame fade.
+            half fRevealedFactor = bInMotionLastFrame * (1.0h - saturate(fHrVelocity * 10.0h));
+            half fFloor = lerp(0.1h, 0.0h, fRevealedFactor);
+
+            half3 fAccumulationMin = min(fAccumulation, half3(fFloor, fFloor, fFloor));
+            fAccumulation = lerp(fAccumulationMin, fAccumulation, lerpcontribution);
         }
-        depthClip = saturate(1.0 - wDepth);
+
+        fAccumulation = max(half3(1e-03, 1e-03, 1e-03), fAccumulation + UpsampledColorAndWeight.www);
+
+        UpsampledColorAndWeight.xyz = RGBToYCoCg(Tonemap(YCoCgToRGB(UpsampledColorAndWeight.xyz)));
+        HistoryColor                = RGBToYCoCg(Tonemap(YCoCgToRGB(HistoryColor)));
+
+        half3 fAlpha = UpsampledColorAndWeight.www / fAccumulation;
+        HistoryColor  = lerp(HistoryColor, UpsampledColorAndWeight.xyz, fAlpha);
+
+        HistoryColor = YCoCgToRGB(HistoryColor);
+        HistoryColor = InverseTonemap(HistoryColor);
     }
 
-    uint prevPack = 0u;
-    if (historyValid)
-    {
-        int2 prevPx = clamp((int2)(prevUV * SGSR_RenderSizeAndRcp.xy), 0, renderMax);
-        prevPack = SRV_SgsrPrevLumaHistory.Load(int3(prevPx, 0));
-    }
 
-    float prevLumaX = f16tof32(prevPack >> 16u);
-    float prevLumaY = f16tof32(prevPack & 0xFFFFu);
 
-    bool enable = historyValid && (depthClip < 0.1);
-    float lumaDiff = lumaRef - prevLumaX;
-    float2 currLumaDiff = 0.0;
-    if (enable)
-    {
-        currLumaDiff.x = lumaRef;
-        currLumaDiff.y = (prevLumaY != 0.0)
-            ? ((sign(lumaDiff) == sign(prevLumaY)) ? (sign(lumaDiff) * min(abs(prevLumaY), abs(lumaDiff))) : prevLumaY)
-            : lumaDiff;
-    }
+    fTemporalReactiveFactor = ComputeTemporalReactiveFactor(
+        fThisFrameReactiveFactor, fDepthFactor, fHrVelocity, bIsNewSample);
 
-    alphaMask = floor(alphaMask) + 0.5 * (float)((currLumaDiff.x != 0.0) && (abs(currLumaDiff.y) != abs(lumaDiff)));
-    uint packedOut = (f32tof16(currLumaDiff.x) << 16u) | f32tof16(currLumaDiff.y);
-    UAV_SgsrLumaHistory[pos] = packedOut;
-    UAV_SgsrMotionDepthClipAlpha[pos] = float4(motion, depthClip, alphaMask);
+    UAV_SgsrHistory[DisThreadID] = float4((float3)HistoryColor, (float)fTemporalReactiveFactor);
+
+    UAV_TemporalHistoryTexture[DisThreadID] = float4(ClampPackedHDRColor(HistoryColor), 1.0);
 }
 
-// ----------------------------------------------------------------------------
-// Pass 3: SGSR_Upscale (Directional Lanczos Upsample + Temporal Rectification)
-// ----------------------------------------------------------------------------
-[numthreads(8, 8, 1)]
-void SGSR_Upscale(uint3 id : SV_DispatchThreadID)
+// ---------------------------------------------------------------------------
+// Kernel entry point
+// ---------------------------------------------------------------------------
+
+#define TILE_SIZE_X 16
+#define TILE_SIZE_Y 8
+
+[numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
+void SGSR_Upscale(uint2 dispatchThreadID : SV_DispatchThreadID)
 {
-    int2 dispMax = (int2)SGSR_DisplaySizeAndRcp.xy - 1;
-    if (any((int2)id.xy > dispMax))
+    int2 DisThreadID = (int2)dispatchThreadID;
+
+    if (any(DisThreadID >= (int2)HistoryInfo_ViewportSize))
+    {
         return;
-
-    int2 pos = (int2)id.xy;
-    int2 renderMax = (int2)SGSR_RenderSizeAndRcp.xy - 1;
-    float2 renderSize = SGSR_RenderSizeAndRcp.xy;
-    float2 displaySize = SGSR_DisplaySizeAndRcp.xy;
-
-    float biasMaxScale = min(displaySize.x * SGSR_RenderSizeAndRcp.z, 1.99);
-    float ratioX = displaySize.x * SGSR_RenderSizeAndRcp.z;
-    float ratioY = displaySize.y * SGSR_RenderSizeAndRcp.w;
-    float scaleFactor = min(20.0, pow(ratioX * ratioY, 3.0));
-
-    float2 hrUV = ((float2)pos + 0.5) * SGSR_DisplaySizeAndRcp.zw;
-    float2 jitteredUV = saturate(hrUV + SGSR_JitterAndFov.xy * SGSR_RenderSizeAndRcp.zw);
-    int2 inputPos = clamp((int2)(jitteredUV * renderSize), 0, renderMax);
-
-    float alphaB = SRV_SgsrMotionDepthClipAlpha.Load(int3(inputPos, 0)).w;
-    float3 mda = InfinitySampleLevel(SRV_SgsrMotionDepthClipAlpha, Global_bilinear_clamp_sampler, jitteredUV, 0).xyz;
-    float2 motion = mda.xy;
-    float depthFactor = mda.z;
-
-    bool finiteMotion = all(isfinite(motion));
-    float2 prevUV = finiteMotion ? hrUV - motion : float2(-1.0, -1.0);
-    // Strong depth disagreement rejects history before any history texture read.
-    bool historyValid = SGSR_ResetHistory == 0 && finiteMotion && depthFactor < 0.9 && all(prevUV >= 0.0) && all(prevUV < 1.0);
-    float historyValue = frac(alphaB);
-    float alphaMask = (alphaB - historyValue) * 0.001;
-    historyValue *= 2.0;
-
-    float4 history = 0.0;
-    if (historyValid)
-        history = InfinitySampleLevel(SRV_SgsrPrevHistory, Global_bilinear_clamp_sampler, prevUV, 0);
-    float3 historyColor = history.xyz;
-    float historyW = history.w;
-    // A transient reactive surface must not permanently suppress temporal accumulation.
-    float wFactor = max(saturate(abs(historyW)) * 0.5, alphaMask);
-
-    float kernelFactor = saturate(wFactor + (float)SGSR_ResetHistory);
-    float biasMax = biasMaxScale * (1.0 - kernelFactor);
-    float biasMin = max(1.0, 0.3 + 0.3 * biasMax);
-    float biasFactor = max(0.25 * depthFactor, kernelFactor);
-    float kernelBias = lerp(biasMax, biasMin, biasFactor) * 0.5;
-    float kernelBias2 = kernelBias * kernelBias;
-
-    float motionLen = finiteMotion ? length(motion * displaySize) : 0.0;
-    float curveBias = lerp(-2.0, -3.0, saturate(motionLen * 0.02));
-
-    float2 srcPos = (float2)inputPos + 0.5 - SGSR_JitterAndFov.xy;
-    float2 srcOutPos = hrUV * renderSize;
-    float2 baseDelta = srcPos - srcOutPos;
-
-    float4 upsampledCW = 0.0;
-    float3 rectMin = 1e10, rectMax = -1e10;
-    float3 rectCenter = 0.0, rectVar = 0.0;
-    float rectWeight = 0.0;
-
-    [unroll]
-    for (int dy = -1; dy <= 1; ++dy)
-    {
-        [unroll]
-        for (int dx = -1; dx <= 1; ++dx)
-        {
-            int2 sp = clamp(inputPos + int2(dx, dy), 0, renderMax);
-            float3 sc = SgsrDecodeYCoCg(SRV_SgsrYCoCg.Load(int3(sp, 0)));
-            float2 offset = baseDelta + float2(dx, dy);
-            float d2 = dot(offset, offset);
-            float w = SgsrFastLanczos(saturate(d2 * kernelBias2));
-            upsampledCW += float4(sc * w, w);
-
-            float bw = exp(d2 * curveBias);
-            rectMin = min(rectMin, sc);
-            rectMax = max(rectMax, sc);
-            float3 ws = sc * bw;
-            rectCenter += ws;
-            rectVar += sc * ws;
-            rectWeight += bw;
-        }
     }
 
-    rectWeight = 1.0 / max(rectWeight, 1e-6);
-    rectCenter *= rectWeight;
-    rectVar = sqrt(abs(rectVar * rectWeight - rectCenter * rectCenter));
-
-    upsampledCW.xyz = clamp(upsampledCW.xyz / max(upsampledCW.w, 1e-5), rectMin - 0.05, rectMax + 0.05);
-    upsampledCW.w *= (1.0 / 3.0);
-
-    float oneMinusW = 1.0 - wFactor;
-    float tContrib = historyValue * saturate(rectVar.x * 10.0) * oneMinusW;
-
-    float baseUpdate = oneMinusW * (1.0 - depthFactor);
-    baseUpdate = min(baseUpdate, lerp(baseUpdate, upsampledCW.w * 10.0, saturate(10.0 * motionLen)));
-    baseUpdate = min(baseUpdate, lerp(baseUpdate, upsampledCW.w, saturate(0.05 * motionLen)));
-
-    float boxScale = max(depthFactor, saturate(0.05 * motionLen));
-    float boxSize = lerp(scaleFactor, 1.0, boxScale);
-    float3 sboxVar = rectVar * boxSize;
-    rectMax = min(rectMax, rectCenter + sboxVar);
-    rectMin = max(rectMin, rectCenter - sboxVar);
-
-    float3 clampedHist = clamp(historyColor, rectMin, rectMax);
-    bool outside = any(historyColor < rectMin) || any(historyColor > rectMax);
-    float lerpContrib = outside ? tContrib : 1.0;
-    lerpContrib = lerpContrib * (1.0 - sqrt(saturate(alphaMask)));
-    historyColor = lerp(clampedHist, historyColor, saturate(lerpContrib));
-
-    float baseAlpha = lerp(min(baseUpdate, 0.1), baseUpdate, saturate(lerpContrib));
-    float alpha = saturate(upsampledCW.w / max(1.192e-7, baseAlpha + upsampledCW.w) + (float)SGSR_ResetHistory);
-    float3 blendedYCoCg = upsampledCW.xyz;
-    if (historyValid)
-        blendedYCoCg = lerp(historyColor, upsampledCW.xyz, alpha);
-
-    UAV_SgsrHistory[pos] = float4(blendedYCoCg, wFactor);
-
-    // YCoCg -> linear HDR RGB.
-    float xMinusZ = blendedYCoCg.x - blendedYCoCg.z;
-    float3 rgb = max(0.0, float3(xMinusZ + blendedYCoCg.y, blendedYCoCg.x + blendedYCoCg.z, xMinusZ - blendedYCoCg.y));
-    float compMax = max3(rgb.r, rgb.g, rgb.b);
-    float hdrScale = max(SGSR_PreExposure, 1e-4) / max((1.0 + 1.0 / 65504.0) - compMax, 1e-6);
-    float3 linearHDR = min(rgb * hdrScale, 65504.0);
-
-    // Unified unsharpened temporal history color (SSR/SSGI feedback).
-    UAV_TemporalHistoryTexture[pos] = float4(linearHDR, 1.0);
-
-    // Display-only optional sharpening into TemporalOutputBuffer (never enters history).
-    float sharp = SGSR_JitterAndFov.w;
-    if (sharp > 1e-4)
-    {
-        float detail = saturate(rectVar.x * 4.0) * sharp * 0.25;
-        float centerLuma = Rec709Luminance(linearHDR);
-        float targetY = lerp(blendedYCoCg.x, rectCenter.x, -detail);
-        float lumaGain = clamp(targetY / max(blendedYCoCg.x, 1e-4), 0.75, 1.35);
-        linearHDR = min(linearHDR * lerp(1.0, lumaGain, saturate(sharp)), 65504.0);
-    }
-
-    UAV_TemporalOutputTexture[pos] = float4(linearHDR, 1.0);
+    Update(DisThreadID);
 }
+#endif
+
+#if defined(SGSR_STAGE_SHARPEN)
+Texture2D<float4> SRV_SgsrDisplayInput;
+RWTexture2D<float4> UAV_TemporalOutputTexture;
+
+// Share the display filter and dark-center limiter used by the FSR backend.
+#define FFX_GPU 1
+#define FFX_HLSL 1
+#define FFX_HALF 0
+
+float4 LoadRCAS_Input(int2 pixel)
+{
+    return SRV_SgsrDisplayInput[clamp(pixel, 0, (int2)OutputInfo_ViewportSize - 1)];
+}
+
+uint4 RCASConfig()
+{
+    return uint4(asuint(RCASGain), 0, 0, 0);
+}
+
+float Exposure()
+{
+    return 1.0;
+}
+
+void StoreUpscaledOutput(uint2 pixel, float3 color)
+{
+    UAV_TemporalOutputTexture[pixel] = float4(ClampPackedHDRColor(color), 1.0);
+}
+
+#include "FidelityFX/ffx_fsr3upscaler_rcas.h"
+
+#define TILE_SIZE_X 16
+#define TILE_SIZE_Y 8
+
+[numthreads(TILE_SIZE_X, TILE_SIZE_Y, 1)]
+void SGSR_Sharpen(uint2 dispatchThreadID : SV_DispatchThreadID)
+{
+    int2 DisThreadID = (int2)dispatchThreadID;
+
+    if (any(DisThreadID >= (int2)OutputInfo_ViewportSize))
+    {
+        return;
+    }
+
+    if (RCASGain == 0.0)
+    {
+        StoreUpscaledOutput(dispatchThreadID, LoadRCAS_Input(DisThreadID).rgb);
+        return;
+    }
+
+    CurrFilter(FFX_MIN16_U2(dispatchThreadID));
+}
+#endif

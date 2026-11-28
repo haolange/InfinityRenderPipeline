@@ -143,6 +143,9 @@ void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, u
 #endif
 
 #pragma kernel TemporalColorMip
+#include "../../Library/ScreenSpaceRadiance.hlsl"
+Texture2DArray<float2> SRV_TemporalColorMipInput;
+RWTexture2DArray<float2> UAV_TemporalColorMipOutput;
 // The TemporalColorMipParameters record ComputeTemporalColorPyramid writes, bound as one constant buffer.
 cbuffer CBV_TemporalColorMipParameters
 {
@@ -152,7 +155,7 @@ cbuffer CBV_TemporalColorMipParameters
     int TemporalColorMipPadding2;
 };
 // Per mip dispatch.
-int _TemporalMipFirst, _TemporalSourceMip;
+int _TemporalSourceMip;
 
 [numthreads(8,8,1)]
 void TemporalColorMip(uint3 id : SV_DispatchThreadID)
@@ -180,9 +183,11 @@ void TemporalColorMip(uint3 id : SV_DispatchThreadID)
         for (uint y = begin.y; y < end.y; ++y)
         for (uint x = begin.x; x < end.x; ++x)
         {
-            float4 value = _Source.Load(int3(x,y,_TemporalSourceMip));
+            float4 value = _TemporalSourceMip < 0
+                ? _Source.Load(int3(x,y,0))
+                : LoadScreenSpaceRadiance(SRV_TemporalColorMipInput, int2(x,y), _TemporalSourceMip);
             float valid = saturate(value.a);
-            if (_TemporalMipFirst != 0)
+            if (_TemporalSourceMip < 0)
             {
                 // A source texel is covered once it holds an accepted temporal sample (age >= 1).
                 valid = value.a >= 1 && all(isfinite(value.rgb)) ? 1 : 0;
@@ -191,7 +196,7 @@ void TemporalColorMip(uint3 id : SV_DispatchThreadID)
             // already carry radiance premultiplied by coverage; never weight it twice.
             if (valid > 0)
             {
-                sum += _TemporalMipFirst != 0 ? value.rgb * valid : value.rgb;
+                sum += _TemporalSourceMip < 0 ? value.rgb * valid : value.rgb;
             }
             coverage += valid;
             samples++;
@@ -202,5 +207,5 @@ void TemporalColorMip(uint3 id : SV_DispatchThreadID)
     {
         result = float4(sum / samples, coverage / samples);
     }
-    _Result[id.xy] = result;
+    StoreScreenSpaceRadiance(UAV_TemporalColorMipOutput, id.xy, result);
 }

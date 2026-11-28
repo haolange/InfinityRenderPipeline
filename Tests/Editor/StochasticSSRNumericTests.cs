@@ -152,6 +152,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void Temporal_ZeroVarianceHdrHitKeepsColorAndCoverage()
+        {
+            RequireGpu();
+            using var run = new Run(8, 8, false, 0.25f);
+            var current = new Color(1.01f, 1.01f, 1.01f, 0.5f);
+            var prior = new Color(0.450f, 0.434f, 0.426f, 0.5f);
+            Color output = run.ResolveThenAccumulate(current, prior);
+            Assert.That(output.a, Is.EqualTo(current.a).Within(0.001f));
+            for (int channel = 0; channel < 3; ++channel)
+                Assert.That(output[channel], Is.EqualTo(current[channel] * current.a).Within(0.001f));
+        }
+
+        [Test]
         public void Temporal_DeadHistoryDoesNotBlackOutTheResolve()
         {
             RequireGpu();
@@ -255,8 +268,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly int m_Width, m_Height;
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList, m_Samples;
-            readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_Lighting, m_Motion, m_HistoryRadiance;
+            readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance, m_Statistics;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_Lighting, m_Motion;
+            readonly Texture2DArray m_HistoryRadiance, m_TemporalColorMips;
             readonly RenderTexture m_HistoryMeta;
             readonly UniformBinding<ViewUniform> m_View;
 
@@ -284,7 +298,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 0.0f, 0.5f), false);
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
-                m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
+                m_HistoryRadiance = Radiance(width, height, new Color(5, 5, 5, 1));
+                m_TemporalColorMips = Radiance(1, 1, Color.clear);
                 // The plane's own normal (octahedron 0, 0 is +Z), a valid history of age 8.
                 m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, 8, 1), false));
                 m_Objects.Add(m_HistoryMeta);
@@ -295,8 +310,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_RayHit = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
                 m_Samples = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Trace.x * m_Trace.y * 4, 32);
                 m_Buffers.Add(m_Samples);
-                m_Resolved = Target(width, height, GraphicsFormat.R32G32B32A32_SFloat);
+                m_Resolved = Track(ScreenSpaceRadianceTestUtility.Target(width, height));
                 m_HitDistance = Target(width, height, GraphicsFormat.R32_SFloat);
+                var statistics = new RenderTextureDescriptor(width, height)
+                {
+                    graphicsFormat = GraphicsFormat.R16G16_SFloat,
+                    dimension = TextureDimension.Tex2DArray,
+                    volumeDepth = 3,
+                    enableRandomWrite = true
+                };
+                m_Statistics = Track(new RenderTexture(statistics));
+                Assert.IsTrue(m_Statistics.Create());
 
                 ComputeShader s = m_Shader;
                 s.SetVector("SSR_Resolution", new Vector4(width, height, 1.0f / width, 1.0f / height));
@@ -377,7 +401,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     cmd.SetComputeTextureParam(m_Shader, kernel, "UAV_RayHit", m_RayHit);
                     cmd.SetComputeBufferParam(m_Shader, kernel, "UAV_Samples", m_Samples);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalColor", m_Lighting);
-                    cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalColorMips", m_Lighting);
+                    cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_TemporalColorMips", m_TemporalColorMips);
                     cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_MotionTexture", m_Motion);
                     m_Shader.SetInt("TemporalColorValid", 0);
                     m_Shader.SetInt("TemporalColorMipCount", m_Lighting.mipmapCount);
@@ -393,7 +417,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 DispatchResolve();
                 float[] hitDistance = Read(m_HitDistance, 1);
                 foreach (float value in hitDistance) Assert.AreEqual(0.0f, value, "No hit, no hit distance.");
-                return Read(m_Resolved, 4);
+                return ScreenSpaceRadianceTestUtility.Read(m_Resolved);
             }
 
             public void SetDepth(int x, int y, float rawDepth)
@@ -417,7 +441,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetInt("SSR_Samples", samples);
                 m_Samples.SetData(records);
                 DispatchResolve();
-                float[] resolved = Read(m_Resolved, 4);
+                float[] resolved = ScreenSpaceRadianceTestUtility.Read(m_Resolved);
                 int center = ((m_Height / 2) * m_Width + m_Width / 2) * 4;
                 return new Color(resolved[center], resolved[center + 1], resolved[center + 2], resolved[center + 3]);
             }
@@ -428,17 +452,39 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "SRV_Samples", m_Samples);
                 m_Shader.SetTexture(kernel, "UAV_Resolved", m_Resolved);
-                m_Shader.SetTexture(kernel, "UAV_HitMean", Target(m_Width, m_Height, GraphicsFormat.R16G16B16A16_SFloat));
-                m_Shader.SetTexture(kernel, "UAV_HitDev", Target(m_Width, m_Height, GraphicsFormat.R16G16B16A16_SFloat));
+                m_Shader.SetTexture(kernel, "UAV_HitStatistics", m_Statistics);
                 m_Shader.SetTexture(kernel, "UAV_HitDistance", m_HitDistance);
                 DispatchFull(kernel);
+            }
+
+            Texture Statistics(Color mean, Color deviation)
+            {
+                var texture = Track(new Texture2DArray(m_Width, m_Height, 3, TextureFormat.RGHalf, false, true));
+                for (int channel = 0; channel < 3; ++channel)
+                {
+                    var values = new Unity.Mathematics.half2[m_Width * m_Height];
+                    Array.Fill(values, new Unity.Mathematics.half2((Unity.Mathematics.half)mean[channel], (Unity.Mathematics.half)deviation[channel]));
+                    texture.SetPixelData(values, 0, channel);
+                }
+                texture.Apply(false, false);
+                return texture;
+            }
+
+            public Color ResolveThenAccumulate(Color signal, Color history)
+            {
+                ResolveCenter(new ReflectionSample { radiance = signal, dirT = new Vector4(0, 0, 2, 1) }, default);
+                m_Shader.SetFloat("SSR_HistoryValid", 1);
+                float[] values = DispatchTemporal(m_Resolved, m_Statistics, Radiance(m_Width, m_Height, history),
+                    m_HistoryMeta, m_Motion, out _);
+                int index = CenterIndex();
+                return new Color(values[index], values[index + 1], values[index + 2], values[index + 3]);
             }
 
             public Color TemporalClamp(Color history, Color current, Color mean, Color deviation)
             {
                 m_Shader.SetFloat("SSR_HistoryValid", 1);
-                float[] values = DispatchTemporal(Solid(m_Width, m_Height, current, false), Solid(m_Width, m_Height, mean, false), Solid(m_Width, m_Height, deviation, false),
-                    Solid(m_Width, m_Height, history, false), m_HistoryMeta, m_Motion, out _);
+                float[] values = DispatchTemporal(Radiance(m_Width, m_Height, current), Statistics(mean, deviation),
+                    Radiance(m_Width, m_Height, history), m_HistoryMeta, m_Motion, out _);
                 int center = CenterIndex();
                 return new Color(values[center], values[center + 1], values[center + 2], values[center + 3]);
             }
@@ -448,16 +494,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 m_Shader.SetFloat("SSR_HistoryValid", 1);
                 RenderTexture historyMeta = Track(SurfaceMetadataTestUtility.Pack(Solid(m_Width, m_Height, new Color(historyOctahedron.x, historyOctahedron.y, 8, 1), false)));
-                Texture signal = Solid(m_Width, m_Height, new Color(0.8f, 0.4f, 0.2f, 1), false);
-                Texture deviation = Solid(m_Width, m_Height, new Color(0.05f, 0.05f, 0.05f, 0.05f), false);
+                Color sample = new Color(0.8f, 0.4f, 0.2f, 1);
+                Texture signal = Radiance(m_Width, m_Height, sample);
+                Color deviation = new Color(0.05f, 0.05f, 0.05f, 0.05f);
                 Texture surfaceMotion = Solid(m_Width, m_Height, new Color(motion.x, motion.y, 0, 0), false);
-                DispatchTemporal(signal, signal, deviation, signal, historyMeta, surfaceMotion, out RenderTexture meta);
+                DispatchTemporal(signal, Statistics(sample, deviation), signal, historyMeta, surfaceMotion, out RenderTexture meta);
                 return SurfaceMetadataTestUtility.Read(meta)[CenterIndex() + 3];
             }
 
             public float[] Temporal()
             {
-                float[] values = DispatchTemporal(m_Resolved, Solid(m_Width, m_Height, Color.clear, false), Solid(m_Width, m_Height, new Color(1, 1, 1, 0), false),
+                float[] values = DispatchTemporal(m_Resolved, m_Statistics,
                     m_HistoryRadiance, m_HistoryMeta, m_Motion, out RenderTexture meta);
                 foreach (float value in values)
                 {
@@ -466,15 +513,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 return SurfaceMetadataTestUtility.Read(meta);
             }
 
-            float[] DispatchTemporal(Texture resolved, Texture mean, Texture deviation, Texture history, Texture historyMeta, Texture motion, out RenderTexture meta)
+            float[] DispatchTemporal(Texture resolved, Texture statistics, Texture history, Texture historyMeta, Texture motion, out RenderTexture meta)
             {
-                RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
+                RenderTexture temporal = Track(ScreenSpaceRadianceTestUtility.Target(m_Width, m_Height));
                 meta = Target(m_Width, m_Height, GraphicsFormat.R32_UInt);
                 int kernel = m_Shader.FindKernel("SSRTemporal");
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", resolved);
-                m_Shader.SetTexture(kernel, "SRV_HitMean", mean);
-                m_Shader.SetTexture(kernel, "SRV_HitDev", deviation);
+                m_Shader.SetTexture(kernel, "SRV_HitStatistics", statistics);
                 m_Shader.SetTexture(kernel, "SRV_HitDistance", m_HitDistance);
                 m_Shader.SetTexture(kernel, "SRV_HistoryVariance", Solid(m_Width, m_Height, Color.clear, false));
                 m_Shader.SetTexture(kernel, "UAV_Variance", Target(m_Width, m_Height, GraphicsFormat.R16_SFloat));
@@ -484,21 +530,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetTexture(kernel, "UAV_Temporal", temporal);
                 m_Shader.SetTexture(kernel, "UAV_Meta", meta);
                 DispatchFull(kernel);
-                return Read(temporal, 4);
+                return ScreenSpaceRadianceTestUtility.Read(temporal);
             }
 
             int CenterIndex() => ((m_Height / 2) * m_Width + m_Width / 2) * 4;
 
             public float[] Spatial(Color input)
             {
-                RenderTexture output = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
+                RenderTexture output = Track(ScreenSpaceRadianceTestUtility.Target(m_Width, m_Height));
                 int kernel = m_Shader.FindKernel("SSRBilateral");
                 BindSurface(kernel);
-                m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Width, m_Height, input, false));
+                m_Shader.SetTexture(kernel, "SRV_Temporal", Radiance(m_Width, m_Height, input));
                 m_Shader.SetTexture(kernel, "SRV_Variance", Solid(m_Width, m_Height, Color.clear, false));
                 m_Shader.SetTexture(kernel, "UAV_Output", output);
                 DispatchFull(kernel);
-                return Read(output, 4);
+                return ScreenSpaceRadianceTestUtility.Read(output);
             }
 
             void BindSurface(int kernel)
@@ -552,6 +598,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsTrue(target.Create(), "Cannot create " + format);
                 return Track(target);
             }
+
+            Texture2DArray Radiance(int width, int height, Color value)
+                => Track(ScreenSpaceRadianceTestUtility.Source(width, height, (_, _) => value));
 
             Texture2D Solid(int width, int height, Color value, bool mips)
             {

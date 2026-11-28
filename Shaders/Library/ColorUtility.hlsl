@@ -14,4 +14,10 @@ float Rec709Luminance(float4 linearRgba)
     return Rec709Luminance(linearRgba.rgb);
 }
 
+// The unsigned packed scene color has six mantissa bits for R/G and five for B.
+float3 ClampPackedHDRColor(float3 linearRgb)
+{
+    return clamp(linearRgb, 0.0, float3(65024.0, 65024.0, 64512.0));
+}
+
 #endif

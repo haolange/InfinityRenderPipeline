@@ -64,7 +64,9 @@ namespace InfinityTech.Rendering.Pipeline
                 Mips = Shader.PropertyToID("SRV_TemporalColorMips"),
                 CBV_TemporalColorParameters = Shader.PropertyToID("CBV_TemporalColorParameters"),
                 CBV_TemporalColorMipParameters = Shader.PropertyToID("CBV_TemporalColorMipParameters"),
-                SourceMip = Shader.PropertyToID("_TemporalSourceMip"), First = Shader.PropertyToID("_TemporalMipFirst");
+                SourceMip = Shader.PropertyToID("_TemporalSourceMip"),
+                MipInput = Shader.PropertyToID("SRV_TemporalColorMipInput"),
+                MipOutput = Shader.PropertyToID("UAV_TemporalColorMipOutput");
         }
         internal void ComputeTemporalColorPyramid(in ViewContext context)
         {
@@ -79,7 +81,8 @@ namespace InfinityTech.Rendering.Pipeline
                 TemporalReconstructionUtility.HistoryColorTextureName, true, domain);
             HistoryRead colorRead = context.historyCache.Read(TemporalReconstructionUtility.HistoryColorTextureID, historyDescriptor, context.resetsHistory);
             int2 baseSize = math.max(1, size / 2);
-            var descriptor = TemporalReconstructionUtility.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
+            var descriptor = ScreenSpaceRadiance.Configure(
+                TemporalReconstructionUtility.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain));
             descriptor.viewDivisor = 2;
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;
@@ -120,17 +123,16 @@ namespace InfinityTech.Rendering.Pipeline
                     var shader = computeKernel.shader;
                     int kernel = computeKernel.index;
                     commands.SetComputeConstantBufferParam(shader, TemporalColorBindings.CBV_TemporalColorMipParameters, passData.parametersHandle);
+                    commands.SetComputeTextureParam(shader, kernel, ColorPyramidPassUtilityData.SRV_ColorTextureID, passData.source.colorHandle);
+                    commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.MipInput, passData.source.mipsHandle);
                     int2 inputSize = passData.size;
                     for (int mip = 0; mip < passData.mipCount; ++mip)
                     {
                         int2 outputSize = math.max(1, passData.size / (1 << (mip + 1)));
-                        commands.SetComputeIntParam(shader, TemporalColorBindings.First, mip == 0 ? 1 : 0);
-                        commands.SetComputeIntParam(shader, TemporalColorBindings.SourceMip, math.max(0,mip-1));
+                        commands.SetComputeIntParam(shader, TemporalColorBindings.SourceMip, mip - 1);
                         commands.SetComputeVectorParam(shader, ColorPyramidPassUtilityData.ColorPyramid_SizeID, new Vector4(inputSize.x,inputSize.y,0,0));
                         commands.SetComputeVectorParam(shader, ColorPyramidPassUtilityData.ColorPyramid_DstSizeID, new Vector4(outputSize.x,outputSize.y,0,0));
-                        commands.SetComputeTextureParam(shader, kernel, ColorPyramidPassUtilityData.SRV_ColorTextureID,
-                            mip == 0 ? passData.source.colorHandle : passData.source.mipsHandle);
-                        commands.SetComputeTextureParam(shader, kernel, ColorPyramidPassUtilityData.UAV_ColorPyramidID, passData.source.mipsHandle, mip);
+                        commands.SetComputeTextureParam(shader, kernel, TemporalColorBindings.MipOutput, passData.source.mipsHandle, mip);
                         commands.DispatchCompute(shader,kernel,computeKernel.GroupsX(outputSize.x),computeKernel.GroupsY(outputSize.y),1);
                         inputSize = outputSize;
                     }

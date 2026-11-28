@@ -6,6 +6,26 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class ScreenSpaceRadiance
+    {
+        internal static TextureDescriptor CreateDescriptor(int width, int height, string name, int divisor)
+        {
+            TextureDescriptor descriptor = TextureDescriptor.Create2D(name, width, height, GraphicsFormat.R16G16_SFloat,
+                ETextureSizingDomain.Internal, divisor);
+            descriptor.filterMode = FilterMode.Bilinear;
+            return Configure(descriptor);
+        }
+
+        // Paired RG then B/confidence slices have one descriptor, view extent and history generation.
+        internal static TextureDescriptor Configure(TextureDescriptor descriptor)
+        {
+            descriptor.colorFormat = GraphicsFormat.R16G16_SFloat;
+            descriptor.dimension = TextureDimension.Tex2DArray;
+            descriptor.slices = 2;
+            return descriptor;
+        }
+    }
+
     internal sealed class ScreenSpaceHistoryPass
     {
         readonly RGBuilder m_RGBuilder;
@@ -73,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
             CopyHistoryScalar(context, CustomSamplerId.CopyHistorySSGI, InfinityShaderIDs.SSGICombinerNarrowBuffer, InfinityShaderIDs.HistorySSGINarrowBuffer, "HistorySSGINarrow");
         }
 
-        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and R32_UInt surface metadata (point).
+        // Each radiance array copies both half-float planes together with its point-sampled surface metadata.
         void CopyHistoryRadianceMeta(in ViewContext context, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId, int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
             RGTextureHandle radianceSourceHandle = m_RGBuilder.scoper.QueryTexture(radianceSourceId);

@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
                 supportsR8G8B8A8SRGB: SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_SRGB, rtSample),
                 supportsR8G8B8A8LoadStore: SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_UNorm, rtLoadStoreSample),
                 supportsR11G11B10FLoadStore: SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, sceneColorUsage),
-                supportsRG16F: SystemInfo.IsFormatSupported(GraphicsFormat.R16G16_SFloat, rtSample),
+                supportsRG16F: SystemInfo.IsFormatSupported(GraphicsFormat.R16G16_SFloat, rtLoadStoreSample),
                 supportsAsyncCompute: SystemInfo.supportsAsyncCompute,
                 supportsRayTracing: SystemInfo.IsFormatSupported(GraphicsFormat.R16_SFloat, loadStoreSample));
         }

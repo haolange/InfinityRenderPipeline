@@ -3,6 +3,7 @@
 #pragma kernel DebugViewMotion DV_KERNEL_MOTION
 #pragma kernel DebugViewSceneColor DV_KERNEL_SCENECOLOR
 #pragma kernel DebugViewOptional DV_KERNEL_OPTIONAL
+#pragma kernel DebugViewScreenSpaceRadiance DV_KERNEL_SCREEN_SPACE_RADIANCE
 #pragma kernel DebugViewMissing DV_KERNEL_MISSING
 #pragma kernel DebugViewShadow DV_KERNEL_SHADOW
 #pragma kernel DebugViewLightLoop DV_KERNEL_LIGHTLOOP
@@ -46,6 +47,11 @@ Texture2D SRV_SceneColorTexture;
 
 #if defined(DV_KERNEL_OPTIONAL)
 Texture2D SRV_OptionalTexture;
+#endif
+
+#if defined(DV_KERNEL_SCREEN_SPACE_RADIANCE)
+#include "../../Library/ScreenSpaceRadiance.hlsl"
+Texture2DArray<float2> SRV_SSRTexture;
 #endif
 
 #if defined(DV_KERNEL_SHADOW)
@@ -227,6 +233,20 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     }
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_SCREEN_SPACE_RADIANCE)
+[numthreads(8, 8, 1)]
+void DebugViewScreenSpaceRadiance(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+        return;
+
+    uint width, height, layers;
+    InfinityGetVolumeDimensions(SRV_SSRTexture, width, height, layers);
+    uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
+    UAV_PostProcessTexture[id.xy] = float4(LoadScreenSpaceRadiance(SRV_SSRTexture, inputPixel, 0).rgb, 1.0);
 }
 #endif
 

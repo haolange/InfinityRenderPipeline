@@ -59,7 +59,8 @@ namespace InfinityTech.Rendering.Pipeline
         SSGITemporal = 1UL << 49,
         HalfResDepth = 1UL << 50,
         HalfResNormal = 1UL << 51,
-        VolumetricCloud = 1UL << 52
+        VolumetricCloud = 1UL << 52,
+        SSGIConfidence = 1UL << 53
     }
 }
 #endif

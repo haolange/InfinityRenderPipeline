@@ -23,34 +23,47 @@ namespace InfinityTech.Rendering.Pipeline
         {
             get;
         }
-        internal PipelineKernels kernels
-        {
-            get;
-            private set;
-        }
-        internal BlitShaderPasses blitPasses
-        {
-            get;
-            private set;
-        }
+        internal PipelineKernels kernels => m_ShaderResources.kernels;
+        internal BlitShaderPasses blitPasses => m_ShaderResources.blitPasses;
         // Why each feature cannot record for reasons that depend only on these resources (null when it can).
-        internal string[] featureResourceReasons
-        {
-            get;
-            private set;
-        }
-        internal TemporalDeviceCapabilities temporalDeviceCapabilities
-        {
-            get;
-            private set;
-        }
+        internal string[] featureResourceReasons => m_ShaderResources.featureResourceReasons;
+        internal TemporalReconstructionSystem temporalPlanner => m_ShaderResources.temporalPlanner;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        internal CaptureKernels captureKernels
-        {
-            get;
-            private set;
-        }
+        internal CaptureKernels captureKernels => m_ShaderResources.captureKernels;
 #endif
+
+        ShaderResourceRevision m_ShaderResources;
+
+        sealed class ShaderResourceRevision
+        {
+            internal readonly PipelineKernels kernels;
+            internal readonly BlitShaderPasses blitPasses;
+            internal readonly string[] featureResourceReasons;
+            internal readonly TemporalReconstructionSystem temporalPlanner;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            internal readonly CaptureKernels captureKernels;
+#endif
+#if UNITY_EDITOR
+            internal readonly int importEpoch;
+#endif
+
+            internal ShaderResourceRevision(InfinityRenderPipelineResources resources)
+            {
+#if UNITY_EDITOR
+                importEpoch = s_ImportEpoch;
+#endif
+                kernels = new PipelineKernels(resources.shaders);
+                kernels.RequireUngatedKernels();
+                blitPasses = new BlitShaderPasses(resources.materials.blitMaterial);
+                featureResourceReasons = FeatureRegistry.ResolveResourceSupport(kernels, resources.textures);
+                FeatureRegistry.RequireProducerSupport(featureResourceReasons, resources.m_RequiredProducers);
+                temporalPlanner = new TemporalReconstructionSystem(BuildTemporalCapabilities(kernels, resources.textures));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                captureKernels = new CaptureKernels(resources.shaders);
+#endif
+            }
+        }
+
         // The pipeline's required producers: every resolution, including the one after a shader import, fails when the
         // resources cannot support one of them.
         readonly EFrameFeature[] m_RequiredProducers;
@@ -80,29 +93,52 @@ namespace InfinityTech.Rendering.Pipeline
             ResolveShaders();
         }
 
-        // Resolves kernels, blit passes and resource-only feature support together, then publishes them at once.
-        void ResolveShaders()
-        {
-            var resolvedKernels = new PipelineKernels(shaders);
-            resolvedKernels.RequireUngatedKernels();
-            var resolvedPasses = new BlitShaderPasses(materials.blitMaterial);
-            string[] reasons = FeatureRegistry.ResolveResourceSupport(resolvedKernels, textures);
-            FeatureRegistry.RequireProducerSupport(reasons, m_RequiredProducers);
-            kernels = resolvedKernels;
-            blitPasses = resolvedPasses;
-            featureResourceReasons = reasons;
-            temporalDeviceCapabilities = BuildTemporalCapabilities(resolvedKernels, textures);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            captureKernels = new CaptureKernels(shaders);
-#endif
-#if UNITY_EDITOR
-            m_ResolvedImportEpoch = s_ImportEpoch;
-#endif
-        }
+        // A failed resolution keeps the previous revision intact.
+        void ResolveShaders() => m_ShaderResources = new ShaderResourceRevision(this);
 
 #if UNITY_EDITOR
         static int s_ImportEpoch;
-        int m_ResolvedImportEpoch;
+
+        static TemporalReconstructionSystem s_EditorTemporalPlanner;
+        static int s_EditorTemporalImportEpoch;
+        static TemporalResourceBindings s_EditorTemporalBindings;
+
+        readonly struct TemporalResourceBindings
+        {
+            readonly ComputeShader m_Native, m_Stp, m_Fsr, m_Sgsr;
+            readonly Texture2D m_StpNoise;
+
+            internal TemporalResourceBindings(InfinityRenderPipelineRuntimeShaders shaders, InfinityRenderPipelineRuntimeTextures textures)
+            {
+                m_Native = shaders?.taaShader;
+                m_Stp = shaders?.temporalStpShader;
+                m_Fsr = shaders?.temporalFsrShader;
+                m_Sgsr = shaders?.temporalSgsrShader;
+                m_StpNoise = textures?.blueNoiseOwenScrambledSobol;
+            }
+
+            internal bool Matches(in TemporalResourceBindings other)
+            {
+                return m_Native == other.m_Native && m_Stp == other.m_Stp && m_Fsr == other.m_Fsr
+                    && m_Sgsr == other.m_Sgsr && m_StpNoise == other.m_StpNoise;
+            }
+        }
+
+        internal static TemporalReconstructionSystem ResolveEditorTemporalPlanner()
+        {
+            GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeShaders shaders);
+            GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeTextures textures);
+            var bindings = new TemporalResourceBindings(shaders, textures);
+            if (s_EditorTemporalPlanner != null && s_EditorTemporalImportEpoch == s_ImportEpoch
+                && s_EditorTemporalBindings.Matches(bindings))
+                return s_EditorTemporalPlanner;
+
+            var kernels = new PipelineKernels(shaders ?? new InfinityRenderPipelineRuntimeShaders());
+            s_EditorTemporalPlanner = new TemporalReconstructionSystem(BuildTemporalCapabilities(kernels, textures));
+            s_EditorTemporalBindings = bindings;
+            s_EditorTemporalImportEpoch = s_ImportEpoch;
+            return s_EditorTemporalPlanner;
+        }
 
         // An import can renumber kernels and passes or remove them; the next frame resolves the tables again.
         internal static void NotifyShadersImported()
@@ -115,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void ResolveShadersAfterImport()
         {
-            if (m_ResolvedImportEpoch != s_ImportEpoch)
+            if (m_ShaderResources.importEpoch != s_ImportEpoch)
             {
                 ResolveShaders();
             }
@@ -132,9 +168,16 @@ namespace InfinityTech.Rendering.Pipeline
                 : !kernels.stpPreTaa.isValid ? kernels.stpPreTaa.missingReason
                 : !kernels.stpTaa.isValid ? kernels.stpTaa.missingReason
                 : !kernels.stpSharpen.isValid ? kernels.stpSharpen.missingReason
+                : textures == null ? "RuntimeTextures are not registered in Graphics > Infinity RP."
                 : textures.blueNoiseOwenScrambledSobol == null ? "RuntimeTextures is missing blueNoiseOwenScrambledSobol."
                 : null;
-            string fsrReason = !kernels.fsrPrepareInputs.isValid ? kernels.fsrPrepareInputs.missingReason
+            string fsrReason = !kernels.fsrClear.isValid ? kernels.fsrClear.missingReason
+                : !kernels.fsrPrepareInputs.isValid ? kernels.fsrPrepareInputs.missingReason
+                : !kernels.fsrLumaPyramid.isValid ? kernels.fsrLumaPyramid.missingReason
+                : !kernels.fsrFinalizeLuma.isValid ? kernels.fsrFinalizeLuma.missingReason
+                : !kernels.fsrShadingPyramid.isValid ? kernels.fsrShadingPyramid.missingReason
+                : !kernels.fsrShadingChange.isValid ? kernels.fsrShadingChange.missingReason
+                : !kernels.fsrPrepareReactivity.isValid ? kernels.fsrPrepareReactivity.missingReason
                 : !kernels.fsrLumaInstability.isValid ? kernels.fsrLumaInstability.missingReason
                 : !kernels.fsrAccumulate.isValid ? kernels.fsrAccumulate.missingReason
                 : !kernels.fsrRcas.isValid ? kernels.fsrRcas.missingReason
@@ -142,6 +185,7 @@ namespace InfinityTech.Rendering.Pipeline
             string sgsrReason = !kernels.sgsrConvert.isValid ? kernels.sgsrConvert.missingReason
                 : !kernels.sgsrActivate.isValid ? kernels.sgsrActivate.missingReason
                 : !kernels.sgsrUpscale.isValid ? kernels.sgsrUpscale.missingReason
+                : !kernels.sgsrSharpen.isValid ? kernels.sgsrSharpen.missingReason
                 : null;
             return new TemporalDeviceCapabilities(
                 nativeSupported: nativeReason == null,

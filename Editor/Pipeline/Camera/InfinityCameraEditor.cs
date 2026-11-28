@@ -80,8 +80,9 @@ namespace InfinityTech.Component.Editor
             if (!temporalOverrideProp.hasMultipleDifferentValues
                 && GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset pipelineAsset)
             {
-                InfinityRenderPipelineAsset.Settings settings = pipelineAsset.ResolveSettings();
-                TemporalFrameRequirements previewReq = new TemporalReconstructionSystem().PlanFrame(
+                TemporalReconstructionSystem temporalSystem = InfinityRenderPipelineResources.ResolveEditorTemporalPlanner();
+                InfinityRenderPipelineAsset.Settings settings = pipelineAsset.ResolveSettings(temporalSystem);
+                TemporalFrameRequirements previewReq = temporalSystem.PlanFrame(
                     new TemporalPlanInput(
                         new Unity.Mathematics.int2(1920, 1080),
                         temporalAllowed: true,

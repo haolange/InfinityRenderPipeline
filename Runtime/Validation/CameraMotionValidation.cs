@@ -336,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
                 useFirstFrameDimensions = m_Evidence.phase == 3 || m_Evidence.phase == 4 || m_Evidence.phase == 5, waitForSizeChangeFrom = m_Evidence.phase == 3 || m_Evidence.phase == 5 ? m_PreviousSize : Vector2Int.zero,
                 width = camera.pixelWidth, height = camera.pixelHeight, warmupFrames = m_Evidence.phase == 0 || m_Evidence.phase == 5 ? 96 : 0,
                 frameCount = m_Evidence.phase == 1 ? m_Request.samples * 4 : m_Evidence.phase == 3 || m_Evidence.phase == 4 ? 3 : m_Request.samples, timeoutSeconds = 180,
-                buffers = buffers, roi = new RectInt(0, 0, camera.pixelWidth, camera.pixelHeight), includeConfidence = true });
+                buffers = buffers, roi = new RectInt(0, 0, camera.pixelWidth, camera.pixelHeight), includeConfidence = m_Request.temporalStages });
             m_Capture = RenderCaptureService.current;
             m_Evidence.captures.Add(directory);
             m_Evidence.status = "Capturing";

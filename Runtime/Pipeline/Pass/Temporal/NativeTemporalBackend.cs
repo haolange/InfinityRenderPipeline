@@ -47,6 +47,9 @@ namespace InfinityTech.Rendering.Pipeline
             internal static readonly int SRV_AliasingColorTexture = Shader.PropertyToID("SRV_AliasingColorTexture");
             internal static readonly int UAV_AccumulateColorTexture = Shader.PropertyToID("UAV_AccumulateColorTexture");
             internal static readonly int UAV_SharpenedColorTexture = Shader.PropertyToID("UAV_SharpenedColorTexture");
+            internal static readonly int HistorySampleCountID = Shader.PropertyToID("NativeTemporalSampleCount");
+            internal static readonly int SRV_HistorySampleCount = Shader.PropertyToID("SRV_HistorySampleCount");
+            internal static readonly int UAV_HistorySampleCount = Shader.PropertyToID("UAV_HistorySampleCount");
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             internal static readonly int UAV_TAADiagnostics = Shader.PropertyToID("UAV_TAADiagnostics");
             internal static readonly int UAV_TAAReprojection = Shader.PropertyToID("UAV_TAAReprojection");
@@ -69,6 +72,8 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle colorHandle;
             public RGTextureHandle depthHandle;
             public RGTextureHandle historyReadHandle;
+            public RGTextureHandle sampleCountReadHandle;
+            public RGTextureHandle sampleCountWriteHandle;
             public RGTextureHandle motionHandle;
             public RGTextureHandle reactiveMaskHandle;
             public RGTextureHandle historyWriteHandle;
@@ -107,6 +112,13 @@ namespace InfinityTech.Rendering.Pipeline
                 ? new Vector2(cameraUniform.currentJitterUV.x * renderSize.x, cameraUniform.currentJitterUV.y * renderSize.y)
                 : Vector2.zero;
 
+            TextureDescriptor sampleCountDescriptor = TemporalReconstructionUtility.CreateScratchDescriptor(
+                displaySize.x, displaySize.y, "NativeTemporalSampleCount", GraphicsFormat.R16_SFloat, FilterMode.Point, ETextureSizingDomain.Display);
+            TemporalReconstructionUtility.ReadPingPongHistory(
+                executionContext.view.historyCache, graph, NativeShaderIDs.HistorySampleCountID, in sampleCountDescriptor,
+                executionContext.resetHistory, out RGTextureHandle previousSampleCountHandle, out RGTextureHandle sampleCountHandle,
+                out bool sampleCountValid);
+
             {
                 RGComputePassHandle<NativeTemporalPassData> passHandle = graph.AddComputePass<NativeTemporalPassData>(
                     isUpscaling ? s_NativeUpscaleSampler : s_NativeAASampler);
@@ -123,12 +135,14 @@ namespace InfinityTech.Rendering.Pipeline
                     resolution = new Vector4(displaySize.x, displaySize.y, 1.0f / displaySize.x, 1.0f / displaySize.y),
                     inputResolution = new Vector4(renderSize.x, renderSize.y, 1.0f / renderSize.x, 1.0f / renderSize.y),
                     jitterPixels = jitterPixels,
-                    resetBlend = executionContext.resetHistory ? 0.0f : 1.0f,
+                    resetBlend = sampleCountValid ? 1.0f : 0.0f,
                     sharpness = requirements.sharpness,
                 });
                 passData.colorHandle = passHandle.ReadTexture(executionContext.sceneColorHandle);
                 passData.depthHandle = passHandle.ReadTexture(executionContext.depthHandle);
                 passData.historyReadHandle = passHandle.ReadTexture(executionContext.historyColorReadHandle);
+                passData.sampleCountReadHandle = passHandle.ReadTexture(previousSampleCountHandle);
+                passData.sampleCountWriteHandle = passHandle.WriteTexture(sampleCountHandle);
                 passData.motionHandle = passHandle.ReadTexture(executionContext.motionHandle);
                 passData.reactiveMaskHandle = executionContext.hasReactiveMask ? passHandle.ReadTexture(executionContext.reactiveMaskHandle) : default;
                 passData.historyWriteHandle = passHandle.WriteTexture(executionContext.historyColorWriteHandle);
@@ -170,6 +184,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, NativeShaderIDs.SRV_AliasingColorTexture, data.colorHandle);
                     cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_DepthTexture, data.depthHandle);
                     cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_HistoryColorTexture, data.historyReadHandle);
+                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, NativeShaderIDs.SRV_HistorySampleCount, data.sampleCountReadHandle);
+                    cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, NativeShaderIDs.UAV_HistorySampleCount, data.sampleCountWriteHandle);
                     cmdEncoder.SetComputeTextureParam(data.shader, data.kernelIndex, PassShaderIDs.SRV_MotionTexture, data.motionHandle);
                     if (data.hasReactiveMask)
                     {

@@ -38,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public bool hasIndirectDiffuse;
             public bool hasReflection;
             public RGTextureHandle ssgiTextureHandle;
+            public RGTextureHandle ssgiConfidenceHandle;
             public RGTextureHandle ssrTextureHandle;
             public RGMeshDrawListHandle meshDrawListHandle;
             public RGRendererListHandle rendererListHandle;
@@ -69,6 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (hasIndirectDiffuse)
                 {
                     commands.SetGlobalTexture(PassShaderIDs.SRV_SSGITexture, ssgiTextureHandle);
+                    commands.SetGlobalTexture(PassShaderIDs.SRV_SSGIConfidenceTexture, ssgiConfidenceHandle);
                 }
                 commands.SetKeyword(ForwardPassUtilityData.ReflectionKeyword, hasReflection);
                 if (hasReflection)
@@ -145,6 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
                     if (hasIndirectDiffuse)
                     {
                         passData.ssgiTextureHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIBuffer));
+                        passData.ssgiConfidenceHandle = passHandle.ReadTexture(m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.SSGIConfidenceBuffer));
                     }
                     passData.hasReflection = hasReflection;
                     if (hasReflection)

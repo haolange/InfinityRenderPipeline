@@ -12,6 +12,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         internal readonly ComputeKernel texture;
         internal readonly ComputeKernel surfaceMetadata;
+        internal readonly ComputeKernel radiance, irradiance;
         internal readonly ComputeKernel depth;
         internal readonly ComputeKernel bufferUIntBytes;
 
@@ -26,6 +27,8 @@ namespace InfinityTech.Rendering.Pipeline
             string depthSource = hasContainer ? source + nameof(InfinityRenderPipelineCaptureShaders.captureDepthShader) : "GlobalSettings has no CaptureShaders container";
             texture = ComputeKernel.Resolve(textureShader, textureSource, "CaptureTexture");
             surfaceMetadata = ComputeKernel.Resolve(textureShader, textureSource, "CaptureSurfaceMetadata");
+            radiance = ComputeKernel.Resolve(textureShader, textureSource, "CaptureRadiance");
+            irradiance = ComputeKernel.Resolve(textureShader, textureSource, "CaptureIrradiance");
             depth = ComputeKernel.Resolve(depthShader, depthSource, "CaptureDepth");
             bufferUIntBytes = ComputeKernel.Resolve(shaders.utilityShader, "GlobalSettings RuntimeShaders." + nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), "CaptureBufferUIntBytes");
         }

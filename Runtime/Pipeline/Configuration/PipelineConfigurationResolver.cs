@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             string colorPathFailure = !caps.supportsR8G8B8A8SRGB ? "R8G8B8A8_SRGB render target (GBuffer A) is not supported on this device."
                 : !caps.supportsR11G11B10FLoadStore ? "B10G11R11_UFloatPack32 with load/store (Scene Color) is not supported on this device."
                 : !caps.supportsR8G8B8A8LoadStore ? "R8G8B8A8_UNorm with load/store (sideband) is not supported on this device."
-                : !caps.supportsRG16F ? "R16G16_SFloat render target (motion vectors) is not supported on this device."
+                : !caps.supportsRG16F ? "R16G16_SFloat must support render targets, sampling and compute writes for motion and screen-space history."
                 : null;
             if (colorPathFailure != null)
             {

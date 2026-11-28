@@ -1,12 +1,14 @@
 #ifndef INFINITY_SCREEN_SPACE_REPROJECTION
 #define INFINITY_SCREEN_SPACE_REPROJECTION
 #include "ScreenSpaceDepth.hlsl"
+#include "MotionVectors.hlsl"
 void ReprojectSurface(float2 uv, float depth, float2 surfaceMotion, float4x4 inverseJitteredVP,
     float4x4 previousJitteredVP, float4x4 currentMotionVP, float4x4 previousMotionVP,
     out float2 historyUV, out float previousDepth)
 {
     historyUV = -1;
     previousDepth = depth;
+    if (!SurfaceMotionIsValid(surfaceMotion)) return;
     float4 world = mul(inverseJitteredVP, float4(uv * 2 - 1, depth, 1));
     world /= world.w;
     float4 previous = mul(previousJitteredVP, world);

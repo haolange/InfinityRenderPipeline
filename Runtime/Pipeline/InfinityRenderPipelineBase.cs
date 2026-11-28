@@ -248,7 +248,6 @@ namespace InfinityTech.Rendering.Pipeline
         // What the derived pipeline records and requires; fixed for the pipeline's lifetime.
         readonly PipelineCapabilities m_Capabilities;
         readonly List<AnalyticShadowLight> m_AnalyticLights = new List<AnalyticShadowLight>(64);
-        internal TemporalReconstructionSystem temporalSystem { get; private set; }
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
@@ -275,7 +274,6 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new NotSupportedException("InfinityRP: " + m_Settings.config.blockingConflict);
             m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources(capabilities.requiredProducers);
-            temporalSystem = new TemporalReconstructionSystem(resources.temporalDeviceCapabilities);
             try
             {
                 CaptureGraphicsState();
@@ -507,7 +505,7 @@ namespace InfinityTech.Rendering.Pipeline
             bool allowTemporal = policy.temporal && m_Capabilities.Records(EFrameFeature.TemporalReconstruction);
             bool allowUpscaling = allowTemporal && camera.cameraType == CameraType.Game;
             int2 displaySize = new int2(math.max(1, camera.pixelWidth), math.max(1, camera.pixelHeight));
-            TemporalFrameRequirements temporalRequirements = temporalSystem.PlanFrame(
+            TemporalFrameRequirements temporalRequirements = resources.temporalPlanner.PlanFrame(
                 new TemporalPlanInput(displaySize, allowTemporal, allowUpscaling, cameraOverride, m_Settings.temporal, newlyCreated),
                 out _);
             CameraDimensionDescriptor dimensions = new CameraDimensionDescriptor(in temporalRequirements, camera.pixelRect);

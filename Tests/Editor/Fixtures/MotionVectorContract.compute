@@ -1,0 +1,12 @@
+#pragma kernel MotionVectorContract
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/MotionVectors.hlsl"
+
+StructuredBuffer<float4> CurrentClips;
+StructuredBuffer<float4> PreviousClips;
+RWStructuredBuffer<float2> Velocities;
+
+[numthreads(1, 1, 1)]
+void MotionVectorContract(uint3 id : SV_DispatchThreadID)
+{
+    Velocities[id.x] = SurfaceVelocity(CurrentClips[id.x], PreviousClips[id.x]);
+}

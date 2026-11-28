@@ -215,14 +215,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void TemporalFsrParameters_MatchesHlslByteSize()
         {
             // CBV_TemporalFsrParameters in Shaders/Pass/Temporal/Compute_TemporalFSR.compute
-            Assert.AreEqual(144, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalFsrParameters>());
+            Assert.AreEqual(176, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalFsrParameters>());
         }
 
         [Test]
         public void TemporalSgsrParameters_MatchesHlslByteSize()
         {
             // CBV_TemporalSgsrParameters in Shaders/Pass/Temporal/Compute_TemporalSGSR.compute
-            Assert.AreEqual(144, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalSgsrParameters>());
+            Assert.AreEqual(80, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalSgsrParameters>());
         }
 
         [Test]

@@ -18,6 +18,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public Texture2D current, depth, history, motion, reactive;
             public RenderTexture result, display, diagnostics, reprojection;
             readonly bool reference;
+            readonly Texture2D m_PreviousSampleCount;
+            readonly RenderTexture m_SampleCount;
 
             public Fixture(int w, int h, bool reference = false, int inputW = 0, int inputH = 0)
             {
@@ -36,6 +38,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 display = Output(RenderTextureFormat.ARGBHalf);
                 diagnostics = Output(RenderTextureFormat.ARGBFloat);
                 reprojection = Output(RenderTextureFormat.ARGBFloat);
+                if (!reference)
+                {
+                    m_PreviousSampleCount = Input(width, height, Color.clear);
+                    m_SampleCount = Output(RenderTextureFormat.RHalf);
+                }
             }
 
             static Texture2D Input(int w, int h, Color color)
@@ -92,6 +99,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetTexture(kernel, "SRV_ReactiveMaskTexture", reactive);
                 if (!reference)
                 {
+                    Color[] samples = history.GetPixels();
+                    for (int i = 0; i < samples.Length; i++)
+                        samples[i].r = samples[i].a;
+                    m_PreviousSampleCount.SetPixels(samples);
+                    m_PreviousSampleCount.Apply(false, false);
+                    shader.SetTexture(kernel, "SRV_HistorySampleCount", m_PreviousSampleCount);
+                    shader.SetTexture(kernel, "UAV_HistorySampleCount", m_SampleCount);
                     shader.SetTexture(kernel, "UAV_SharpenedColorTexture", display);
                 }
                 shader.SetTexture(kernel, "UAV_AccumulateColorTexture", result);
@@ -110,6 +124,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public Color[] Read(RenderTexture texture)
             {
+                Color[] pixels = ReadPixels(texture);
+                if (!reference && texture == result)
+                {
+                    Color[] sampleCounts = ReadPixels(m_SampleCount);
+                    for (int i = 0; i < pixels.Length; i++)
+                        pixels[i].a = sampleCounts[i].r;
+                }
+                return pixels;
+            }
+
+            static Color[] ReadPixels(RenderTexture texture)
+            {
                 AsyncGPUReadbackRequest request = AsyncGPUReadback.Request(texture, 0, TextureFormat.RGBAFloat);
                 request.WaitForCompletion();
                 Assert.IsFalse(request.hasError);
@@ -118,7 +144,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
-                foreach (Texture texture in new Texture[] { current, depth, history, motion, reactive, result, display, diagnostics, reprojection })
+                foreach (Texture texture in new Texture[] { current, depth, history, motion, reactive, result, display, diagnostics, reprojection,
+                    m_PreviousSampleCount, m_SampleCount })
                 {
                     UnityEngine.Object.DestroyImmediate(texture);
                 }
@@ -207,7 +234,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 f.Fill(f.motion, new Color(float.NaN, float.NaN, 0, 0));
                 f.Run();
                 AssertHistoryUnused(f, 2);
-                f.Fill(f.motion, new Color(2, 0, 0, 0));
+                f.Fill(f.motion, new Color(2, 2, 0, 0));
+                f.Run();
+                AssertHistoryUnused(f, 2);
+                f.Fill(f.motion, new Color(1, 0, 0, 0));
                 f.Run();
                 AssertHistoryUnused(f, 3);
                 f.Fill(f.motion, Color.clear);

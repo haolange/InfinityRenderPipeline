@@ -46,11 +46,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_TileListID = Shader.PropertyToID("SRV_TileList");
         internal static readonly int UAV_TileListID = Shader.PropertyToID("UAV_TileList");
         internal static readonly int SRV_HistoryVarianceID = Shader.PropertyToID("SRV_HistoryVariance");
-        internal static readonly int SRV_HitDevID = Shader.PropertyToID("SRV_HitDev");
-        internal static readonly int SRV_HitMeanID = Shader.PropertyToID("SRV_HitMean");
+        internal static readonly int SRV_HitStatisticsID = Shader.PropertyToID("SRV_HitStatistics");
         internal static readonly int SRV_VarianceID = Shader.PropertyToID("SRV_Variance");
-        internal static readonly int UAV_HitDevID = Shader.PropertyToID("UAV_HitDev");
-        internal static readonly int UAV_HitMeanID = Shader.PropertyToID("UAV_HitMean");
+        internal static readonly int UAV_HitStatisticsID = Shader.PropertyToID("UAV_HitStatistics");
         internal static readonly int UAV_VarianceID = Shader.PropertyToID("UAV_Variance");
         internal static readonly ProfilingSampler SSRClassifySampler = new ProfilingSampler("SSR_Classify");
         internal static readonly ProfilingSampler SSRTraceSampler = new ProfilingSampler("SSR_Trace");
@@ -148,8 +146,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle rayHitHandle;
             public RGBufferHandle samplesHandle;
             public RGTextureHandle resolvedHandle;
-            public RGTextureHandle hitMeanHandle;
-            public RGTextureHandle hitDevHandle;
+            public RGTextureHandle hitStatisticsHandle;
             public RGTextureHandle hitDistanceHandle;
             public RGTextureHandle varianceHandle;
             public RGTextureHandle temporalHandle;
@@ -193,22 +190,23 @@ namespace InfinityTech.Rendering.Pipeline
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
                 SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
             RGTextureHandle resolvedHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureHandle hitMeanHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitMeanBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitMean", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, divisor));
-            RGTextureHandle hitDevHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDevBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDev", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, divisor));
+                ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.ResolvedName, divisor));
+            TextureDescriptor statisticsDescriptor = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitStatistics",
+                GraphicsFormat.R16G16_SFloat, FilterMode.Point, divisor);
+            statisticsDescriptor.dimension = TextureDimension.Tex2DArray;
+            statisticsDescriptor.slices = 3;
+            RGTextureHandle hitStatisticsHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitStatisticsBuffer, statisticsDescriptor);
             RGTextureHandle varianceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRVarianceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor));
             RGTextureHandle hitDistanceHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
             RGTextureHandle temporalHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
+                ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, divisor));
             RGTextureHandle metaHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32_UInt, FilterMode.Point, divisor));
             RGTextureHandle filteredHandle = runSpatial
                 ? m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
-                    SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRFiltered", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor))
+                    ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, "SSRFiltered", divisor))
                 : temporalHandle;
             if (!runSpatial)
             {
@@ -221,11 +219,11 @@ namespace InfinityTech.Rendering.Pipeline
             if (runDebug)
             {
                 debugHandle = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRDebugBuffer,
-                    SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.DebugName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point));
+                    SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.DebugName, EffectivePipelineConfiguration.SceneColorFormat, FilterMode.Point));
             }
 #endif
 
-            TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
+            TextureDescriptor historyRadianceDsc = ScreenSpaceRadiance.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
             TextureDescriptor historyVarianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "HistorySSRVariance", GraphicsFormat.R16_SFloat, FilterMode.Bilinear, divisor);
@@ -309,8 +307,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rayHitHandle = passHandle.WriteTexture(rayHitHandle);
                 passData.samplesHandle = passHandle.CreatePassLocalBuffer(new BufferDescriptor(traceResolution.x * traceResolution.y * 4, 32, GraphicsBuffer.Target.Structured) { name = "SSRSamples" });
                 passData.resolvedHandle = passHandle.WriteTexture(resolvedHandle);
-                passData.hitMeanHandle = passHandle.WriteTexture(hitMeanHandle);
-                passData.hitDevHandle = passHandle.WriteTexture(hitDevHandle);
+                passData.hitStatisticsHandle = passHandle.WriteTexture(hitStatisticsHandle);
                 passData.hitDistanceHandle = passHandle.WriteTexture(hitDistanceHandle);
                 passData.varianceHandle = passHandle.WriteTexture(varianceHandle);
                 passData.temporalHandle = passHandle.WriteTexture(temporalHandle);
@@ -360,8 +357,7 @@ namespace InfinityTech.Rendering.Pipeline
                     BindSSRSurface(cmdEncoder, shader, resolve, passData);
                     cmdEncoder.SetComputeBufferParam(shader, resolve, SSRPassUtilityData.SRV_SamplesID, passData.samplesHandle);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_ResolvedID, passData.resolvedHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitMeanID, passData.hitMeanHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitDevID, passData.hitDevHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitStatisticsID, passData.hitStatisticsHandle);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, PassShaderIDs.UAV_HitDistance, passData.hitDistanceHandle);
                     cmdEncoder.DispatchCompute(shader, resolve, groupsX, groupsY, 1);
                     cmdEncoder.EndSample(SSRPassUtilityData.SSRResolveSampler);
@@ -371,8 +367,7 @@ namespace InfinityTech.Rendering.Pipeline
                     int temporalKernel = passData.temporalKernel;
                     BindSSRSurface(cmdEncoder, shader, temporalKernel, passData);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_ResolvedID, passData.resolvedHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitMeanID, passData.hitMeanHandle);
-                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitDevID, passData.hitDevHandle);
+                    cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitStatisticsID, passData.hitStatisticsHandle);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitDistanceID, passData.hitDistanceHandle);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HistoryVarianceID, passData.historyVarianceHandle);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.UAV_VarianceID, passData.varianceHandle);

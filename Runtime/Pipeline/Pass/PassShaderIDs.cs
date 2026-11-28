@@ -27,6 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int SRV_OcclusionTexture = Shader.PropertyToID("SRV_OcclusionTexture");
         internal static readonly int SRV_SceneColorTexture = Shader.PropertyToID("SRV_SceneColorTexture");
         internal static readonly int SRV_SSGITexture = Shader.PropertyToID("SRV_SSGITexture");
+        internal static readonly int SRV_SSGIConfidenceTexture = Shader.PropertyToID("SRV_SSGIConfidenceTexture");
         internal static readonly int SRV_SSRTexture = Shader.PropertyToID("SRV_SSRTexture");
         internal static readonly int SRV_Sideband = Shader.PropertyToID("SRV_Sideband");
         internal static readonly int SRV_SkyViewLUT = Shader.PropertyToID("SRV_SkyViewLUT");

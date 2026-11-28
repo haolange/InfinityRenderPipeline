@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/TemporalColorSourceContract.compute"));
             int full=padded?16:8, half=padded?8:4;
             var color=new Texture2D(full,full,TextureFormat.RGBAFloat,false,true) {filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
-            var mips=new Texture2D(half,half,TextureFormat.RGBAFloat,true,true) {filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
+            var mips = ScreenSpaceRadianceTestUtility.Source(half, half, mips: true);
             var levels=new[] {new Color(10,20,30,.75f),new Color(40,50,60,.5f),new Color(70,80,90,.25f)};
             float[] lods={0,.5f,1,1.5f,2,3};
             using var inputs=new GraphicsBuffer(GraphicsBuffer.Target.Structured, lods.Length,16);
@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         values[y*physical+x]=x<logical&&y<logical
                             ? (accepted ? new Color(level.r*level.a,level.g*level.a,level.b*level.a,level.a) : Color.clear)
                             : new Color(999,999,999,999);
-                    mips.SetPixels(values,mip);
+                    ScreenSpaceRadianceTestUtility.Write(mips, values, mip);
                 }
                 mips.Apply(false,false);
                 var records=new Vector4[lods.Length];for(int i=0;i<lods.Length;++i)records[i]=new Vector4(.5f,.5f,.4f,lods[i]);inputs.SetData(records);
@@ -102,6 +102,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var color = new Texture2D(8, 8, TextureFormat.RGBAFloat, false, true)
                 { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             using var inputs = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16);
+            var mips = ScreenSpaceRadianceTestUtility.Source(1, 1, (_, _) => Color.clear);
             using var outputs = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16);
             int parameterSize = Unity.Collections.LowLevel.Unsafe.UnsafeUtility.SizeOf<TemporalColorParameters>();
             using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
@@ -117,7 +118,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Matrix4x4 projection = GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(58, 1, 0.1f, 100), false);
                 Matrix4x4 current = Matrix4x4.Translate(new Vector3(2 * currentX, 2 * currentY, 0)) * projection;
                 Matrix4x4 previous = Matrix4x4.Translate(new Vector3(2 * previousX, 2 * previousY, 0)) * projection;
-                Vector4 point = new Vector4(0.3f, -0.2f, -2, 1);
+                // Use exact binary texel phases so hardware bilinear weight quantization does not
+                // mask the much larger jitter and motion offsets this projection test measures.
+                Vector4 point = projection.inverse * new Vector4(0.25f, -0.25f, 0.5f, 1);
+                point /= point.w;
                 Vector4 unjitteredClip = projection * point;
                 Vector4 currentClip = current * point;
                 float coordinateX = 0.5f * (unjitteredClip.x / unjitteredClip.w + 1);
@@ -130,7 +134,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetBuffer(kernel, "ContractInputs", inputs);
                 shader.SetBuffer(kernel, "ContractResults", outputs);
                 shader.SetTexture(kernel, "SRV_TemporalColor", color);
-                shader.SetTexture(kernel, "SRV_TemporalColorMips", color);
+                shader.SetTexture(kernel, "SRV_TemporalColorMips", mips);
                 shader.SetVector("SRV_TemporalColor_InfinityView", new Vector4(8, 8, 8, 8));
                 shader.SetVector("SRV_TemporalColorMips_InfinityView", new Vector4(8, 8, 8, 8));
                 shader.SetConstantBuffer("CBV_TemporalColorParameters", parameters, 0, parameterSize);
@@ -151,6 +155,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 Object.DestroyImmediate(color);
+                Object.DestroyImmediate(mips);
                 Object.DestroyImmediate(shader);
             }
         }

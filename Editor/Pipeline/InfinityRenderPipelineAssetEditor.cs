@@ -3,6 +3,7 @@ using UnityEngine.Rendering;
 using UnityEditor;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Editor;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline.Editor
 {
@@ -110,7 +111,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_TemporalSharpness = serializedObject.FindProperty("m_TemporalSharpness");
         }
 
-        static void DrawResolvedField(SerializedProperty property, GUIContent label, in ConfigFieldState state, bool allowEditWhenUnsupported = true)
+        static void DrawResolvedField(SerializedProperty property, GUIContent label, in ConfigFieldState state,
+            bool allowEditWhenUnsupported = true, System.Enum lockedValue = null)
         {
             string tooltip = string.IsNullOrEmpty(state.reason) ? label.tooltip : $"{label.tooltip}\n[{state.status}] {state.reason}";
             var resolvedLabel = new GUIContent(label.text, tooltip);
@@ -120,7 +122,10 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
             using (new EditorGUI.DisabledScope(disabled))
             {
-                EditorGUILayout.PropertyField(property, resolvedLabel);
+                if (lockedValue != null && state.status == EConfigStatus.Required)
+                    EditorGUILayout.EnumPopup(resolvedLabel, lockedValue);
+                else
+                    EditorGUILayout.PropertyField(property, resolvedLabel);
             }
 
             switch (state.status)
@@ -200,7 +205,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         {
             serializedObject.Update();
             var pipelineAsset = (InfinityRenderPipelineAsset)target;
-            EffectivePipelineConfiguration resolvedConfig = pipelineAsset.ResolveSettings().config;
+            TemporalReconstructionSystem temporalSystem = InfinityRenderPipelineResources.ResolveEditorTemporalPlanner();
+            EffectivePipelineConfiguration resolvedConfig = pipelineAsset.ResolveSettings(temporalSystem).config;
 
             // 1. Rendering
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Rendering", "Rendering"))
@@ -235,13 +241,15 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                         EditorGUILayout.TextField("Geometry Color", $"{resolvedConfig.geometryColorBitsPerPixel} bit");
                         EditorGUILayout.TextField("Motion", EffectivePipelineConfiguration.MotionFormat.ToString());
                         EditorGUILayout.TextField("Depth Stencil", resolvedConfig.depthStencilFormat.ToString());
-                        string trcSummary = $"{resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x, MipBias {resolvedConfig.effectiveTemporalMipBias:0.00})";
-                        if (resolvedConfig.hasTemporalFallback)
-                        {
-                            trcSummary += $" [Fallback from {resolvedConfig.requestedTemporalBackend}]";
-                        }
-                        EditorGUILayout.TextField("Effective TRC", trcSummary);
                     }
+                    string trcSummary = resolvedConfig.effectiveTemporalBackend == ETemporalBackend.None
+                        ? "Effective TRC  Off"
+                        : $"Effective TRC  {resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x, MipBias {resolvedConfig.effectiveTemporalMipBias:0.00})";
+                    if (resolvedConfig.hasTemporalFallback)
+                    {
+                        trcSummary += $" [Fallback from {resolvedConfig.requestedTemporalBackend}]";
+                    }
+                    GUILayout.Label(trcSummary, EditorStyles.wordWrappedLabel);
                     --EditorGUI.indentLevel;
                 }
                 --EditorGUI.indentLevel;
@@ -327,7 +335,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "TemporalReconstruction", "Temporal Reconstruction"))
             {
                 DrawResolvedField(m_TemporalBackend, new GUIContent("Temporal Backend", "Unified Temporal Reconstruction backend (Native, STP, FSR 3.1, SGSR v2, or platform-gated XeSS/DLSS)."), resolvedConfig.temporalBackendState, allowEditWhenUnsupported: true);
-                DrawResolvedField(m_TemporalMode, new GUIContent("Reconstruction Mode", "NativeAA (1.0x) or Upscaling driven by the quality tier table."), resolvedConfig.temporalModeState);
+                DrawResolvedField(m_TemporalMode, new GUIContent("Reconstruction Mode", "NativeAA (1.0x) or Upscaling driven by the quality tier table."),
+                    resolvedConfig.temporalModeState, lockedValue: resolvedConfig.effectiveTemporalMode);
                 DrawResolvedField(m_TemporalQuality, new GUIContent("Upscale Quality", "Fixed quality preset scale factor active in Upscaling mode."), resolvedConfig.temporalQualityState);
                 using (new EditorGUI.DisabledScope(true))
                 {

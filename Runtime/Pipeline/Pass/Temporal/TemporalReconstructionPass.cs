@@ -22,6 +22,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal const string HistoryColorTextureName = "TemporalHistoryColor";
         internal static readonly int HistoryColorTextureID = Shader.PropertyToID(HistoryColorTextureName);
 
+        internal static float ResolveRCASGain(float sharpness) => sharpness > 0f ? Mathf.Pow(2f, 2f * sharpness - 2f) : 0f;
+
         internal static TextureDescriptor TemporalColorDescriptor(
             int width,
             int height,
@@ -33,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 name = name,
                 dimension = TextureDimension.Tex2D,
-                colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
+                colorFormat = EffectivePipelineConfiguration.SceneColorFormat,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 enableRandomWrite = enableRandomWrite,

@@ -5,6 +5,10 @@
 Verification state is recorded in [Docs~/Project/Status/FeatureStatus.md](Docs~/Project/Status/FeatureStatus.md). Historical upgrade records are archived under Docs~/Record/History.
 
 ### Changed
+- Unified Temporal Reconstruction uses AMD FidelityFX SDK 2.4.0 (FSR 3.1.6), Unity Core RP STP, and Qualcomm SGSR v2 for temporal reconstruction. FSR and SGSR share the FidelityFX display RCAS filter and strength curve. The display filter reads private HDR before quantization. Shared temporal history remains unsharpened.
+- Temporal display and shared history use packed `B10G11R11_UFloatPack32` HDR. Native keeps fractional sample count in a separate `R16_SFloat` history. SSR and SSGI preserve premultiplied radiance and confidence in their recursive histories using two `RG16F` slices, and the shared color pyramid retains fractional coverage across mips.
+- Shader imports publish the runtime kernel table and temporal planner together. FSR reports the stage and missing binding when an active stage lacks a required texture. The Reactive Mask variant and optional RCAS retain their configured behavior.
+- The Temporal Inspectors report effective backend, mode and quality. Render capture records packed HDR and can read back a bounded region for consecutive-frame comparison.
 - Direct3D 12, Vulkan, and Metal are the supported graphics APIs. The Surface Stencil debug view uses Unity Core RP's stencil plane decoding.
 - Native Unity Terrain and its distant basemap write depth in the GBuffer. Clustered and Direct GBuffer decals work on Terrain. DBuffer decals require a depth prepass on the receiving surface.
 - Deferred emission checks the pixel's stencil before adding to Scene Color. A forward pixel keeps the emission it already received in its forward draw even if the separate emissive pass is still enabled on the material.

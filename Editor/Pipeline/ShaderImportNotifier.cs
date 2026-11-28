@@ -15,11 +15,10 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         {
             bool shader = false;
             bool compute = false;
-            foreach (string path in importedAssets)
-            {
-                shader |= path.EndsWith(".shader", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".shadergraph", StringComparison.OrdinalIgnoreCase);
-                compute |= path.EndsWith(".compute", StringComparison.OrdinalIgnoreCase);
-            }
+            ClassifyShaders(importedAssets, ref shader, ref compute);
+            ClassifyShaders(deletedAssets, ref shader, ref compute);
+            ClassifyShaders(movedAssets, ref shader, ref compute);
+            ClassifyShaders(movedFromAssetPaths, ref shader, ref compute);
             if (shader || compute)
             {
                 InfinityRenderPipelineResources.NotifyShadersImported();
@@ -27,6 +26,15 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             if (shader)
             {
                 MeshComponent.NotifyShadersChanged();
+            }
+        }
+
+        static void ClassifyShaders(string[] paths, ref bool shader, ref bool compute)
+        {
+            foreach (string path in paths)
+            {
+                shader |= path.EndsWith(".shader", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".shadergraph", StringComparison.OrdinalIgnoreCase);
+                compute |= path.EndsWith(".compute", StringComparison.OrdinalIgnoreCase);
             }
         }
     }

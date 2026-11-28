@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
             Set(EDebugView.ReflectionProbeComplexity, EDebugViewKernel.LightLoop);
 
             Set(EDebugView.AO, EDebugViewKernel.Optional, InfinityShaderIDs.OcclusionBuffer);
-            Set(EDebugView.SSR, EDebugViewKernel.Optional, InfinityShaderIDs.SSRBuffer);
+            Set(EDebugView.SSR, EDebugViewKernel.ScreenSpaceRadiance, InfinityShaderIDs.SSRBuffer);
             Set(EDebugView.SSRTileClass, EDebugViewKernel.Optional, InfinityShaderIDs.SSRDebugBuffer);
             Set(EDebugView.SSRRayHit, EDebugViewKernel.Optional, InfinityShaderIDs.SSRDebugBuffer);
             Set(EDebugView.SSRConfidence, EDebugViewKernel.Optional, InfinityShaderIDs.SSRDebugBuffer);
@@ -96,7 +96,8 @@ namespace InfinityTech.Rendering.Pipeline
         Missing,
         Shadow,
         LightLoop,
-        ProbeAtlas
+        ProbeAtlas,
+        ScreenSpaceRadiance
     }
 
     // The kernel a view uses when its inputs exist; a view with inputs falls back to Missing when none is registered.
@@ -242,6 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.sceneColorTextureHandle = passHandle.ReadTexture(sceneColorTextureHandle);
                         break;
                     case EDebugViewKernel.Optional:
+                    case EDebugViewKernel.ScreenSpaceRadiance:
                     case EDebugViewKernel.Shadow:
                     case EDebugViewKernel.ProbeAtlas:
                         passData.optionalTextureHandle = passHandle.ReadTexture(optionalTextureHandle);
@@ -282,6 +284,9 @@ namespace InfinityTech.Rendering.Pipeline
                             break;
                         case EDebugViewKernel.Optional:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_OptionalTextureID, passData.optionalTextureHandle);
+                            break;
+                        case EDebugViewKernel.ScreenSpaceRadiance:
+                            cmdEncoder.SetComputeTextureParam(shader, kernel, PassShaderIDs.SRV_SSRTexture, passData.optionalTextureHandle);
                             break;
                         case EDebugViewKernel.Shadow:
                             cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ShadowAtlasTextureID, passData.optionalTextureHandle);

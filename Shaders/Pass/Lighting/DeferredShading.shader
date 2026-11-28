@@ -70,9 +70,11 @@ Shader "InfinityPipeline/DeferredShading"
 #endif
 #if defined(DEFERRED_SSGI)
             Texture2D<float4> SRV_SSGITexture;
+            Texture2D<float> SRV_SSGIConfidenceTexture;
 #endif
 #if defined(DEFERRED_SSR)
-            Texture2D<float4> SRV_SSRTexture;
+            #include "../../Library/ScreenSpaceRadiance.hlsl"
+            Texture2DArray<float2> SRV_SSRTexture;
 #endif
 #if defined(DEFERRED_RASTER_REFLECTION)
             Texture2D<float4> SRV_RasterReflection;
@@ -132,7 +134,7 @@ Shader "InfinityPipeline/DeferredShading"
 #endif
                 float3 environmentBRDF = EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(surface.Normal, viewDir))).rgb;
 #if defined(DEFERRED_SSGI)
-                float4 ssgi = SRV_SSGITexture[pixelCoord];
+                float4 ssgi = float4(SRV_SSGITexture[pixelCoord].rgb, SRV_SSGIConfidenceTexture[pixelCoord]);
 #else
                 float4 ssgi = 0;
 #endif
@@ -140,7 +142,7 @@ Shader "InfinityPipeline/DeferredShading"
                 float3 environment = ComposeSpecularEnvironment(rasterReflection, worldPos, reflectionWS, microfaceCtx.RoughnessClamp, pixelCoord, viewDepth, sky)
                     * environmentBRDF * occlusion;
 #if defined(DEFERRED_SSR)
-                environment = ReplaceEnvironmentSpecular(environment, environmentBRDF, SRV_SSRTexture[pixelCoord]);
+                environment = ReplaceEnvironmentSpecular(environment, environmentBRDF, LoadScreenSpaceRadiance(SRV_SSRTexture, pixelCoord, 0));
 #endif
                 float3 rgb = max(0, direct + environment + microfaceCtx.AlbedoColor * ssgi.rgb);
                 return float4(rgb, alpha);

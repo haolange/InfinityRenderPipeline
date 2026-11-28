@@ -28,15 +28,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             int bw=Math.Max(1,width/2), bh=Math.Max(1,height/2);
             int pw=padded?(bw+63)/64*64:bw, ph=padded?(bh+63)/64*64:bh;
             var color = new Texture2D(sw,sh,TextureFormat.RGBAFloat,false,true);
-            var seed = new Texture2D(pw,ph,halfPrecision?TextureFormat.RGBAHalf:TextureFormat.RGBAFloat,true,true);
-            var output = new RenderTexture(pw,ph,0,halfPrecision?GraphicsFormat.R16G16B16A16_SFloat:GraphicsFormat.R32G32B32A32_SFloat)
-                {enableRandomWrite=true,useMipMap=true,autoGenerateMips=false};
+            var seed = ScreenSpaceRadianceTestUtility.Source(pw, ph, mips: true, halfPrecision: halfPrecision);
+            var output = ScreenSpaceRadianceTestUtility.Target(pw, ph, mips: true, halfPrecision: halfPrecision);
             using var commands = new CommandBuffer();
             int parameterSize = Unity.Collections.LowLevel.Unsafe.UnsafeUtility.SizeOf<TemporalColorMipParameters>();
             using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
             try
             {
-                Assert.IsTrue(output.Create());
                 var pixels = new Color[sw*sh];
                 var expected = new Color[width*height];
                 for(int y=0;y<sh;++y) for(int x=0;x<sw;++x)
@@ -50,23 +48,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for(int mip=0;mip<seed.mipmapCount;++mip)
                 {
                     var poison=new Color[Math.Max(1,pw>>mip)*Math.Max(1,ph>>mip)];
-                    Array.Fill(poison,new Color(77,77,77,77));seed.SetPixels(poison,mip);
+                    Array.Fill(poison,new Color(77,77,77,77));ScreenSpaceRadianceTestUtility.Write(seed, poison, mip);
                 }
                 seed.Apply(false,false);Graphics.CopyTexture(seed,output);
                 int kernel=shader.FindKernel("TemporalColorMip");
                 parameters.SetData(new[] { new TemporalColorMipParameters { sourceValid = valid ? 1 : 0 } });
                 commands.SetComputeConstantBufferParam(shader, Shader.PropertyToID("CBV_TemporalColorMipParameters"), parameters, 0, parameterSize);
                 int count=PyramidMipBatch.MipCount(bw,bh);
+                commands.SetComputeTextureParam(shader, kernel, "_Source", color);
+                commands.SetComputeTextureParam(shader, kernel, "SRV_TemporalColorMipInput", output);
                 int iw=width,ih=height;
                 for(int mip=0;mip<count;++mip)
                 {
                     int ow=Math.Max(1,bw>>mip),oh=Math.Max(1,bh>>mip);
-                    commands.SetComputeIntParam(shader,"_TemporalMipFirst",mip==0?1:0);
-                    commands.SetComputeIntParam(shader,"_TemporalSourceMip",Math.Max(0,mip-1));
+                    commands.SetComputeIntParam(shader, "_TemporalSourceMip", mip - 1);
                     commands.SetComputeVectorParam(shader,"_Size",new Vector4(iw,ih,0,0));
                     commands.SetComputeVectorParam(shader,"_DstSize",new Vector4(ow,oh,0,0));
-                    commands.SetComputeTextureParam(shader,kernel,"_Source",mip==0?(Texture)color:output);
-                    commands.SetComputeTextureParam(shader,kernel,"_Result",output,mip);
+                    commands.SetComputeTextureParam(shader, kernel, "UAV_TemporalColorMipOutput", output, mip);
                     commands.DispatchCompute(shader,kernel,(ow+7)/8,(oh+7)/8,1);
                     iw=ow;ih=oh;
                 }
@@ -76,9 +74,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     int ow=Math.Max(1,bw>>mip),oh=Math.Max(1,bh>>mip);
                     expected=Reduce(expected,iw,ih,ow,oh,valid,halfPrecision);iw=ow;ih=oh;
-                    var readback=AsyncGPUReadback.Request(output,mip,TextureFormat.RGBAFloat);
-                    readback.WaitForCompletion();Assert.IsFalse(readback.hasError);
-                    var actual=readback.GetData<Color>();int physicalWidth=Math.Max(1,pw>>mip),physicalHeight=Math.Max(1,ph>>mip);
+                    var actual = ScreenSpaceRadianceTestUtility.Read(output, mip);
+                    int physicalWidth=Math.Max(1,pw>>mip),physicalHeight=Math.Max(1,ph>>mip);
                     for(int y=0;y<physicalHeight;++y) for(int x=0;x<physicalWidth;++x)
                     {
                         Color reference=x<ow&&y<oh?expected[y*ow+x]:new Color(77,77,77,77);
@@ -89,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             // The FP32 case independently checks indexing/weights tightly.
                             double error = x>=ow || y>=oh || !valid ? 0 :
                                 (halfPrecision ? (mip+1)/1024.0 : 2e-5) * Math.Max(1,Math.Abs(reference[c]));
-                            Assert.That(actual[y*physicalWidth+x][c],Is.EqualTo(reference[c]).Within(error),$"mip{mip} ({x},{y}) channel{c}");
+                            Assert.That(actual[(y * physicalWidth + x) * 4 + c],Is.EqualTo(reference[c]).Within(error),$"mip{mip} ({x},{y}) channel{c}");
                         }
                     }
                 }
