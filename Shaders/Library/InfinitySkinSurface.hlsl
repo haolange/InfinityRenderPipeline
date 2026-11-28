@@ -23,11 +23,11 @@ struct SkinSurface
 SkinSurface EvaluateSkinSurface(float2 uv, float3 normalWS, float3 tangentWS, float3 bitangentWS)
 {
     SkinSurface surface;
-    surface.albedo = _MainTex.Sample(sampler_MainTex, uv * _BaseColorTile).rgb * _BaseColor.rgb;
-    float3 normalTS = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, uv * _NormalTile));
+    surface.albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, uv * _BaseColorTile).rgb * _BaseColor.rgb;
+    float3 normalTS = UnpackNormal(InfinitySampleSurface2D(_NormalTexture, sampler_NormalTexture, uv * _NormalTile));
     float3x3 tangentMatrix = float3x3(tangentWS, bitangentWS, normalize(normalWS));
     surface.normalWS = normalize(mul(normalTS, tangentMatrix));
-    surface.occlusion = lerp(1, _OcclusionTexture.Sample(sampler_OcclusionTexture, uv * _BaseColorTile).r, _OcclusionStrength);
+    surface.occlusion = lerp(1, InfinitySampleSurface2D(_OcclusionTexture, sampler_OcclusionTexture, uv * _BaseColorTile).r, _OcclusionStrength);
     return surface;
 }
 

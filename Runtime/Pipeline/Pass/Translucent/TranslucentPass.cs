@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGMeshDrawListHandle meshDrawListHandle = m_RGBuilder.CreateMeshDrawList(viewHandle, meshPass);
             RGTextureHandle sceneColorHandle = m_RGBuilder.scoper.QueryTexture(context.sceneColor.fogged);
             RGTextureHandle depthTextureHandle = m_RGBuilder.scoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool writeReactive = context.temporalRequirements.requiresReactiveMask || context.features.ShouldRecord(EFrameFeature.TAA);
+            bool writeReactive = context.temporalRequirements.requiresReactiveMask;
             bool initializeReactive = false;
             RGTextureHandle reactiveMaskHandle = default;
             if (writeReactive && !m_RGBuilder.scoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out reactiveMaskHandle))

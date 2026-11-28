@@ -14,8 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
         SSR,
         SSGI,
         DeferredShading,
-        TAA,
-        SuperResolution,
+        TemporalReconstruction,
         ColorPyramid,
         VolumetricFog,
         VolumetricCloud,
@@ -42,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
         // PipelineCapabilities.requiredProducers: every camera requests these.
         public EFrameFeature[] requiredProducers;
         public ResolvedFrameSettings frameSettings;
-        public ETemporalResolve temporalResolve;
+        public bool temporalActive;
         public VolumeSnapshot volumes;
         // Published decal count of this frame's scene transaction.
         public int decalCount;
@@ -145,20 +144,16 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        // The pipeline's required producers, plus the camera's temporal resolve when it has one.
-        internal void EnsureRequiredProducers(EFrameFeature[] requiredProducers, ETemporalResolve temporalResolve)
+        // The pipeline's required producers, plus the camera's temporal reconstruction when active.
+        internal void EnsureRequiredProducers(EFrameFeature[] requiredProducers, bool temporalActive)
         {
             foreach (EFrameFeature feature in requiredProducers)
             {
                 EnsureProduced(feature);
             }
-            if (temporalResolve == ETemporalResolve.TAA)
+            if (temporalActive)
             {
-                EnsureProduced(EFrameFeature.TAA);
-            }
-            else if (temporalResolve == ETemporalResolve.SuperResolution)
-            {
-                EnsureProduced(EFrameFeature.SuperResolution);
+                EnsureProduced(EFrameFeature.TemporalReconstruction);
             }
         }
 
@@ -189,14 +184,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 Request(EFrameFeature.DBuffer);
             }
-            // Without a temporal resolve post processing reads the fogged scene color directly.
-            if (inputs.temporalResolve == ETemporalResolve.SuperResolution)
+            // Without temporal reconstruction post processing reads the fogged scene color directly.
+            if (inputs.temporalActive)
             {
-                Request(EFrameFeature.SuperResolution);
-            }
-            else if (inputs.temporalResolve == ETemporalResolve.TAA)
-            {
-                Request(EFrameFeature.TAA);
+                Request(EFrameFeature.TemporalReconstruction);
             }
             if (GraphicsUtility.VolumeComponentActive(volumes.subsurfaceScattering))
             {

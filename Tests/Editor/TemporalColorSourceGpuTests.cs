@@ -61,7 +61,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using var view=new UniformBinding<ViewUniform>(new ViewUniform{view_DepthParameters=new Vector4(.1f,100,1,0),view_JitterUV=new Vector4(0,0,1f/32,-1f/16)});
                 shader.SetVector("ContractMotion",new Vector4(offscreen ? 0.75f : 0.125f,0,0,0));
                 var previous=Matrix4x4.identity;if(behind)previous.m33=-1;
-                shader.SetMatrix("ContractPreviousVP",previous);shader.Dispatch(kernel,lods.Length,1,1);
+                shader.SetMatrix("ContractInverseVP",Matrix4x4.identity);
+                shader.SetMatrix("ContractPreviousVP",previous);
+                shader.SetMatrix("ContractCurrentMotionVP",Matrix4x4.identity);
+                shader.SetMatrix("ContractPreviousMotionVP",Matrix4x4.identity);
+                shader.Dispatch(kernel,lods.Length,1,1);
                 var actual=new Vector4[lods.Length];outputs.GetData(actual);
                 for(int i=0;i<actual.Length;++i)
                 {
@@ -84,6 +88,70 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 Object.DestroyImmediate(color);Object.DestroyImmediate(mips);Object.DestroyImmediate(shader);
+            }
+        }
+
+        [TestCase(0.0625f, -0.03125f, -0.03125f, 0.0625f, 0f, 0f)]
+        [TestCase(-0.03125f, 0.0625f, 0.0625f, -0.03125f, 0.125f, -0.0625f)]
+        public void PreviousColor_SamplesUnjitteredHistoryWithRealProjectionOffsets(
+            float currentX, float currentY, float previousX, float previousY, float motionX, float motionY)
+        {
+            if (!SystemInfo.supportsComputeShaders) Assert.Ignore("Compute required.");
+            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/TemporalColorSourceContract.compute"));
+            var color = new Texture2D(8, 8, TextureFormat.RGBAFloat, false, true)
+                { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            using var inputs = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16);
+            using var outputs = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 16);
+            int parameterSize = Unity.Collections.LowLevel.Unsafe.UnsafeUtility.SizeOf<TemporalColorParameters>();
+            using var parameters = new GraphicsBuffer(GraphicsBuffer.Target.Constant, 1, parameterSize);
+            try
+            {
+                var pixels = new Color[64];
+                for (int y = 0; y < 8; ++y)
+                    for (int x = 0; x < 8; ++x)
+                        pixels[y * 8 + x] = new Color(x * 0.1f, y * 0.2f, 0.5f, 1);
+                color.SetPixels(pixels);
+                color.Apply();
+
+                Matrix4x4 projection = GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(58, 1, 0.1f, 100), false);
+                Matrix4x4 current = Matrix4x4.Translate(new Vector3(2 * currentX, 2 * currentY, 0)) * projection;
+                Matrix4x4 previous = Matrix4x4.Translate(new Vector3(2 * previousX, 2 * previousY, 0)) * projection;
+                Vector4 point = new Vector4(0.3f, -0.2f, -2, 1);
+                Vector4 unjitteredClip = projection * point;
+                Vector4 currentClip = current * point;
+                float coordinateX = 0.5f * (unjitteredClip.x / unjitteredClip.w + 1);
+                float coordinateY = 0.5f * (unjitteredClip.y / unjitteredClip.w + 1);
+                inputs.SetData(new[] { new Vector4(coordinateX + currentX, coordinateY + currentY, currentClip.z / currentClip.w, 0) });
+                parameters.SetData(new[] { new TemporalColorParameters { resolution = new Vector4(8, 8, 0.125f, 0.125f), valid = 1, mipCount = 1 } });
+                using var view = new UniformBinding<ViewUniform>(new ViewUniform
+                    { view_JitterUV = new Vector4(currentX, currentY, previousX, previousY) });
+                int kernel = shader.FindKernel("SampleSource");
+                shader.SetBuffer(kernel, "ContractInputs", inputs);
+                shader.SetBuffer(kernel, "ContractResults", outputs);
+                shader.SetTexture(kernel, "SRV_TemporalColor", color);
+                shader.SetTexture(kernel, "SRV_TemporalColorMips", color);
+                shader.SetVector("SRV_TemporalColor_InfinityView", new Vector4(8, 8, 8, 8));
+                shader.SetVector("SRV_TemporalColorMips_InfinityView", new Vector4(8, 8, 8, 8));
+                shader.SetConstantBuffer("CBV_TemporalColorParameters", parameters, 0, parameterSize);
+                shader.SetVector("ContractMotion", new Vector4(motionX, motionY, 0, 0));
+                shader.SetMatrix("ContractInverseVP", current.inverse);
+                shader.SetMatrix("ContractPreviousVP", previous);
+                shader.SetMatrix("ContractCurrentMotionVP", projection);
+                shader.SetMatrix("ContractPreviousMotionVP", projection);
+                shader.Dispatch(kernel, 1, 1, 1);
+
+                var actual = new Vector4[1];
+                outputs.GetData(actual);
+                Assert.That(actual[0].x, Is.EqualTo(((coordinateX - motionX) * 8 - 0.5f) * 0.1f).Within(2e-4f));
+                Assert.That(actual[0].y, Is.EqualTo(((coordinateY - motionY) * 8 - 0.5f) * 0.2f).Within(2e-4f));
+                Assert.That(actual[0].z, Is.EqualTo(0.5f).Within(2e-4f));
+                Assert.That(actual[0].w, Is.EqualTo(1).Within(2e-4f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(color);
+                Object.DestroyImmediate(shader);
             }
         }
     }

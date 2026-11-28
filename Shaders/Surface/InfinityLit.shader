@@ -333,8 +333,8 @@
 				LODDitheringTransition(uint2(In.vertexCS.xy), MeshInstanceFade(unity_InstanceID));
 #endif
 
-				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
+				float4 albedoMap = InfinitySampleSurface2D(_MainTex, sampler_MainTex, In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(InfinitySampleSurface2D(_NormalTexture, sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -495,8 +495,8 @@
 				LODDitheringTransition(uint2(In.vertexCS.xy), MeshInstanceFade(unity_InstanceID));
 #endif
 
-				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
+				float4 albedoMap = InfinitySampleSurface2D(_MainTex, sampler_MainTex, In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(InfinitySampleSurface2D(_NormalTexture, sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -813,7 +813,7 @@
 			{
 				float2 screenUV = In.vertex.xy / _ScreenParams.xy;
 				float linearDepth = length(In.worldPos - _WorldSpaceCameraPos);
-				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
 				FragOutput o;
 				o.color = ApplyT0Fog(albedo, _BaseColor.a, screenUV, linearDepth);
 #if defined(INFINITY_WRITE_REACTIVE_MASK)
@@ -904,7 +904,7 @@
 				float glassDepth = InfinitySampleLevel(_TranslucentDepthTexture,Global_point_clamp_sampler,screenUV,0).r;
 				float thickness = saturate(abs(LinearEyeDepth(In.vertex.z, _ZBufferParams) - LinearEyeDepth(glassDepth, _ZBufferParams)) * 0.05);
 				float4 refracted = SampleRefractionPyramid(screenUV, normalize(In.normalWS), _RefractionStrength * (0.25 + thickness), _Roughness);
-				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
 				float3 color = lerp(albedo, refracted.rgb * albedo, saturate(_BaseColor.a));
 				FragOutput o;
 				o.color = float4(color, _BaseColor.a);
@@ -988,7 +988,7 @@
 
 			FragOutput frag(Varyings In)
 			{
-				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
 				FragOutput o;
 				o.color = float4(albedo, _BaseColor.a);
 #if defined(INFINITY_WRITE_REACTIVE_MASK)

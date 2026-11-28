@@ -66,12 +66,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void NonTemporalCamera_BlocksHistoryFeatures()
         {
             var features = new FrameFeatureSet();
-            features.Request(EFrameFeature.TAA);
+            features.Request(EFrameFeature.TemporalReconstruction);
             features.Request(EFrameFeature.SSR);
             FeatureRegistry.Resolve(features, NoShaders(false));
-            Assert.IsFalse(features.ShouldRecord(EFrameFeature.TAA));
+            Assert.IsFalse(features.ShouldRecord(EFrameFeature.TemporalReconstruction));
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.SSR));
-            StringAssert.Contains("without history", features.GetUnsupportedReason(EFrameFeature.TAA));
+            StringAssert.Contains("without history", features.GetUnsupportedReason(EFrameFeature.TemporalReconstruction));
             Assert.IsFalse(features.IsRequested(EFrameFeature.HiZ));
         }
 

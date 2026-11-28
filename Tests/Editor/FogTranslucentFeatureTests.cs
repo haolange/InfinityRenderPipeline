@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void SceneColorKeys_WithoutOptionalStages_AreTheDeferredLighting()
         {
-            var keys = new SceneColorKeys(Recording(), ETemporalResolve.None, false);
+            var keys = new SceneColorKeys(Recording(), false, false);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.fogged);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.resolved);
@@ -32,16 +32,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void SceneColorKeys_FollowTheRecordedProducers()
         {
-            var keys = new SceneColorKeys(Recording(EFrameFeature.SSGI, EFrameFeature.VolumetricCloud), ETemporalResolve.TAA, true);
+            var keys = new SceneColorKeys(Recording(EFrameFeature.SSGI, EFrameFeature.VolumetricCloud), true, true);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque);
             Assert.AreEqual(InfinityShaderIDs.FoggedSceneColorBuffer, keys.fogged);
-            Assert.AreEqual(InfinityShaderIDs.AntiAliasingBuffer, keys.resolved);
+            Assert.AreEqual(InfinityShaderIDs.TemporalOutputBuffer, keys.resolved);
             Assert.AreEqual(InfinityShaderIDs.DebugViewBuffer, keys.display);
 
-            keys = new SceneColorKeys(Recording(EFrameFeature.SSR, EFrameFeature.VolumetricFog), ETemporalResolve.SuperResolution, false);
+            keys = new SceneColorKeys(Recording(EFrameFeature.SSR, EFrameFeature.VolumetricFog), true, false);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque);
             Assert.AreEqual(InfinityShaderIDs.FoggedSceneColorBuffer, keys.fogged);
-            Assert.AreEqual(InfinityShaderIDs.SuperResolutionBuffer, keys.resolved);
+            Assert.AreEqual(InfinityShaderIDs.TemporalOutputBuffer, keys.resolved);
         }
 
         [Test]
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var features = new FrameFeatureSet();
             features.Request(EFrameFeature.VolumetricFog);
             features.Request(EFrameFeature.SSR);
-            var keys = new SceneColorKeys(features, ETemporalResolve.None, false);
+            var keys = new SceneColorKeys(features, false, false);
             Assert.AreEqual(InfinityShaderIDs.LightingBuffer, keys.opaque, "An unsupported request records no composite.");
             Assert.AreEqual(keys.opaque, keys.fogged, "An unsupported request records no fog composite.");
         }

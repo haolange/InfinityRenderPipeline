@@ -34,7 +34,7 @@ Inside the band above a bound, opaque passes (depth, GBuffer, forward, motion an
 
 | Setting | Effect |
 |---|---|
-| Mobility | Dynamic poses are read every frame. Static poses are read when the entity is created and after `NotifyEntityChanged()`. In the Editor they also refresh after an undoable edit of the object or a parent (Scene view handles, the Transform inspector, layer changes), and, in Edit mode, after undo, redo and hierarchy changes such as reparenting or moving between scenes. **Refresh Renderer Proxy** on the pipeline asset, and the first frame of a Player, refresh every static pose. |
+| Mobility | Dynamic poses are read every frame. Static poses are read when the entity is created (including whenever a pipeline instance is created) and after `NotifyEntityChanged()`. In the Editor they also refresh after an undoable edit of the object or a parent (Scene view handles, the Transform inspector, layer changes), and, in Edit mode, after undo, redo and hierarchy changes such as reparenting or moving between scenes. |
 | Cast Shadow | Off by default. Static and Dynamic both join the shadow pass. |
 | Motion Vector | Object motion joins the motion pass, which reads the previous transform. |
 | Rendering Layer | The shared 8-bit mesh and light mask. Lighting reads it from the GBuffer and shadow views cull by it. |

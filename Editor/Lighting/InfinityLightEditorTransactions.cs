@@ -409,7 +409,6 @@ namespace InfinityTech.Component.Editor
             data = Undo.AddComponent<InfinityAdditionalLightData>(light.gameObject);
             Undo.RecordObject(data, "Initialize Infinity Light");
             data.maxDrawDistance = InfinityLightInspectorSnapshot.UnlimitedDistance;
-            data.shadowFilter = InfinityLightInspectorSnapshot.ResolveNativeShadowFilter(light.shadows);
             if (!authorShape)
             {
                 using var serialized = new SerializedObject(data);

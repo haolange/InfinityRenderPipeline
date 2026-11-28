@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(viewport, dimensions.outputViewport);
             Assert.AreEqual(new int2(width, height), dimensions.internalSize);
             Assert.AreEqual(new int2(641, 479), dimensions.displaySize);
-            Assert.IsTrue(dimensions.superResolution);
+            Assert.IsTrue(dimensions.upscaling);
             Assert.AreEqual(scale < 1, dimensions.downscaled);
         }
 
@@ -130,8 +130,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.enabled = false;
                 camera.targetTexture = target;
                 camera.cameraType = type;
-                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, .5f, null);
-                Assert.IsFalse(dimensions.superResolution);
+                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, 0.5f, null);
+                Assert.IsFalse(dimensions.upscaling);
                 Assert.AreEqual(dimensions.displaySize, dimensions.internalSize);
             }
             finally
@@ -152,9 +152,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.enabled = false;
                 camera.targetTexture = target;
                 var additional = go.AddComponent<InfinityAdditionalCameraData>();
-                additional.superResolutionOverride = ESuperResolutionOverride.Off;
-                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, .5f, additional);
-                Assert.IsFalse(dimensions.superResolution);
+                additional.temporalOverride = InfinityTech.Rendering.Temporal.ETemporalCameraOverride.Off;
+                var dimensions = CameraDimensionDescriptor.FromCamera(camera, true, 0.5f, additional);
+                Assert.IsFalse(dimensions.upscaling);
                 Assert.AreEqual(dimensions.displaySize, dimensions.internalSize);
                 Assert.AreEqual(camera.pixelRect, dimensions.outputViewport);
             }

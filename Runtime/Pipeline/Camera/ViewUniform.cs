@@ -25,5 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 view_DepthParameters;
         // TAA offsets in sampled framebuffer UV: this frame in xy, the previous committed frame in zw.
         public Vector4 view_JitterUV;
+        // Per-view temporal constants: x = surface mipBias, y = renderScale, z = frameIndex, w = upscaling (1 or 0).
+        public Vector4 view_TemporalParameters;
     }
 }

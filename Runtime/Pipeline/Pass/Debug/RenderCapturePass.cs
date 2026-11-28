@@ -260,11 +260,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "Motion":
                         id = InfinityShaderIDs.MotionBuffer;
                         break;
-                    case "SRAccumulation":
-                        id = InfinityShaderIDs.SRAccumulationBuffer;
-                        break;
-                    case "TAAAccumulation":
-                        id = InfinityShaderIDs.TAAAccumulationBuffer;
+                    case "TemporalAccumulation":
+                        id = InfinityShaderIDs.TemporalAccumulationBuffer;
                         break;
                     case "TAAReprojection":
                         id = InfinityShaderIDs.TAAReprojectionBuffer;
@@ -302,8 +299,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SceneColor":
                         id = context.sceneColor.fogged;
                         break;
-                    case "AntiAliasing":
-                        id = InfinityShaderIDs.AntiAliasingBuffer;
+                    case "TemporalOutput":
+                        id = InfinityShaderIDs.TemporalOutputBuffer;
                         break;
                     default:
                         throw new InvalidOperationException("Unknown capture buffer: " + buffer);

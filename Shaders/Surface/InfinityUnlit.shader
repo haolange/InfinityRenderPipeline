@@ -59,7 +59,7 @@ Shader "InfinityPipeline/InfinityUnlit"
 
             float4 Frag(Varyings input) : SV_Target
             {
-                float4 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv) * _BaseColor * input.color;
+                float4 albedo = _MainTex.SampleBias(sampler_MainTex, input.uv, ViewTemporalMipBias()) * _BaseColor * input.color;
                 return albedo;
             }
             ENDHLSL
@@ -121,7 +121,7 @@ Shader "InfinityPipeline/InfinityUnlit"
 #endif
                 out float4 motion : INFINITY_MOTION_TARGET)
             {
-                color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv) * _BaseColor * input.color;
+                color = _MainTex.SampleBias(sampler_MainTex, input.uv, ViewTemporalMipBias()) * _BaseColor * input.color;
 #if defined(INFINITY_WRITE_REACTIVE_MASK)
                 reactive = float4(color.a, 0, 0, 1);
 #endif

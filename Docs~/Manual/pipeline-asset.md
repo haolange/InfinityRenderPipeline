@@ -6,7 +6,11 @@ The pipeline asset owns quality and scene-wide rendering settings. Runtime shade
 
 The pipeline reads these values once when it is created. Edit them in the Inspector, which recreates the pipeline; a value written from script at run time has no effect.
 
-- `renderScale` in `[0.5, 1]` — Game cameras only, Super Resolution path. Internal size is `ceil(display * scale)`.
+- Temporal Reconstruction:
+  - `Temporal Backend`: `None`, `Native`, `STP`, `FSR`, `SGSR`, `XeSS`, or `DLSS`. Backends without native platform support (`XeSS` / `DLSS` on macOS Metal) show an unsupported notice and fall back automatically (`FSR -> STP -> Native`).
+  - `Reconstruction Mode`: `NativeAA` (`1.0x`) or `Upscaling` (quality-preset scaling for Game cameras). Single-mode backends such as `SGSR` lock effective mode to `Upscaling` in the Inspector without altering the saved asset value.
+  - `Upscale Quality`: 5 fixed tiers (`UltraPerformance`, `Performance`, `Balanced`, `Quality`, `UltraQuality`). Active when `Upscaling` is active; the Inspector shows resolved `Effective Scale` and `Texture Mip Bias`.
+  - `Output Sharpness`: display-only sharpening factor in `[0, 1]`.
 - Opaque Color Path: the GBuffer, Scene Color, sideband and motion formats are fixed (128 bits of geometry color per pixel); the Inspector shows their status. Depth Stencil Format is `D24S8` or `D32FS8`; an unsupported choice falls back to the other with a platform-override status, and a device with neither, or without a required color format, cannot create the pipeline. Rendering Layers enables the four light channels on deferred surfaces.
 - Optional `qualityVolumeProfile` passed to `VolumeManager.Initialize(default, quality)`.
 - Shadows ([Shadows](shadows.md)), the light-probe system and Adaptive Probe Volumes ([Baked lighting](baked-gi.md)), reflection-probe resolution and slot count, the cookie atlas, frame settings for cameras and reflection-probe captures, output mode, and default materials.

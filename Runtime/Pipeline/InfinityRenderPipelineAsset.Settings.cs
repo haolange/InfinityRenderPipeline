@@ -14,11 +14,8 @@ namespace InfinityTech.Rendering.Pipeline
         // construction; an Inspector edit recreates the pipeline (RenderPipelineAsset.OnValidate), so it never goes stale.
         internal readonly struct Settings
         {
-            // Editor only: refresh static renderer poses when the pipeline is created.
-            internal readonly bool updateProxy;
-            internal readonly bool enableRayTrace, enableSuperResolution, enableSRPBatch, enableInstanceBatch;
+            internal readonly bool enableRayTrace, enableSRPBatch, enableInstanceBatch;
             internal readonly EMeshDrawBackendPolicy meshBackendPolicy;
-            internal readonly float renderScale;
             internal readonly AtmosphericalProfile atmosphericalProfile;
             internal readonly DiffusionProfile[] diffusionProfiles;
             internal readonly int diffusionProfileCount;
@@ -48,13 +45,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             internal Settings(InfinityRenderPipelineAsset asset)
             {
-                updateProxy = asset.updateProxy;
                 enableRayTrace = asset.enableRayTrace;
-                enableSuperResolution = asset.enableSuperResolution;
                 enableSRPBatch = asset.enableSRPBatch;
                 enableInstanceBatch = asset.enableInstanceBatch;
                 meshBackendPolicy = asset.meshBackendPolicy;
-                renderScale = asset.m_RenderScale;
                 atmosphericalProfile = asset.atmosphericalProfile;
                 diffusionProfiles = asset.diffusionProfiles;
                 diffusionProfileCount = diffusionProfiles != null ? diffusionProfiles.Length : 0;
@@ -91,15 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 enableAnalyticShadow = asset.m_EnableAnalyticShadow;
                 enableAnalyticIndirectOcclusion = asset.m_EnableAnalyticIndirectOcclusion;
                 enableAnalyticDirectShadow = asset.m_EnableAnalyticDirectShadow;
-                ETemporalBackend authoredBackend = asset.m_TemporalBackend;
-                if (authoredBackend == ETemporalBackend.NativeTAA && asset.enableSuperResolution)
-                {
-                    authoredBackend = ETemporalBackend.NativeTAAU;
-                }
-                ETemporalReconstructionMode authoredMode = asset.enableSuperResolution && asset.m_TemporalMode == ETemporalReconstructionMode.NativeAA
-                    ? ETemporalReconstructionMode.Upscaling
-                    : asset.m_TemporalMode;
-                temporal = new TemporalSettings(authoredBackend, authoredMode, asset.m_TemporalQuality, asset.m_RenderResolutionPolicy, asset.m_RenderScale, asset.m_TemporalSharpness);
+                temporal = new TemporalSettings(asset.m_TemporalBackend, asset.m_TemporalMode, asset.m_TemporalQuality, asset.m_TemporalSharpness);
                 config = default;
                 config = PipelineConfigurationResolver.Evaluate(in this, DeviceCapabilitySnapshot.FromCurrentDevice());
             }

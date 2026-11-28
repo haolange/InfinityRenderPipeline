@@ -73,31 +73,31 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             var state = context.state;
-            bool sr = context.temporalResolve == ETemporalResolve.SuperResolution;
-            int2 size = sr ? context.dimensions.displaySize : context.dimensions.internalSize;
-            var domain = sr ? ETextureSizingDomain.Display : ETextureSizingDomain.Internal;
-            int colorID = sr ? SuperResolutionPassUtilityData.HistoryColorTextureID : AntiAliasingUtilityData.HistoryColorTextureID;
-            HistoryRead colorRead = context.historyCache.Read(colorID, AntiAliasingPass.TemporalColorDescriptor(size.x, size.y,
-                sr ? "HistorySuperResolutionColor" : "HistoryColorTexture", true, domain), context.resetsHistory);
+            int2 size = context.dimensions.displaySize;
+            var domain = ETextureSizingDomain.Display;
+            TextureDescriptor historyDescriptor = TemporalReconstructionUtility.TemporalColorDescriptor(size.x, size.y,
+                TemporalReconstructionUtility.HistoryColorTextureName, true, domain);
+            HistoryRead colorRead = context.historyCache.Read(TemporalReconstructionUtility.HistoryColorTextureID, historyDescriptor, context.resetsHistory);
             int2 baseSize = math.max(1, size / 2);
-            var descriptor = AntiAliasingPass.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
+            var descriptor = TemporalReconstructionUtility.TemporalColorDescriptor(baseSize.x, baseSize.y, "TemporalColorMips", true, domain);
             descriptor.viewDivisor = 2;
             descriptor.useMipMap = true;
             descriptor.autoGenerateMips = false;
             descriptor.filterMode = FilterMode.Bilinear;
             var mips = m_RGBuilder.scoper.CreateAndRegisterTexture(InfinityShaderIDs.TemporalColorMipBuffer, descriptor);
             TemporalCameraState temporalState = state.GetTemporalState();
+            bool sameDimensions = math.all(temporalState.committedDisplaySize == size);
             var source = new TemporalColorView
             {
                 colorHandle = m_RGBuilder.ImportTexture(colorRead.textureHandle), mipsHandle = mips,
                 resolution = new Vector4(size.x, size.y, 1f / size.x, 1f / size.y),
                 mipCount = PyramidMipBatch.MipCount(size.x, size.y),
-                valid = temporalState.acceptedTemporalColor && temporalState.acceptedTemporalColorIsUpscaled == sr && colorRead.valid
+                valid = temporalState.acceptedTemporalColor && sameDimensions && colorRead.valid
             };
             temporalState.temporalColorView = source;
             m_RGBuilder.scoper.RegisterTexture(InfinityShaderIDs.TemporalColorSourceBuffer, source.colorHandle);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            RenderCaptureService.current?.RecordTemporalColorState(context.camera, source, sr);
+            RenderCaptureService.current?.RecordTemporalColorState(context.camera, source, context.temporalRequirements.isUpscaling);
 #endif
             {
                 RGComputePassHandle<TemporalColorMipData> passHandle = m_RGBuilder.AddComputePass<TemporalColorMipData>(ProfilingSampler.Get(CustomSamplerId.ComputeTemporalColorPyramid));

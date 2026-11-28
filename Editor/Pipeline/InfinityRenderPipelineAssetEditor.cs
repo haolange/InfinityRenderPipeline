@@ -12,10 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
     {
         const string FoldoutPrefix = "InfinityRP.Asset.Foldout.";
 
-        SerializedProperty m_UpdateProxy;
         SerializedProperty m_RayTrace;
-        SerializedProperty m_SuperResolution;
-        SerializedProperty m_RenderScale;
         SerializedProperty m_SRPBatch;
         SerializedProperty m_GPUInstance;
         SerializedProperty m_MeshBackendPolicy;
@@ -60,16 +57,12 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_TemporalBackend;
         SerializedProperty m_TemporalMode;
         SerializedProperty m_TemporalQuality;
-        SerializedProperty m_RenderResolutionPolicy;
         SerializedProperty m_TemporalSharpness;
         bool m_ShowEffectiveConfiguration;
 
         void OnEnable()
         {
-            m_UpdateProxy = serializedObject.FindProperty("updateProxy");
             m_RayTrace = serializedObject.FindProperty("enableRayTrace");
-            m_SuperResolution = serializedObject.FindProperty("enableSuperResolution");
-            m_RenderScale = serializedObject.FindProperty("m_RenderScale");
             m_SRPBatch = serializedObject.FindProperty("enableSRPBatch");
             m_GPUInstance = serializedObject.FindProperty("enableInstanceBatch");
             m_MeshBackendPolicy = serializedObject.FindProperty("meshBackendPolicy");
@@ -114,7 +107,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_TemporalBackend = serializedObject.FindProperty("m_TemporalBackend");
             m_TemporalMode = serializedObject.FindProperty("m_TemporalMode");
             m_TemporalQuality = serializedObject.FindProperty("m_TemporalQuality");
-            m_RenderResolutionPolicy = serializedObject.FindProperty("m_RenderResolutionPolicy");
             m_TemporalSharpness = serializedObject.FindProperty("m_TemporalSharpness");
         }
 
@@ -216,7 +208,6 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batcher"));
                 EditorGUILayout.PropertyField(m_MeshBackendPolicy);
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instancing"));
-                EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("Refresh Renderer Proxy"));
                 EditorGUILayout.PropertyField(m_RayTrace, new GUIContent("Unified Ray Tracing"));
                 EditorGUILayout.PropertyField(m_QualityVolumeProfile, new GUIContent("Quality Volume Profile"));
                 EditorGUILayout.PropertyField(m_OutputMode, new GUIContent("Output Mode"));
@@ -231,6 +222,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 DrawResolvedField(m_DepthStencilFormat, new GUIContent("Depth Stencil Format", "Main camera depth buffer. The stencil holds the object-motion, deferred and subsurface admission bits."), resolvedConfig.depthStencilState);
                 DrawResolvedField(m_EnableRenderingLayers, new GUIContent("Rendering Layers", "Writes the object's four light channels into the sideband so lights, clustered decals and analytic occluders filter per pixel."), ConfigFieldState.Supported);
 
+                ++EditorGUI.indentLevel;
                 m_ShowEffectiveConfiguration = EditorGUILayout.Foldout(m_ShowEffectiveConfiguration, "Effective Configuration", true);
                 if (m_ShowEffectiveConfiguration)
                 {
@@ -243,10 +235,16 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                         EditorGUILayout.TextField("Geometry Color", $"{resolvedConfig.geometryColorBitsPerPixel} bit");
                         EditorGUILayout.TextField("Motion", EffectivePipelineConfiguration.MotionFormat.ToString());
                         EditorGUILayout.TextField("Depth Stencil", resolvedConfig.depthStencilFormat.ToString());
-                        EditorGUILayout.TextField("Effective TRC", $"{resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x)");
+                        string trcSummary = $"{resolvedConfig.effectiveTemporalBackend} ({resolvedConfig.effectiveTemporalMode}, {resolvedConfig.effectiveRenderScale:0.00}x, MipBias {resolvedConfig.effectiveTemporalMipBias:0.00})";
+                        if (resolvedConfig.hasTemporalFallback)
+                        {
+                            trcSummary += $" [Fallback from {resolvedConfig.requestedTemporalBackend}]";
+                        }
+                        EditorGUILayout.TextField("Effective TRC", trcSummary);
                     }
                     --EditorGUI.indentLevel;
                 }
+                --EditorGUI.indentLevel;
             }
             InfinityInspectorGUI.EndFoldout();
 
@@ -328,13 +326,15 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             // 7. Temporal Reconstruction (TRC)
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "TemporalReconstruction", "Temporal Reconstruction"))
             {
-                DrawResolvedField(m_TemporalBackend, new GUIContent("Temporal Backend", "Unified Temporal Reconstruction provider backend (Native TAA, Native TAAU, or extensible external SDK backends)."), resolvedConfig.temporalBackendState);
-                DrawResolvedField(m_TemporalMode, new GUIContent("Reconstruction Mode", "NativeAA (1.0x), Upscaling, or Supersampling."), resolvedConfig.temporalModeState);
-                DrawResolvedField(m_RenderResolutionPolicy, new GUIContent("Resolution Policy", "Controls whether render scale is fixed manually or driven by Quality Preset."), ConfigFieldState.Supported);
-                DrawResolvedField(m_TemporalQuality, new GUIContent("Quality Preset", "Quality preset scale factor when Resolution Policy is QualityPreset."), resolvedConfig.temporalQualityState);
-                DrawResolvedField(m_RenderScale, new GUIContent("Render Scale", "Manual render scale [0.5, 1.0] when FixedScale upscaling is active."), resolvedConfig.renderScaleState);
-                EditorGUILayout.PropertyField(m_TemporalSharpness, new GUIContent("Output Sharpness", "Display-only contrast adaptive sharpening (never fed back into history)."));
-                EditorGUILayout.PropertyField(m_SuperResolution, new GUIContent("Legacy Super Resolution Toggle", "Synchronized with Native TAAU when m_TemporalBackend is NativeTAA."));
+                DrawResolvedField(m_TemporalBackend, new GUIContent("Temporal Backend", "Unified Temporal Reconstruction backend (Native, STP, FSR 3.1, SGSR v2, or platform-gated XeSS/DLSS)."), resolvedConfig.temporalBackendState, allowEditWhenUnsupported: true);
+                DrawResolvedField(m_TemporalMode, new GUIContent("Reconstruction Mode", "NativeAA (1.0x) or Upscaling driven by the quality tier table."), resolvedConfig.temporalModeState);
+                DrawResolvedField(m_TemporalQuality, new GUIContent("Upscale Quality", "Fixed quality preset scale factor active in Upscaling mode."), resolvedConfig.temporalQualityState);
+                using (new EditorGUI.DisabledScope(true))
+                {
+                    EditorGUILayout.FloatField(new GUIContent("Effective Scale", "Resolved internal resolution scale for the active backend, mode, and quality preset."), resolvedConfig.effectiveRenderScale);
+                    EditorGUILayout.FloatField(new GUIContent("Texture Mip Bias", "O(1) per-camera surface mip bias applied in ViewUniform."), resolvedConfig.effectiveTemporalMipBias);
+                }
+                DrawResolvedField(m_TemporalSharpness, new GUIContent("Output Sharpness", "Display-only sharpening strength (never fed back into temporal history)."), resolvedConfig.temporalSharpnessState);
             }
             InfinityInspectorGUI.EndFoldout();
 
@@ -360,9 +360,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             EditorGUILayout.Space();
             if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeShaders shaders) && shaders != null)
             {
-                EditorGUILayout.HelpBox(shaders.taaShader != null
+                bool allTemporalPresent = shaders.taaShader != null
+                    && shaders.temporalStpShader != null
+                    && shaders.temporalFsrShader != null
+                    && shaders.temporalSgsrShader != null;
+                EditorGUILayout.HelpBox(allTemporalPresent
                     ? "Runtime shaders resolved from Global Settings."
-                    : "Runtime shaders are registered but TAA is missing. Open Project Settings > Graphics > Infinity RP.", MessageType.Info);
+                    : "Runtime shaders are registered, but one or more Temporal shaders (TAA, STP, FSR, SGSR) are missing. Open Project Settings > Graphics > Infinity RP.",
+                    allTemporalPresent ? MessageType.Info : MessageType.Warning);
             }
             else
             {

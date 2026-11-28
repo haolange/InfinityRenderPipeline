@@ -77,7 +77,7 @@ Shader "InfinityPipeline/InfinityDecal"
 
 				float2 uv = DecalProjectedUV(objectPos);
 				float3 decalNormalWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 1, 0)));
-				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
+				float4 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, uv) * _BaseColor;
 				albedo.rgb *= _Occlusion;
 				albedo.a *= DecalAngleFade(worldPos, decalNormalWS, _WorldSpaceCameraPos);
 				clip(albedo.a - 1e-4);
@@ -151,7 +151,7 @@ Shader "InfinityPipeline/InfinityDecal"
 
 				float2 uv = DecalProjectedUV(objectPos);
 				float3 decalNormalWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 1, 0)));
-				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
+				float4 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, uv) * _BaseColor;
 				albedo.rgb *= _Occlusion;
 				albedo.a *= DecalAngleFade(worldPos, decalNormalWS, _WorldSpaceCameraPos);
 				clip(albedo.a - 1e-4);
@@ -221,7 +221,7 @@ Shader "InfinityPipeline/InfinityDecal"
 
 				float2 uv = DecalProjectedUV(objectPos);
 				float3 decalNormalWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 1, 0)));
-				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
+				float4 albedo = InfinitySampleSurface2D(_MainTex, sampler_MainTex, uv) * _BaseColor;
 				albedo.a *= DecalAngleFade(worldPos, decalNormalWS, _WorldSpaceCameraPos);
 				clip(albedo.a - 0.5);
 

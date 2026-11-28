@@ -104,7 +104,6 @@ namespace InfinityTech.Component
                 return;
             }
             FreezeNativeShape();
-            m_ShadowFilter = light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF;
 #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(this);
 #endif

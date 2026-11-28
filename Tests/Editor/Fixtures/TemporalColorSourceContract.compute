@@ -4,14 +4,16 @@
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;
 float4 ContractMotion;
+float4x4 ContractInverseVP;
 float4x4 ContractPreviousVP;
+float4x4 ContractCurrentMotionVP;
+float4x4 ContractPreviousMotionVP;
 [numthreads(1,1,1)]
 void SampleSource(uint3 id : SV_DispatchThreadID)
 {
     float4 input = ContractInputs[id.x];
     float confidence;
-    float4x4 identity = float4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
     float3 color = SampleTemporalHitColor(input.xy,input.z,ContractMotion.xy,input.w,
-        identity,ContractPreviousVP,identity,identity,confidence);
+        ContractInverseVP,ContractPreviousVP,ContractCurrentMotionVP,ContractPreviousMotionVP,confidence);
     ContractResults[id.x] = float4(color,confidence);
 }

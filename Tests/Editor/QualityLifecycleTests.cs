@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var a = new CameraDimensionDescriptor(new Unity.Mathematics.int2(1920, 1080), 0.75f, true, new Rect(0, 0, 1920, 1080));
             var b = new CameraDimensionDescriptor(new Unity.Mathematics.int2(1920, 1080), 0.75f, true, new Rect(0, 0, 1920, 1080));
             Assert.AreEqual(a.internalSize, b.internalSize);
-            Assert.IsTrue(a.superResolution);
+            Assert.IsTrue(a.upscaling);
             Assert.AreEqual(1440, a.internalSize.x);
             Assert.AreEqual(810, a.internalSize.y);
         }

@@ -161,7 +161,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(3.0f, bareData.shape.sourceWidth, 1e-5f);
                 Assert.AreEqual(1.0f, bareData.shape.sourceHeight, 1e-5f);
                 Assert.AreEqual(0.0f, bareData.maxDrawDistance, "No distance fade, like a light without the component.");
-                Assert.AreEqual(EShadowFilter.Hard, bareData.shadowFilter);
+                Assert.AreEqual(EShadowFilter.PCF, bareData.shadowFilter);
                 Assert.IsTrue(sunData.shapeAuthored);
                 Assert.AreEqual(2.5f, sunData.shape.sourceAngle, 1e-5f);
                 Assert.AreEqual(EShadowFilter.PCSS, sunData.shadowFilter, "Freezing keeps the light's shadow filter.");
@@ -409,7 +409,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsNotNull(data);
                 Assert.AreEqual(0.4f, data.diffuse, 1e-6f);
                 Assert.AreEqual(0, data.maxDrawDistance);
-                Assert.AreEqual(EShadowFilter.Hard, data.shadowFilter);
+                Assert.AreEqual(EShadowFilter.PCF, data.shadowFilter);
                 Assert.IsFalse(data.shapeAuthored);
                 Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
                 Undo.PerformUndo();
@@ -420,7 +420,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsNotNull(data);
                 Assert.AreEqual(0.4f, data.diffuse, 1e-6f);
                 Assert.AreEqual(0, data.maxDrawDistance);
-                Assert.AreEqual(EShadowFilter.Hard, data.shadowFilter);
+                Assert.AreEqual(EShadowFilter.PCF, data.shadowFilter);
                 Assert.IsFalse(data.shapeAuthored);
                 Assert.AreEqual(native, EditorJsonUtility.ToJson(light));
             }
@@ -449,6 +449,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual((bare.flags & LightRecordFlags.EnableVolumetric) != 0, beforeSnapshot.enableVolumetric);
                 Assert.AreEqual(bare.lightLayer, (int)beforeSnapshot.lightLayer);
                 Assert.AreEqual(bare.shadowFilter, before.FindProperty("m_ShadowFilter").enumValueIndex);
+                Assert.AreEqual((int)EShadowFilter.PCF, bare.shadowFilter);
                 Assert.AreEqual(0f, beforeSnapshot.maxDrawDistance);
 
                 after.FindProperty("maxDrawDistanceFade").floatValue = 2;
@@ -462,6 +463,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(bare.flags, prepared.flags);
                 Assert.AreEqual(bare.lightLayer, prepared.lightLayer);
                 Assert.AreEqual(bare.shadowFilter, prepared.shadowFilter);
+                Assert.AreEqual(EShadowFilter.PCF, data.shadowFilter);
                 Assert.AreEqual(bare.radiance, prepared.radiance);
             }
         }
@@ -1254,6 +1256,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 DrawEditorHostPass(new Object[] { plainSpot, diskCone }, 420f);
                 DrawEditorHostPass(new Object[] { tubeLight, boxLight }, 260f);
 
+                // Zero-size PCSS and mixed Cast Shadows multi-selection render without exceptions.
+                boxLight.shadows = LightShadows.Soft;
+                boxData.shadowFilter = EShadowFilter.PCSS;
+                directional.shadows = LightShadows.None;
+                DrawEditorHostPass(new Object[] { boxLight }, 360f);
+                DrawEditorHostPass(new Object[] { boxLight, directional }, 360f);
+
                 Assert.IsNull(plainSpot.GetComponent<InfinityAdditionalLightData>(),
                     "Inspecting a plain Unity Light must never lazily add InfinityAdditionalLightData.");
             }
@@ -1311,6 +1320,70 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     GUIUtility.hotControl = previousHotControl;
                     InfinityLightEditorTransactions.SyncDragState();
+                }
+            }
+        }
+
+        [Test]
+        public void HasPCSSSize_MatchesEmitterGeometryAcrossAllShapes()
+        {
+            var sun = LightSourceShape.DefaultDirectional();
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(sun));
+            sun.sourceAngle = 0f;
+            Assert.IsFalse(LightShapeUtility.HasPCSSSize(sun));
+
+            var point = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Omnidirectional);
+            Assert.IsFalse(LightShapeUtility.HasPCSSSize(point));
+            var sphere = point;
+            sphere.sourceRadius = 0.2f;
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(sphere));
+            var line = point;
+            line.sourceLength = 1.0f;
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(line));
+            var tube = point;
+            tube.sourceRadius = 0.1f;
+            tube.sourceLength = 1.0f;
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(tube));
+
+            var cone = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Cone);
+            Assert.IsFalse(LightShapeUtility.HasPCSSSize(cone));
+            cone.sourceRadius = 0.15f;
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(cone));
+
+            var pyramid = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.Pyramid);
+            Assert.IsFalse(LightShapeUtility.HasPCSSSize(pyramid));
+            pyramid.sourceRadius = 0.15f;
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(pyramid));
+
+            var box = LightSourceShape.DefaultLocal(ELocalLightEmitter.Round, ELocalLightDistribution.ParallelBox);
+            Assert.IsFalse(LightShapeUtility.HasPCSSSize(box));
+
+            var rect = LightSourceShape.DefaultLocal(ELocalLightEmitter.Rectangle, ELocalLightDistribution.Hemisphere);
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(rect));
+
+            var disk = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Hemisphere);
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(disk));
+
+            var diskCone = LightSourceShape.DefaultLocal(ELocalLightEmitter.Disk, ELocalLightDistribution.Cone);
+            Assert.IsTrue(LightShapeUtility.HasPCSSSize(diskCone));
+        }
+
+        [Test, Category("LightInspector")]
+        public void ShadowFilter_RemainsIndependentOfNativeLightShadowsToggle()
+        {
+            using (var fixture = new LightInspectorFixture())
+            {
+                Light light = fixture.NewLight(LightType.Spot);
+                var data = light.gameObject.AddComponent<InfinityAdditionalLightData>();
+                data.shadowFilter = EShadowFilter.EVSM;
+
+                foreach (LightShadows mode in new[] { LightShadows.None, LightShadows.Hard, LightShadows.Soft })
+                {
+                    light.shadows = mode;
+                    var visible = VisibleLightTestUtility.FromLight(light);
+                    Assert.IsTrue(LightRecordPack.TryPack(visible, light, data, data.shape, 0, Vector3.zero, out LightRecord record));
+                    Assert.AreEqual((int)EShadowFilter.EVSM, record.shadowFilter);
+                    Assert.AreEqual(EShadowFilter.EVSM, data.shadowFilter);
                 }
             }
         }

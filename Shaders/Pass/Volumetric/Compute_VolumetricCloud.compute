@@ -164,7 +164,7 @@ float3 EvaluateCloudLight(LightRecord light, float3 samplePos, float3 rayDir, fl
     if (directional)
     {
         L = DirectionalLightL(light);
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadowVolumetric(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
     }
     else
     {
@@ -177,7 +177,7 @@ float3 EvaluateCloudLight(LightRecord light, float3 samplePos, float3 rayDir, fl
                 LightPlanarCookie(light, 0.5, 1.0, planarDiffuse, planarSpecular);
                 planarCookie = planarDiffuse;
             }
-            shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
+            shadow = SampleLocalShadowVolumetric(SRV_LocalShadowMap, light, samplePos);
         }
     }
 

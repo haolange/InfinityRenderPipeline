@@ -19,6 +19,7 @@ namespace InfinityTech.Component.Editor
     {
         const string FoldoutPrefix = "InfinityRP.Light.Foldout.";
         static readonly GUIContent s_UseTemperatureLabel = new GUIContent("Use Temperature", "Tint the light by its color temperature.");
+        static readonly GUIContent s_CastShadowsLabel = new GUIContent("Cast Shadows", "Enable realtime and baked shadows for this light.");
         static readonly GUIContent s_CasterLayersLabel = new GUIContent("Caster Layers");
         static readonly GUIContent s_OuterAngleLabel = new GUIContent("Outer Angle", "Outer cone angle in degrees.");
         static readonly GUIContent s_InnerAngleLabel = new GUIContent("Inner Angle", "Inner cone falloff start angle in degrees.");
@@ -155,12 +156,14 @@ namespace InfinityTech.Component.Editor
             bool allPlanarEmitterCookie = true;
             bool all2DIesSupported = true;
             bool allShadowed = true;
+            bool anyShadowed = false;
             bool allDistanceLimited = true;
             bool allAdditionalEnabled = true;
             bool allRealtimeMode = true;
             bool anyBakeDisabled = false;
             bool anyLocalLux = false;
             string bakeDisabledReason = null;
+            string pcssZeroSizeMessage = null;
             EResolvedLightShape commonResolved = default;
             bool mixedResolved = false;
 
@@ -183,7 +186,9 @@ namespace InfinityTech.Component.Editor
                 anyPlanarCookie |= !capabilities.supportsCubeCookie;
                 allPlanarEmitterCookie &= capabilities.isPlanar;
                 all2DIesSupported &= capabilities.supports2DIes;
-                allShadowed &= light.shadows != LightShadows.None;
+                bool shadowed = light.shadows != LightShadows.None;
+                allShadowed &= shadowed;
+                anyShadowed |= shadowed;
                 allDistanceLimited &= m_Before[i].maxDrawDistance > 0f;
                 allAdditionalEnabled &= m_AdditionalTargets[i] && ((InfinityAdditionalLightData)m_AdditionalTargets[i]).enabled;
                 allRealtimeMode &= light.lightmapBakeType == LightmapBakeType.Realtime;
@@ -199,6 +204,11 @@ namespace InfinityTech.Component.Editor
                     commonResolved = resolved;
                 else if (commonResolved != resolved)
                     mixedResolved = true;
+
+                if (shadowed && m_Before[i].shadowFilter == EShadowFilter.PCSS && !LightShapeUtility.HasPCSSSize(source))
+                {
+                    pcssZeroSizeMessage ??= ZeroSizePCSSMessage(resolved);
+                }
 
                 LightUnit displayUnit = LightIntensityUtility.ResolveDisplayUnit(light, source);
                 if (source.kind == ELightKind.Local && resolved != EResolvedLightShape.SpotBox && displayUnit == LightUnit.Lux)
@@ -231,7 +241,7 @@ namespace InfinityTech.Component.Editor
                 DrawCookies(additionalOwner, !mixedKind && kind == ELightKind.Directional, allPlanarEmitterCookie, anyCubeCookie, mixedCookieDimensions, allLocal, all2DIesSupported);
 
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Shadows", "Shadows"))
-                DrawShadows(additionalOwner, allLocal, allShadowed, allAdditionalEnabled);
+                DrawShadows(additionalOwner, allLocal, allShadowed, anyShadowed, allAdditionalEnabled, pcssZeroSizeMessage);
 
             if (InfinityLightInspectorGUI.Section(FoldoutPrefix + "Volumetric", "Volumetric"))
                 DrawVolumetric(additionalOwner);
@@ -708,9 +718,20 @@ namespace InfinityTech.Component.Editor
             }
         }
 
-        void DrawShadows(SerializedObject additionalOwner, bool allLocal, bool allShadowed, bool allAdditionalEnabled)
+        void DrawShadows(SerializedObject additionalOwner, bool allLocal, bool allShadowed, bool anyShadowed, bool allAdditionalEnabled, string pcssZeroSizeMessage)
         {
-            Field(serializedObject, "m_Shadows.m_Type", "Mode");
+            SerializedProperty shadowType = GetProperty(serializedObject, "m_Shadows.m_Type");
+            Rect shadowToggleRow = EditorGUILayout.GetControlRect();
+            using (new EditorGUI.PropertyScope(shadowToggleRow, s_CastShadowsLabel, shadowType))
+            {
+                bool previousMixed = EditorGUI.showMixedValue;
+                EditorGUI.showMixedValue = anyShadowed && !allShadowed;
+                using var change = new EditorGUI.ChangeCheckScope();
+                bool castShadows = EditorGUI.Toggle(shadowToggleRow, s_CastShadowsLabel, allShadowed);
+                EditorGUI.showMixedValue = previousMixed;
+                if (change.changed)
+                    shadowType.intValue = (int)(castShadows ? LightShadows.Soft : LightShadows.None);
+            }
             using (new EditorGUI.DisabledScope(!allShadowed))
             {
                 EditorGUILayout.Slider(GetProperty(serializedObject, "m_Shadows.m_Strength"), 0f, 1f, new GUIContent("Strength"));
@@ -720,6 +741,8 @@ namespace InfinityTech.Component.Editor
                 DrawCasterLayers();
                 serializedObject.ApplyModifiedProperties();
                 EditField(additionalOwner, "m_ShadowFilter", "Filter");
+                if (pcssZeroSizeMessage != null)
+                    EditorGUILayout.HelpBox(pcssZeroSizeMessage, MessageType.Info);
                 if (allLocal)
                 {
                     SerializedProperty updateMode = GetProperty(additionalOwner, "m_ShadowUpdateMode");
@@ -768,6 +791,14 @@ namespace InfinityTech.Component.Editor
             else if (isEmitterTexture)
                 EditorGUILayout.HelpBox("The cookie is used as the emitter texture.", MessageType.Info);
         }
+
+        static string ZeroSizePCSSMessage(EResolvedLightShape resolved) => resolved switch
+        {
+            EResolvedLightShape.SpotBox => "Parallel Box lights emit a collimated beam with no emitter radius; PCSS falls back to PCF.",
+            EResolvedLightShape.Directional => "Sun Diameter is 0°; PCSS falls back to PCF until Sun Diameter is above 0.",
+            EResolvedLightShape.Point => "Source Radius and Source Length are 0; PCSS falls back to PCF until Source Radius or Source Length is above 0.",
+            _ => "Source Radius is 0; PCSS falls back to PCF until Source Radius is above 0.",
+        };
 
         void DrawCasterLayers()
         {

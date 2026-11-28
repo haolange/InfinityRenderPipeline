@@ -329,8 +329,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
             string name = s_Phases[m_Evidence.phase], directory = Path.Combine(m_Evidence.directory, name);
             string[] buffers = m_Request.temporalStages
-                ? new[] { "DisplayColor", "TAAInput", "TAAHistoryColor", "TAAAccumulation", "TAAReprojection", "AntiAliasing", "Motion", "Depth" }
-                : new[] { "DisplayColor", "SceneColor", "AntiAliasing", "Motion", "Depth" };
+                ? new[] { "DisplayColor", "TAAInput", "TAAHistoryColor", "TemporalAccumulation", "TAAReprojection", "TemporalOutput", "Motion", "Depth" }
+                : new[] { "DisplayColor", "SceneColor", "TemporalOutput", "Motion", "Depth" };
             RenderCaptureService.Start(new RenderCaptureRequest { outputDirectory = directory, fixture = "CameraMotion-" + name,
                 scene = m_Request.scene, camera = camera.name, cameraEntity = camera.GetEntityId().ToString(), cameraType = m_Request.cameraType,
                 useFirstFrameDimensions = m_Evidence.phase == 3 || m_Evidence.phase == 4 || m_Evidence.phase == 5, waitForSizeChangeFrom = m_Evidence.phase == 3 || m_Evidence.phase == 5 ? m_PreviousSize : Vector2Int.zero,

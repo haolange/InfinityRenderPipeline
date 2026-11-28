@@ -117,6 +117,21 @@ float SampleShadowHard(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
     return ShadowLit(compareZ + dot(gradient, sampleUV - uv), shadowMap.SampleLevel(Global_point_clamp_sampler, sampleUV, 0));
 }
 
+// Single GatherRed 2x2 bilinear depth comparison clamped strictly inside the tile (O(1), for volumetric receivers).
+float SampleShadowBilinear2x2(Texture2D<float> shadowMap, float2 uv, float compareZ, float2 texelSize, float4 clipRect)
+{
+    float2 position = uv / texelSize - 0.5;
+    int2 tileMin = (int2)round(clipRect.xy / texelSize);
+    int2 tileMax = max(tileMin, (int2)round((clipRect.xy + clipRect.zw) / texelSize) - 2);
+    int2 block = clamp((int2)floor(position), tileMin, tileMax);
+    float2 fracPos = saturate(position - float2(block));
+    float4 depths = shadowMap.GatherRed(Global_point_clamp_sampler, (float2(block) + 1.0) * texelSize);
+    // Gather order: w = (x, y), z = (x + 1, y), x = (x, y + 1), y = (x + 1, y + 1).
+    float bottom = lerp(ShadowLit(compareZ, depths.w), ShadowLit(compareZ, depths.z), fracPos.x);
+    float top = lerp(ShadowLit(compareZ, depths.x), ShadowLit(compareZ, depths.y), fracPos.x);
+    return lerp(bottom, top, fracPos.y);
+}
+
 // Tent PCF from GatherRed: each gather fetches a 2x2 texel block, every texel is compared at the receiver plane depth
 // of its own center and weighted by the tent of half-width radius + 0.5 texels. No comparison sampler is needed.
 float SampleShadowTent(Texture2D<float> shadowMap, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float radius, float2 gradient)
@@ -395,6 +410,14 @@ float FilterShadowDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv
         float4(1.0, 0.0, lightSize, PCSS_SHAPE_DISK), float4(0.0, 1.0, lightSize, 1.0), 0.0);
 }
 
+float FilterShadowVolumetricDepth(Texture2D<float> shadowMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect)
+{
+    float shadow = 1.0;
+    if (light.shadowFilter != SHADOW_FILTER_VSM && light.shadowFilter != SHADOW_FILTER_EVSM)
+        shadow = SampleShadowBilinear2x2(shadowMap, uv, compareZ, texelSize, clipRect);
+    return shadow;
+}
+
 #if defined(INFINITY_CASCADE_SHADOW_MOMENTS) || defined(INFINITY_LOCAL_SHADOW_MOMENTS)
 float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize,
     float4 emitterAxisU, float4 emitterAxisV, float apexOffset)
@@ -419,9 +442,24 @@ float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, Ligh
     return FilterShadow(shadowMap, momentMap, light, uv, compareZ, texelSize, clipRect, gradient, depthParams, invFar, lightSize,
         float4(1.0, 0.0, lightSize, PCSS_SHAPE_DISK), float4(0.0, 1.0, lightSize, 1.0), 0.0);
 }
+
+float FilterShadowVolumetric(Texture2D<float> shadowMap, Texture2D<float4> momentMap, LightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float4 depthParams, float invFar)
+{
+    float shadow = 1.0;
+    if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
+    {
+        int mode = light.shadowFilter == SHADOW_FILTER_EVSM ? SHADOW_MOMENT_EVSM : SHADOW_MOMENT_VSM;
+        shadow = SampleShadowMoments(momentMap, mode, uv, compareZ, texelSize, clipRect, depthParams, invFar);
+    }
+    else
+    {
+        shadow = SampleShadowBilinear2x2(shadowMap, uv, compareZ, texelSize, clipRect);
+    }
+    return shadow;
+}
 #endif
 
-float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, int cascadeIdx, float3 worldPos, float3 normal)
+float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, int cascadeIdx, float3 worldPos, float3 normal, bool volumetric = false)
 {
     float4 shadowCoord = mul(_CascadeMatrices[cascadeIdx], float4(worldPos, 1.0));
     float shadow = 1;
@@ -441,13 +479,25 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, i
             float2 shadowUV = localUV * 0.5 + clipRect.xy;
             float4 params = _CascadeShadowParams[cascadeIdx];
             float4 depthParams = float4(params.y, params.z, params.x, 1);
+            if (volumetric)
+            {
 #if defined(INFINITY_CASCADE_SHADOW_MOMENTS)
-            shadow = FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
-                ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+                shadow = FilterShadowVolumetric(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect, depthParams, 1.0);
 #else
-            shadow = FilterShadowDepth(cascadeShadowMap, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
-                ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+                shadow = FilterShadowVolumetricDepth(cascadeShadowMap, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect);
 #endif
+            }
+            else
+            {
+                float2 gradient = ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw);
+#if defined(INFINITY_CASCADE_SHADOW_MOMENTS)
+                shadow = FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
+                    gradient, depthParams, 1.0, ShadowLightSize(light));
+#else
+                shadow = FilterShadowDepth(cascadeShadowMap, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
+                    gradient, depthParams, 1.0, ShadowLightSize(light));
+#endif
+            }
         }
     }
     return shadow;
@@ -455,7 +505,7 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, LightRecord light, i
 
 // Picks the first cascade whose culling sphere holds the point and blends into the next one over the outer
 // blend-width fraction of the sphere radius.
-float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, float3 worldPos, float viewDepth, float3 normal = float3(0, 0, 0))
+float SampleCascadeShadowCore(Texture2D<float> cascadeShadowMap, LightRecord light, float3 worldPos, float viewDepth, float3 normal, bool volumetric)
 {
     float shadow = 1;
     if (_CascadeCount > 0)
@@ -475,7 +525,7 @@ float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, 
         }
         if (cascadeIdx >= 0 && viewDepth < _CascadeSplitDistances.w)
         {
-            shadow = SampleCascadeSlice(cascadeShadowMap, light, cascadeIdx, worldPos, normal);
+            shadow = SampleCascadeSlice(cascadeShadowMap, light, cascadeIdx, worldPos, normal, volumetric);
             float blendWidth = _CascadeShadowParams[cascadeIdx].w;
             int next = cascadeIdx + 1;
             if (blendWidth > 0 && next < 4 && _CascadeSpheres[next].w > 0)
@@ -483,7 +533,7 @@ float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, 
                 float blend = saturate((radiusFraction - (1.0 - blendWidth)) / blendWidth);
                 if (blend > 0)
                 {
-                    shadow = lerp(shadow, SampleCascadeSlice(cascadeShadowMap, light, next, worldPos, normal), blend);
+                    shadow = lerp(shadow, SampleCascadeSlice(cascadeShadowMap, light, next, worldPos, normal, volumetric), blend);
                 }
             }
         }
@@ -491,7 +541,17 @@ float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, 
     return shadow;
 }
 
-float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, float3 worldPos, float3 normal = float3(0, 0, 0))
+float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, LightRecord light, float3 worldPos, float viewDepth, float3 normal = float3(0, 0, 0))
+{
+    return SampleCascadeShadowCore(cascadeShadowMap, light, worldPos, viewDepth, normal, false);
+}
+
+float SampleCascadeShadowVolumetric(Texture2D<float> cascadeShadowMap, LightRecord light, float3 worldPos, float viewDepth)
+{
+    return SampleCascadeShadowCore(cascadeShadowMap, light, worldPos, viewDepth, float3(0, 0, 0), true);
+}
+
+float SampleLocalShadowCore(Texture2D<float> localShadowMap, LightRecord light, float3 worldPos, float3 normal, bool volumetric)
 {
     float shadow = 1;
     if ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowMatrixIndex >= 0 && light.shadowSliceCount > 0)
@@ -517,19 +577,42 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, floa
             if (all(localUV >= 0.0) && all(localUV <= 1.0))
             {
                 float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
+                if (volumetric)
+                {
 #if defined(INFINITY_LOCAL_SHADOW_MOMENTS)
-                shadow = FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x,
-                    sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
+                    shadow = FilterShadowVolumetric(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+                        sliceData.depthParams, sliceData.momentParams.x);
 #else
-                shadow = FilterShadowDepth(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x,
-                    sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
+                    shadow = FilterShadowVolumetricDepth(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect);
 #endif
+                }
+                else
+                {
+                    float2 gradient = ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw);
+#if defined(INFINITY_LOCAL_SHADOW_MOMENTS)
+                    shadow = FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+                        gradient, sliceData.depthParams, sliceData.momentParams.x,
+                        sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
+#else
+                    shadow = FilterShadowDepth(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+                        gradient, sliceData.depthParams, sliceData.momentParams.x,
+                        sliceData.shadowOriginSize.w, sliceData.emitterAxisU, sliceData.emitterAxisV, sliceData.momentParams.y);
+#endif
+                }
             }
         }
     }
     return shadow;
+}
+
+float SampleLocalShadow(Texture2D<float> localShadowMap, LightRecord light, float3 worldPos, float3 normal = float3(0, 0, 0))
+{
+    return SampleLocalShadowCore(localShadowMap, light, worldPos, normal, false);
+}
+
+float SampleLocalShadowVolumetric(Texture2D<float> localShadowMap, LightRecord light, float3 worldPos)
+{
+    return SampleLocalShadowCore(localShadowMap, light, worldPos, float3(0, 0, 0), true);
 }
 
 // bakedVisibility holds the two mixed directional lights' baked visibility (sideband G and B); only a light with a slot reads it.

@@ -27,6 +27,14 @@
 // Set by ScriptableRenderContext.SetupCameraProperties.
 float4 unity_OrthoParams;
 
+// Per-camera temporal upscaling mip bias on surface geometry passes (never applied to Compute/Depth/Shadow/Motion/Meta or explicit LOD/Grad).
+#if defined(SHADERPASS) && !defined(SHADER_STAGE_COMPUTE) && ((SHADERPASS == SHADERPASS_GBUFFER) || (SHADERPASS == SHADERPASS_FORWARD) || (SHADERPASS == SHADERPASS_TRANSLUCENT_T0) || (SHADERPASS == SHADERPASS_TRANSLUCENT_T1) || (SHADERPASS == SHADERPASS_TRANSLUCENT_T2) || (SHADERPASS == SHADERPASS_DBUFFER) || (SHADERPASS == SHADERPASS_EMISSIVE))
+    #undef PLATFORM_SAMPLE_TEXTURE2D
+    #define PLATFORM_SAMPLE_TEXTURE2D(textureName, samplerName, coord2) textureName.SampleBias(samplerName, coord2, ViewTemporalMipBias())
+    #undef PLATFORM_SAMPLE_TEXTURE2D_ARRAY
+    #define PLATFORM_SAMPLE_TEXTURE2D_ARRAY(textureName, samplerName, coord2, index) textureName.SampleBias(samplerName, float3(coord2, index), ViewTemporalMipBias())
+#endif
+
 #include "Packages/com.unity.shadergraph/ShaderGraphLibrary/ShaderVariablesFunctions.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/MotionVectors.hlsl"
 

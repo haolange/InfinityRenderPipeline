@@ -279,7 +279,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        internal void RecordTemporalColorState(Camera camera, in TemporalColorView source, bool superResolution)
+        internal void RecordTemporalColorState(Camera camera, in TemporalColorView source, bool upscaling)
         {
             if (!m_CaptureThisFrame || m_Camera != camera || m_Evidence.frames.Count == 0)
             {
@@ -287,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             var frame = m_Evidence.frames[m_Evidence.frames.Count - 1];
             frame.temporalColorValid = source.valid;
-            frame.temporalColorSource = superResolution ? "UnsharpenedSR" : "UnsharpenedTAA";
+            frame.temporalColorSource = upscaling ? "UnsharpenedUpscale" : "UnsharpenedTAA";
             frame.temporalColorGrid = source.resolution;
         }
 

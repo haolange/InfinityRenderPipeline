@@ -55,8 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
         RasterTranslucentT1,
         RasterTranslucentT2,
         ComputeColorPyramid,
-        ComputeSuperResolution,
-        ComputeAntiAliasing,
+        ComputeTemporalReconstruction,
         PostProcessing,
         ComputeBloom,
         RasterPostCombine,
@@ -153,11 +152,9 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey VolumetricCloudBuffer = new RGResourceKey("_VolumetricCloudTexture");
         public static readonly RGResourceKey TranslucentDepthBuffer = new RGResourceKey("_TranslucentDepthTexture");
         public static readonly RGResourceKey ColorPyramidBuffer = new RGResourceKey("_ColorPyramidTexture");
-        public static readonly RGResourceKey SuperResolutionBuffer = new RGResourceKey("_SuperResolutionTexture");
-        public static readonly RGResourceKey SRAccumulationBuffer = new RGResourceKey("_SRAccumulationBuffer");
-        public static readonly RGResourceKey TAAAccumulationBuffer = new RGResourceKey("_TAAAccumulationBuffer");
+        public static readonly RGResourceKey TemporalOutputBuffer = new RGResourceKey("_TemporalOutputTexture");
+        public static readonly RGResourceKey TemporalAccumulationBuffer = new RGResourceKey("_TemporalAccumulationBuffer");
         public static readonly RGResourceKey TAAReprojectionBuffer = new RGResourceKey("_TAAReprojectionBuffer");
-        public static readonly RGResourceKey AntiAliasingBuffer = new RGResourceKey("_AntiAliasingBuffer");
         public static readonly RGResourceKey TAAConfidenceBuffer = new RGResourceKey("_TAAConfidenceTexture");
         public static readonly RGResourceKey PostProcessBuffer = new RGResourceKey("_PostProcessTexture");
         public static readonly RGResourceKey DisplayColorBuffer = new RGResourceKey("_DisplayColorTexture");

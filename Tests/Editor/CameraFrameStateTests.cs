@@ -4,12 +4,18 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class CameraFrameStateTests
     {
         static Unity.Mathematics.int2 Size(Camera camera) => new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight);
+
+        static TemporalFrameRequirements ActiveNativeReq(Unity.Mathematics.int2 size) => new TemporalFrameRequirements(
+            ETemporalBackend.Native, ETemporalBackend.Native, ETemporalProvider.Native,
+            ETemporalReconstructionMode.NativeAA, ETemporalQuality.Quality,
+            size, size, 1.0f, 0.0f, 0.35f, 8, 1.0f, true, true, true, true, false, false, false);
 
         [TestCase(CameraType.Preview)]
         [TestCase(CameraType.Reflection)]
@@ -27,11 +33,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.cameraType = type;
                 state = new CameraFrameState(1, pool);
                 var dimensions = new CameraDimensionDescriptor(Size(camera), 1.0f, false, new Rect(0, 0, 1, 1));
+                TemporalFrameRequirements disabledReq = TemporalFrameRequirements.Disabled(Size(camera));
                 for (int frame = 0; frame < 16; frame++)
                 {
                     EHistoryReset reset = state.ResolveHistoryReset(camera, CameraRenderPolicy.For(type), frame == 0, frame - 1, frame, dimensions);
                     Assert.AreEqual(EHistoryReset.NotTemporal, reset);
-                    state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), reset);
+                    state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), reset, in disabledReq, 1f / 60f);
                     Assert.AreEqual(Unity.Mathematics.float2.zero, state.cameraUniform.jitter);
                     Assert.AreEqual(state.cameraUniform.matrix_Proj * state.cameraUniform.matrix_WorldToView, state.cameraUniform.matrix_ViewJitterProj);
                     Assert.AreEqual(state.cameraUniform.matrix_FlipYProj, state.cameraUniform.matrix_FlipYJitterProj);
@@ -63,10 +70,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var policy = CameraRenderPolicy.For(CameraType.Game);
                 state = new CameraFrameState(2, pool);
                 var dimensions = new CameraDimensionDescriptor(Size(camera), 1.0f, false, new Rect(0, 0, 1, 1));
+                TemporalFrameRequirements req = ActiveNativeReq(Size(camera));
                 Assert.AreEqual(EHistoryReset.NewCamera, state.ResolveHistoryReset(camera, policy, true, 0, 1, dimensions));
                 Assert.AreEqual(EHistoryReset.NewCamera, state.ResolveHistoryReset(camera, policy, false, 1, 2, dimensions),
                     "A preparation is not a committed frame.");
-                state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera);
+                state.cameraUniform.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera, in req, 1f / 60f);
                 state.preparedDimensions = dimensions;
                 state.cameraUniform.Commit();
 
@@ -97,8 +105,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 var camera = go.AddComponent<Camera>();
                 camera.transform.SetPositionAndRotation(new Vector3(2, 4, -8), Quaternion.Euler(13, 27, 0));
+                TemporalFrameRequirements req = ActiveNativeReq(Size(camera));
                 var data = new CameraUniform();
-                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera);
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.NewCamera, in req, 1f / 60f);
                 Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
                 Assert.AreEqual(data.matrix_ViewFlipYProj, data.matrix_LastViewFlipYProj);
                 Assert.AreEqual(data.matrix_ViewFlipYJitterProj, data.matrix_LastViewFlipYJitterProj);
@@ -106,11 +115,48 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.Commit();
                 Assert.IsTrue(data.hasCommittedView);
                 Assert.IsFalse(data.IsCut(camera));
-                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.None);
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.None, in req, 1f / 60f);
                 Assert.AreNotEqual(Unity.Mathematics.float2.zero, data.jitter);
-                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.CameraCut);
+                data.UpdateCurrFrameData(camera, Size(camera), EHistoryReset.CameraCut, in req, 1f / 60f);
                 Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
                 Assert.AreEqual(data.matrix_ViewFlipYProj, data.matrix_LastViewFlipYProj);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void TemporalJitter_PreservesCustomOrthographicProjection()
+        {
+            var go = new GameObject("CustomOrthographicJitterCamera");
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.orthographic = true;
+                Matrix4x4 projection = Matrix4x4.Ortho(-2, 6, -3, 5, 0.2f, 200);
+                projection.m01 = 0.17f;
+                camera.projectionMatrix = projection;
+                var size = new Unity.Mathematics.int2(800, 600);
+                var jitter = new Unity.Mathematics.float2(0.25f, -0.375f);
+                Matrix4x4 gpu = default, flipY = default;
+                TemporalJitter.GetJitteredOrthographicProjectionMatrix(camera, size, jitter, ref gpu, ref flipY);
+
+                Vector4[] points = { new Vector4(-1, 2, -4, 1), new Vector4(3, -2, -50, 1) };
+                foreach (bool renderIntoTexture in new[] { true, false })
+                {
+                    Matrix4x4 originalGPU = GL.GetGPUProjectionMatrix(projection, renderIntoTexture);
+                    Matrix4x4 jitteredGPU = renderIntoTexture ? gpu : flipY;
+                    foreach (Vector4 point in points)
+                    {
+                        Vector4 before = originalGPU * point;
+                        Vector4 after = jitteredGPU * point;
+                        float deltaX = 0.5f * (after.x / after.w - before.x / before.w);
+                        float deltaY = 0.5f * (after.y / after.w - before.y / before.w);
+                        Assert.That(deltaX, Is.EqualTo(-jitter.x / size.x).Within(1e-6f));
+                        float yOrientation = Mathf.Sign(originalGPU.m11 / projection.m11);
+                        Assert.That(deltaY, Is.EqualTo(-jitter.y / size.y * yOrientation).Within(1e-6f));
+                        Assert.That(after.z / after.w, Is.EqualTo(before.z / before.w).Within(1e-6f));
+                    }
+                }
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }
@@ -145,14 +191,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.Request(EFrameFeature.DeferredShading);
             features.MarkSupported(EFrameFeature.DeferredShading);
             features.MarkProduced(EFrameFeature.DeferredShading);
-            features.Request(EFrameFeature.TAA);
-            features.MarkSupported(EFrameFeature.TAA);
-            features.MarkProduced(EFrameFeature.TAA);
+            features.Request(EFrameFeature.TemporalReconstruction);
+            features.MarkSupported(EFrameFeature.TemporalReconstruction);
+            features.MarkProduced(EFrameFeature.TemporalReconstruction);
             features.Request(EFrameFeature.Display);
             features.MarkSupported(EFrameFeature.Display);
             features.MarkProduced(EFrameFeature.Display);
 
-            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, ETemporalResolve.TAA));
+            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, true));
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.DBuffer));
         }
 
@@ -163,7 +209,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.Request(EFrameFeature.Depth);
             features.MarkSupported(EFrameFeature.Depth);
             features.MarkProduced(EFrameFeature.Depth);
-            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, ETemporalResolve.TAA));
+            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(InfinityRenderPipeline.s_Capabilities.requiredProducers, true));
         }
 
         [Test]

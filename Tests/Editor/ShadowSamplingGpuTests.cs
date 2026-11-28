@@ -408,5 +408,237 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { output?.Dispose(); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader); }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void VolumetricShadow_UsesSingleFetchBilinearForNonMomentFiltersAndClampsTile(bool cascade)
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+
+            ComputeShader shader = null;
+            Texture2D depth = null;
+            GraphicsBuffer output = null, matrices = null, slices = null;
+            try
+            {
+                shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                    "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+                shader.DisableKeyword("INFINITY_CASCADE_SHADOW_MOMENTS");
+                shader.DisableKeyword("INFINITY_LOCAL_SHADOW_MOMENTS");
+
+                bool reversed = SystemInfo.usesReversedZBuffer;
+                // Receiver at 0.5: blockerStored is closer to light, clearStored is farther.
+                float receiver = 0.5f;
+                float blockerStored = reversed ? 0.8f : 0.2f;
+                float clearStored = reversed ? 0.2f : 0.8f;
+
+                depth = new Texture2D(128, 128, TextureFormat.RFloat, false, true);
+                var values = new float[128 * 128];
+                if (cascade)
+                {
+                    // Cascade 0 occupies [0..63, 0..63]. Left half [0..31] shadowed, right half [32..63] lit.
+                    // Outside [0..63] is filled with the opposite depth to verify strict tile clamping.
+                    for (int y = 0; y < 128; ++y)
+                        for (int x = 0; x < 128; ++x)
+                        {
+                            bool inTile = x < 64 && y < 64;
+                            if (inTile)
+                                values[y * 128 + x] = x < 32 ? blockerStored : clearStored;
+                            else
+                                values[y * 128 + x] = x < 64 ? clearStored : blockerStored;
+                        }
+                }
+                else
+                {
+                    // Local tile occupies [32..95, 32..95] (clipRect = 0.25, 0.25, 0.5, 0.5).
+                    // Left half [32..63] shadowed, right half [64..95] lit; outside [32..95] has opposite depth.
+                    for (int y = 0; y < 128; ++y)
+                        for (int x = 0; x < 128; ++x)
+                        {
+                            bool inTile = x >= 32 && x < 96 && y >= 32 && y < 96;
+                            if (inTile)
+                                values[y * 128 + x] = x < 64 ? blockerStored : clearStored;
+                            else
+                                values[y * 128 + x] = x < 64 ? clearStored : blockerStored;
+                        }
+                }
+                depth.SetPixelData(values, 0); depth.Apply(false);
+
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
+                matrices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 64);
+                matrices.SetData(new[] { Matrix4x4.identity });
+                slices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
+                slices.SetData(new[]
+                {
+                    new InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU
+                    {
+                        atlasRect = new Vector4(0.25f, 0.25f, 0.5f, 0.5f),
+                        depthParams = reversed ? new Vector4(0, 1, 0.01f, 0) : new Vector4(-1, -1, 0.01f, 0),
+                        momentParams = new Vector4(0.01f, 0, 0, 0),
+                        shadowOriginSize = new Vector4(0, 0, 0, 10.0f),
+                        emitterAxisU = new Vector4(1, 0, 10.0f, InfinityTech.Rendering.LightPipeline.ShadowPCSSShapeMode.IsotropicDisk),
+                        emitterAxisV = new Vector4(0, 1, 10.0f, 1),
+                    }
+                });
+
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform
+                {
+                    cascadeMatrix0 = Matrix4x4.identity,
+                    cascadeSphere0 = new Vector4(0, 0, 0, 10000f),
+                    cascadeParameters0 = new Vector4(0.01f, reversed ? 0.1f : -0.1f, reversed ? 1f : 0f, 0f),
+                    cascadeSplitDistances = new Vector4(100, 100, 100, 100),
+                    cascadeMapSize = new Vector4(128, 128, 1f / 128f, 1f / 128f),
+                    localMapSize = new Vector4(128, 128, 1f / 128f, 1f / 128f),
+                    filterParameters = new Vector4(3, 64, 64, 20),
+                    cascadeCount = 1,
+                    shadowDistance = 100f
+                });
+
+                int kernel = shader.FindKernel(cascade ? "VolumetricCascadeShadow" : "VolumetricLocalShadow");
+                shader.SetInt("TestFilterMode", (int)InfinityTech.Rendering.LightPipeline.EShadowFilter.PCSS);
+                shader.SetInt("TestSweepAxis", 0);
+                shader.SetFloat("TestSweepCoord", 0.5f);
+                shader.SetFloat("TestReceiverDepth", receiver);
+                shader.SetTexture(kernel, "TestDepth", depth);
+                shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", matrices);
+                shader.SetBuffer(kernel, "SRV_LocalShadowRects", slices);
+                shader.SetBuffer(kernel, "Results", output);
+                shader.Dispatch(kernel, 4, 1, 1);
+
+                var readback = AsyncGPUReadback.Request(output);
+                readback.WaitForCompletion();
+                Assert.IsFalse(readback.hasError);
+                var samples = readback.GetData<Vector4>();
+
+                // Tile boundaries must never bleed from neighboring texels outside clipRect.
+                Assert.AreEqual(0.0f, samples[0].x, 1e-5f, "Left tile edge must stay shadowed without neighbor bleed.");
+                Assert.AreEqual(1.0f, samples[255].x, 1e-5f, "Right tile edge must stay lit without neighbor bleed.");
+
+                int transitionCount = 0;
+                bool hasFractionalBilinear = false;
+                for (int i = 0; i < samples.Length; ++i)
+                {
+                    float v = samples[i].x;
+                    Assert.That(v, Is.InRange(0.0f, 1.0f));
+                    if (v > 0.01f && v < 0.99f)
+                    {
+                        transitionCount++;
+                        if (v > 0.1f && v < 0.9f)
+                            hasFractionalBilinear = true;
+                    }
+                }
+                Assert.IsTrue(hasFractionalBilinear, "Volumetric path must perform 2x2 bilinear GatherRed interpolation.");
+                Assert.LessOrEqual(transitionCount, 4, $"Volumetric path must stay 1-texel wide even when light is PCSS (got {transitionCount} samples).");
+            }
+            finally
+            {
+                output?.Dispose(); matrices?.Dispose(); slices?.Dispose();
+                Object.DestroyImmediate(depth); Object.DestroyImmediate(shader);
+            }
+        }
+
+        [TestCase(false, InfinityTech.Rendering.LightPipeline.EShadowFilter.VSM)]
+        [TestCase(false, InfinityTech.Rendering.LightPipeline.EShadowFilter.EVSM)]
+        [TestCase(true, InfinityTech.Rendering.LightPipeline.EShadowFilter.VSM)]
+        [TestCase(true, InfinityTech.Rendering.LightPipeline.EShadowFilter.EVSM)]
+        public void VolumetricShadow_UsesMomentAtlasForVsmAndEvsm(bool cascade, InfinityTech.Rendering.LightPipeline.EShadowFilter filter)
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+
+            ComputeShader shader = null;
+            Texture2D depth = null;
+            Texture2D moments = null;
+            GraphicsBuffer output = null, matrices = null, slices = null;
+            try
+            {
+                shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                    "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+                shader.DisableKeyword("INFINITY_CASCADE_SHADOW_MOMENTS");
+                shader.DisableKeyword("INFINITY_LOCAL_SHADOW_MOMENTS");
+                shader.EnableKeyword(cascade ? "INFINITY_CASCADE_SHADOW_MOMENTS" : "INFINITY_LOCAL_SHADOW_MOMENTS");
+
+                bool reversed = SystemInfo.usesReversedZBuffer;
+                // Raw depth is intentionally set to clear (lit) everywhere so any sample reading depth instead of moments fails.
+                float clearStored = reversed ? 0.0f : 1.0f;
+                depth = new Texture2D(64, 64, TextureFormat.RFloat, false, true);
+                var depthValues = new float[64 * 64];
+                for (int i = 0; i < depthValues.Length; ++i)
+                    depthValues[i] = clearStored;
+                depth.SetPixelData(depthValues, 0); depth.Apply(false);
+
+                // Moment atlas (half res 32x32) encodes an occluder at normalized depth 0.2 (receiver will be at 0.8).
+                float occluderDepth = 0.2f;
+                Color momentPixel;
+                if (filter == InfinityTech.Rendering.LightPipeline.EShadowFilter.EVSM)
+                {
+                    float c = 5.0f;
+                    float d = 2.0f * occluderDepth - 1.0f;
+                    float ep = Mathf.Exp(c * d);
+                    float en = -Mathf.Exp(-c * d);
+                    momentPixel = new Color(ep, ep * ep, en, en * en);
+                }
+                else
+                {
+                    momentPixel = new Color(occluderDepth, occluderDepth * occluderDepth, 0f, 0f);
+                }
+                moments = new Texture2D(32, 32, TextureFormat.RGBAHalf, false, true);
+                var momentPixels = new Color[32 * 32];
+                for (int i = 0; i < momentPixels.Length; ++i)
+                    momentPixels[i] = momentPixel;
+                moments.SetPixels(momentPixels); moments.Apply(false);
+
+                output = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 256, 16);
+                matrices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, 64);
+                matrices.SetData(new[] { Matrix4x4.identity });
+                slices = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, System.Runtime.InteropServices.Marshal.SizeOf<InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU>());
+                slices.SetData(new[]
+                {
+                    new InfinityTech.Rendering.LightPipeline.LocalShadowSliceGPU
+                    {
+                        atlasRect = new Vector4(0, 0, 1, 1),
+                        depthParams = new Vector4(reversed ? -1f : 1f, reversed ? 1f : 0f, 0.01f, 1),
+                        momentParams = new Vector4(1.0f, 0, 0, 0),
+                    }
+                });
+
+                using var shadow = new UniformBinding<ShadowUniform>(new ShadowUniform
+                {
+                    cascadeMatrix0 = Matrix4x4.identity,
+                    cascadeSphere0 = new Vector4(0, 0, 0, 10000f),
+                    cascadeParameters0 = new Vector4(0.01f, 1f, 0f, 0f),
+                    cascadeSplitDistances = new Vector4(100, 100, 100, 100),
+                    cascadeMapSize = new Vector4(64, 64, 1f / 64f, 1f / 64f),
+                    localMapSize = new Vector4(64, 64, 1f / 64f, 1f / 64f),
+                    momentParameters = new Vector4(5.0f, 0.25f, 0.001f, 0),
+                    cascadeCount = 1,
+                    shadowDistance = 100f
+                });
+
+                int kernel = shader.FindKernel(cascade ? "VolumetricCascadeShadow" : "VolumetricLocalShadow");
+                shader.SetInt("TestFilterMode", (int)filter);
+                shader.SetInt("TestSweepAxis", 0);
+                shader.SetFloat("TestSweepCoord", 0.5f);
+                // Receiver at normalized depth 0.8 (behind occluder 0.2).
+                shader.SetFloat("TestReceiverDepth", reversed ? 0.2f : 0.8f);
+                shader.SetTexture(kernel, "TestDepth", depth);
+                shader.SetTexture(kernel, cascade ? "SRV_CascadeShadowMoments" : "SRV_LocalShadowMoments", moments);
+                shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", matrices);
+                shader.SetBuffer(kernel, "SRV_LocalShadowRects", slices);
+                shader.SetBuffer(kernel, "Results", output);
+                shader.Dispatch(kernel, 4, 1, 1);
+
+                var readback = AsyncGPUReadback.Request(output);
+                readback.WaitForCompletion();
+                Assert.IsFalse(readback.hasError);
+                var samples = readback.GetData<Vector4>();
+                Assert.Less(samples[128].x, 0.05f, $"Volumetric {filter} must sample the moment atlas and detect occlusion despite clear depth.");
+            }
+            finally
+            {
+                output?.Dispose(); matrices?.Dispose(); slices?.Dispose();
+                Object.DestroyImmediate(moments); Object.DestroyImmediate(depth); Object.DestroyImmediate(shader);
+            }
+        }
+
     }
 }

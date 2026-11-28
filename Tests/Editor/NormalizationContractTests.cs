@@ -84,20 +84,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void RenderScale_ClampsAndGameOnlySuperResolution()
+        public void TemporalUpscaling_AppliesRequirementsAndGameOnlyResolution()
         {
             var cameraObject = new GameObject("ScaleCam");
             try
             {
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.cameraType = CameraType.Game;
-                Assert.AreEqual(0.5f, CameraDimensionDescriptor.FromCamera(camera, true, 0.1f, null).renderScale);
-                Assert.AreEqual(1.0f, CameraDimensionDescriptor.FromCamera(camera, true, 2.0f, null).renderScale);
-                CameraDimensionDescriptor game = CameraDimensionDescriptor.FromCamera(camera, true, 0.7f, null);
-                Assert.IsTrue(game.superResolution);
+                CameraDimensionDescriptor game = CameraDimensionDescriptor.FromCamera(camera, true, 1.0f / 1.5f, null);
+                Assert.IsTrue(game.upscaling);
+                Assert.Less(game.internalSize.x, game.displaySize.x);
                 camera.cameraType = CameraType.SceneView;
-                CameraDimensionDescriptor scene = CameraDimensionDescriptor.FromCamera(camera, true, 0.7f, null);
-                Assert.IsFalse(scene.superResolution);
+                CameraDimensionDescriptor scene = CameraDimensionDescriptor.FromCamera(camera, true, 1.0f / 1.5f, null);
+                Assert.IsFalse(scene.upscaling);
+                Assert.AreEqual(scene.displaySize, scene.internalSize);
             }
             finally
             {

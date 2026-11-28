@@ -191,17 +191,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void SuperResolutionParameters_MatchesHlslByteSize()
-        {
-            // CBV_SuperResolutionParameters in Shaders/Pass/Temporal/Compute_SuperResolution.compute
-            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.SuperResolutionParameters>());
-        }
-
-        [Test]
         public void TemporalAntiAliasingParameters_MatchesHlslByteSize()
         {
             // CBV_TemporalAntiAliasingParameters in Shaders/Pass/Temporal/Compute_TemporalAntiAliasing.compute
-            Assert.AreEqual(32, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalAntiAliasingParameters>());
+            Assert.AreEqual(48, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalAntiAliasingParameters>());
         }
 
         [Test]
@@ -219,6 +212,27 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void TemporalFsrParameters_MatchesHlslByteSize()
+        {
+            // CBV_TemporalFsrParameters in Shaders/Pass/Temporal/Compute_TemporalFSR.compute
+            Assert.AreEqual(144, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalFsrParameters>());
+        }
+
+        [Test]
+        public void TemporalSgsrParameters_MatchesHlslByteSize()
+        {
+            // CBV_TemporalSgsrParameters in Shaders/Pass/Temporal/Compute_TemporalSGSR.compute
+            Assert.AreEqual(144, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalSgsrParameters>());
+        }
+
+        [Test]
+        public void TemporalStpParameters_MatchesHlslByteSize()
+        {
+            // CBV_TemporalStpParameters in Shaders/Pass/Temporal/Compute_TemporalSTP.compute
+            Assert.AreEqual(336, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.TemporalStpParameters>());
+        }
+
+        [Test]
         public void ContractConstants_MatchesHlslByteSize()
         {
             // CBV_ContractConstants in Tests/Editor/Shaders/RenderGraphConstantsContract.compute
@@ -229,7 +243,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ViewUniform_MatchesHlslByteSize()
         {
             // ViewUniform in Shaders/Library/ViewUniform.hlsl
-            Assert.AreEqual(992, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.ViewUniform>());
+            Assert.AreEqual(1008, UnsafeUtility.SizeOf<global::InfinityTech.Rendering.Pipeline.ViewUniform>());
         }
 
         [Test]

@@ -57,7 +57,17 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal readonly ComputeKernel temporalAntiAliasingDebug;
 #endif
-        internal readonly ComputeKernel superResolution;
+        internal readonly ComputeKernel stpSetup;
+        internal readonly ComputeKernel stpPreTaa;
+        internal readonly ComputeKernel stpTaa;
+        internal readonly ComputeKernel stpSharpen;
+        internal readonly ComputeKernel fsrPrepareInputs;
+        internal readonly ComputeKernel fsrLumaInstability;
+        internal readonly ComputeKernel fsrAccumulate;
+        internal readonly ComputeKernel fsrRcas;
+        internal readonly ComputeKernel sgsrConvert;
+        internal readonly ComputeKernel sgsrActivate;
+        internal readonly ComputeKernel sgsrUpscale;
 
         internal readonly ComputeKernel transmittanceLUT;
         internal readonly ComputeKernel multiScatteringLUT;
@@ -88,6 +98,11 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
         // Local keywords select kernel variants; a shader that is not assigned leaves its keywords default.
+        internal readonly LocalKeyword taaReactiveMask;
+        internal readonly LocalKeyword taaUpscaling;
+        internal readonly LocalKeyword stpReactiveMask;
+        internal readonly LocalKeyword fsrReactiveMask;
+        internal readonly LocalKeyword sgsrReactiveMask;
         internal readonly LocalKeyword ssgiOcclusion;
         internal readonly LocalKeyword fogCompositeFog;
         internal readonly LocalKeyword fogCompositeCloud;
@@ -152,7 +167,23 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             temporalAntiAliasingDebug = ComputeKernel.Resolve(shaders.taaShader, taa, "MainDebug");
 #endif
-            superResolution = ComputeKernel.Resolve(shaders.superResolutionShader, Source + nameof(InfinityRenderPipelineRuntimeShaders.superResolutionShader), "SuperResolutionCS");
+
+            const string temporalStp = Source + nameof(InfinityRenderPipelineRuntimeShaders.temporalStpShader);
+            stpSetup = ComputeKernel.Resolve(shaders.temporalStpShader, temporalStp, "StpSetup");
+            stpPreTaa = ComputeKernel.Resolve(shaders.temporalStpShader, temporalStp, "StpPreTaa");
+            stpTaa = ComputeKernel.Resolve(shaders.temporalStpShader, temporalStp, "StpTaa");
+            stpSharpen = ComputeKernel.Resolve(shaders.temporalStpShader, temporalStp, "StpSharpen");
+
+            const string temporalFsr = Source + nameof(InfinityRenderPipelineRuntimeShaders.temporalFsrShader);
+            fsrPrepareInputs = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_PrepareInputs");
+            fsrLumaInstability = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_LumaInstability");
+            fsrAccumulate = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_Accumulate");
+            fsrRcas = ComputeKernel.Resolve(shaders.temporalFsrShader, temporalFsr, "FSR_RCAS");
+
+            const string temporalSgsr = Source + nameof(InfinityRenderPipelineRuntimeShaders.temporalSgsrShader);
+            sgsrConvert = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Convert");
+            sgsrActivate = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Activate");
+            sgsrUpscale = ComputeKernel.Resolve(shaders.temporalSgsrShader, temporalSgsr, "SGSR_Upscale");
 
             const string atmosphere = Source + nameof(InfinityRenderPipelineRuntimeShaders.atmosphericLUTShader);
             transmittanceLUT = ComputeKernel.Resolve(shaders.atmosphericLUTShader, atmosphere, "TransmittanceLUT");
@@ -195,6 +226,11 @@ namespace InfinityTech.Rendering.Pipeline
             };
 #endif
 
+            taaReactiveMask = Keyword(shaders.taaShader, "TAA_REACTIVE_MASK");
+            taaUpscaling = Keyword(shaders.taaShader, "TAA_UPSCALING");
+            stpReactiveMask = Keyword(shaders.temporalStpShader, "STP_REACTIVE_MASK");
+            fsrReactiveMask = Keyword(shaders.temporalFsrShader, "FSR_REACTIVE_MASK");
+            sgsrReactiveMask = Keyword(shaders.temporalSgsrShader, "SGSR_REACTIVE_MASK");
             ssgiOcclusion = Keyword(shaders.ssgiShader, "SSGI_AMBIENT_OCCLUSION");
             fogCompositeFog = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_FOG");
             fogCompositeCloud = Keyword(shaders.fogCompositeShader, "FOG_COMPOSITE_CLOUD");

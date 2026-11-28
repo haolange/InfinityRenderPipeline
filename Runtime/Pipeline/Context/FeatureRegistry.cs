@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
             });
             Add(new FeatureDescriptor
             {
-                id = EFrameFeature.TAA,
+                id = EFrameFeature.TemporalReconstruction,
                 requiresTemporal = true,
                 kernels = k => new[]
                 {
@@ -156,12 +156,6 @@ namespace InfinityTech.Rendering.Pipeline
                     k.temporalAntiAliasingDebug,
 #endif
                 }
-            });
-            Add(new FeatureDescriptor
-            {
-                id = EFrameFeature.SuperResolution,
-                requiresTemporal = true,
-                kernels = k => new[] { k.superResolution }
             });
             Add(new FeatureDescriptor
             {

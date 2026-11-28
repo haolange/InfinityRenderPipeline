@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             poses.RemoveAll(value => !components.Contains(value));
             try
             {
-                world.Update(false);
+                world.Update();
                 world.ApplyStaticPoses();
             }
             finally

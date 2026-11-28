@@ -79,11 +79,8 @@ namespace InfinityTech.Rendering.Pipeline
             const GraphicsFormatUsage rtLoadStoreSample = GraphicsFormatUsage.Render | GraphicsFormatUsage.LoadStore | GraphicsFormatUsage.Sample;
             const GraphicsFormatUsage loadStoreSample = GraphicsFormatUsage.LoadStore | GraphicsFormatUsage.Sample;
             bool supportsStencilView = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UInt, GraphicsFormatUsage.StencilSampling);
-            // Scene Color is rendered, loaded and stored, and sampled by later passes. Metal reports Sample as false for
-            // B10G11R11 although the render texture is shader-readable (verified on Apple M3 Max); every other API reports it.
             GraphicsFormatUsage sceneColorUsage = SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal ? rtLoadStore : rtLoadStoreSample;
             return new DeviceCapabilitySnapshot(
-                // The combined format is the attachment; shaders bind its depth and stencil planes separately.
                 supportsD24S8: supportsStencilView && SystemInfo.IsFormatSupported(GraphicsFormat.D24_UNorm_S8_UInt, GraphicsFormatUsage.Render),
                 supportsD32FS8: supportsStencilView && SystemInfo.IsFormatSupported(GraphicsFormat.D32_SFloat_S8_UInt, GraphicsFormatUsage.Render),
                 supportsR8G8B8A8SRGB: SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_SRGB, rtSample),
@@ -108,25 +105,23 @@ namespace InfinityTech.Rendering.Pipeline
     // The fixed opaque attachment layout and its device checks; formats are constants of the color path, depth is the one choice.
     internal readonly struct EffectivePipelineConfiguration
     {
-        // Attachments
-
         internal const GraphicsFormat GBufferAFormat    = GraphicsFormat.R8G8B8A8_SRGB;
         internal const GraphicsFormat GBufferBFormat    = GraphicsFormat.R8G8B8A8_UNorm;
         internal const GraphicsFormat SceneColorFormat  = GraphicsFormat.B10G11R11_UFloatPack32;
         internal const GraphicsFormat SidebandFormat    = GraphicsFormat.R8G8B8A8_UNorm;
         internal const GraphicsFormat MotionFormat      = GraphicsFormat.R16G16_SFloat;
-        // Profiles 1..15 fill the sideband's low nibble; 0 marks a pixel that is not subsurface.
         internal const int MaxDiffusionProfiles = 15;
 
         internal readonly bool enableRenderingLayers;
         internal readonly GraphicsFormat depthStencilFormat;
         internal readonly int geometryColorBitsPerPixel;
 
+        internal readonly ETemporalBackend requestedTemporalBackend;
         internal readonly ETemporalBackend effectiveTemporalBackend;
         internal readonly ETemporalReconstructionMode effectiveTemporalMode;
         internal readonly float effectiveRenderScale;
-
-        // Field states
+        internal readonly float effectiveTemporalMipBias;
+        internal readonly float effectiveQualityScale;
 
         internal readonly ConfigFieldState colorPathState;
         internal readonly ConfigFieldState depthStencilState;
@@ -138,19 +133,22 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ConfigFieldState temporalBackendState;
         internal readonly ConfigFieldState temporalModeState;
         internal readonly ConfigFieldState temporalQualityState;
-        internal readonly ConfigFieldState renderScaleState;
-        // The first conflict that prevents the pipeline from running, or null.
+        internal readonly ConfigFieldState temporalSharpnessState;
         internal readonly string blockingConflict;
 
         internal bool hasBlockingConflict => blockingConflict != null;
+        internal bool hasTemporalFallback => requestedTemporalBackend != effectiveTemporalBackend;
 
         internal EffectivePipelineConfiguration(
             bool enableRenderingLayers,
             GraphicsFormat depthStencilFormat,
             int geometryColorBitsPerPixel,
+            ETemporalBackend requestedTemporalBackend,
             ETemporalBackend effectiveTemporalBackend,
             ETemporalReconstructionMode effectiveTemporalMode,
             float effectiveRenderScale,
+            float effectiveTemporalMipBias,
+            float effectiveQualityScale,
             ConfigFieldState colorPathState,
             ConfigFieldState depthStencilState,
             ConfigFieldState subsurfaceState,
@@ -161,15 +159,18 @@ namespace InfinityTech.Rendering.Pipeline
             ConfigFieldState temporalBackendState,
             ConfigFieldState temporalModeState,
             ConfigFieldState temporalQualityState,
-            ConfigFieldState renderScaleState,
+            ConfigFieldState temporalSharpnessState,
             string blockingConflict)
         {
             this.enableRenderingLayers = enableRenderingLayers;
             this.depthStencilFormat = depthStencilFormat;
             this.geometryColorBitsPerPixel = geometryColorBitsPerPixel;
+            this.requestedTemporalBackend = requestedTemporalBackend;
             this.effectiveTemporalBackend = effectiveTemporalBackend;
             this.effectiveTemporalMode = effectiveTemporalMode;
             this.effectiveRenderScale = effectiveRenderScale;
+            this.effectiveTemporalMipBias = effectiveTemporalMipBias;
+            this.effectiveQualityScale = effectiveQualityScale;
             this.colorPathState = colorPathState;
             this.depthStencilState = depthStencilState;
             this.subsurfaceState = subsurfaceState;
@@ -180,7 +181,7 @@ namespace InfinityTech.Rendering.Pipeline
             this.temporalBackendState = temporalBackendState;
             this.temporalModeState = temporalModeState;
             this.temporalQualityState = temporalQualityState;
-            this.renderScaleState = renderScaleState;
+            this.temporalSharpnessState = temporalSharpnessState;
             this.blockingConflict = blockingConflict;
         }
     }

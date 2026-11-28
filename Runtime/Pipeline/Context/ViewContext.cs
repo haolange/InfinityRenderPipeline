@@ -20,7 +20,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ResolvedFrameSettings frameSettings;
         internal readonly CameraDimensionDescriptor dimensions;
         internal readonly EHistoryReset historyReset;
-        internal readonly ETemporalResolve temporalResolve;
         internal readonly TemporalFrameRequirements temporalRequirements;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -32,9 +31,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly FeatureSupportContext featureSupport;
 
         internal bool resetsHistory => historyReset != EHistoryReset.None;
+        internal bool temporalActive => temporalRequirements.isActive;
 
         internal CameraSetup(Camera camera, CameraFrameState state, CameraRenderPolicy policy, in ResolvedFrameSettings frameSettings,
-            in CameraDimensionDescriptor dimensions, EHistoryReset historyReset, ETemporalResolve temporalResolve, bool postProcessingEnabled,
+            in CameraDimensionDescriptor dimensions, EHistoryReset historyReset, bool postProcessingEnabled,
             bool sceneLightingEnabled,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             EDebugView debugView,
@@ -48,7 +48,6 @@ namespace InfinityTech.Rendering.Pipeline
             this.frameSettings = frameSettings;
             this.dimensions = dimensions;
             this.historyReset = historyReset;
-            this.temporalResolve = temporalResolve;
             this.postProcessingEnabled = postProcessingEnabled;
             this.sceneLightingEnabled = sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -109,7 +108,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ResolvedFrameSettings frameSettings;
         internal readonly CameraDimensionDescriptor dimensions;
         internal readonly EHistoryReset historyReset;
-        internal readonly ETemporalResolve temporalResolve;
         internal readonly TemporalFrameRequirements temporalRequirements;
         internal readonly bool postProcessingEnabled, sceneLightingEnabled;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -137,6 +135,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal readonly ShadowmaskMode shadowmaskMode;
 
         internal bool resetsHistory => historyReset != EHistoryReset.None;
+        internal bool temporalActive => temporalRequirements.isActive;
 
         internal ViewContext(in FrameContext frameContext, in CameraSetup setup, in SceneCullingResults scene)
         {
@@ -146,7 +145,6 @@ namespace InfinityTech.Rendering.Pipeline
             frameSettings = setup.frameSettings;
             dimensions = setup.dimensions;
             historyReset = setup.historyReset;
-            temporalResolve = setup.temporalResolve;
             temporalRequirements = setup.temporalRequirements;
             postProcessingEnabled = setup.postProcessingEnabled;
             sceneLightingEnabled = setup.sceneLightingEnabled;
@@ -158,9 +156,9 @@ namespace InfinityTech.Rendering.Pipeline
             atmosphere = setup.atmosphere;
             features = setup.state.features;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve, setup.debugView != EDebugView.None);
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalActive, setup.debugView != EDebugView.None);
 #else
-            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalResolve);
+            sceneColor = new SceneColorKeys(setup.state.features, setup.temporalActive);
 #endif
             sideband = ResolveSideband(setup.state.features, setup.featureSupport.renderingLayers, scene.lights);
             historyCache = setup.state.historyCache;

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Component
 {
@@ -13,7 +14,7 @@ namespace InfinityTech.Component
     {
         public LayerMask volumeLayerMask = ~0;
         public Transform volumeTrigger;
-        public ESuperResolutionOverride superResolutionOverride = ESuperResolutionOverride.UseAsset;
+        [HideInInspector] public ETemporalCameraOverride temporalOverride = ETemporalCameraOverride.FollowPipeline;
         // Frame Settings overrides of this camera; settings not overridden follow the RP Asset defaults.
         public bool customFrameSettings;
         public FrameSettingsOverride frameSettings;

@@ -38,8 +38,8 @@ float3 SampleTemporalHitColor(float2 hitUV, float hitDepth, float2 motion, float
         float2 previousUV;
         float previousDepth;
         ReprojectSurface(hitUV,hitDepth,motion,inverseVP,previousVP,motionVP,previousMotionVP,previousUV,previousDepth);
-        // The source was rendered with the previous frame's jitter.
-        float2 colorUV = previousUV - (View_JitterUV.zw - View_JitterUV.xy);
+        // Unified temporal color is reconstructed on the unjittered display grid.
+        float2 colorUV = previousUV - View_JitterUV.zw;
         if (all(colorUV >= 0) && all(colorUV < 1))
         {
             float lod = clamp(mip,0,TemporalColorMipCount-1);

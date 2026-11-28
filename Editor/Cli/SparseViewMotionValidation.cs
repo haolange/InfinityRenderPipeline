@@ -146,7 +146,7 @@ namespace InfinityTech.Rendering.Editor
                         camera = m_View.camera.name, cameraEntity = m_View.camera.GetEntityId().ToString(), cameraType = CameraType.SceneView,
                         useFirstFrameDimensions = true, width = m_View.camera.pixelWidth, height = m_View.camera.pixelHeight,
                         warmupFrames = 8, frameCount = 16, frameInterval = 1, timeoutSeconds = 120, includeConfidence = true,
-                        buffers = new[] { "Motion", "Depth", "TAAInput", "TAAAccumulation", "AntiAliasing" },
+                        buffers = new[] { "Motion", "Depth", "TAAInput", "TemporalAccumulation", "TemporalOutput" },
                         roi = new RectInt(0, 0, m_View.camera.pixelWidth, m_View.camera.pixelHeight) });
                     m_Capture = RenderCaptureService.current;
                 }

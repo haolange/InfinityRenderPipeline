@@ -88,7 +88,7 @@ float3 EvaluateVolumeLight(LightRecord light, float3 worldPos, float3 viewDir, f
     if (directional)
     {
         L = DirectionalLightL(light);
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, light, worldPos, viewDepth) : 1);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadowVolumetric(cascadeShadowMap, light, worldPos, viewDepth) : 1);
     }
     else
     {
@@ -101,7 +101,7 @@ float3 EvaluateVolumeLight(LightRecord light, float3 worldPos, float3 viewDir, f
                 LightPlanarCookie(light, 0.5, 1.0, planarDiffuse, planarSpecular);
                 planarCookie = planarDiffuse;
             }
-            shadow = SampleLocalShadow(localShadowMap, light, worldPos);
+            shadow = SampleLocalShadowVolumetric(localShadowMap, light, worldPos);
         }
     }
 

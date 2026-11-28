@@ -1,4 +1,6 @@
 #pragma kernel SlopedPlane
+#pragma multi_compile _ INFINITY_CASCADE_SHADOW_MOMENTS
+#pragma multi_compile _ INFINITY_LOCAL_SHADOW_MOMENTS
 #include "../../../Shaders/Library/ShadowSampling.hlsl"
 Texture2D<float> TestDepth;
 RWStructuredBuffer<float4> Results;
@@ -81,4 +83,44 @@ void ShapePCSS(uint3 id : SV_DispatchThreadID)
     float visibility = SampleShadowPCSS(TestDepth, uv, receiver, TestTexelSize, TestRect, 0, TestDepthParams,
         false, TestEmitterAxisU, TestEmitterAxisV, TestApexOffset);
     Results[id.x] = float4(visibility, receiver, uv);
+}
+
+#pragma kernel VolumetricLocalShadow
+#pragma kernel VolumetricCascadeShadow
+int TestFilterMode;
+[numthreads(64, 1, 1)]
+void VolumetricLocalShadow(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 256) return;
+    float sweep = (id.x + 0.5) / 256.0;
+    float2 localUV = TestSweepAxis == 0 ? float2(sweep, TestSweepCoord) : float2(TestSweepCoord, sweep);
+    float2 ndcXY = localUV * 2.0 - 1.0;
+#if UNITY_UV_STARTS_AT_TOP
+    ndcXY.y = -ndcXY.y;
+#endif
+    float3 worldPos = float3(ndcXY, TestReceiverDepth);
+    LightRecord light = (LightRecord)0;
+    light.flags = LIGHT_FLAG_SHADOW;
+    light.shadowMatrixIndex = 0;
+    light.shadowSliceCount = 1;
+    light.shadowFilter = TestFilterMode;
+    Results[id.x] = float4(SampleLocalShadowVolumetric(TestDepth, light, worldPos), localUV, 0);
+}
+
+[numthreads(64, 1, 1)]
+void VolumetricCascadeShadow(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 256) return;
+    float sweep = (id.x + 0.5) / 256.0;
+    float2 localUV = TestSweepAxis == 0 ? float2(sweep, TestSweepCoord) : float2(TestSweepCoord, sweep);
+    float2 ndcXY = localUV * 2.0 - 1.0;
+#if UNITY_UV_STARTS_AT_TOP
+    ndcXY.y = -ndcXY.y;
+#endif
+    float3 worldPos = float3(ndcXY, TestReceiverDepth);
+    LightRecord light = (LightRecord)0;
+    light.flags = LIGHT_FLAG_SHADOW | LIGHT_FLAG_DIRECTIONAL;
+    light.shadowSliceCount = 1;
+    light.shadowFilter = TestFilterMode;
+    Results[id.x] = float4(SampleCascadeShadowVolumetric(TestDepth, light, worldPos, 10.0), localUV, 0);
 }

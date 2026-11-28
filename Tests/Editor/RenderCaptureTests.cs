@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class RenderCaptureTests
     {
         static CameraSetup Setup(Camera camera, CameraFrameState state, EDebugView debugView = EDebugView.None) => new CameraSetup(camera, state,
-            CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, ETemporalResolve.None, true, true, debugView,
+            CameraRenderPolicy.For(camera.cameraType), default, default, EHistoryReset.None, true, true, debugView,
             default, default, default, default);
 
         static RenderCaptureRequest Request(string directory) => new RenderCaptureRequest

@@ -5,12 +5,16 @@
 // Two-dispatch reference of Compute_TemporalAntiAliasing.compute: a per-pixel resolve, then a separate sharpen of the
 // stored history. The production kernel fuses both through a group-shared tile.
 
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.infinity.render-pipeline/Shaders/Library/Common.hlsl"
 
 float4 TAA_Resolution;
+float4 TAA_InputResolution;
+float2 TAA_JitterPixels;
 float TAA_ResetBlend;
 float TAA_Sharpness;
 Texture2D<float4> SRV_AliasingColorTexture;
+Texture2D<float> SRV_DepthTexture;
 Texture2D<float4> SRV_HistoryColorTexture;
 Texture2D<float2> SRV_MotionTexture;
 Texture2D<float> SRV_ReactiveMaskTexture;
@@ -35,6 +39,33 @@ float3 TaaExpand(float3 color)
 int2 TaaClampPixel(int2 pixel)
 {
     return clamp(pixel, 0, int2(TAA_Resolution.xy) - 1);
+}
+
+int2 TaaClampInputPixel(int2 pixel)
+{
+    return clamp(pixel, 0, int2(TAA_InputResolution.xy) - 1);
+}
+
+float2 TaaClosestMotion(int2 centerCoord)
+{
+    int2 bestCoord = centerCoord;
+    float bestDepth = SRV_DepthTexture.Load(int3(centerCoord, 0));
+    [unroll] for (int y = -1; y <= 1; y++)
+    [unroll] for (int x = -1; x <= 1; x++)
+    {
+        int2 sampleCoord = TaaClampInputPixel(centerCoord + int2(x, y));
+        float d = SRV_DepthTexture.Load(int3(sampleCoord, 0));
+#if UNITY_REVERSED_Z
+        if (d > bestDepth)
+#else
+        if (d < bestDepth)
+#endif
+        {
+            bestDepth = d;
+            bestCoord = sampleCoord;
+        }
+    }
+    return SRV_MotionTexture.Load(int3(bestCoord, 0));
 }
 
 float3 TaaClip(float3 value, float3 low, float3 high)
@@ -114,9 +145,10 @@ void TemporalAntiAlias(uint3 id)
     }
     int2 pixel = id.xy;
     float2 uv = (pixel + 0.5) * TAA_Resolution.zw;
-    float2 velocity = SRV_MotionTexture.Load(int3(pixel, 0));
+    int2 baseCoord = TaaClampInputPixel(pixel);
+    float2 velocity = TaaClosestMotion(baseCoord);
     float2 historyUV = uv - velocity;
-    float3 currentLinear = max(SRV_AliasingColorTexture.Load(int3(pixel, 0)).rgb, 0);
+    float3 currentLinear = max(SRV_AliasingColorTexture.Load(int3(baseCoord, 0)).rgb, 0);
     float3 current = RGB2YCoCg(TaaCompress(currentLinear));
     float3 linearLow = currentLinear;
     float3 linearHigh = currentLinear;
@@ -127,7 +159,7 @@ void TemporalAntiAlias(uint3 id)
     [unroll] for (int y = -1; y <= 1; y++)
     [unroll] for (int x = -1; x <= 1; x++)
     {
-        float3 sampleLinear = max(SRV_AliasingColorTexture.Load(int3(TaaClampPixel(pixel + int2(x, y)), 0)).rgb, 0);
+        float3 sampleLinear = max(SRV_AliasingColorTexture.Load(int3(TaaClampInputPixel(baseCoord + int2(x, y)), 0)).rgb, 0);
         linearLow = min(linearLow, sampleLinear);
         linearHigh = max(linearHigh, sampleLinear);
         float3 value = RGB2YCoCg(TaaCompress(sampleLinear));
@@ -156,10 +188,10 @@ void TemporalAntiAlias(uint3 id)
         float pixelsMoved = length(velocity * TAA_Resolution.xy);
         float limit = lerp(32, 4, saturate(pixelsMoved / 8));
         float samples = min(history.a, limit);
-        float reactive = saturate(SRV_ReactiveMaskTexture.Load(int3(pixel, 0)));
+        float reactive = saturate(SRV_ReactiveMaskTexture.Load(int3(baseCoord, 0)));
         weight = samples / (samples + 1) * TAA_ResetBlend * (1 - reactive);
         history.rgb = TaaClip(history.rgb, low, high);
-        count = min(32, 1 + samples * TAA_ResetBlend * (1 - reactive));
+        count = clamp(1 + samples * TAA_ResetBlend * (1 - reactive), 1.0, 32.0);
         reason = reactive >= 1 ? 5 : 0;
     }
     float3 result = valid ? lerp(currentLinear, clamp(TaaExpand(history.rgb), linearLow, linearHigh), weight) : currentLinear;

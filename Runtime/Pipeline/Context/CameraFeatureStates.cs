@@ -6,6 +6,7 @@ using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.Reflection;
 using InfinityTech.Rendering.Temporal;
+using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -169,10 +170,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal ETemporalBackend committedBackend;
         internal ETemporalReconstructionMode committedMode;
+        internal int2 committedDisplaySize;
         internal TemporalFrameRequirements preparedRequirements;
         internal bool hasPreparedBackend;
         internal bool acceptedTemporalColor;
-        internal bool acceptedTemporalColorIsUpscaled;
         internal TemporalColorView temporalColorView;
 
         internal bool RequiresBackendSwitchReset(in TemporalFrameRequirements current)
@@ -198,14 +199,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void CommitFrame(FrameFeatureSet features, int frameCount)
         {
-            bool producedSR = features != null && features.IsProduced(EFrameFeature.SuperResolution);
-            bool producedTAA = features != null && features.IsProduced(EFrameFeature.TAA);
-            acceptedTemporalColorIsUpscaled = producedSR;
-            acceptedTemporalColor = producedSR || producedTAA;
+            bool producedTemporal = features != null && features.IsProduced(EFrameFeature.TemporalReconstruction);
+            acceptedTemporalColor = producedTemporal;
             if (hasPreparedBackend)
             {
                 committedBackend = preparedRequirements.activeBackend;
                 committedMode = preparedRequirements.mode;
+                committedDisplaySize = preparedRequirements.displaySize;
                 hasPreparedBackend = false;
             }
         }
@@ -218,8 +218,8 @@ namespace InfinityTech.Rendering.Pipeline
         public void Dispose()
         {
             committedBackend = ETemporalBackend.None;
+            committedDisplaySize = int2.zero;
             acceptedTemporalColor = false;
-            acceptedTemporalColorIsUpscaled = false;
             temporalColorView = default;
         }
     }

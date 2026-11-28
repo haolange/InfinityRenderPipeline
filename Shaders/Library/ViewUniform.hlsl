@@ -27,6 +27,8 @@ cbuffer ViewUniform
     float4 View_DepthParameters;
     // TAA offsets in sampled framebuffer UV: this frame in xy, the previous committed frame in zw.
     float4 View_JitterUV;
+    // Per-view temporal constants: x = surface mipBias, y = renderScale, z = frameIndex, w = upscaling (1 or 0).
+    float4 View_TemporalParameters;
 };
 
 // Camera facts the matrices already hold; they are read from there, not stored a second time.
@@ -44,6 +46,11 @@ float3 ViewForwardWS()
 bool ViewIsOrthographic()
 {
     return View_DepthParameters.z != 0;
+}
+
+float ViewTemporalMipBias()
+{
+    return View_TemporalParameters.x;
 }
 
 #endif

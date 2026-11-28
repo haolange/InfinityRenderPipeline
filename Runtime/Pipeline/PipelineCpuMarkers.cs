@@ -70,8 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly ProfilerMarker s_RecordComputeColorPyramid = Define("Record.ComputeColorPyramid");
         internal static readonly ProfilerMarker s_RecordRasterTranslucentT1 = Define("Record.RasterTranslucentT1");
         internal static readonly ProfilerMarker s_RecordRasterTranslucentT2 = Define("Record.RasterTranslucentT2");
-        internal static readonly ProfilerMarker s_RecordComputeSuperResolution = Define("Record.ComputeSuperResolution");
-        internal static readonly ProfilerMarker s_RecordComputeAntiAliasing = Define("Record.ComputeAntiAliasing");
+        internal static readonly ProfilerMarker s_RecordComputeTemporalReconstruction = Define("Record.ComputeTemporalReconstruction");
         internal static readonly ProfilerMarker s_RecordRecordCameraOutput = Define("Record.RecordCameraOutput");
         internal static readonly ProfilerMarker s_RecordEnsureRequiredProducers = Define("Record.EnsureRequiredProducers");
 

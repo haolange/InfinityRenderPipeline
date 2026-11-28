@@ -47,14 +47,10 @@ namespace InfinityTech.Rendering.SceneModules
             MeshComponent.ResyncAll();
         }
 
-        /// <summary>The frame's scene transaction. <paramref name="refreshStaticPoses"/> asks every static mesh for its pose.</summary>
-        public void Update(bool refreshStaticPoses)
+        /// <summary>The frame's scene transaction.</summary>
+        public void Update()
         {
             ProcessMeshRegistrations();
-            if (refreshStaticPoses)
-            {
-                MeshComponent.NotifyAllStaticPoses();
-            }
             try
             {
                 lights.Prepare();

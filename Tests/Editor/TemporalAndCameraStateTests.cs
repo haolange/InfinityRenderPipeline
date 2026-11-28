@@ -84,40 +84,66 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void TemporalReconstructionSystem_PlansRequirementsBeforeSetup_AndReportsUnsupportedExternalBackends()
+        public void TemporalReconstructionSystem_PlansRequirementsAcrossBackends_AndReportsFallback()
         {
-            var system = new TemporalReconstructionSystem();
+            var system = new TemporalReconstructionSystem(TemporalDeviceCapabilities.AllCrossPlatformSupported);
 
-            var taaSettings = new TemporalSettings(ETemporalBackend.NativeTAA, ETemporalReconstructionMode.NativeAA, ETemporalQuality.Quality, ERenderResolutionPolicy.FixedScale, 1.0f, 0.35f);
-            TemporalFrameRequirements taaReq = system.PlanFrame(new TemporalPlanInput(new int2(1920, 1080), true, true, taaSettings, false), out var taaCap);
-            Assert.IsTrue(taaCap.supported);
-            Assert.AreEqual(ETemporalBackend.NativeTAA, taaReq.activeBackend);
-            Assert.AreEqual(new int2(1920, 1080), taaReq.renderSize);
-            Assert.IsTrue(taaReq.requiresJitter && taaReq.requiresMotionVectors && taaReq.requiresReactiveMask);
+            var nativeAa = new TemporalSettings(ETemporalBackend.Native, ETemporalReconstructionMode.NativeAA, ETemporalQuality.Quality, 0.35f);
+            TemporalFrameRequirements aaReq = system.PlanFrame(
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, nativeAa, false),
+                out TemporalBackendCapability aaCap);
+            Assert.IsTrue(aaCap.supported);
+            Assert.AreEqual(ETemporalBackend.Native, aaReq.activeBackend);
+            Assert.AreEqual(new int2(1920, 1080), aaReq.renderSize);
+            Assert.AreEqual(0.0f, aaReq.mipBias);
+            Assert.IsTrue(aaReq.requiresJitter && aaReq.requiresMotionVectors && aaReq.requiresReactiveMask);
 
-            var taauSettings = new TemporalSettings(ETemporalBackend.NativeTAAU, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Balanced, ERenderResolutionPolicy.QualityPreset, 1.0f, 0.5f);
-            TemporalFrameRequirements taauReq = system.PlanFrame(new TemporalPlanInput(new int2(1920, 1080), true, true, taauSettings, false), out var taauCap);
-            Assert.IsTrue(taauCap.supported);
-            Assert.AreEqual(ETemporalBackend.NativeTAAU, taauReq.activeBackend);
-            Assert.Less(taauReq.renderSize.x, 1920);
-            Assert.Less(taauReq.mipBias, 0.0f);
-            Assert.IsFalse(taauReq.requiresReactiveMask);
+            var fsrUpscale = new TemporalSettings(ETemporalBackend.FSR, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Balanced, 0.5f);
+            TemporalFrameRequirements fsrReq = system.PlanFrame(
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, fsrUpscale, false),
+                out TemporalBackendCapability fsrCap);
+            Assert.IsTrue(fsrCap.supported);
+            Assert.AreEqual(ETemporalBackend.FSR, fsrReq.activeBackend);
+            Assert.Less(fsrReq.renderSize.x, 1920);
+            Assert.Less(fsrReq.mipBias, 0.0f);
+            Assert.IsTrue(fsrReq.requiresReactiveMask);
 
-            // External SDK backends must report Unsupported rather than pretending support.
+            var sgsrUpscale = new TemporalSettings(ETemporalBackend.SGSR, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Balanced, 0.25f);
+            TemporalFrameRequirements sgsrReq = system.PlanFrame(
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, sgsrUpscale, false),
+                out TemporalBackendCapability sgsrCap);
+            Assert.IsTrue(sgsrCap.supported);
+            Assert.AreEqual(ETemporalBackend.SGSR, sgsrReq.activeBackend);
+            Assert.AreEqual(ETemporalModeMask.Upscaling, sgsrCap.supportedModes);
+
+            var stpUpscale = new TemporalSettings(ETemporalBackend.STP, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Quality, 0.35f);
+            TemporalFrameRequirements stpReq = system.PlanFrame(
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, stpUpscale, false),
+                out TemporalBackendCapability stpCap);
+            Assert.IsTrue(stpCap.supported);
+            Assert.AreEqual(ETemporalBackend.STP, stpReq.activeBackend);
+            Assert.IsTrue(stpReq.requiresThreeFrameHistory);
+
+            // Platform-gated SDK backends fall back deterministically (FSR -> STP -> Native).
             TemporalBackendCapability dlssCap = system.GetCapability(ETemporalBackend.DLSS);
-            TemporalBackendCapability fsrCap = system.GetCapability(ETemporalBackend.FSR);
             TemporalBackendCapability xessCap = system.GetCapability(ETemporalBackend.XeSS);
             Assert.IsFalse(dlssCap.supported);
-            Assert.IsFalse(fsrCap.supported);
             Assert.IsFalse(xessCap.supported);
-            StringAssert.Contains("not integrated", dlssCap.unsupportedReason);
+            StringAssert.Contains("Windows", dlssCap.unsupportedReason);
 
-            // Switching backend triggers an automatic history reset on TemporalCameraState.
+            var dlssSettings = new TemporalSettings(ETemporalBackend.DLSS, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Quality, 0.4f);
+            TemporalFrameRequirements dlssReq = system.PlanFrame(
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, dlssSettings, false),
+                out _);
+            Assert.AreEqual(ETemporalBackend.FSR, dlssReq.activeBackend);
+            Assert.IsTrue(dlssReq.isFallback);
+
+            // Switching backend or mode triggers an automatic history reset on TemporalCameraState.
             var temporalState = new TemporalCameraState();
-            temporalState.PrepareFrame(in taaReq);
+            temporalState.PrepareFrame(in aaReq);
             temporalState.CommitFrame(null, 1);
-            Assert.IsFalse(temporalState.RequiresBackendSwitchReset(in taaReq));
-            Assert.IsTrue(temporalState.RequiresBackendSwitchReset(in taauReq));
+            Assert.IsFalse(temporalState.RequiresBackendSwitchReset(in aaReq));
+            Assert.IsTrue(temporalState.RequiresBackendSwitchReset(in fsrReq));
             temporalState.Dispose();
         }
 
@@ -132,12 +158,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 EffectivePipelineConfiguration cfg = PipelineConfigurationResolver.Evaluate(in settings, in caps);
 
                 Assert.AreEqual(EConfigStatus.Supported, cfg.temporalBackendState.status);
-                Assert.AreEqual(EConfigStatus.Inactive, cfg.renderScaleState.status);
-
-                var dlssTemporal = new TemporalSettings(ETemporalBackend.DLSS, ETemporalReconstructionMode.Upscaling, ETemporalQuality.Quality, ERenderResolutionPolicy.QualityPreset, 0.77f, 0.5f);
-                TemporalFrameRequirements dlssReq = new TemporalReconstructionSystem().PlanFrame(
-                    new TemporalPlanInput(new int2(1280, 720), true, true, dlssTemporal, false), out _);
-                Assert.AreEqual(ETemporalBackend.NativeTAA, dlssReq.activeBackend);
+                Assert.AreEqual(ETemporalBackend.Native, cfg.effectiveTemporalBackend);
             }
             finally
             {

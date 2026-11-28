@@ -17,6 +17,11 @@
 #include "../Library/Lightmap.hlsl"
 #include "../Library/ShadowCaster.hlsl"
 
+#if !defined(_TERRAIN_BASEMAP_GEN) && defined(PLATFORM_SAMPLE_TEXTURE2D)
+    #undef PLATFORM_SAMPLE_TEXTURE2D
+    #define PLATFORM_SAMPLE_TEXTURE2D(textureName, samplerName, coord2) textureName.SampleBias(samplerName, coord2, ViewTemporalMipBias())
+#endif
+
 StructuredBuffer<float4> _AtmosphereSkySH;
 
 #if defined(UNITY_INSTANCING_ENABLED) && defined(_TERRAIN_INSTANCED_PERPIXEL_NORMAL)

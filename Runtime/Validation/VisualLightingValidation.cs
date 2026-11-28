@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using InfinityTech.Component;
+using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -417,7 +418,8 @@ namespace InfinityTech.Rendering.Pipeline
                     caster.SetActive(casters);
                 }
                 m_Light.transform.rotation = casters ? Quaternion.LookRotation(new Vector3(0.35f, 0, 1)) : Quaternion.identity;
-                m_Light.shadows = lightingScenario == 8 ? LightShadows.Hard : LightShadows.Soft;
+                m_Light.shadows = LightShadows.Soft;
+                m_LightExtension.shadowFilter = lightingScenario == 8 ? EShadowFilter.Hard : EShadowFilter.PCF;
                 m_Light.shadowStrength = lightingScenario == 10 ? 0.5f : lightingScenario == 11 ? 0 : 1;
                 m_LightExtension.lightLayer = lightingScenario == 17 ? ERenderingLayer.LightLayer1 : ERenderingLayer.LightLayerDefault;
                 m_LightExtension.shadowLayer = lightingScenario == 16 ? ERenderingLayer.LightLayer1 : ERenderingLayer.LightLayerDefault;
@@ -521,7 +523,7 @@ namespace InfinityTech.Rendering.Pipeline
                     meshBackend = gpu ? EMeshDrawBackendPolicy.GPUIndirect : EMeshDrawBackendPolicy.CPUDirect, includeConfidence = true,
                     // The sideband carries the mixed light's baked visibility; an indirect-only light (scenario 12) allocates none.
                     buffers = temporal
-                        ? new[] { "DisplayColor", "TAAInput", "TAAAccumulation", "AntiAliasing", "Motion", "Depth", "TAAReprojection" }
+                        ? new[] { "DisplayColor", "TAAInput", "TemporalAccumulation", "TemporalOutput", "Motion", "Depth", "TAAReprojection" }
                         : lightingScenario == 12
                             ? new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "CascadeShadow" }
                             : new[] { "DisplayColor", "Lighting", "Depth", "GBufferB", "Sideband", "CascadeShadow" },

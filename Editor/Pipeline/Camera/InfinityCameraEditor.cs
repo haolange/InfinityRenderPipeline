@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Component.Editor
 {
@@ -74,7 +75,32 @@ namespace InfinityTech.Component.Editor
             EditorGUILayout.LabelField("Environment", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(m_Additional.FindProperty("volumeLayerMask"), new GUIContent("Volume Mask"));
             EditorGUILayout.PropertyField(m_Additional.FindProperty("volumeTrigger"), new GUIContent("Volume Trigger"));
-            EditorGUILayout.PropertyField(m_Additional.FindProperty("superResolutionOverride"), new GUIContent("Super Resolution"));
+            SerializedProperty temporalOverrideProp = m_Additional.FindProperty("temporalOverride");
+            EditorGUILayout.PropertyField(temporalOverrideProp, new GUIContent("Temporal Override", "Controls whether this camera follows the Pipeline Asset Temporal Reconstruction setting, forces 1.0x NativeAA, or disables temporal reconstruction."));
+            if (!temporalOverrideProp.hasMultipleDifferentValues
+                && GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset pipelineAsset)
+            {
+                InfinityRenderPipelineAsset.Settings settings = pipelineAsset.ResolveSettings();
+                TemporalFrameRequirements previewReq = new TemporalReconstructionSystem().PlanFrame(
+                    new TemporalPlanInput(
+                        new Unity.Mathematics.int2(1920, 1080),
+                        temporalAllowed: true,
+                        upscalingAllowed: true,
+                        cameraOverride: (ETemporalCameraOverride)temporalOverrideProp.enumValueIndex,
+                        in settings.temporal,
+                        forceHistoryReset: false),
+                    out _);
+                string summary = previewReq.isActive
+                    ? $"Effective Camera TRC: {previewReq.activeBackend} ({previewReq.mode}, {previewReq.renderScale:0.00}x, MipBias {previewReq.mipBias:0.00})"
+                    : "Effective Camera TRC: Disabled (Off)";
+                if (previewReq.isActive
+                    && (ETemporalCameraOverride)temporalOverrideProp.enumValueIndex == ETemporalCameraOverride.ForceNativeAA
+                    && previewReq.activeBackend != settings.config.effectiveTemporalBackend)
+                {
+                    summary += $" — Global backend {settings.config.effectiveTemporalBackend} lacks NativeAA; routed to Native 1.0x.";
+                }
+                EditorGUILayout.HelpBox(summary, MessageType.Info);
+            }
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Frame Settings", EditorStyles.boldLabel);

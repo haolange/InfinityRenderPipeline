@@ -56,8 +56,6 @@ namespace InfinityTech.Rendering.Pipeline
         readonly VolumetricFogPass m_VolumetricFogPass;
         readonly FogCompositePass m_FogCompositePass;
         readonly ColorPyramidPass m_ColorPyramidPass;
-        readonly SuperResolutionPass m_SuperResolutionPass;
-        readonly AntiAliasingPass m_AntiAliasingPass;
         readonly TemporalReconstructionPass m_TemporalReconstructionPass;
         readonly FinalOutputPass m_FinalOutputPass;
         readonly PostProcessingPass m_PostProcessingPass;
@@ -118,13 +116,11 @@ namespace InfinityTech.Rendering.Pipeline
                 m_VolumetricFogPass = new VolumetricFogPass(graph, resources);
                 m_FogCompositePass = new FogCompositePass(graph, resources, settings);
                 m_ColorPyramidPass = new ColorPyramidPass(graph, resources);
-                m_SuperResolutionPass = new SuperResolutionPass(graph, resources);
-                m_AntiAliasingPass = new AntiAliasingPass(graph, resources
+                m_TemporalReconstructionPass = new TemporalReconstructionPass(graph, resources
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     , m_RenderCapturePass
 #endif
                     );
-                m_TemporalReconstructionPass = new TemporalReconstructionPass(m_AntiAliasingPass, m_SuperResolutionPass);
                 m_FinalOutputPass = new FinalOutputPass(graph, resources);
                 m_PostProcessingPass = new PostProcessingPass(graph, resources, m_FinalOutputPass);
                 m_UIOverlayPass = new UIOverlayPass(graph);

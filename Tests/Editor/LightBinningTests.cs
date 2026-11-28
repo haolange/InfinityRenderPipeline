@@ -27,7 +27,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.farClipPlane = 300;
                 var screen = new int2(320, 180);
                 var uniform = new CameraUniform();
-                uniform.UpdateCurrFrameData(camera, screen, EHistoryReset.NewCamera);
+                var req = InfinityTech.Rendering.Temporal.TemporalFrameRequirements.Disabled(screen);
+                uniform.UpdateCurrFrameData(camera, screen, EHistoryReset.NewCamera, in req, 1f / 60f);
                 Matrix4x4 consumerProjection = uniform.matrix_InvFlipYJitterProj.inverse;
                 Vector4 projectedDepth = consumerProjection * new Vector4(0, 0, -10, 1);
                 float depth = projectedDepth.z / projectedDepth.w;

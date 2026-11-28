@@ -30,14 +30,6 @@ namespace InfinityTech.Rendering.Pipeline
         CameraCut,
     }
 
-    // The temporal resolve a camera records, decided once in PrepareCamera from its policy and dimensions.
-    internal enum ETemporalResolve
-    {
-        None,
-        TAA,
-        SuperResolution,
-    }
-
     internal class CameraFrameState : IDisposable
     {
         public int cameraId;
@@ -143,7 +135,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return EHistoryReset.RolledBack;
             }
             if (math.any(preparedDimensions.displaySize != dimensions.displaySize) || math.any(preparedDimensions.internalSize != dimensions.internalSize)
-                || preparedDimensions.superResolution != dimensions.superResolution)
+                || preparedDimensions.upscaling != dimensions.upscaling)
             {
                 return EHistoryReset.Dimensions;
             }

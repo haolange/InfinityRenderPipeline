@@ -57,23 +57,19 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static void GetJitteredOrthographicProjectionMatrix(Camera camera, int2 renderSize, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
-            float vertical = camera.orthographicSize;
-            float horizontal = vertical * camera.aspect;
-
-            offset.x *= horizontal / (0.5f * renderSize.x);
-            offset.y *= vertical / (0.5f * renderSize.y);
-
-            float left = offset.x - horizontal;
-            float right = offset.x + horizontal;
-            float top = offset.y + vertical;
-            float bottom = offset.y - vertical;
-
-            Matrix4x4 jitteredProj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
+            Matrix4x4 jitteredProj = camera.projectionMatrix;
+            float x = 2.0f * offset.x / renderSize.x;
+            float y = 2.0f * offset.y / renderSize.y;
+            for (int column = 0; column < 4; ++column)
+            {
+                jitteredProj[0, column] -= x * jitteredProj[3, column];
+                jitteredProj[1, column] -= y * jitteredProj[3, column];
+            }
             proj = GL.GetGPUProjectionMatrix(jitteredProj, true);
             projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
-        public static void CalculateProjectionMatrix(Camera camera, int2 renderSize, in float jitterSpread, int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY, bool applyJitter = true)
+        public static void CalculateProjectionMatrix(Camera camera, int2 renderSize, in float jitterSpread, int frameIndex, int jitterPhaseCount, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY, bool applyJitter = true)
         {
             if (!applyJitter || jitterSpread <= 0.0f)
             {
@@ -84,10 +80,11 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
-            float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
-            jitter = new float2(jitterX, jitterY);
-            jitter *= jitterSpread;
+            int phase = math.max(1, jitterPhaseCount);
+            int sampleIndex = ((frameIndex % phase) + phase) % phase + 1;
+            float jitterX = HaltonSequence.Get(sampleIndex, 2) - 0.5f;
+            float jitterY = HaltonSequence.Get(sampleIndex, 3) - 0.5f;
+            jitter = new float2(jitterX, jitterY) * jitterSpread;
 
             if (camera.orthographic)
             {

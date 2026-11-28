@@ -10,14 +10,16 @@ namespace InfinityTech.Rendering.Pipeline
     {
         static readonly TemporalReconstructionSystem s_DefaultTemporalPlanner = new TemporalReconstructionSystem();
 
+        const string k_TemporalLockedUpscalingReason = "The selected backend supports Upscaling only; effective mode is locked to Upscaling.";
+        const string k_TemporalLockedNativeAAReason = "The selected backend supports NativeAA only; effective mode is locked to NativeAA.";
+
         internal static EffectivePipelineConfiguration Evaluate(in InfinityRenderPipelineAsset.Settings authored, in DeviceCapabilitySnapshot caps,
             TemporalReconstructionSystem temporalSystem = null)
         {
             string blockingConflict = null;
             TemporalReconstructionSystem planner = temporalSystem ?? s_DefaultTemporalPlanner;
 
-            // 1. Opaque color path: fixed RGBA8 sRGB + RGBA8 GBuffer, R11G11B10F Scene Color read and written in place by
-            // the atmosphere, RGBA8 sideband written by geometry, RG16F motion.
+            // 1. Opaque color path.
             ConfigFieldState colorPathState = ConfigFieldState.Supported;
             string colorPathFailure = !caps.supportsR8G8B8A8SRGB ? "R8G8B8A8_SRGB render target (GBuffer A) is not supported on this device."
                 : !caps.supportsR11G11B10FLoadStore ? "B10G11R11_UFloatPack32 with load/store (Scene Color) is not supported on this device."
@@ -30,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
                 blockingConflict = blockingConflict ?? colorPathFailure;
             }
 
-            // 2. Depth / stencil: the stencil holds the motion, deferred and subsurface admission bits.
+            // 2. Depth / stencil.
             ConfigFieldState depthState = ConfigFieldState.Supported;
             GraphicsFormat depthFormat;
             bool preferD24 = authored.depthStencilFormat == EDepthStencilFormat.D24S8;
@@ -56,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                 blockingConflict = blockingConflict ?? depthState.reason;
             }
 
-            // 3. Subsurface profiles: skin pixels store profile 1..15 in the sideband.
+            // 3. Subsurface profiles.
             ConfigFieldState subsurfaceState = ConfigFieldState.Supported;
             if (authored.diffusionProfileCount > EffectivePipelineConfiguration.MaxDiffusionProfiles)
             {
@@ -83,32 +85,45 @@ namespace InfinityTech.Rendering.Pipeline
                 ? new ConfigFieldState(EConfigStatus.Inactive, "Analytic Shadow master toggle is disabled.")
                 : ConfigFieldState.Supported;
 
-            // 5. Temporal Reconstruction (TRC) backend, mode, quality and render scale resolution.
+            // 5. Temporal Reconstruction (TRC) backend, capability-driven mode lock, quality preset & mip bias.
             TemporalBackendCapability requestedTrc = planner.GetCapability(authored.temporal.backend);
             ConfigFieldState temporalBackendState = requestedTrc.supported
                 ? ConfigFieldState.Supported
-                : new ConfigFieldState(EConfigStatus.Unsupported, requestedTrc.unsupportedReason);
+                : new ConfigFieldState(EConfigStatus.Unsupported, planner.GetBackendFieldMessage(authored.temporal.backend));
             TemporalFrameRequirements previewReq = planner.PlanFrame(
-                new TemporalPlanInput(new int2(1920, 1080), true, true, authored.temporal, false),
-                out _);
+                new TemporalPlanInput(new int2(1920, 1080), true, true, ETemporalCameraOverride.FollowPipeline, authored.temporal, false),
+                out TemporalBackendCapability effectiveCap);
 
-            ConfigFieldState temporalModeState = !previewReq.isActive
+            ConfigFieldState temporalModeState;
+            if (!previewReq.isActive)
+            {
+                temporalModeState = new ConfigFieldState(EConfigStatus.Inactive, "Temporal Reconstruction is disabled.");
+            }
+            else if (effectiveCap.HasSingleSupportedMode(out ETemporalReconstructionMode onlyMode))
+            {
+                temporalModeState = new ConfigFieldState(
+                    EConfigStatus.Required,
+                    onlyMode == ETemporalReconstructionMode.Upscaling ? k_TemporalLockedUpscalingReason : k_TemporalLockedNativeAAReason);
+            }
+            else
+            {
+                temporalModeState = ConfigFieldState.Supported;
+            }
+
+            // Bind Quality availability strictly to effective mode so Upscaling-only backends never deadlock with an authored NativeAA value.
+            ConfigFieldState temporalQualityState = !previewReq.isActive
                 ? new ConfigFieldState(EConfigStatus.Inactive, "Temporal Reconstruction is disabled.")
-                : (authored.temporal.backend == ETemporalBackend.NativeTAA && authored.temporal.mode != ETemporalReconstructionMode.NativeAA)
-                    ? new ConfigFieldState(EConfigStatus.Inactive, "Native TAA executes at NativeAA resolution; switch to Native TAAU for Upscaling.")
+                : previewReq.mode != ETemporalReconstructionMode.Upscaling
+                    ? new ConfigFieldState(EConfigStatus.Inactive, "NativeAA renders at fixed 1.0x resolution; switch Reconstruction Mode to Upscaling to select a Quality tier.")
                     : ConfigFieldState.Supported;
 
-            bool scaleDrivenByQuality = authored.temporal.resolutionPolicy == ERenderResolutionPolicy.QualityPreset && previewReq.activeBackend == ETemporalBackend.NativeTAAU;
-            ConfigFieldState temporalQualityState = !previewReq.isActive || previewReq.activeBackend != ETemporalBackend.NativeTAAU
-                ? new ConfigFieldState(EConfigStatus.Inactive, "Quality Preset applies when an upscaling backend (Native TAAU / external upscaler) is selected.")
-                : ConfigFieldState.Supported;
-            ConfigFieldState renderScaleState = !previewReq.isActive
+            ConfigFieldState temporalSharpnessState = !previewReq.isActive
                 ? new ConfigFieldState(EConfigStatus.Inactive, "Temporal Reconstruction is disabled.")
-                : previewReq.activeBackend == ETemporalBackend.NativeTAA
-                    ? new ConfigFieldState(EConfigStatus.Inactive, "Native TAA runs at fixed 1.0× display resolution.")
-                    : scaleDrivenByQuality
-                        ? new ConfigFieldState(EConfigStatus.Inactive, "Render Scale is driven automatically by Quality Preset; switch Resolution Policy to FixedScale to customize.")
-                        : ConfigFieldState.Supported;
+                : ConfigFieldState.Supported;
+
+            float qualityScale = previewReq.isActive
+                ? planner.GetQualityScale(previewReq.activeBackend, authored.temporal.quality)
+                : 1.0f;
 
             int geometryColorBits = BitsPerPixel(EffectivePipelineConfiguration.GBufferAFormat) + BitsPerPixel(EffectivePipelineConfiguration.GBufferBFormat)
                 + BitsPerPixel(EffectivePipelineConfiguration.SceneColorFormat) + BitsPerPixel(EffectivePipelineConfiguration.SidebandFormat);
@@ -117,9 +132,12 @@ namespace InfinityTech.Rendering.Pipeline
                 enableRenderingLayers: authored.enableRenderingLayers,
                 depthStencilFormat: depthFormat,
                 geometryColorBitsPerPixel: geometryColorBits,
+                requestedTemporalBackend: authored.temporal.backend,
                 effectiveTemporalBackend: previewReq.activeBackend,
                 effectiveTemporalMode: previewReq.mode,
                 effectiveRenderScale: previewReq.renderScale,
+                effectiveTemporalMipBias: previewReq.mipBias,
+                effectiveQualityScale: qualityScale,
                 colorPathState: colorPathState,
                 depthStencilState: depthState,
                 subsurfaceState: subsurfaceState,
@@ -130,13 +148,21 @@ namespace InfinityTech.Rendering.Pipeline
                 temporalBackendState: temporalBackendState,
                 temporalModeState: temporalModeState,
                 temporalQualityState: temporalQualityState,
-                renderScaleState: renderScaleState,
+                temporalSharpnessState: temporalSharpnessState,
                 blockingConflict: blockingConflict);
         }
 
-        internal static int BitsPerPixel(GraphicsFormat format)
+        static int BitsPerPixel(GraphicsFormat format)
         {
-            return format == GraphicsFormat.None ? 0 : (int)GraphicsFormatUtility.GetBlockSize(format) * 8;
+            switch (format)
+            {
+                case GraphicsFormat.R8G8B8A8_SRGB:
+                case GraphicsFormat.R8G8B8A8_UNorm:
+                case GraphicsFormat.B10G11R11_UFloatPack32:
+                    return 32;
+                default:
+                    return 32;
+            }
         }
     }
 }

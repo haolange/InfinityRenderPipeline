@@ -406,6 +406,33 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // True when the light has a non-zero physical emitter dimension (PCSS produces penumbra; zero-size lights fall back to PCF).
+        public static bool HasPCSSSize(in LightSourceShape shape)
+        {
+            if (!IsValid(shape))
+                return false;
+
+            switch (Resolve(shape))
+            {
+                case EResolvedLightShape.Directional:
+                    return shape.sourceAngle > 0f;
+                case EResolvedLightShape.Sphere:
+                case EResolvedLightShape.SpotCone:
+                case EResolvedLightShape.SpotPyramid:
+                case EResolvedLightShape.Disk:
+                case EResolvedLightShape.DiskCone:
+                    return shape.sourceRadius > 0f;
+                case EResolvedLightShape.Line:
+                    return shape.sourceLength > 0f;
+                case EResolvedLightShape.Tube:
+                    return shape.sourceRadius > 0f || shape.sourceLength > 0f;
+                case EResolvedLightShape.Rect:
+                    return shape.sourceWidth > 0f && shape.sourceHeight > 0f;
+                default:
+                    return false;
+            }
+        }
+
         // Virtual apex offset behind a Disk + Cone emitter along -forward so the outer cone boundary passes through the disk rim.
         public static float DiskConeApexOffset(float sourceRadius, float spotAngleDegrees)
         {

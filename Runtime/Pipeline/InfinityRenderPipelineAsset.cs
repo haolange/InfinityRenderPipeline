@@ -15,16 +15,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public VolumeProfile qualityVolumeProfile => m_QualityVolumeProfile;
 
-        [SerializeField] bool updateProxy = true;
         [SerializeField] bool enableRayTrace = false;
-        [SerializeField] bool enableSuperResolution = false;
         [SerializeField] bool enableSRPBatch = true;
         [SerializeField] bool enableInstanceBatch = true;
         [SerializeField] EMeshDrawBackendPolicy meshBackendPolicy = EMeshDrawBackendPolicy.Auto;
-
-        // CameraDimensionDescriptor clamps it to [0.5, 1] for super-resolution cameras.
-        [SerializeField, Range(0.5f, 1.0f)]
-        float m_RenderScale = 1.0f;
 
         [SerializeField]
         VolumeProfile m_QualityVolumeProfile;
@@ -97,10 +91,9 @@ namespace InfinityTech.Rendering.Pipeline
         [SerializeField] bool m_EnableAnalyticIndirectOcclusion = true;
         [SerializeField] bool m_EnableAnalyticDirectShadow = true;
 
-        [SerializeField] ETemporalBackend m_TemporalBackend = ETemporalBackend.NativeTAA;
+        [SerializeField] ETemporalBackend m_TemporalBackend = ETemporalBackend.Native;
         [SerializeField] ETemporalReconstructionMode m_TemporalMode = ETemporalReconstructionMode.NativeAA;
         [SerializeField] ETemporalQuality m_TemporalQuality = ETemporalQuality.Quality;
-        [SerializeField] ERenderResolutionPolicy m_RenderResolutionPolicy = ERenderResolutionPolicy.FixedScale;
         [SerializeField, Range(0.0f, 1.0f)] float m_TemporalSharpness = 0.35f;
 
         [SerializeField] Shader m_DefaultShader;

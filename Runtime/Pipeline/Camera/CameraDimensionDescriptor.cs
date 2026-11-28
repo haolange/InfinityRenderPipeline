@@ -1,17 +1,11 @@
-using System;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Component;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public enum ESuperResolutionOverride
-    {
-        UseAsset = 0,
-        Off = 1
-    }
-
     public readonly struct CameraDimensionDescriptor
     {
         public readonly int2 displaySize;
@@ -19,27 +13,30 @@ namespace InfinityTech.Rendering.Pipeline
         public readonly int2 internalCapacity, displayCapacity;
         public TextureCapacityContext textureCapacity => new TextureCapacityContext(internalCapacity, displayCapacity);
         public readonly float renderScale;
-        public readonly bool superResolution;
+        public readonly bool upscaling;
         public readonly Rect outputViewport;
         public bool downscaled => math.any(internalSize != displaySize);
 
-        public CameraDimensionDescriptor(int2 displaySize, float renderScale, bool superResolution, Rect outputViewport)
+        internal CameraDimensionDescriptor(in TemporalFrameRequirements requirements, Rect outputViewport)
+        {
+            internalCapacity = displayCapacity = int2.zero;
+            displaySize = math.max(1, requirements.displaySize);
+            upscaling = requirements.isUpscaling;
+            renderScale = upscaling ? math.clamp(requirements.renderScale, 0.25f, 1.0f) : 1.0f;
+            internalSize = upscaling ? math.max(1, requirements.renderSize) : displaySize;
+            this.outputViewport = outputViewport;
+        }
+
+        public CameraDimensionDescriptor(int2 displaySize, float renderScale, bool upscaling, Rect outputViewport)
         {
             internalCapacity = displayCapacity = int2.zero;
             this.displaySize = new int2(math.max(1, displaySize.x), math.max(1, displaySize.y));
-            this.renderScale = superResolution ? math.clamp(renderScale, 0.5f, 1.0f) : 1.0f;
-            this.superResolution = superResolution;
+            this.upscaling = upscaling;
+            this.renderScale = upscaling ? math.clamp(renderScale, 0.25f, 1.0f) : 1.0f;
+            internalSize = this.upscaling
+                ? new int2(math.max(1, (int)math.ceil(this.displaySize.x * this.renderScale)), math.max(1, (int)math.ceil(this.displaySize.y * this.renderScale)))
+                : this.displaySize;
             this.outputViewport = outputViewport;
-            if (this.superResolution)
-            {
-                internalSize = new int2(
-                    math.max(1, (int)math.ceil(this.displaySize.x * this.renderScale)),
-                    math.max(1, (int)math.ceil(this.displaySize.y * this.renderScale)));
-            }
-            else
-            {
-                internalSize = this.displaySize;
-            }
         }
 
         CameraDimensionDescriptor(in CameraDimensionDescriptor source, int2 internalCapacity, int2 displayCapacity)
@@ -47,28 +44,23 @@ namespace InfinityTech.Rendering.Pipeline
             displaySize = source.displaySize;
             internalSize = source.internalSize;
             renderScale = source.renderScale;
-            superResolution = source.superResolution;
+            upscaling = source.upscaling;
             outputViewport = source.outputViewport;
             this.internalCapacity = internalCapacity;
             this.displayCapacity = displayCapacity;
         }
+
         internal CameraDimensionDescriptor WithCapacity(int2 internalCapacity, int2 displayCapacity)
             => new CameraDimensionDescriptor(this, internalCapacity, displayCapacity);
 
-        public static CameraDimensionDescriptor FromCamera(Camera camera, bool superResolution, float renderScale, InfinityAdditionalCameraData additional)
+        public static CameraDimensionDescriptor FromCamera(Camera camera, bool upscaling, float renderScale, InfinityAdditionalCameraData additional)
         {
-            bool srEnabled = superResolution;
-            if (additional != null && additional.superResolutionOverride == ESuperResolutionOverride.Off)
+            bool enableUpscaling = upscaling && camera.cameraType == CameraType.Game;
+            if (additional != null && additional.temporalOverride != ETemporalCameraOverride.FollowPipeline)
             {
-                srEnabled = false;
+                enableUpscaling = false;
             }
-
-            if (camera.cameraType != CameraType.Game)
-            {
-                srEnabled = false;
-            }
-
-            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), renderScale, srEnabled, camera.pixelRect);
+            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), renderScale, enableUpscaling, camera.pixelRect);
         }
     }
 }

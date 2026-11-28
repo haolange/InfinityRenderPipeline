@@ -1,0 +1,400 @@
+#pragma kernel StpSetup STP_STAGE_SETUP=1
+#pragma kernel StpPreTaa STP_STAGE_PRETAA=1
+#pragma kernel StpTaa STP_STAGE_TAA=1
+#pragma kernel StpSharpen STP_STAGE_SHARPEN=1
+
+#pragma multi_compile_local _ STP_REACTIVE_MASK
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+
+// Native RGBuilder port of Unity Spatial-Temporal Post-Processing (STP) (3 compute stages + display-only CAS).
+cbuffer CBV_TemporalStpParameters
+{
+    float4 _StpCommonConstant;
+    float4 _StpSetupConstants0;
+    float4 _StpSetupConstants1;
+    float4 _StpSetupConstants2;
+    float4 _StpSetupConstants3;
+    float4 _StpSetupConstants4;
+    float4 _StpSetupConstants5;
+    float4 _StpSetupPerViewConstants0;
+    float4 _StpSetupPerViewConstants1;
+    float4 _StpSetupPerViewConstants2;
+    float4 _StpSetupPerViewConstants3;
+    float4 _StpSetupPerViewConstants4;
+    float4 _StpSetupPerViewConstants5;
+    float4 _StpSetupPerViewConstants6;
+    float4 _StpSetupPerViewConstants7;
+    float4 _StpDilConstants0;
+    float4 _StpTaaConstants0;
+    float4 _StpTaaConstants1;
+    float4 _StpTaaConstants2;
+    float4 _StpTaaConstants3;
+    float4 _StpSharpenConstants;
+};
+
+#define STP_COMMON_CONSTANT asuint(_StpCommonConstant.x)
+#define STP_ZBUFFER_PARAMS_Z _StpCommonConstant.y
+#define STP_ZBUFFER_PARAMS_W _StpCommonConstant.z
+
+// Shared inputs & textures (scoped per stage; bound via RGBuilder).
+Texture2D<float4> _StpBlueNoiseIn;
+Texture2D<float4> _StpInputColor;
+Texture2D<float> _StpInputDepth;
+Texture2D<float2> _StpInputMotion;
+#if defined(STP_REACTIVE_MASK)
+Texture2D<float> _StpReactiveMask;
+#endif
+
+RWTexture2D<float4> _StpIntermediateColor;
+RWTexture2D<float> _StpIntermediateConvergence;
+RWTexture2D<float> _StpIntermediateWeights;
+
+Texture2D<uint> _StpPriorDepthMotion;
+RWTexture2D<uint> _StpDepthMotion;
+Texture2D<float2> _StpPriorLuma;
+RWTexture2D<float2> _StpLuma;
+Texture2D<float> _StpPriorConvergence;
+RWTexture2D<float> _StpConvergence;
+Texture2D<float4> _StpPriorFeedback;
+RWTexture2D<float4> _StpFeedback;
+
+Texture2D<float4> _StpIntermediateColorSRV;
+Texture2D<float> _StpIntermediateConvergenceSRV;
+Texture2D<float> _StpIntermediateWeightsSRV;
+Texture2D<uint> _StpDepthMotionSRV;
+Texture2D<float2> _StpLumaSRV;
+Texture2D<float> _StpConvergenceSRV;
+
+RWTexture2D<float4> _StpHistoryOutput;
+Texture2D<float4> _StpHistoryInput;
+RWTexture2D<float4> _StpDisplayOutput;
+
+SamplerState s_point_clamp_sampler;
+SamplerState s_linear_clamp_sampler;
+
+#define STP_HLSL 1
+#define STP_GPU 1
+#define STP_GRAIN 0
+#define STP_BUG 0
+#define STP_BUG_BW_SOL 0
+#define STP_32BIT 1
+
+#if defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2) || defined(SHADER_API_PSSL) || defined(SHADER_API_WEBGPU)
+    #define STP_BUG_SAT_INF 1
+#endif
+
+#if defined(SHADER_API_MOBILE) || defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2)
+    #define STP_TAA_Q 0
+#endif
+
+#if defined(STP_STAGE_SETUP)
+    #define STP_PAT 1
+#elif defined(STP_STAGE_PRETAA)
+    #define STP_DIL 1
+    #define STP_SAA 1
+#elif defined(STP_STAGE_TAA)
+    #define STP_TAA 1
+#endif
+
+#if !defined(STP_STAGE_SHARPEN)
+#include "Packages/com.unity.render-pipelines.core/Runtime/STP/Stp.hlsl"
+
+StpMU1 StpBfeF(StpMU1 data, StpMU1 offset, StpMU1 numBits)
+{
+    StpMU1 mask = (StpMU1(1) << numBits) - StpMU1(1);
+    return (data >> offset) & mask;
+}
+
+StpMU1 StpBfiF(StpMU1 mask, StpMU1 src, StpMU1 dst)
+{
+    return (src & mask) | (dst & ~mask);
+}
+
+StpMU2 StpRemapLaneTo8x16F(StpMU1 i)
+{
+    return StpMU2(
+        StpBfiF(StpMU1(1), i, StpBfeF(i, StpMU1(2), StpMU1(3))),
+        StpBfiF(StpMU1(3), StpBfeF(i, StpMU1(1), StpMU1(2)), StpBfeF(i, StpMU1(3), StpMU1(4))));
+}
+
+bool DecodeHasValidHistory(uint param) { return ((param >> 8) & 1u) != 0; }
+
+StpMF1 StpDitF1(StpMU2 o)
+{
+    uint noiseWidthMinusOne = STP_COMMON_CONSTANT & 0xFFu;
+    return (StpMF1)_StpBlueNoiseIn.Load(int3(o & noiseWidthMinusOne, 0)).r;
+}
+
+StpMF3 StpDitF3(StpMU2 o) { return (StpMF3)StpDitF1(o); }
+void StpBugF(StpU3 p, StpF4 c) { }
+#endif
+
+// ============================================================================
+// Stage 1: StpSetup (Pattern Matching + Reprojection History Update)
+// ============================================================================
+#if defined(STP_STAGE_SETUP)
+groupshared float4 gs_StpScratch[64 * 2];
+
+void StpPat4x4MaxF8(StpMU1 i, inout StpF4 a, inout StpF4 b)
+{
+    gs_StpScratch[i] = max(a, b);
+    GroupMemoryBarrierWithGroupSync();
+
+    {
+        StpMU1 offset = (i & ~StpMU1(3));
+        StpMU1 a0 = offset + ((i + StpMU1(1)) & StpMU1(3));
+        StpMU1 a1 = offset + ((i + StpMU1(2)) & StpMU1(3));
+        StpMU1 a2 = offset + ((i + StpMU1(3)) & StpMU1(3));
+        float4 x0 = gs_StpScratch[a0];
+        float4 x1 = gs_StpScratch[a1];
+        float4 x2 = gs_StpScratch[a2];
+        GroupMemoryBarrierWithGroupSync();
+        a = max(max(max(a, x0), x1), x2);
+    }
+
+    gs_StpScratch[i] = a;
+    GroupMemoryBarrierWithGroupSync();
+
+    {
+        StpMU1 offset = (i & ~StpMU1(15));
+        StpMU1 a0 = offset + ((i + StpMU1(4)) & StpMU1(15));
+        StpMU1 a1 = offset + ((i + StpMU1(8)) & StpMU1(15));
+        StpMU1 a2 = offset + ((i + StpMU1(12)) & StpMU1(15));
+        float4 x0 = gs_StpScratch[a0];
+        float4 x1 = gs_StpScratch[a1];
+        float4 x2 = gs_StpScratch[a2];
+        GroupMemoryBarrierWithGroupSync();
+        a = max(max(max(a, x0), x1), x2);
+    }
+}
+
+void StpPat4x4SumF4(StpMU1 i, inout StpF4 a)
+{
+    gs_StpScratch[i] = a;
+    GroupMemoryBarrierWithGroupSync();
+
+    {
+        StpMU1 offset = (i & ~StpMU1(3));
+        StpMU1 a0 = offset + ((i + StpMU1(1)) & StpMU1(3));
+        StpMU1 a1 = offset + ((i + StpMU1(2)) & StpMU1(3));
+        StpMU1 a2 = offset + ((i + StpMU1(3)) & StpMU1(3));
+        float4 x0 = gs_StpScratch[a0];
+        float4 x1 = gs_StpScratch[a1];
+        float4 x2 = gs_StpScratch[a2];
+        GroupMemoryBarrierWithGroupSync();
+        a = a + x0 + x1 + x2;
+    }
+
+    gs_StpScratch[i] = a;
+    GroupMemoryBarrierWithGroupSync();
+
+    {
+        StpMU1 offset = (i & ~StpMU1(15));
+        StpMU1 a0 = offset + ((i + StpMU1(4)) & StpMU1(15));
+        StpMU1 a1 = offset + ((i + StpMU1(8)) & StpMU1(15));
+        StpMU1 a2 = offset + ((i + StpMU1(12)) & StpMU1(15));
+        float4 x0 = gs_StpScratch[a0];
+        float4 x1 = gs_StpScratch[a1];
+        float4 x2 = gs_StpScratch[a2];
+        GroupMemoryBarrierWithGroupSync();
+        a = a + x0 + x1 + x2;
+    }
+}
+
+StpMF1 StpPatPriConF(StpF2 p) { return (StpMF1)InfinitySampleLevel(_StpPriorConvergence, s_linear_clamp_sampler, p, 0).r; }
+StpF2 StpPatDatMotF(StpMU2 o) { return _StpInputMotion.Load(int3(clamp((int2)o, 0, (int2)_StpSetupConstants5.xy - 1), 0)).xy; }
+StpMF3 StpPatDatColF(StpMU2 o) { return (StpMF3)max(0, _StpInputColor.Load(int3(clamp((int2)o, 0, (int2)_StpSetupConstants5.xy - 1), 0)).rgb); }
+StpF1 StpPatDatZF(StpMU2 o) { return _StpInputDepth.Load(int3(clamp((int2)o, 0, (int2)_StpSetupConstants5.xy - 1), 0)).x; }
+
+StpF1 StpPatFixZF(StpF1 z)
+{
+#if !UNITY_REVERSED_Z
+    z = 1.0 - z;
+#endif
+    return 1.0 / (STP_ZBUFFER_PARAMS_Z * z + STP_ZBUFFER_PARAMS_W);
+}
+
+StpU1 StpPatDatRF(StpMU2 o)
+{
+#if defined(STP_REACTIVE_MASK)
+    float r = _StpReactiveMask.Load(int3(clamp((int2)o, 0, (int2)_StpSetupConstants5.xy - 1), 0));
+    return (StpU1)round(saturate(r) * 255.0);
+#else
+    return StpU1_(0);
+#endif
+}
+
+StpMF1 StpPatFixRF(StpU1 v)
+{
+    bool hasValidHistory = DecodeHasValidHistory(STP_COMMON_CONSTANT);
+    float reactive = (float)v * (1.0 / 255.0);
+    return hasValidHistory ? (StpMF1)saturate(1.0 - reactive) : StpMF1_(0.0);
+}
+
+StpMF1 StpPatDitF(StpMU2 o) { return (StpMF1)StpDitF1(o); }
+StpMF4 StpPatPriFedF(StpF2 p) { return (StpMF4)InfinitySampleLevel(_StpPriorFeedback, s_linear_clamp_sampler, p, 0); }
+StpMF4 StpPatPriFedR4F(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+StpMF4 StpPatPriFedG4F(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherGreen(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+StpMF4 StpPatPriFedB4F(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherBlue(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+StpMF2 StpPatPriLumF(StpF2 p) { return (StpMF2)InfinitySampleLevel(_StpPriorLuma, s_linear_clamp_sampler, p, 0).xy; }
+StpU4 StpPatPriMot4F(StpF2 p) { return _StpPriorDepthMotion.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorDepthMotion_InfinityView, 0)); }
+
+void StpPatStMotF(StpMU2 p, StpU1 v) { if (all(p < (uint2)_StpSetupConstants5.xy)) _StpDepthMotion[p] = v; }
+void StpPatStColF(StpMU2 p, StpMF4 v) { if (all(p < (uint2)_StpSetupConstants5.xy)) _StpIntermediateColor[p] = v; }
+void StpPatStLumF(StpMU2 p, StpMF2 v) { if (all(p < (uint2)_StpSetupConstants5.xy)) _StpLuma[p] = v; }
+void StpPatStCnvF(StpMU2 p, StpMF1 v) { uint2 cnvSize = max(1u, ((uint2)_StpSetupConstants5.xy + 3u) >> 2); uint2 q = p >> 2; if (all(q < cnvSize)) _StpIntermediateConvergence[q] = v; }
+
+[numthreads(64, 1, 1)]
+void StpSetup(uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+    StpMU1 lane = StpMU1_(groupIndex);
+    StpMU2 pos = (groupID.xy << 3) + StpRemapLaneTo8x16F(lane);
+
+    StpPatF(
+        lane,
+        pos,
+        asuint(_StpSetupConstants0),
+        asuint(_StpSetupConstants1),
+        asuint(_StpSetupConstants2),
+        asuint(_StpSetupConstants3),
+        asuint(_StpSetupConstants4),
+        asuint(_StpSetupConstants5),
+        asuint(_StpSetupPerViewConstants0),
+        asuint(_StpSetupPerViewConstants1),
+        asuint(_StpSetupPerViewConstants2),
+        asuint(_StpSetupPerViewConstants3),
+        asuint(_StpSetupPerViewConstants4),
+        asuint(_StpSetupPerViewConstants5),
+        asuint(_StpSetupPerViewConstants6),
+        asuint(_StpSetupPerViewConstants7));
+}
+#endif
+
+// ============================================================================
+// Stage 2: StpPreTaa (Dilation + Spatial Anti-Aliasing)
+// ============================================================================
+#if defined(STP_STAGE_PRETAA)
+StpMF1 StpDilDitF(StpMU2 o) { return StpDitF1(o); }
+StpMF1 StpDilConF(StpF2 p) { return (StpMF1)InfinitySampleLevel(_StpIntermediateConvergenceSRV, s_linear_clamp_sampler, p, 0).r; }
+StpMF4 StpDilCon4F(StpF2 p) { return (StpMF4)_StpIntermediateConvergenceSRV.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateConvergenceSRV_InfinityView, 0)); }
+StpMF4 StpSaaLum4F(StpF2 p) { return (StpMF4)_StpLumaSRV.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpLumaSRV_InfinityView, 0)); }
+
+[numthreads(64, 1, 1)]
+void StpPreTaa(uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+    StpMU1 lane = StpMU1_(groupIndex);
+    StpMU2 groupPos = groupID.xy << 3;
+    StpMU2 pos = groupPos + StpRemapLaneTo8x16F(lane);
+    StpMU2 dilationSize = StpMU2(asuint(_StpDilConstants0).zw);
+
+    if (all(groupPos < dilationSize))
+    {
+        half convergence;
+        StpDilF(convergence, pos, asuint(_StpDilConstants0));
+        if (all(pos < (uint2)_StpSetupConstants5.xy))
+        {
+            _StpConvergence[pos] = convergence;
+        }
+    }
+
+    half weights;
+    StpSaaF(weights, pos, asuint(_StpSetupConstants0));
+    if (all(pos < (uint2)_StpSetupConstants5.xy))
+    {
+        _StpIntermediateWeights[pos] = weights;
+    }
+}
+#endif
+
+// ============================================================================
+// Stage 3: StpTaa (Temporal Reconstruction -> Unified Unsharpened History)
+// ============================================================================
+#if defined(STP_STAGE_TAA)
+StpMF4 StpTaaCtl4F(StpF2 p) { return (StpMF4)_StpIntermediateWeightsSRV.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateWeightsSRV_InfinityView, 0)); }
+StpMF4 StpTaaCol4RF(StpF2 p) { return (StpMF4)_StpIntermediateColorSRV.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateColorSRV_InfinityView, 0)); }
+StpMF4 StpTaaCol4GF(StpF2 p) { return (StpMF4)_StpIntermediateColorSRV.GatherGreen(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateColorSRV_InfinityView, 0)); }
+StpMF4 StpTaaCol4BF(StpF2 p) { return (StpMF4)_StpIntermediateColorSRV.GatherBlue(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateColorSRV_InfinityView, 0)); }
+StpMF4 StpTaaCol4AF(StpF2 p) { return (StpMF4)_StpIntermediateColorSRV.GatherAlpha(s_point_clamp_sampler, InfinityTextureUV(p, _StpIntermediateColorSRV_InfinityView, 0)); }
+StpMF1 StpTaaConF(StpF2 p) { return (StpMF1)InfinitySampleLevel(_StpConvergenceSRV, s_linear_clamp_sampler, p, 0).r; }
+StpMF1 StpTaaDitF(StpMU2 o) { return (StpMF1)StpDitF1(o); }
+StpU4 StpTaaMot4F(StpF2 p) { return _StpDepthMotionSRV.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpDepthMotionSRV_InfinityView, 0)); }
+StpMF4 StpTaaPriFedF(StpF2 p) { return (StpMF4)InfinitySampleLevel(_StpPriorFeedback, s_linear_clamp_sampler, p, 0); }
+StpMF4 StpTaaPriFed4RF(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherRed(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+StpMF4 StpTaaPriFed4GF(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherGreen(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+StpMF4 StpTaaPriFed4BF(StpF2 p) { return (StpMF4)_StpPriorFeedback.GatherBlue(s_point_clamp_sampler, InfinityTextureUV(p, _StpPriorFeedback_InfinityView, 0)); }
+
+[numthreads(64, 1, 1)]
+void StpTaa(uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+    StpMU1 lane = StpMU1_(groupIndex);
+    StpMU2 pos = (groupID.xy << 3) + StpRemapLaneTo8x16F(lane);
+
+    half4 feedback;
+    half4 output;
+    StpTaaF(
+        lane,
+        pos,
+        feedback,
+        output,
+        asuint(_StpTaaConstants0),
+        asuint(_StpTaaConstants1),
+        asuint(_StpTaaConstants2),
+        asuint(_StpTaaConstants3));
+
+    uint2 outSize = (uint2)_StpTaaConstants3.zw;
+    if (all(pos < outSize))
+    {
+        _StpFeedback[pos] = feedback;
+        _StpHistoryOutput[pos] = float4(max(0.0, output.rgb), 1.0);
+    }
+}
+#endif
+
+// ============================================================================
+// Stage 4: Display-Only Output Sharpen -> TemporalOutputBuffer
+// ============================================================================
+#if defined(STP_STAGE_SHARPEN)
+float StpLuma(float3 c) { return dot(max(c, 0.0), float3(0.2126, 0.7152, 0.0722)); }
+
+[numthreads(8, 8, 1)]
+void StpSharpen(uint3 id : SV_DispatchThreadID)
+{
+    uint2 outSize = (uint2)_StpSharpenConstants.xy;
+    if (any(id.xy >= outSize))
+    {
+        return;
+    }
+
+    int2 p = (int2)id.xy;
+    int2 maxP = (int2)outSize - 1;
+    float3 center = _StpHistoryInput.Load(int3(p, 0)).rgb;
+    float sharpness = _StpSharpenConstants.z;
+
+    if (sharpness <= 1e-4)
+    {
+        _StpDisplayOutput[p] = float4(max(0.0, center), 1.0);
+        return;
+    }
+
+    float3 n = _StpHistoryInput.Load(int3(clamp(p + int2(0, -1), 0, maxP), 0)).rgb;
+    float3 s = _StpHistoryInput.Load(int3(clamp(p + int2(0,  1), 0, maxP), 0)).rgb;
+    float3 w = _StpHistoryInput.Load(int3(clamp(p + int2(-1, 0), 0, maxP), 0)).rgb;
+    float3 e = _StpHistoryInput.Load(int3(clamp(p + int2( 1, 0), 0, maxP), 0)).rgb;
+
+    float lc = StpLuma(center);
+    float ln = StpLuma(n);
+    float ls = StpLuma(s);
+    float lw = StpLuma(w);
+    float le = StpLuma(e);
+
+    float minL = min(lc, min(min(ln, ls), min(lw, le)));
+    float maxL = max(lc, max(max(ln, ls), max(lw, le)));
+    float amp = saturate(min(minL, 2.0 - min(maxL, 2.0)) / max(maxL, 1e-4));
+    float weight = -sqrt(amp) * (0.18 * sharpness);
+    float3 sharpened = max(0.0, (center + (n + s + w + e) * weight) / (1.0 + 4.0 * weight));
+    _StpDisplayOutput[p] = float4(min(sharpened, 65504.0), 1.0);
+}
+#endif

@@ -312,7 +312,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
             m_Cameras[state.cameraId] = new CameraObservation { camera = camera, state = state,
-                generation = state.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) };
+                generation = state.historyCache.TextureGeneration(TemporalReconstructionUtility.HistoryColorTextureID) };
             if (RenderCaptureService.current.CaptureThisFrame && camera.name == m_Evidence.cases[m_Index].camera)
                 m_ArmedFrame = Time.frameCount;
         }
@@ -399,7 +399,7 @@ namespace InfinityTech.Rendering.Pipeline
                 lightRetired = lightRetired, asyncJoined = asyncJoined, captureOutstanding = RenderCaptureService.current.OutstandingCount };
             foreach (CameraObservation observation in m_Cameras.Values)
                 frame.cameras.Add(new CameraEvidence { name = observation.camera.name, id = observation.state.cameraId,
-                    generationBefore = observation.generation, generationAfter = observation.state.historyCache.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID),
+                    generationBefore = observation.generation, generationAfter = observation.state.historyCache.TextureGeneration(TemporalReconstructionUtility.HistoryColorTextureID),
                     executed = observation.executed, reset = observation.state.requiresHistoryReset,
                     retired = observation.state.historyCache.RetiredQueuedCount, retiredAlive = observation.state.historyCache.RetiredResourcesAreAlive,
                     position = observation.camera.transform.position, cameraWorldToView = observation.camera.worldToCameraMatrix,

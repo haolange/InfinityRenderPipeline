@@ -65,6 +65,25 @@ namespace InfinityTech.Rendering.Editor
                         ? data.shape : LightShapeUtility.FromUnityLight(light);
                     EditorGUI.LabelField(r, DescribeShape(shape));
                 });
+            if (columns.Length > 9)
+            {
+                columns[9] = new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom,
+                    new GUIContent("Cast Shadows", "Enable realtime and baked shadows for this light."), "m_Shadows.m_Type", 85,
+                    (r, prop, dep) =>
+                    {
+                        if (prop == null)
+                            return;
+                        using var scope = new EditorGUI.PropertyScope(r, GUIContent.none, prop);
+                        bool previousMixed = EditorGUI.showMixedValue;
+                        EditorGUI.showMixedValue = prop.hasMultipleDifferentValues;
+                        bool enabled = prop.intValue != (int)LightShadows.None;
+                        using var change = new EditorGUI.ChangeCheckScope();
+                        bool next = EditorGUI.Toggle(r, enabled);
+                        EditorGUI.showMixedValue = previousMixed;
+                        if (change.changed)
+                            prop.intValue = (int)(next ? LightShadows.Soft : LightShadows.None);
+                    });
+            }
             return columns;
         }
 

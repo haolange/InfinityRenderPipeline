@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.Temporal;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -34,6 +35,11 @@ namespace InfinityTech.Rendering.Pipeline
         }
         // Why each feature cannot record for reasons that depend only on these resources (null when it can).
         internal string[] featureResourceReasons
+        {
+            get;
+            private set;
+        }
+        internal TemporalDeviceCapabilities temporalDeviceCapabilities
         {
             get;
             private set;
@@ -85,6 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
             kernels = resolvedKernels;
             blitPasses = resolvedPasses;
             featureResourceReasons = reasons;
+            temporalDeviceCapabilities = BuildTemporalCapabilities(resolvedKernels, textures);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             captureKernels = new CaptureKernels(shaders);
 #endif
@@ -114,5 +121,39 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 #endif
+
+        static TemporalDeviceCapabilities BuildTemporalCapabilities(PipelineKernels kernels, InfinityRenderPipelineRuntimeTextures textures)
+        {
+            string nativeReason = !kernels.temporalAntiAliasing.isValid ? kernels.temporalAntiAliasing.missingReason
+                : null;
+            bool stpApiSupported = SystemInfo.graphicsDeviceType != GraphicsDeviceType.OpenGLES3;
+            string stpReason = !stpApiSupported ? "STP does not support OpenGLES3."
+                : !kernels.stpSetup.isValid ? kernels.stpSetup.missingReason
+                : !kernels.stpPreTaa.isValid ? kernels.stpPreTaa.missingReason
+                : !kernels.stpTaa.isValid ? kernels.stpTaa.missingReason
+                : !kernels.stpSharpen.isValid ? kernels.stpSharpen.missingReason
+                : textures.blueNoiseOwenScrambledSobol == null ? "RuntimeTextures is missing blueNoiseOwenScrambledSobol."
+                : null;
+            string fsrReason = !kernels.fsrPrepareInputs.isValid ? kernels.fsrPrepareInputs.missingReason
+                : !kernels.fsrLumaInstability.isValid ? kernels.fsrLumaInstability.missingReason
+                : !kernels.fsrAccumulate.isValid ? kernels.fsrAccumulate.missingReason
+                : !kernels.fsrRcas.isValid ? kernels.fsrRcas.missingReason
+                : null;
+            string sgsrReason = !kernels.sgsrConvert.isValid ? kernels.sgsrConvert.missingReason
+                : !kernels.sgsrActivate.isValid ? kernels.sgsrActivate.missingReason
+                : !kernels.sgsrUpscale.isValid ? kernels.sgsrUpscale.missingReason
+                : null;
+            return new TemporalDeviceCapabilities(
+                nativeSupported: nativeReason == null,
+                stpSupported: stpReason == null,
+                fsrSupported: fsrReason == null,
+                sgsrSupported: sgsrReason == null,
+                xessSupported: false,
+                dlssSupported: false,
+                nativeUnavailableReason: nativeReason,
+                stpUnavailableReason: stpReason,
+                fsrUnavailableReason: fsrReason,
+                sgsrUnavailableReason: sgsrReason);
+        }
     }
 }

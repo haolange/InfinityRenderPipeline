@@ -24,13 +24,14 @@ namespace InfinityTech.Component.Editor
         [Tooltip(InfinityAdditionalLightData.IESTooltip)] public Texture iesProfile;
 
         internal LightSourceShape shape => m_Shape;
+        internal EShadowFilter shadowFilter => m_ShadowFilter;
         internal ELightIntensityEditMode intensityEditMode => m_IntensityEditMode;
 
         internal void Read(Light light)
         {
             light.TryGetComponent(out InfinityAdditionalLightData data);
             m_Shape = data ? data.shape : LightShapeUtility.FromUnityLight(light);
-            m_ShadowFilter = data ? data.shadowFilter : ResolveNativeShadowFilter(light.shadows);
+            m_ShadowFilter = data ? data.shadowFilter : EShadowFilter.PCF;
             m_ShadowUpdateMode = data ? data.shadowUpdateMode : EShadowUpdateMode.EveryFrame;
             m_IntensityEditMode = data ? data.intensityEditMode : ELightIntensityEditMode.PhysicallyBased;
             lightLayer = data ? data.lightLayer : ERenderingLayer.LightLayerDefault;
@@ -44,8 +45,5 @@ namespace InfinityTech.Component.Editor
             maxDrawDistanceFade = data ? data.maxDrawDistanceFade : InfinityAdditionalLightData.DefaultDistanceFade;
             iesProfile = data ? data.iesProfile : null;
         }
-
-        internal static EShadowFilter ResolveNativeShadowFilter(LightShadows shadows) =>
-            shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF;
     }
 }

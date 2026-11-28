@@ -1,0 +1,349 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/Library/TextureView.hlsl"
+#pragma kernel FSR_PrepareInputs
+#pragma kernel FSR_LumaInstability
+#pragma kernel FSR_Accumulate
+#pragma kernel FSR_RCAS
+
+#pragma multi_compile_local _ FSR_REACTIVE_MASK
+
+#include "../../Library/Common.hlsl"
+#include "../../Library/ColorUtility.hlsl"
+
+// Pure HLSL Compute FSR 3.1 Upscaler (without Frame Generation) for InfinityRP RGBuilder.
+// Metal-safe: avoids RWTexture2D uint atomics & global SPD counters.
+cbuffer CBV_TemporalFsrParameters
+{
+    float4 FSR_DisplayResolution; // xy = display size, zw = 1 / display size
+    float4 FSR_RenderResolution;  // xy = render size, zw = 1 / render size
+    float4 FSR_DepthParams;       // x = near, y = far, z = reversedZ (1/0), w = orthographic (1/0)
+    float4 FSR_JitterAndFlags;    // xy = current jitter in render pixels, zw = prev jitter in render pixels
+    float4x4 FSR_PreviousFromCurrentClip;
+    int FSR_ResetHistory;
+    int FSR_JitterPhaseCount;
+    float FSR_Sharpness;
+    float FSR_DeltaTime;
+};
+
+Texture2D<float4> SRV_SceneColorTexture;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float2> SRV_MotionTexture;
+Texture2D<float4> SRV_HistoryColorTexture;
+#if defined(FSR_REACTIVE_MASK)
+Texture2D<float> SRV_ReactiveMaskTexture;
+#endif
+
+Texture2D<float4> SRV_FsrPreparedInput;   // xy = dilatedMV, z = closestDepth, w = currentLogLuma
+Texture2D<float4> SRV_FsrLumaHistory;     // xy = luma history (prev/curr ema), z = prev closestDepth, w = instability
+Texture2D<float4> SRV_FsrLumaCurrent;     // current luma statistics and instability
+Texture2D<float2> SRV_FsrLockHistory;     // x = accumulation weight, y = feature lock
+Texture2D<float4> SRV_FsrHistoryRead;     // unsharpened temporal history color (display res)
+
+RWTexture2D<float4> UAV_FsrPreparedInput;
+RWTexture2D<float4> UAV_FsrLumaHistory;
+RWTexture2D<float2> UAV_FsrLockHistory;
+RWTexture2D<float4> UAV_TemporalHistoryTexture;
+RWTexture2D<float4> UAV_TemporalOutputTexture;
+
+static const int2 kFsrOffsets3x3[9] = {
+    int2(-1, -1), int2(0, -1), int2(1, -1),
+    int2(-1,  0), int2(0,  0), int2(1,  0),
+    int2(-1,  1), int2(0,  1), int2(1,  1)
+};
+
+float3 FsrTonemap(float3 rgb)
+{
+    rgb = max(0.0, rgb);
+    return rgb * rcp(1.0 + max3(rgb.r, rgb.g, rgb.b));
+}
+
+float3 FsrInverseTonemap(float3 color)
+{
+    color = max(0.0, color);
+    float peak = min(max3(color.r, color.g, color.b), 1.0 - 1.0 / 65504.0);
+    return min(color * rcp(1.0 - peak), 65504.0);
+}
+
+float FsrDepthToMeters(float deviceDepth)
+{
+    float z = FSR_DepthParams.z > 0.5 ? deviceDepth : (1.0 - deviceDepth);
+    float nearP = max(FSR_DepthParams.x, 1e-4);
+    float farP = max(FSR_DepthParams.y, nearP + 1e-3);
+    if (FSR_DepthParams.w > 0.5)
+        return lerp(farP, nearP, z);
+    return (nearP * farP) / (nearP + z * (farP - nearP));
+}
+
+float FsrLanczos2ApproxSq(float d2)
+{
+    float x2 = min(d2, 4.0);
+    float a = (2.0 / 5.0) * x2 - 1.0;
+    float b = (1.0 / 4.0) * x2 - 1.0;
+    return (25.0 / 16.0) * (a * a - (25.0 / 16.0 - 1.0)) * (b * b);
+}
+
+// ----------------------------------------------------------------------------
+// Stage 1: Depth Dilation + Motion Dilation + Log-Luminance Extraction
+// ----------------------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void FSR_PrepareInputs(uint3 id : SV_DispatchThreadID)
+{
+    int2 renderMax = (int2)FSR_RenderResolution.xy - 1;
+    if (any((int2)id.xy > renderMax))
+        return;
+
+    int2 pos = (int2)id.xy;
+    float closestDepth = SRV_DepthTexture.Load(int3(pos, 0));
+    int2 closestPos = pos;
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        int2 sp = clamp(pos + kFsrOffsets3x3[i], 0, renderMax);
+        float d = SRV_DepthTexture.Load(int3(sp, 0));
+        bool nearer = FSR_DepthParams.z > 0.5 ? (d > closestDepth) : (d < closestDepth);
+        if (nearer)
+        {
+            closestDepth = d;
+            closestPos = sp;
+        }
+    }
+
+    float2 dilatedMV = SRV_MotionTexture.Load(int3(closestPos, 0));
+    float3 rgb = max(0.0, SRV_SceneColorTexture.Load(int3(pos, 0)).rgb);
+    float luma = max(Rec709Luminance(rgb), 0.0);
+    float logLuma = log2(1.0 + luma);
+
+    UAV_FsrPreparedInput[pos] = float4(dilatedMV, closestDepth, logLuma);
+}
+
+// ----------------------------------------------------------------------------
+// Stage 2: Temporal Luma Instability & Shading Change Estimation
+// ----------------------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void FSR_LumaInstability(uint3 id : SV_DispatchThreadID)
+{
+    int2 renderMax = (int2)FSR_RenderResolution.xy - 1;
+    if (any((int2)id.xy > renderMax))
+        return;
+
+    int2 pos = (int2)id.xy;
+    float4 prepared = SRV_FsrPreparedInput.Load(int3(pos, 0));
+    float2 uv = (pos + 0.5) * FSR_RenderResolution.zw;
+    float2 prevUV = uv - prepared.xy + (FSR_JitterAndFlags.xy - FSR_JitterAndFlags.zw) * FSR_RenderResolution.zw;
+    float currDepth = prepared.z;
+    float currLogLuma = prepared.w;
+
+    float2 lumaStats = float2(currLogLuma, 0.0);
+    float instability = 0.0;
+
+    if (FSR_ResetHistory == 0 && all(prevUV >= 0.0) && all(prevUV < 1.0))
+    {
+        float4 prevHist = InfinitySampleLevel(SRV_FsrLumaHistory, Global_bilinear_clamp_sampler, prevUV, 0);
+        float prevLuma = prevHist.x;
+        float prevDelta = prevHist.y;
+        float diff = currLogLuma - prevLuma;
+
+        // FSR 3.1 luma-instability tracking across consecutive frames.
+        bool oscillate = (abs(prevDelta) > 0.02) && (sign(diff) != sign(prevDelta));
+        instability = saturate(abs(diff) * (oscillate ? 2.5 : 0.75) + prevHist.w * 0.45);
+        lumaStats.y = lerp(prevDelta, diff, 0.5);
+    }
+
+    UAV_FsrLumaHistory[pos] = float4(lumaStats.x, lumaStats.y, currDepth, instability);
+}
+
+// ----------------------------------------------------------------------------
+// Stage 3: FSR 3.1 Reprojection, Reactive Weighting & Lanczos2 Accumulation
+// ----------------------------------------------------------------------------
+float4 FsrSampleHistoryCatmullRom(float2 uv, float2 texSize, float2 invTexSize)
+{
+    float2 position = uv * texSize;
+    float2 center = floor(position - 0.5) + 0.5;
+    float2 f = position - center;
+    float2 f2 = f * f;
+    float2 f3 = f2 * f;
+
+    float2 w0 = -0.5 * f3 + f2 - 0.5 * f;
+    float2 w1 = 1.5 * f3 - 2.5 * f2 + 1.0;
+    float2 w2 = -1.5 * f3 + 2.0 * f2 + 0.5 * f;
+    float2 w3 = 0.5 * f3 - 0.5 * f2;
+
+    float2 w12 = w1 + w2;
+    float2 tc12 = (center + w2 / w12) * invTexSize;
+    float2 tc0 = (center - 1.0) * invTexSize;
+    float2 tc3 = (center + 2.0) * invTexSize;
+
+    float4 result =
+        InfinitySampleLevel(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, float2(tc12.x, tc0.y), 0) * (w12.x * w0.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, float2(tc0.x, tc12.y), 0) * (w0.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, float2(tc12.x, tc12.y), 0) * (w12.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, float2(tc3.x, tc12.y), 0) * (w3.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, float2(tc12.x, tc3.y), 0) * (w12.x * w3.y);
+    float weight = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y
+        + w3.x * w12.y + w12.x * w3.y;
+    return max(0.0, result / weight);
+}
+
+[numthreads(8, 8, 1)]
+void FSR_Accumulate(uint3 id : SV_DispatchThreadID)
+{
+    int2 dispMax = (int2)FSR_DisplayResolution.xy - 1;
+    if (any((int2)id.xy > dispMax))
+        return;
+
+    int2 hrPos = (int2)id.xy;
+    float2 hrUV = (hrPos + 0.5) * FSR_DisplayResolution.zw;
+
+    float2 inputUV = hrUV - FSR_JitterAndFlags.xy * FSR_RenderResolution.zw;
+    float4 prepared = InfinitySampleLevel(SRV_FsrPreparedInput, Global_bilinear_clamp_sampler, inputUV, 0);
+    float2 motionVector = prepared.xy;
+    bool finiteMotion = all(isfinite(motionVector));
+    float currDepth = prepared.z;
+    float2 prevUV = finiteMotion ? hrUV - motionVector : float2(-1.0, -1.0);
+
+    float3 m1 = 0.0, m2 = 0.0;
+    float3 boxMin = 1e10, boxMax = -1e10;
+    float3 upsampledSum = 0.0;
+    float upsampledWeight = 0.0;
+
+    float2 lrPosExact = hrUV * FSR_RenderResolution.xy - FSR_JitterAndFlags.xy;
+    int2 lrBase = clamp((int2)floor(lrPosExact), 0, (int2)FSR_RenderResolution.xy - 1);
+    float scaleRatio = FSR_DisplayResolution.x * FSR_RenderResolution.z;
+    float kernelSharp = min(1.99, 1.0 + max(scaleRatio - 1.0, 0.0));
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        int2 sampleCoord = clamp(lrBase + kFsrOffsets3x3[i], 0, (int2)FSR_RenderResolution.xy - 1);
+        float3 sampleRgb = FsrTonemap(SRV_SceneColorTexture.Load(int3(sampleCoord, 0)).rgb);
+        float3 sampleYCoCg = RGB2YCoCg(sampleRgb);
+        m1 += sampleYCoCg;
+        m2 += sampleYCoCg * sampleYCoCg;
+        boxMin = min(boxMin, sampleYCoCg);
+        boxMax = max(boxMax, sampleYCoCg);
+
+        float2 samplePos = (float2)sampleCoord + 0.5;
+        float2 d = (samplePos - lrPosExact) * kernelSharp;
+        float w = max(0.0, FsrLanczos2ApproxSq(dot(d, d)));
+        upsampledSum += sampleYCoCg * w;
+        upsampledWeight += w;
+    }
+
+    float3 upsampledYCoCg = upsampledWeight > 1e-5 ? upsampledSum / upsampledWeight : m1 / 9.0;
+    upsampledYCoCg = clamp(upsampledYCoCg, boxMin, boxMax);
+
+    float3 mean = m1 / 9.0;
+    float3 sigma = sqrt(max(m2 / 9.0 - mean * mean, 0.0));
+
+    float reactive = 0.0;
+#if defined(FSR_REACTIVE_MASK)
+    reactive = saturate(InfinitySampleLevel(SRV_ReactiveMaskTexture, Global_bilinear_clamp_sampler, inputUV, 0).r);
+#endif
+
+    float instability = InfinitySampleLevel(SRV_FsrLumaCurrent, Global_bilinear_clamp_sampler, inputUV, 0).w;
+
+    float2 previousInputUV = prevUV - FSR_JitterAndFlags.zw * FSR_RenderResolution.zw;
+    bool inScreen = FSR_ResetHistory == 0 && finiteMotion && all(prevUV >= 0.0) && all(prevUV < 1.0)
+        && all(previousInputUV >= 0.0) && all(previousInputUV < 1.0);
+    float disocclusion = 0.0;
+    float prevAccumWeight = 0.0;
+    float3 historyYCoCg = upsampledYCoCg;
+
+    if (inScreen)
+    {
+        float prevDepth = InfinitySampleLevel(SRV_FsrLumaHistory, Global_bilinear_clamp_sampler, previousInputUV, 0).z;
+        float4 previousClip = mul(FSR_PreviousFromCurrentClip, float4(inputUV * 2.0 - 1.0, currDepth, 1.0));
+        float expectedPreviousDepth = previousClip.z / max(previousClip.w, 1e-6);
+        bool validDepth = all(isfinite(previousClip)) && isfinite(prevDepth) && previousClip.w > 0.0
+            && expectedPreviousDepth >= 0.0 && expectedPreviousDepth <= 1.0;
+        disocclusion = 1.0;
+        if (validDepth)
+        {
+            float currMeters = FsrDepthToMeters(expectedPreviousDepth);
+            float prevMeters = FsrDepthToMeters(prevDepth);
+            float depthThreshold = max(0.08 * currMeters, 0.02);
+            disocclusion = saturate((currMeters - prevMeters - depthThreshold) / max(depthThreshold, 1e-4));
+        }
+        if (disocclusion < 1.0)
+        {
+            float3 histRgb = FsrTonemap(FsrSampleHistoryCatmullRom(prevUV, FSR_DisplayResolution.xy, FSR_DisplayResolution.zw).rgb);
+            historyYCoCg = RGB2YCoCg(histRgb);
+            float2 lockHist = InfinitySampleLevel(SRV_FsrLockHistory, Global_bilinear_clamp_sampler, prevUV, 0).xy;
+            prevAccumWeight = lockHist.x * (1.0 - disocclusion);
+        }
+        else
+        {
+            inScreen = false;
+        }
+    }
+
+    float velocityPixels = finiteMotion ? length(motionVector * FSR_DisplayResolution.xy) : 0.0;
+    float velocityFactor = saturate(velocityPixels / 20.0);
+    float reactiveFactor = sqrt(reactive);
+    float boxScale = lerp(2.5, 0.9, max(velocityFactor, max(reactiveFactor, max(disocclusion, instability))));
+    float3 clippedHistory = clamp(historyYCoCg, max(boxMin, mean - sigma * boxScale), min(boxMax, mean + sigma * boxScale));
+
+    float historyResponse = lerp(0.92, 0.10, max(reactiveFactor, disocclusion));
+    historyResponse = lerp(historyResponse, 0.45, instability * 0.5);
+    float maxFrames = max((float)FSR_JitterPhaseCount, 8.0);
+    float targetHistWeight = min(prevAccumWeight + 1.0, maxFrames) * (inScreen ? 1.0 : 0.0);
+    float alpha = saturate(1.0 - historyResponse * (targetHistWeight / (targetHistWeight + 1.0)));
+    alpha = max(alpha, max(reactiveFactor, disocclusion));
+
+    float3 accumYCoCg = lerp(clippedHistory, upsampledYCoCg, inScreen ? alpha : 1.0);
+    float3 accumRgb = FsrInverseTonemap(YCoCg2RGB(accumYCoCg));
+
+    UAV_FsrLockHistory[hrPos] = float2(inScreen ? lerp(targetHistWeight, 1.0, reactiveFactor) : 1.0, saturate(1.0 - instability));
+    UAV_TemporalHistoryTexture[hrPos] = float4(accumRgb, 1.0);
+}
+
+// ----------------------------------------------------------------------------
+// Stage 4: FSR RCAS Display-Only Sharpening -> TemporalOutputBuffer
+// ----------------------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void FSR_RCAS(uint3 id : SV_DispatchThreadID)
+{
+    int2 dispMax = (int2)FSR_DisplayResolution.xy - 1;
+    if (any((int2)id.xy > dispMax))
+        return;
+
+    int2 p = (int2)id.xy;
+    float3 e = max(0.0, SRV_FsrHistoryRead.Load(int3(p, 0)).rgb);
+    if (FSR_Sharpness <= 1e-4)
+    {
+        UAV_TemporalOutputTexture[p] = float4(e, 1.0);
+        return;
+    }
+
+    float3 b = max(0.0, SRV_FsrHistoryRead.Load(int3(clamp(p + int2(0, -1), 0, dispMax), 0)).rgb);
+    float3 d = max(0.0, SRV_FsrHistoryRead.Load(int3(clamp(p + int2(-1, 0), 0, dispMax), 0)).rgb);
+    float3 f = max(0.0, SRV_FsrHistoryRead.Load(int3(clamp(p + int2( 1, 0), 0, dispMax), 0)).rgb);
+    float3 h = max(0.0, SRV_FsrHistoryRead.Load(int3(clamp(p + int2(0,  1), 0, dispMax), 0)).rgb);
+
+    // FidelityFX RCAS lobe calculation in perceptually compressed HDR.
+    float3 bt = FsrTonemap(b);
+    float3 dt = FsrTonemap(d);
+    float3 et = FsrTonemap(e);
+    float3 ft = FsrTonemap(f);
+    float3 ht = FsrTonemap(h);
+
+    float bL = Rec709Luminance(bt);
+    float dL = Rec709Luminance(dt);
+    float eL = Rec709Luminance(et);
+    float fL = Rec709Luminance(ft);
+    float hL = Rec709Luminance(ht);
+
+    float min4L = min(min(bL, dL), min(fL, hL));
+    float max4L = max(max(bL, dL), max(fL, hL));
+    float hitMin = min(min4L, eL) / max(4.0 * max4L, 1e-4);
+    float hitMax = (1.0 - max(max4L, eL)) / min(4.0 * min4L - 4.0, -1e-4);
+    float lobe = max(-hitMin, hitMax);
+
+    // RCAS keeps the five-tap denominator bounded away from zero.
+    float limit = -(0.25 - 1.0 / 16.0) * saturate(FSR_Sharpness);
+    float w = clamp(lobe, limit, 0.0);
+    float sharpenedLuma = (eL + (bL + dL + fL + hL) * w) * rcp(1.0 + 4.0 * w);
+    sharpenedLuma = clamp(sharpenedLuma, min(min4L, eL), max(max4L, eL));
+    float3 rcas = et * (sharpenedLuma / max(eL, 1e-6));
+    UAV_TemporalOutputTexture[p] = float4(FsrInverseTonemap(rcas), 1.0);
+}

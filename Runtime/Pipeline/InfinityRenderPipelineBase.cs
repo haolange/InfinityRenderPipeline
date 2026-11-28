@@ -40,7 +40,11 @@ namespace InfinityTech.Rendering.Pipeline
     internal class CameraUniform
     {
         public int frameIndex;
+        public int rawFrameIndex;
         public float2 jitter;
+        public int2 priorRenderSize;
+        public float deltaTime;
+        public float lastDeltaTime;
         public Matrix4x4 matrix_WorldToView;
         public Matrix4x4 matrix_ViewToWorld;
         public Matrix4x4 matrix_Proj;
@@ -56,12 +60,24 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_InvViewFlipYJitterProj;
         public Matrix4x4 matrix_LastViewFlipYProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
+        // 3-frame unjittered camera history (current / last / lastLast) for STP forward/backward projection.
+        public Matrix4x4 unjitteredProj;
+        public Matrix4x4 lastUnjitteredProj;
+        public Matrix4x4 lastLastUnjitteredProj;
+        public Matrix4x4 lastWorldToView;
+        public Matrix4x4 lastLastWorldToView;
+        public Vector3 preparedWorldPos;
+        public Vector3 lastWorldPos;
+        public Vector3 lastLastWorldPos;
         public Vector2 currentJitterUV;
         public Vector2 previousJitterUV;
         private Vector4 m_DepthParameters;
+        private Vector4 m_TemporalParameters;
         private Vector3 m_PreparedPosition;
         private Quaternion m_PreparedRotation;
         private Matrix4x4 m_PreparedProjection, m_LastProjection;
+        private int2 m_PreparedRenderSize;
+        private float m_PreparedDeltaTime;
         private int m_CommittedFrames;
         private bool m_HasPreparedView;
 
@@ -81,24 +97,35 @@ namespace InfinityTech.Rendering.Pipeline
                 || camera.projectionMatrix != m_LastProjection;
         }
 
-        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, EHistoryReset historyReset)
+        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, EHistoryReset historyReset, in TemporalFrameRequirements temporalRequirements, float frameDeltaTime)
         {
             bool resetHistory = historyReset != EHistoryReset.None;
             m_HasPreparedView = true;
             m_PreparedPosition = camera.transform.position;
             m_PreparedRotation = camera.transform.rotation;
             m_PreparedProjection = camera.projectionMatrix;
-            frameIndex = m_CommittedFrames % 8;
+            m_PreparedRenderSize = math.max(renderSize, new int2(1, 1));
+            m_PreparedDeltaTime = math.max(frameDeltaTime, 1e-4f);
+            int phaseCount = math.max(1, temporalRequirements.jitterPhaseCount);
+            rawFrameIndex = m_CommittedFrames;
+            frameIndex = rawFrameIndex % phaseCount;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (historyReset == EHistoryReset.Locked) frameIndex = 0;
+            if (historyReset == EHistoryReset.Locked)
+            {
+                rawFrameIndex = 0;
+                frameIndex = 0;
+            }
 #endif
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
+            unjitteredProj = camera.projectionMatrix;
+            preparedWorldPos = m_PreparedPosition;
             // A non-temporal camera always resets, so it never jitters.
             Matrix4x4 jitterProj = default;
-            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref jitterProj, ref matrix_FlipYJitterProj, applyJitter: !resetHistory);
+            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, temporalRequirements.jitterSpread, rawFrameIndex, phaseCount, ref jitter, ref jitterProj, ref matrix_FlipYJitterProj,
+                applyJitter: !resetHistory && temporalRequirements.requiresJitter);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewFlipYProj = matrix_FlipYProj * matrix_WorldToView;
@@ -109,6 +136,8 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
             currentJitterUV = TemporalJitter.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
             m_DepthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+            m_TemporalParameters = new Vector4(temporalRequirements.mipBias, temporalRequirements.renderScale, rawFrameIndex, temporalRequirements.isUpscaling ? 1.0f : 0.0f);
+            deltaTime = m_PreparedDeltaTime;
             if (resetHistory)
             {
                 // No previous camera sample exists after a reset. Seed the upload without
@@ -116,6 +145,14 @@ namespace InfinityTech.Rendering.Pipeline
                 previousJitterUV = currentJitterUV;
                 matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
                 matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
+                priorRenderSize = m_PreparedRenderSize;
+                lastDeltaTime = deltaTime;
+                lastUnjitteredProj = unjitteredProj;
+                lastLastUnjitteredProj = unjitteredProj;
+                lastWorldToView = matrix_WorldToView;
+                lastLastWorldToView = matrix_WorldToView;
+                lastWorldPos = preparedWorldPos;
+                lastLastWorldPos = preparedWorldPos;
             }
         }
 
@@ -123,6 +160,14 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!m_HasPreparedView) return;
             m_HasPreparedView = false;
+            lastLastUnjitteredProj = lastUnjitteredProj;
+            lastLastWorldToView = lastWorldToView;
+            lastLastWorldPos = lastWorldPos;
+            lastUnjitteredProj = unjitteredProj;
+            lastWorldToView = matrix_WorldToView;
+            lastWorldPos = preparedWorldPos;
+            priorRenderSize = m_PreparedRenderSize;
+            lastDeltaTime = m_PreparedDeltaTime;
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
             matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
             m_LastCameraPosition = m_PreparedPosition;
@@ -155,14 +200,14 @@ namespace InfinityTech.Rendering.Pipeline
                 matrix_LastViewFlipYProj = matrix_LastViewFlipYProj,
                 matrix_LastViewFlipYJitterProj = matrix_LastViewFlipYJitterProj,
                 view_DepthParameters = m_DepthParameters,
-                view_JitterUV = new Vector4(currentJitterUV.x, currentJitterUV.y, previousJitterUV.x, previousJitterUV.y)
+                view_JitterUV = new Vector4(currentJitterUV.x, currentJitterUV.y, previousJitterUV.x, previousJitterUV.y),
+                view_TemporalParameters = m_TemporalParameters
             });
         }
     }
 
     public abstract partial class InfinityRenderPipelineBase : RenderPipeline
     {
-        private bool m_UpdateInit;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         const string RtaoAssetDisabled = "Ray tracing is disabled on the RP Asset.";
@@ -203,7 +248,7 @@ namespace InfinityTech.Rendering.Pipeline
         // What the derived pipeline records and requires; fixed for the pipeline's lifetime.
         readonly PipelineCapabilities m_Capabilities;
         readonly List<AnalyticShadowLight> m_AnalyticLights = new List<AnalyticShadowLight>(64);
-        internal readonly TemporalReconstructionSystem temporalSystem = new TemporalReconstructionSystem();
+        internal TemporalReconstructionSystem temporalSystem { get; private set; }
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
@@ -230,6 +275,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new NotSupportedException("InfinityRP: " + m_Settings.config.blockingConflict);
             m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources(capabilities.requiredProducers);
+            temporalSystem = new TemporalReconstructionSystem(resources.temporalDeviceCapabilities);
             try
             {
                 CaptureGraphicsState();
@@ -244,7 +290,6 @@ namespace InfinityTech.Rendering.Pipeline
                 InfinityDebugDisplaySettings.EnsureRegistered();
 #endif
 
-                m_UpdateInit = true;
                 renderContext = new RenderContext(m_Settings, shaders.meshDrawPipelineCS, capabilities);
             }
             catch (Exception constructionFailure)
@@ -394,7 +439,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RecordCamera(context, cmdBuffer);
                         using (PipelineCpuMarkers.s_RecordEnsureRequiredProducers.Auto())
                         {
-                            context.features.EnsureRequiredProducers(m_Capabilities.requiredProducers, context.temporalResolve);
+                            context.features.EnsureRequiredProducers(m_Capabilities.requiredProducers, context.temporalActive);
                         }
                     }
 
@@ -458,26 +503,18 @@ namespace InfinityTech.Rendering.Pipeline
                 camera.cameraType == CameraType.Reflection, cameraData != null && cameraData.customFrameSettings,
                 cameraData != null ? cameraData.frameSettings : default);
             // Select TRC backend & declare FrameRequirements BEFORE CameraDimensionDescriptor and resource production (PRD §9.3).
-            bool allowSuperResolution = m_Capabilities.Records(EFrameFeature.SuperResolution)
-                && camera.cameraType == CameraType.Game
-                && (cameraData == null || cameraData.superResolutionOverride != ESuperResolutionOverride.Off);
-            bool allowTemporal = policy.temporal && (m_Capabilities.Records(EFrameFeature.TAA) || allowSuperResolution);
+            ETemporalCameraOverride cameraOverride = cameraData != null ? cameraData.temporalOverride : ETemporalCameraOverride.FollowPipeline;
+            bool allowTemporal = policy.temporal && m_Capabilities.Records(EFrameFeature.TemporalReconstruction);
+            bool allowUpscaling = allowTemporal && camera.cameraType == CameraType.Game;
             int2 displaySize = new int2(math.max(1, camera.pixelWidth), math.max(1, camera.pixelHeight));
             TemporalFrameRequirements temporalRequirements = temporalSystem.PlanFrame(
-                new TemporalPlanInput(displaySize, allowTemporal, allowSuperResolution, m_Settings.temporal, newlyCreated),
+                new TemporalPlanInput(displaySize, allowTemporal, allowUpscaling, cameraOverride, m_Settings.temporal, newlyCreated),
                 out _);
-            CameraDimensionDescriptor dimensions = new CameraDimensionDescriptor(
-                temporalRequirements.displaySize,
-                temporalRequirements.renderScale,
-                temporalRequirements.activeBackend == ETemporalBackend.NativeTAAU,
-                camera.pixelRect);
+            CameraDimensionDescriptor dimensions = new CameraDimensionDescriptor(in temporalRequirements, camera.pixelRect);
             TemporalCameraState temporalState = state.GetTemporalState();
             bool backendChanged = temporalState.RequiresBackendSwitchReset(in temporalRequirements);
             EHistoryReset historyReset = state.ResolveHistoryReset(camera, policy, newlyCreated, previousSeenFrame, frameContext.frame, dimensions, backendChanged);
             temporalState.PrepareFrame(in temporalRequirements);
-            ETemporalResolve temporalResolve = temporalRequirements.activeBackend == ETemporalBackend.NativeTAAU ? ETemporalResolve.SuperResolution
-                : temporalRequirements.activeBackend == ETemporalBackend.NativeTAA ? ETemporalResolve.TAA
-                : ETemporalResolve.None;
             dimensions = dimensions.WithCapacity(state.internalCapacity.Prepare(dimensions.internalSize), state.displayCapacity.Prepare(dimensions.displaySize));
             state.preparedDimensions = dimensions;
             renderContext.graph.SetTextureCapacity(dimensions.textureCapacity);
@@ -489,12 +526,12 @@ namespace InfinityTech.Rendering.Pipeline
             VolumeSnapshot volumes = VolumeSnapshot.Capture(state.volumeStack);
             AtmosphereParameter atmosphere = AtmosphereParameter.FromProfile(m_Settings.atmosphericalProfile);
             atmosphere.ThrowIfInvalid();
-            state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset);
+            state.cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, historyReset, in temporalRequirements, Time.unscaledDeltaTime);
 
             FeatureSupportContext featureSupport = ResolveFeatureSupport(policy, frameSettings, volumes);
             state.features.ResolveFrame(new FrameFeatureInputs
             {
-                requiredProducers = m_Capabilities.requiredProducers, frameSettings = frameSettings, temporalResolve = temporalResolve, volumes = volumes,
+                requiredProducers = m_Capabilities.requiredProducers, frameSettings = frameSettings, temporalActive = temporalRequirements.isActive, volumes = volumes,
                 decalCount = renderContext.sceneWorld.decals.table.count, support = featureSupport
             });
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -514,7 +551,7 @@ namespace InfinityTech.Rendering.Pipeline
                 camera.depthTextureMode |= motionOutputs;
             }
 
-            var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset, temporalResolve,
+            var setup = new CameraSetup(camera, state, policy, frameSettings, dimensions, historyReset,
                 policy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera), !CoreUtils.IsSceneLightingDisabled(camera),
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 InfinityDebugDisplaySettings.current.ResolveDebugView(camera),
@@ -936,7 +973,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 // One scene transaction across the modules, then poses: explicit static notifications and every dynamic transform.
                 SceneWorld sceneWorld = renderContext.sceneWorld;
-                sceneWorld.Update(ConsumeStaticPoseRefresh());
+                sceneWorld.Update();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 using (new PipelineFrameMeasurement.Section(1))
 #endif
@@ -950,18 +987,6 @@ namespace InfinityTech.Rendering.Pipeline
                     sceneWorld.meshes.UpdateDynamicPoses();
                 }
             }
-        }
-
-        // Static poses refresh once per pipeline instance; in the Editor only when the asset asks for it.
-        bool ConsumeStaticPoseRefresh()
-        {
-            if (!m_UpdateInit) return false;
-            m_UpdateInit = false;
-#if UNITY_EDITOR
-            return m_Settings.updateProxy;
-#else
-            return true;
-#endif
         }
 
         // A derived pipeline releases its pass-owned pool resources first and then calls this.

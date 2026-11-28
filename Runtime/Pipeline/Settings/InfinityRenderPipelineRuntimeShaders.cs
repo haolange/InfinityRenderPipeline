@@ -74,8 +74,14 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/Pass/Translucent/Compute_PyramidColor.compute")]
         public ComputeShader colorPyramidShader;
 
-        [ResourcePath("Shaders/Pass/Temporal/Compute_SuperResolution.compute")]
-        public ComputeShader superResolutionShader;
+        [ResourcePath("Shaders/Pass/Temporal/Compute_TemporalSTP.compute")]
+        public ComputeShader temporalStpShader;
+
+        [ResourcePath("Shaders/Pass/Temporal/Compute_TemporalFSR.compute")]
+        public ComputeShader temporalFsrShader;
+
+        [ResourcePath("Shaders/Pass/Temporal/Compute_TemporalSGSR.compute")]
+        public ComputeShader temporalSgsrShader;
 
         [ResourcePath("Shaders/Pass/Post/Compute_PostProcessing.compute")]
         public ComputeShader postProcessingShader;

@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         // Returns false when the light contributes nothing this camera (invalid shape or faded out by distance).
         // Transform, final color, range and spot angle come from the culling snapshot; only fields VisibleLight lacks
-        // (inner angle, shadow strength, shadow type, baking output) are read from the Light.
+        // (inner angle, shadow strength, shadow enable, baking output) are read from the Light.
         public static bool TryPack(in VisibleLight visible, Light light, InfinityAdditionalLightData ext, in LightSourceShape shape, int visibleIndex, Vector3 cameraPosition, out LightRecord record)
         {
             record = default;
@@ -223,7 +223,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             record.flags = flags;
 
-            EShadowFilter filter = ext != null ? ext.shadowFilter : (light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF);
+            EShadowFilter filter = ext != null ? ext.shadowFilter : EShadowFilter.PCF;
             record.shadowFilter = (int)filter;
             return true;
         }

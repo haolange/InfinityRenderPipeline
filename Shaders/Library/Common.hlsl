@@ -238,6 +238,13 @@ float4 Texture2DSampleBias(Texture2D Tex, SamplerState Sampler, float2 UV, float
 #endif
 }
 
+// Per-camera temporal upscaling mip bias (reads ViewTemporalMipBias() from ViewUniform at surface fragment call sites).
+#if defined(COMPUTESHADER)
+#define InfinitySampleSurface2D(Tex, Sampler, UV) (Tex).SampleLevel(Sampler, UV, 0)
+#else
+#define InfinitySampleSurface2D(Tex, Sampler, UV) (Tex).SampleBias(Sampler, UV, ViewTemporalMipBias())
+#endif
+
 
 float4 Texture2DSampleGrad(Texture2D Tex, SamplerState Sampler, float2 UV, float2 DDX, float2 DDY)
 {
